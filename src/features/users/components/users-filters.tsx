@@ -19,13 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import { Input } from '@/components/ui/input'
 import type { UserListStatusFilter, UsersPageSearch } from '@/features/users/types/users.types'
-
-type EntityOption = {
-  id: string
-  label: string
-}
 
 type UsersFiltersProps = {
   filters: UsersPageSearch
@@ -122,7 +118,9 @@ export function UsersFilters({
       {showEntityFilter ? (
         <Combobox
           items={entityOptions}
-          itemToStringValue={(item) => item.label}
+          itemToStringValue={(item) =>
+            item ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel}` : ''
+          }
           value={selectedEntity}
           onValueChange={(value) => {
             setRootEntityId(value?.id)
@@ -138,8 +136,13 @@ export function UsersFilters({
             <ComboboxEmpty>No entities found.</ComboboxEmpty>
             <ComboboxList>
               {(option) => (
-                <ComboboxItem key={option.id} value={option}>
-                  {option.label}
+                <ComboboxItem key={option.id} value={option} className="items-start py-2.5">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="font-medium">{option.title}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {option.pathLabel}
+                    </span>
+                  </div>
                 </ComboboxItem>
               )}
             </ComboboxList>

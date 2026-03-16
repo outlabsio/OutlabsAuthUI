@@ -15,13 +15,13 @@ import {
 } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
+import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
 import { InviteUserDialog } from '@/features/users/components/invite-user-dialog'
 import { UsersFilters } from '@/features/users/components/users-filters'
 import { UsersTable } from '@/features/users/components/users-table'
 import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
 import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation'
-import type { Entity } from '@/features/entities/types/entities.types'
 import type { UsersPageSearch } from '@/features/users/types/users.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -29,43 +29,6 @@ type UsersPageProps = {
   filters: UsersPageSearch
   onFiltersChange: (next: Omit<UsersPageSearch, 'page'>) => void
   onPageChange: (page: number) => void
-}
-
-function buildEntityOptions(entities: Entity[]) {
-  const entitiesById = new Map(entities.map((entity) => [entity.id, entity]))
-
-  function getDepth(entity: Entity) {
-    let depth = 0
-    let currentParentId = entity.parent_entity_id
-
-    while (currentParentId) {
-      const parent = entitiesById.get(currentParentId)
-
-      if (!parent) {
-        break
-      }
-
-      depth += 1
-      currentParentId = parent.parent_entity_id ?? null
-    }
-
-    return depth
-  }
-
-  return [...entities]
-    .sort((left, right) => {
-      const depthDifference = getDepth(left) - getDepth(right)
-
-      if (depthDifference !== 0) {
-        return depthDifference
-      }
-
-      return left.display_name.localeCompare(right.display_name)
-    })
-    .map((entity) => ({
-      id: entity.id,
-      label: `${'  '.repeat(getDepth(entity))}${entity.display_name}`,
-    }))
 }
 
 export function UsersPage({
