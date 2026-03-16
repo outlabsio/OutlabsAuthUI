@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>bootstrap-tmp</title>
+    <script>
+      (() => {
+        const storageKey = 'outlabs-auth-ui.theme'
+        const storedTheme = window.localStorage.getItem(storageKey)
+        const resolvedTheme =
+          storedTheme === 'light' || storedTheme === 'dark'
+            ? storedTheme
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+
+        document.documentElement.classList.toggle(
+          'dark',
+          resolvedTheme === 'dark'
+        )
+        document.documentElement.dataset.theme = resolvedTheme
+        document.documentElement.style.colorScheme = resolvedTheme
+      })()
+    </script>
+    <title>OutlabsAuth UI</title>
   </head>
   <body>
     <div id="root"></div>

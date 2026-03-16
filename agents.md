@@ -37,6 +37,26 @@ Package manager policy:
 
 ---
 
+## Rule Docs
+
+Detailed frontend rules now live under [`docs/rules/README.md`](./docs/rules/README.md).
+
+Direct links:
+
+- [`docs/rules/architecture.md`](./docs/rules/architecture.md)
+- [`docs/rules/frontend_structure.md`](./docs/rules/frontend_structure.md)
+- [`docs/rules/naming_conventions.md`](./docs/rules/naming_conventions.md)
+- [`docs/rules/state_rules.md`](./docs/rules/state_rules.md)
+- [`docs/rules/component_rules.md`](./docs/rules/component_rules.md)
+- [`docs/rules/api_integration_rules.md`](./docs/rules/api_integration_rules.md)
+- [`docs/rules/query_rules.md`](./docs/rules/query_rules.md)
+- [`docs/rules/form_rules.md`](./docs/rules/form_rules.md)
+- [`docs/rules/styling_rules.md`](./docs/rules/styling_rules.md)
+- [`docs/rules/routing_rules.md`](./docs/rules/routing_rules.md)
+- [`docs/rules/spa_frontend_architecture_baseline.md`](./docs/rules/spa_frontend_architecture_baseline.md)
+
+---
+
 ## Non-Negotiable Rules
 
 1. Do not invent new architectural patterns when an approved one already exists.

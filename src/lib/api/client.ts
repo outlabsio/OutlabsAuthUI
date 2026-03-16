@@ -1,0 +1,192 @@
+import {
+  clearStoredAuthTokens,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  setStoredAuthTokens,
+} from '@/lib/api/auth-token'
+import { buildApiUrl } from '@/lib/api/config'
+import { ApiError } from '@/lib/api/errors'
+
+type RequestBody = BodyInit | Record<string, unknown> | null | undefined
+
+type ApiRequestOptions = Omit<RequestInit, 'body'> & {
+  auth?: boolean
+  body?: RequestBody
+}
+
+type RefreshResponse = {
+  access_token: string
+  refresh_token: string
+}
+
+async function parseApiError(response: Response) {
+  let data: Record<string, unknown> | null = null
+
+  try {
+    data = (await response.json()) as Record<string, unknown>
+  } catch {
+    data = null
+  }
+
+  throw new ApiError({
+    message:
+      typeof data?.detail === 'string'
+        ? data.detail
+        : response.statusText || 'Request failed',
+    status: response.status,
+    statusText: response.statusText,
+    data,
+  })
+}
+
+function isPlainObject(value: RequestBody): value is Record<string, unknown> {
+  if (value == null || typeof value !== 'object') {
+    return false
+  }
+
+  if (value instanceof FormData) {
+    return false
+  }
+
+  if (value instanceof Blob) {
+    return false
+  }
+
+  return Object.getPrototypeOf(value) === Object.prototype
+}
+
+async function refreshAccessToken() {
+  const refreshToken = getStoredRefreshToken()
+
+  if (!refreshToken) {
+    clearStoredAuthTokens()
+    throw new ApiError({
+      message: 'Session expired.',
+      status: 401,
+      statusText: 'Unauthorized',
+      data: null,
+    })
+  }
+
+  const response = await fetch(buildApiUrl('/auth/refresh'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      refresh_token: refreshToken,
+    }),
+  })
+
+  if (!response.ok) {
+    clearStoredAuthTokens()
+    await parseApiError(response)
+  }
+
+  const tokens = (await response.json()) as RefreshResponse
+
+  setStoredAuthTokens({
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+  })
+
+  return tokens.access_token
+}
+
+async function request<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+  hasRetried = false
+): Promise<T> {
+  const {
+    auth = true,
+    headers,
+    body,
+    credentials = 'include',
+    ...requestInit
+  } = options
+
+  const requestHeaders = new Headers(headers)
+
+  if (auth) {
+    const accessToken = getStoredAccessToken()
+
+    if (accessToken) {
+      requestHeaders.set('Authorization', `Bearer ${accessToken}`)
+    }
+  }
+
+  let requestBody: BodyInit | undefined
+
+  if (isPlainObject(body)) {
+    requestHeaders.set('Content-Type', 'application/json')
+    requestBody = JSON.stringify(body)
+  } else if (body != null) {
+    requestBody = body
+  }
+
+  const response = await fetch(buildApiUrl(path), {
+    ...requestInit,
+    credentials,
+    headers: requestHeaders,
+    body: requestBody,
+  })
+
+  if (response.status === 401 && auth && !hasRetried && getStoredRefreshToken()) {
+    try {
+      const nextAccessToken = await refreshAccessToken()
+
+      return request<T>(
+        path,
+        {
+          ...options,
+          headers: {
+            ...Object.fromEntries(requestHeaders.entries()),
+            Authorization: `Bearer ${nextAccessToken}`,
+          },
+        },
+        true
+      )
+    } catch (error) {
+      clearStoredAuthTokens()
+      throw error
+    }
+  }
+
+  if (!response.ok) {
+    await parseApiError(response)
+  }
+
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T
+  }
+
+  const contentType = response.headers.get('content-type')
+
+  if (contentType?.includes('application/json')) {
+    return (await response.json()) as T
+  }
+
+  return undefined as T
+}
+
+export const apiClient = {
+  get<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
+    return request<T>(path, {
+      ...options,
+      method: 'GET',
+    })
+  },
+  post<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
+    return request<T>(path, {
+      ...options,
+      method: 'POST',
+    })
+  },
+  patch<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
+    return request<T>(path, {
+      ...options,
+      method: 'PATCH',
+    })
+  },
+}
