@@ -4,3 +4,15 @@ export type UserMembership = {
   user_id: string
   role_ids: string[]
 }
+
+export type CreateMembershipInput = {
+  userId: string
+  entityId: string
+  roleIds: string[]
+}
+
+export type UpdateMembershipRolesInput = {
+  userId: string
+  entityId: string
+  roleIds: string[]
+}

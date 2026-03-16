@@ -68,6 +68,28 @@ export type UpdateUserStatusInput = {
   reason?: string
 }
 
+export type AssignUserRoleInput = {
+  userId: string
+  roleId: string
+  valid_from?: string
+  valid_until?: string
+}
+
+export type UserRoleAssignment = {
+  id: string
+  user_id: string
+  role_id: string
+  assigned_at: string
+  assigned_by_id?: string | null
+  valid_from?: string | null
+  valid_until?: string | null
+  status: string
+  revoked_at?: string | null
+  revoked_by_id?: string | null
+  is_currently_valid: boolean
+  can_grant_permissions: boolean
+}
+
 export type UserPermission = {
   id: string
   name: string

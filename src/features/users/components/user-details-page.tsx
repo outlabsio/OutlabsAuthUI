@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import {
   ArrowLeft,
@@ -10,7 +10,6 @@ import {
   KeyRound,
   Mail,
   Shield,
-  Sparkles,
 } from 'lucide-react'
 
 import { AppPage } from '@/components/app/app-page'
@@ -31,9 +30,18 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
+import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getUserMembershipsQueryOptions } from '@/features/memberships/api/memberships.query-options'
+import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
+import {
+  getRoleScopeSummary,
+  formatRoleToken,
+} from '@/features/roles/utils/role-display'
+import type { Role } from '@/features/roles/types/roles.types'
+import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog'
+import { MembershipRoleDialog } from '@/features/users/components/membership-role-dialog'
 import {
   getUserPermissionsQueryOptions,
   getUserQueryOptions,
@@ -171,30 +179,6 @@ function getStatusVariant(status: UserStatusValue) {
   }
 }
 
-function getRoleScopeSummary(role: {
-  is_global: boolean
-  root_entity_name?: string | null
-  scope_entity_id?: string | null
-  scope_entity_name?: string | null
-  scope: string
-}) {
-  if (role.is_global && role.root_entity_name == null && role.scope_entity_id == null) {
-    return 'System-wide global role'
-  }
-
-  if (role.root_entity_name && role.scope_entity_id == null) {
-    return `Organization-scoped to ${role.root_entity_name}`
-  }
-
-  if (role.scope_entity_name) {
-    return role.scope === 'entity_only'
-      ? `Only at ${role.scope_entity_name}`
-      : `Inherited from ${role.scope_entity_name}`
-  }
-
-  return `Scope: ${formatToken(role.scope)}`
-}
-
 function toDateTimeLocalValue(value?: string | null) {
   if (!value) {
     return ''
@@ -229,14 +213,29 @@ export function UserDetailsPage({
   userId,
   onBack,
 }: UserDetailsPageProps) {
+  const sessionQuery = useSessionQuery()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const entitiesQuery = useQuery(getEntitiesQueryOptions())
   const userQuery = useQuery(getUserQueryOptions(userId))
-  const rolesQuery = useQuery(getUserRolesQueryOptions(userId))
-  const permissionsQuery = useQuery(getUserPermissionsQueryOptions(userId))
+  const directRolesQuery = useQuery(getUserRolesQueryOptions(userId))
+  const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId))
   const membershipsQuery = useQuery(getUserMembershipsQueryOptions(userId))
+  const actorPermissionsQuery = useQuery({
+    ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
+    enabled: Boolean(sessionQuery.data?.id),
+  })
   const updateUserMutation = useUpdateUserMutation()
   const updateUserStatusMutation = useUpdateUserStatusMutation()
+  const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false)
+  const [membershipDialogState, setMembershipDialogState] = useState<{
+    open: boolean
+    entityId: string | null
+    lockEntity: boolean
+  }>({
+    open: false,
+    entityId: null,
+    lockEntity: false,
+  })
   const profileForm = useForm<UpdateUserProfileFormValues>({
     resolver: zodResolver(updateUserProfileSchema),
     defaultValues: {
@@ -263,13 +262,51 @@ export function UserDetailsPage({
     () => new Map(entityOptions.map((entity) => [entity.id, entity])),
     [entityOptions]
   )
-  const roleById = useMemo(
-    () => new Map((rolesQuery.data ?? []).map((role) => [role.id, role])),
-    [rolesQuery.data]
+  const actorPermissionNames = useMemo(
+    () =>
+      new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
+    [actorPermissionsQuery.data]
   )
+  const pageError = userQuery.error ?? authConfigQuery.error
+  const membershipRolesFeatureEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
+  const directRolesFeatureEnabled = true
+  const isActorSuperuser = sessionQuery.data?.is_superuser === true
+  const canReadScopedRoleCatalog = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser || actorPermissionNames.has('role:read_tree')
+    : membershipRolesFeatureEnabled
+  const canAssignDirectRoles = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser ||
+      (directRolesFeatureEnabled &&
+        actorPermissionNames.has('user:update') &&
+        actorPermissionNames.has('role:read'))
+    : directRolesFeatureEnabled
+  const canManageMembershipRoles = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser ||
+      (membershipRolesFeatureEnabled &&
+        (actorPermissionNames.has('membership:create') ||
+          actorPermissionNames.has('membership:update')))
+    : membershipRolesFeatureEnabled
+  const membershipRoleQueries = useQueries({
+    queries: (membershipsQuery.data ?? []).map((membership) => ({
+      ...getRolesForEntityQueryOptions(membership.entity_id, { limit: 100 }),
+      enabled: Boolean(membership.entity_id) && canReadScopedRoleCatalog,
+    })),
+  })
+  const membershipRoleById = new Map<string, Role>()
+
+  for (const role of directRolesQuery.data ?? []) {
+    membershipRoleById.set(role.id, role)
+  }
+
+  for (const query of membershipRoleQueries) {
+    for (const role of query.data?.items ?? []) {
+      membershipRoleById.set(role.id, role)
+    }
+  }
+
   const groupedPermissions = useMemo(
-    () => groupPermissionsByResource(permissionsQuery.data ?? []),
-    [permissionsQuery.data]
+    () => groupPermissionsByResource(userPermissionsQuery.data ?? []),
+    [userPermissionsQuery.data]
   )
   const watchedStatus = statusForm.watch('status')
   const profileError = updateUserMutation.error
@@ -278,15 +315,6 @@ export function UserDetailsPage({
   const statusError = updateUserStatusMutation.error
     ? getApiErrorMessage(updateUserStatusMutation.error, 'Unable to update account status.')
     : null
-  const pageError =
-    userQuery.error ??
-    rolesQuery.error ??
-    permissionsQuery.error ??
-    membershipsQuery.error ??
-    entitiesQuery.error ??
-    authConfigQuery.error
-  const canManageMemberships = authConfigQuery.data?.features.entity_hierarchy ?? true
-  const canManageRoles = authConfigQuery.data?.features.context_aware_roles ?? true
 
   useEffect(() => {
     if (!user) {
@@ -397,13 +425,15 @@ export function UserDetailsPage({
               </div>
             </div>
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
-              <div className="text-[0.8rem] text-muted-foreground">Roles</div>
-              <div className="mt-1 text-lg font-semibold">{rolesQuery.data?.length ?? 0}</div>
+              <div className="text-[0.8rem] text-muted-foreground">Direct roles</div>
+              <div className="mt-1 text-lg font-semibold">
+                {directRolesQuery.data?.length ?? 0}
+              </div>
             </div>
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
               <div className="text-[0.8rem] text-muted-foreground">Permissions</div>
               <div className="mt-1 text-lg font-semibold">
-                {permissionsQuery.data?.length ?? 0}
+                {userPermissionsQuery.data?.length ?? 0}
               </div>
             </div>
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
@@ -671,25 +701,39 @@ export function UserDetailsPage({
         <div className="space-y-6">
           <DetailSection
             title="Entity memberships"
-            description="Where this user belongs in the hierarchy and which scoped roles come with each membership."
+            description="Scoped roles live on memberships. Add a new membership or update the role set on an existing one."
             action={
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={!canManageMemberships}
+                disabled={!canManageMembershipRoles}
+                onClick={() => {
+                  setMembershipDialogState({
+                    open: true,
+                    entityId: null,
+                    lockEntity: false,
+                  })
+                }}
               >
-                Add membership
+                Add membership roles
               </Button>
             }
           >
-            {membershipsQuery.data && membershipsQuery.data.length > 0 ? (
+            {membershipsQuery.isError ? (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                {getApiErrorMessage(
+                  membershipsQuery.error,
+                  'The user memberships could not be loaded.'
+                )}
+              </div>
+            ) : membershipsQuery.data && membershipsQuery.data.length > 0 ? (
               <div className="space-y-3">
                 {membershipsQuery.data.map((membership) => {
                   const entity = entityById.get(membership.entity_id)
                   const membershipRoles = membership.role_ids
-                    .map((roleId) => roleById.get(roleId))
-                    .filter((role): role is NonNullable<typeof role> => Boolean(role))
+                    .map((roleId) => membershipRoleById.get(roleId))
+                    .filter((role): role is Role => Boolean(role))
 
                   return (
                     <div
@@ -703,7 +747,19 @@ export function UserDetailsPage({
                             {entity?.pathLabel ?? 'Entity path unavailable'}
                           </div>
                         </div>
-                        <Button type="button" size="sm" variant="ghost" disabled>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={!canManageMembershipRoles}
+                          onClick={() => {
+                            setMembershipDialogState({
+                              open: true,
+                              entityId: membership.entity_id,
+                              lockEntity: true,
+                            })
+                          }}
+                        >
                           Manage roles
                         </Button>
                       </div>
@@ -738,22 +794,32 @@ export function UserDetailsPage({
           </DetailSection>
 
           <DetailSection
-            title="Roles"
-            description="All effective roles on this account, including global assignments and hierarchy-scoped roles."
+            title="Direct account roles"
+            description="These roles are assigned straight to the account. Scoped entity roles are managed through memberships above."
             action={
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={!canManageRoles}
+                disabled={!canAssignDirectRoles}
+                onClick={() => {
+                  setDirectRoleDialogOpen(true)
+                }}
               >
-                Assign role
+                Assign direct role
               </Button>
             }
           >
-            {rolesQuery.data && rolesQuery.data.length > 0 ? (
+            {directRolesQuery.isError ? (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                {getApiErrorMessage(
+                  directRolesQuery.error,
+                  'The direct role assignments could not be loaded.'
+                )}
+              </div>
+            ) : directRolesQuery.data && directRolesQuery.data.length > 0 ? (
               <div className="space-y-3">
-                {rolesQuery.data.map((role) => (
+                {directRolesQuery.data.map((role) => (
                   <div key={role.id} className="rounded-lg border bg-muted/30 px-4 py-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
@@ -769,14 +835,13 @@ export function UserDetailsPage({
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
-                        <Sparkles className="size-3" />
                         {getRoleScopeSummary(role)}
                       </span>
                       {role.assignable_at_types.length > 0 ? (
                         <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
                           Assignable at{' '}
                           {role.assignable_at_types
-                            .map((type) => formatToken(type))
+                            .map((type) => formatRoleToken(type))
                             .join(', ')}
                         </span>
                       ) : null}
@@ -786,7 +851,7 @@ export function UserDetailsPage({
               </div>
             ) : (
               <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                No roles are currently assigned to this user.
+                No direct roles are currently assigned to this account.
               </div>
             )}
           </DetailSection>
@@ -797,7 +862,14 @@ export function UserDetailsPage({
         title="Permissions"
         description="Effective permissions resolved from the current role set."
       >
-        {groupedPermissions.length > 0 ? (
+        {userPermissionsQuery.isError ? (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+            {getApiErrorMessage(
+              userPermissionsQuery.error,
+              'The effective permission set could not be loaded.'
+            )}
+          </div>
+        ) : groupedPermissions.length > 0 ? (
           <div className="space-y-4">
             {groupedPermissions.map((group) => (
               <div key={group.resource} className="rounded-lg border bg-muted/30 px-4 py-3">
@@ -839,6 +911,30 @@ export function UserDetailsPage({
           </div>
         )}
       </DetailSection>
+
+      <DirectRoleAssignmentDialog
+        open={directRoleDialogOpen}
+        onOpenChange={setDirectRoleDialogOpen}
+        userId={userId}
+        assignedRoles={directRolesQuery.data ?? []}
+        canAssignDirectRoles={canAssignDirectRoles}
+      />
+
+      <MembershipRoleDialog
+        open={membershipDialogState.open}
+        onOpenChange={(nextOpen) => {
+          setMembershipDialogState((currentState) => ({
+            ...currentState,
+            open: nextOpen,
+          }))
+        }}
+        userId={userId}
+        entities={entitiesQuery.data?.items ?? []}
+        memberships={membershipsQuery.data ?? []}
+        initialEntityId={membershipDialogState.entityId}
+        lockEntity={membershipDialogState.lockEntity}
+        canManageMembershipRoles={canManageMembershipRoles}
+      />
     </AppPage>
   )
 }
