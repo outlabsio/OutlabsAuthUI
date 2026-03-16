@@ -90,6 +90,7 @@ export function InviteUserDialog({
   contextAwareRoles,
 }: InviteUserDialogProps) {
   const inviteMutation = useInviteUserMutation()
+  const previousOpenRef = useRef(open)
   const previousEntityIdRef = useRef<string | null>(null)
   const [showSelectedRolesOnly, setShowSelectedRolesOnly] = useState(false)
   const form = useForm<InviteUserFormValues>({
@@ -104,12 +105,16 @@ export function InviteUserDialog({
   })
 
   useEffect(() => {
-    if (!open) {
+    const wasOpen = previousOpenRef.current
+
+    if (wasOpen && !open) {
       previousEntityIdRef.current = null
       setShowSelectedRolesOnly(false)
       form.reset()
       inviteMutation.reset()
     }
+
+    previousOpenRef.current = open
   }, [form, inviteMutation, open])
 
   const roleIds = form.watch('roleIds')
