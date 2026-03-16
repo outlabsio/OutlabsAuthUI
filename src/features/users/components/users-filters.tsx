@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { Search, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -65,13 +65,13 @@ export function UsersFilters({
     setRootEntityId(filters.rootEntityId)
   }, [filters.rootEntityId, filters.search, filters.status])
 
-  const hasActiveFilters = Boolean(filters.search || filters.status || filters.rootEntityId)
   const selectedEntity =
     entityOptions.find((option) => option.id === rootEntityId) ?? null
+  const hasDraftFilters = Boolean(search.trim() || status !== 'all' || rootEntityId)
 
   return (
     <form
-      className="grid gap-2 xl:grid-cols-[minmax(0,1.6fr)_180px_220px_auto]"
+      className="flex min-w-0 flex-wrap items-center gap-2 xl:flex-nowrap"
       onSubmit={(event) => {
         event.preventDefault()
         onApply({
@@ -81,7 +81,7 @@ export function UsersFilters({
         })
       }}
     >
-      <div className="relative">
+      <div className="relative min-w-[220px] flex-[1_1_260px]">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
@@ -93,80 +93,84 @@ export function UsersFilters({
         />
       </div>
       {showStatusFilter ? (
-        <Select
-          items={statusSelectItems}
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value ?? 'all')
-          }}
-        >
-          <SelectTrigger className="w-full min-w-40" aria-label="Filter by status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent align="start" alignItemWithTrigger={false}>
-            <SelectGroup>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="w-full shrink-0 sm:w-40">
+          <Select
+            items={statusSelectItems}
+            value={status}
+            onValueChange={(value) => {
+              setStatus(value ?? 'all')
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label="Filter by status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false}>
+              <SelectGroup>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
       {showEntityFilter ? (
-        <Combobox
-          items={entityOptions}
-          itemToStringValue={(item) =>
-            item ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel}` : ''
-          }
-          value={selectedEntity}
-          onValueChange={(value) => {
-            setRootEntityId(value?.id)
-          }}
-        >
-          <ComboboxInput
-            placeholder="All entities"
-            aria-label="Filter by entity"
-            className="w-full min-w-48"
-            showClear
-          />
-          <ComboboxContent align="start">
-            <ComboboxEmpty>No entities found.</ComboboxEmpty>
-            <ComboboxList>
-              {(option) => (
-                <ComboboxItem key={option.id} value={option} className="items-start py-2.5">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="font-medium">{option.title}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {option.pathLabel}
-                    </span>
-                  </div>
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <div className="w-full min-w-[220px] shrink-0 sm:w-[240px]">
+          <Combobox
+            items={entityOptions}
+            itemToStringValue={(item) =>
+              item ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel}` : ''
+            }
+            value={selectedEntity}
+            onValueChange={(value) => {
+              setRootEntityId(value?.id)
+            }}
+          >
+            <ComboboxInput
+              placeholder="All entities"
+              aria-label="Filter by entity"
+              className="w-full min-w-0"
+              showClear
+            />
+            <ComboboxContent align="start">
+              <ComboboxEmpty>No entities found.</ComboboxEmpty>
+              <ComboboxList>
+                {(option) => (
+                  <ComboboxItem key={option.id} value={option} className="items-start py-2.5">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className="font-medium">{option.title}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {option.pathLabel}
+                      </span>
+                    </div>
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
       ) : null}
-      <div className="flex gap-2">
-        <Button type="submit" className="flex-1 lg:flex-none">
+      <div className="flex shrink-0 items-center gap-2">
+        <Button type="submit">
           Apply
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setSearch('')
-            setStatus('all')
-            setRootEntityId(undefined)
-            onReset()
-          }}
-          disabled={!hasActiveFilters}
-        >
-          <X className="size-4" />
-          Reset
-        </Button>
+        {hasDraftFilters ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setSearch('')
+              setStatus('all')
+              setRootEntityId(undefined)
+              onReset()
+            }}
+          >
+            Reset
+          </Button>
+        ) : null}
       </div>
     </form>
   )

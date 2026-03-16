@@ -76,51 +76,40 @@ export function UsersPage({
         className="flex-1 min-h-0 gap-4 overflow-hidden"
         title="Users"
         action={
-          <div className="w-full md:w-[min(72vw,980px)]">
-            <div className="rounded-xl border bg-card/70 p-3">
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {usersQuery.data?.total ?? 0}
-                      </span>{' '}
-                      users
-                    </span>
-                    <span>
-                      <span className="font-medium text-foreground">{invitedUsers}</span>{' '}
-                      pending
-                    </span>
-                    <span>
-                      <span className="font-medium text-foreground">{adminUsers}</span> admins
-                    </span>
-                    <span>
-                      <span className="font-medium text-foreground">{verifiedUsers}</span>{' '}
-                      verified
-                    </span>
-                  </div>
-                  {canInviteUsers ? (
-                    <Button
-                      className="w-full lg:w-auto lg:self-start"
-                      onClick={() => setIsInviteDialogOpen(true)}
-                    >
-                      <UserPlus className="size-4" />
-                      Invite user
-                    </Button>
-                  ) : null}
-                </div>
-                <UsersFilters
-                  filters={filters}
-                  entityOptions={entityOptions}
-                  showStatusFilter={showStatusFilter}
-                  showEntityFilter={showEntityFilter}
-                  onApply={onFiltersChange}
-                  onReset={() => {
-                    onFiltersChange({})
-                  }}
-                />
-              </div>
+          <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
+            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span>
+                <span className="font-medium text-foreground">{usersQuery.data?.total ?? 0}</span>{' '}
+                users
+              </span>
+              <span>
+                <span className="font-medium text-foreground">{invitedUsers}</span> pending
+              </span>
+              <span>
+                <span className="font-medium text-foreground">{adminUsers}</span> admins
+              </span>
+              <span>
+                <span className="font-medium text-foreground">{verifiedUsers}</span> verified
+              </span>
             </div>
+            <div className="min-w-0 flex-1 rounded-xl border bg-card/70 px-3 py-2.5">
+              <UsersFilters
+                filters={filters}
+                entityOptions={entityOptions}
+                showStatusFilter={showStatusFilter}
+                showEntityFilter={showEntityFilter}
+                onApply={onFiltersChange}
+                onReset={() => {
+                  onFiltersChange({})
+                }}
+              />
+            </div>
+            {canInviteUsers ? (
+              <Button type="button" className="shrink-0" onClick={() => setIsInviteDialogOpen(true)}>
+                <UserPlus className="size-4" />
+                Invite user
+              </Button>
+            ) : null}
           </div>
         }
       >
