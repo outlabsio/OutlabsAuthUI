@@ -1,11 +1,14 @@
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
+export type UserStatusValue = 'active' | 'invited' | 'suspended' | 'banned' | 'deleted'
+export type UserStatusUpdateValue = 'active' | 'suspended' | 'banned'
+
 export type User = {
   id: string
   email: string
   first_name?: string | null
   last_name?: string | null
-  status: string
+  status: UserStatusValue
   email_verified: boolean
   is_superuser: boolean
   avatar_url?: string | null
@@ -49,4 +52,39 @@ export type InviteUserInput = {
   last_name?: string
   role_ids?: string[]
   entity_id?: string
+}
+
+export type UpdateUserInput = {
+  userId: string
+  email?: string
+  first_name?: string
+  last_name?: string
+}
+
+export type UpdateUserStatusInput = {
+  userId: string
+  status: UserStatusUpdateValue
+  suspended_until?: string
+  reason?: string
+}
+
+export type UserPermission = {
+  id: string
+  name: string
+  display_name: string
+  description?: string | null
+  resource?: string | null
+  action?: string | null
+  scope?: string | null
+  is_system: boolean
+  is_active: boolean
+  tags: string[]
+  metadata: Record<string, unknown>
+}
+
+export type UserPermissionSource = {
+  permission: UserPermission
+  source: string
+  source_id?: string | null
+  source_name?: string | null
 }

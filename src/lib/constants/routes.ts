@@ -10,5 +10,6 @@ export const routes = {
   app: {
     dashboard: '/app/dashboard',
     users: '/app/users',
+    userDetail: '/app/users/$userId',
   },
 } as const

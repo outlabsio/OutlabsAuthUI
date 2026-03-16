@@ -21,12 +21,14 @@ type UsersPageProps = {
   filters: UsersPageSearch
   onFiltersChange: (next: Omit<UsersPageSearch, 'page'>) => void
   onPageChange: (page: number) => void
+  onUserSelect: (userId: string) => void
 }
 
 export function UsersPage({
   filters,
   onFiltersChange,
   onPageChange,
+  onUserSelect,
 }: UsersPageProps) {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
@@ -128,6 +130,7 @@ export function UsersPage({
                 onResendInvite={(userId) => {
                   void resendInviteMutation.mutateAsync(userId)
                 }}
+                onSelectUser={onUserSelect}
               />
             )}
           </CardContent>

@@ -1,0 +1,26 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { updateUserStatus } from '@/features/users/api/update-user-status'
+import { usersKeys } from '@/features/users/api/users.keys'
+import type { UpdateUserStatusInput } from '@/features/users/types/users.types'
+
+export function useUpdateUserStatusMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: usersKeys.all,
+    mutationFn: (input: UpdateUserStatusInput) => updateUserStatus(input),
+    onSuccess: async (user) => {
+      queryClient.setQueryData(usersKeys.detail(user.id), user)
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: usersKeys.detail(user.id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: usersKeys.lists(),
+        }),
+      ])
+    },
+  })
+}

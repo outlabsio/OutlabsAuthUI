@@ -21,6 +21,7 @@ type UsersTableProps = {
   resendInvitePendingUserId?: string
   onPageChange: (page: number) => void
   onResendInvite: (userId: string) => void
+  onSelectUser: (userId: string) => void
 }
 
 function getUserDisplayName(user: User) {
@@ -104,6 +105,7 @@ export function UsersTable({
   resendInvitePendingUserId,
   onPageChange,
   onResendInvite,
+  onSelectUser,
 }: UsersTableProps) {
   if (isLoading) {
     return (
@@ -150,7 +152,22 @@ export function UsersTable({
               const isResending = resendInvitePendingUserId === user.id
 
               return (
-                <TableRow key={user.id}>
+                <TableRow
+                  key={user.id}
+                  className="cursor-pointer"
+                  tabIndex={0}
+                  onClick={() => {
+                    onSelectUser(user.id)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                      return
+                    }
+
+                    event.preventDefault()
+                    onSelectUser(user.id)
+                  }}
+                >
                   <TableCell className="px-4 py-4 align-top whitespace-normal">
                     <div className="space-y-1.5">
                       <span className="font-medium">{getUserDisplayName(user)}</span>
@@ -187,7 +204,8 @@ export function UsersTable({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation()
                             onResendInvite(user.id)
                           }}
                           disabled={isResending}
