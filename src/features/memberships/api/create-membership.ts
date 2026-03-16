@@ -10,6 +10,10 @@ export function createMembership(input: CreateMembershipInput) {
       user_id: input.userId,
       entity_id: input.entityId,
       role_ids: input.roleIds,
+      status: input.status,
+      valid_from: input.validFrom ?? null,
+      valid_until: input.validUntil ?? null,
+      reason: input.reason ?? null,
     },
   })
 }

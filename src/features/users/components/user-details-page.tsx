@@ -34,6 +34,11 @@ import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getUserMembershipsQueryOptions } from '@/features/memberships/api/memberships.query-options'
+import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation'
+import {
+  formatMembershipToken,
+  getMembershipStatusVariant,
+} from '@/features/memberships/utils/membership-display'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
 import {
   getRoleScopeSummary,
@@ -41,7 +46,7 @@ import {
 } from '@/features/roles/utils/role-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog'
-import { MembershipRoleDialog } from '@/features/users/components/membership-role-dialog'
+import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog'
 import {
   getUserPermissionsQueryOptions,
   getUserQueryOptions,
@@ -209,6 +214,10 @@ function groupPermissionsByResource(permissionSources: UserPermissionSource[]) {
     }))
 }
 
+function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
+  return candidates.some((candidate) => permissionNames.has(candidate))
+}
+
 export function UserDetailsPage({
   userId,
   onBack,
@@ -219,15 +228,18 @@ export function UserDetailsPage({
   const userQuery = useQuery(getUserQueryOptions(userId))
   const directRolesQuery = useQuery(getUserRolesQueryOptions(userId))
   const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId))
-  const membershipsQuery = useQuery(getUserMembershipsQueryOptions(userId))
+  const membershipsQuery = useQuery(
+    getUserMembershipsQueryOptions(userId, { includeInactive: true })
+  )
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
     enabled: Boolean(sessionQuery.data?.id),
   })
   const updateUserMutation = useUpdateUserMutation()
   const updateUserStatusMutation = useUpdateUserStatusMutation()
+  const updateMembershipMutation = useUpdateMembershipMutation()
   const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false)
-  const [membershipDialogState, setMembershipDialogState] = useState<{
+  const [membershipAccessDialogState, setMembershipAccessDialogState] = useState<{
     open: boolean
     entityId: string | null
     lockEntity: boolean
@@ -272,19 +284,34 @@ export function UserDetailsPage({
   const directRolesFeatureEnabled = true
   const isActorSuperuser = sessionQuery.data?.is_superuser === true
   const canReadScopedRoleCatalog = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser || actorPermissionNames.has('role:read_tree')
+    ? isActorSuperuser ||
+      hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree'])
     : membershipRolesFeatureEnabled
   const canAssignDirectRoles = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (directRolesFeatureEnabled &&
         actorPermissionNames.has('user:update') &&
-        actorPermissionNames.has('role:read'))
+        hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree']))
     : directRolesFeatureEnabled
-  const canManageMembershipRoles = actorPermissionsQuery.isSuccess
+  const canManageMembershipAccess = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (membershipRolesFeatureEnabled &&
-        (actorPermissionNames.has('membership:create') ||
-          actorPermissionNames.has('membership:update')))
+        (hasAnyPermission(actorPermissionNames, [
+          'membership:create',
+          'membership:create_tree',
+        ]) ||
+          hasAnyPermission(actorPermissionNames, [
+            'membership:update',
+            'membership:update_tree',
+          ])))
+    : membershipRolesFeatureEnabled
+  const canRemoveMemberships = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser ||
+      (membershipRolesFeatureEnabled &&
+        hasAnyPermission(actorPermissionNames, [
+          'membership:delete',
+          'membership:delete_tree',
+        ]))
     : membershipRolesFeatureEnabled
   const membershipRoleQueries = useQueries({
     queries: (membershipsQuery.data ?? []).map((membership) => ({
@@ -701,22 +728,22 @@ export function UserDetailsPage({
         <div className="space-y-6">
           <DetailSection
             title="Entity memberships"
-            description="Scoped roles live on memberships. Add a new membership or update the role set on an existing one."
+            description="Each entity access record combines scope, scoped roles, and lifecycle settings."
             action={
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={!canManageMembershipRoles}
+                disabled={!canManageMembershipAccess}
                 onClick={() => {
-                  setMembershipDialogState({
+                  setMembershipAccessDialogState({
                     open: true,
                     entityId: null,
                     lockEntity: false,
                   })
                 }}
               >
-                Add membership roles
+                Assign entity
               </Button>
             }
           >
@@ -729,11 +756,23 @@ export function UserDetailsPage({
               </div>
             ) : membershipsQuery.data && membershipsQuery.data.length > 0 ? (
               <div className="space-y-3">
+                {updateMembershipMutation.error ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {getApiErrorMessage(
+                      updateMembershipMutation.error,
+                      'The membership access could not be updated.'
+                    )}
+                  </div>
+                ) : null}
                 {membershipsQuery.data.map((membership) => {
                   const entity = entityById.get(membership.entity_id)
+                  const membershipStatus = membership.effective_status || membership.status
                   const membershipRoles = membership.role_ids
                     .map((roleId) => membershipRoleById.get(roleId))
                     .filter((role): role is Role => Boolean(role))
+                  const isRestoringMembership =
+                    updateMembershipMutation.isPending &&
+                    updateMembershipMutation.variables?.entityId === membership.entity_id
 
                   return (
                     <div
@@ -742,27 +781,89 @@ export function UserDetailsPage({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="font-medium">{entity?.title ?? membership.entity_id}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-medium">
+                              {entity?.title ?? membership.entity_id}
+                            </div>
+                            <Badge variant={getMembershipStatusVariant(membershipStatus)}>
+                              {formatMembershipToken(membershipStatus)}
+                            </Badge>
+                          </div>
                           <div className="text-sm text-muted-foreground">
                             {entity?.pathLabel ?? 'Entity path unavailable'}
                           </div>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          disabled={!canManageMembershipRoles}
-                          onClick={() => {
-                            setMembershipDialogState({
-                              open: true,
-                              entityId: membership.entity_id,
-                              lockEntity: true,
-                            })
-                          }}
-                        >
-                          Manage roles
-                        </Button>
+                        {membership.status === 'revoked' ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={!canManageMembershipAccess || isRestoringMembership}
+                            onClick={async () => {
+                              try {
+                                await updateMembershipMutation.mutateAsync({
+                                  userId,
+                                  entityId: membership.entity_id,
+                                  status: 'active',
+                                  reason: null,
+                                })
+                              } catch {
+                                return
+                              }
+                            }}
+                          >
+                            {isRestoringMembership ? 'Restoring…' : 'Restore access'}
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={!(canManageMembershipAccess || canRemoveMemberships)}
+                            onClick={() => {
+                              setMembershipAccessDialogState({
+                                open: true,
+                                entityId: membership.entity_id,
+                                lockEntity: true,
+                              })
+                            }}
+                          >
+                            Manage access
+                          </Button>
+                        )}
                       </div>
+                      <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">Joined</div>
+                          <div className="mt-1">
+                            {formatDateTime(membership.joined_at, 'Unknown')}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">Window</div>
+                          <div className="mt-1">
+                            {membership.valid_from || membership.valid_until
+                              ? `${formatDateTime(membership.valid_from, 'Now')} -> ${formatDateTime(
+                                  membership.valid_until,
+                                  'Open ended'
+                                )}`
+                              : 'Always on'}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">Current access</div>
+                          <div className="mt-1">
+                            {membership.can_grant_permissions
+                              ? 'Grants permissions now'
+                              : 'Does not currently grant permissions'}
+                          </div>
+                        </div>
+                      </div>
+                      {membership.revocation_reason ? (
+                        <div className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
+                          {membership.revocation_reason}
+                        </div>
+                      ) : null}
                       <div className="mt-3 flex flex-wrap gap-2">
                         {membershipRoles.length > 0 ? (
                           membershipRoles.map((role) => (
@@ -920,10 +1021,10 @@ export function UserDetailsPage({
         canAssignDirectRoles={canAssignDirectRoles}
       />
 
-      <MembershipRoleDialog
-        open={membershipDialogState.open}
+      <MembershipAccessDialog
+        open={membershipAccessDialogState.open}
         onOpenChange={(nextOpen) => {
-          setMembershipDialogState((currentState) => ({
+          setMembershipAccessDialogState((currentState) => ({
             ...currentState,
             open: nextOpen,
           }))
@@ -931,9 +1032,10 @@ export function UserDetailsPage({
         userId={userId}
         entities={entitiesQuery.data?.items ?? []}
         memberships={membershipsQuery.data ?? []}
-        initialEntityId={membershipDialogState.entityId}
-        lockEntity={membershipDialogState.lockEntity}
-        canManageMembershipRoles={canManageMembershipRoles}
+        initialEntityId={membershipAccessDialogState.entityId}
+        lockEntity={membershipAccessDialogState.lockEntity}
+        canManageMembershipAccess={canManageMembershipAccess}
+        canRemoveMemberships={canRemoveMemberships}
       />
     </AppPage>
   )

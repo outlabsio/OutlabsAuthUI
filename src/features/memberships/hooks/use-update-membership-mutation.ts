@@ -1,23 +1,26 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
-import { updateMembershipRoles } from '@/features/memberships/api/update-membership-roles'
-import type { UpdateMembershipRolesInput } from '@/features/memberships/types/memberships.types'
+import { updateMembership } from '@/features/memberships/api/update-membership'
+import type { UpdateMembershipInput } from '@/features/memberships/types/memberships.types'
 import { usersKeys } from '@/features/users/api/users.keys'
 
-export function useUpdateMembershipRolesMutation() {
+export function useUpdateMembershipMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: membershipsKeys.all,
-    mutationFn: (input: UpdateMembershipRolesInput) => updateMembershipRoles(input),
+    mutationFn: (input: UpdateMembershipInput) => updateMembership(input),
     onSuccess: async (_membership, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: membershipsKeys.userList(variables.userId),
+          queryKey: membershipsKeys.userLists(),
         }),
         queryClient.invalidateQueries({
           queryKey: usersKeys.permissions(variables.userId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: usersKeys.detail(variables.userId),
         }),
       ])
     },

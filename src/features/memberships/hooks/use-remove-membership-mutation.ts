@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { createMembership } from '@/features/memberships/api/create-membership'
 import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
+import { removeMembership } from '@/features/memberships/api/remove-membership'
+import type { RemoveMembershipInput } from '@/features/memberships/types/memberships.types'
 import { usersKeys } from '@/features/users/api/users.keys'
-import type { CreateMembershipInput } from '@/features/memberships/types/memberships.types'
 
-export function useCreateMembershipMutation() {
+export function useRemoveMembershipMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: membershipsKeys.all,
-    mutationFn: (input: CreateMembershipInput) => createMembership(input),
-    onSuccess: async (_membership, variables) => {
+    mutationFn: (input: RemoveMembershipInput) => removeMembership(input),
+    onSuccess: async (_result, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: membershipsKeys.userLists(),

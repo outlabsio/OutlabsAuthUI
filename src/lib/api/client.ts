@@ -189,4 +189,10 @@ export const apiClient = {
       method: 'PATCH',
     })
   },
+  delete<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
+    return request<T>(path, {
+      ...options,
+      method: 'DELETE',
+    })
+  },
 }
