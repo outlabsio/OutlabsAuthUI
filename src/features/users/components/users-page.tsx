@@ -4,15 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { UserPlus } from 'lucide-react'
 
 import { AppPage } from '@/components/app/app-page'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
@@ -68,7 +61,6 @@ export function UsersPage({
   const invitedUsers = users.filter((user) => user.status === 'invited').length
   const adminUsers = users.filter((user) => user.is_superuser).length
   const verifiedUsers = users.filter((user) => user.email_verified).length
-  const hasActiveFilters = Boolean(filters.search || filters.status || filters.rootEntityId)
 
   return (
     <>
@@ -113,24 +105,7 @@ export function UsersPage({
           </div>
         }
       >
-        <Card className="flex-1 min-h-0 overflow-hidden">
-          <CardHeader className="shrink-0 gap-3 border-b">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <CardTitle>Directory</CardTitle>
-                <CardDescription>
-                  {usersQuery.data?.total ?? 0} total users
-                  {hasActiveFilters ? ' in the filtered view' : ' across the current workspace'}
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="outline">
-                  Page {usersQuery.data?.page ?? filters.page} of {usersQuery.data?.pages ?? 1}
-                </Badge>
-                {usersQuery.isFetching && !usersQuery.isPending ? <span>Refreshing…</span> : null}
-              </div>
-            </div>
-          </CardHeader>
+        <Card className="flex-1 min-h-0 overflow-hidden border ring-0">
           <CardContent className="flex min-h-0 flex-1 flex-col p-0">
             {pageError ? (
               <div className="m-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
