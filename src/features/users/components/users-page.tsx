@@ -16,7 +16,6 @@ import {
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
-import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
 import { InviteUserDialog } from '@/features/users/components/invite-user-dialog'
 import { UsersFilters } from '@/features/users/components/users-filters'
 import { UsersTable } from '@/features/users/components/users-table'
@@ -39,7 +38,6 @@ export function UsersPage({
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const entitiesQuery = useQuery(getEntitiesQueryOptions())
-  const rolesQuery = useQuery(getRolesQueryOptions())
   const usersQuery = useQuery(
     getUsersQueryOptions({
       page: filters.page,
@@ -60,7 +58,6 @@ export function UsersPage({
     usersQuery.error ??
     authConfigQuery.error ??
     entitiesQuery.error ??
-    rolesQuery.error ??
     resendInviteMutation.error
 
   const authConfig = authConfigQuery.data
@@ -176,7 +173,7 @@ export function UsersPage({
         open={isInviteDialogOpen}
         onOpenChange={setIsInviteDialogOpen}
         entities={entitiesQuery.data?.items ?? []}
-        roles={rolesQuery.data?.items ?? []}
+        contextAwareRoles={authConfig?.features.context_aware_roles ?? false}
       />
     </>
   )

@@ -1,7 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
+import { ChevronRight } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,7 +19,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,8 +26,13 @@ import {
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import type { Entity } from '@/features/entities/types/entities.types'
+import {
+  getRolesForEntityQueryOptions,
+  getRolesQueryOptions,
+} from '@/features/roles/api/roles.query-options'
 import type { Role } from '@/features/roles/types/roles.types'
 import { useInviteUserMutation } from '@/features/users/hooks/use-invite-user-mutation'
 import {
@@ -40,7 +46,7 @@ type InviteUserDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   entities: Entity[]
-  roles: Role[]
+  contextAwareRoles: boolean
 }
 
 function formatToken(value: string) {
@@ -60,12 +66,18 @@ function formatAssignableTypes(role: Role) {
 }
 
 function getRoleScopeSummary(role: Role) {
-  if (role.is_global) {
-    return 'Global role'
+  if (role.is_global && role.root_entity_id == null && role.scope_entity_id == null) {
+    return 'System-wide global role'
+  }
+
+  if (role.root_entity_name && role.scope_entity_id == null) {
+    return `Organization-scoped to ${role.root_entity_name}`
   }
 
   if (role.scope_entity_name) {
-    return `Scoped from ${role.scope_entity_name}`
+    return role.scope === 'entity_only'
+      ? `Only at ${role.scope_entity_name}`
+      : `Inherited from ${role.scope_entity_name}`
   }
 
   return `Scope: ${formatToken(role.scope)}`
@@ -75,9 +87,11 @@ export function InviteUserDialog({
   open,
   onOpenChange,
   entities,
-  roles,
+  contextAwareRoles,
 }: InviteUserDialogProps) {
   const inviteMutation = useInviteUserMutation()
+  const previousEntityIdRef = useRef<string | null>(null)
+  const [showSelectedRolesOnly, setShowSelectedRolesOnly] = useState(false)
   const form = useForm<InviteUserFormValues>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
@@ -91,6 +105,8 @@ export function InviteUserDialog({
 
   useEffect(() => {
     if (!open) {
+      previousEntityIdRef.current = null
+      setShowSelectedRolesOnly(false)
       form.reset()
       inviteMutation.reset()
     }
@@ -104,12 +120,62 @@ export function InviteUserDialog({
   const entityOptions = useMemo(() => buildEntityOptions(entities), [entities])
   const selectedEntity =
     entityOptions.find((option) => option.id === entityId) ?? null
+  const selectedEntityPath = selectedEntity?.pathLabel.split(' / ') ?? []
+  const genericRolesQuery = useQuery({
+    ...getRolesQueryOptions({ limit: 100 }),
+    enabled: open && !contextAwareRoles,
+  })
+  const entityRolesQuery = useQuery({
+    ...getRolesForEntityQueryOptions(selectedEntity?.id ?? '', { limit: 100 }),
+    enabled: open && contextAwareRoles && Boolean(selectedEntity?.id),
+  })
+
+  useEffect(() => {
+    if (!contextAwareRoles) {
+      return
+    }
+
+    const nextEntityId = entityId || null
+
+    if (
+      previousEntityIdRef.current !== null &&
+      previousEntityIdRef.current !== nextEntityId
+    ) {
+      form.setValue('roleIds', [], {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    }
+
+    previousEntityIdRef.current = nextEntityId
+  }, [contextAwareRoles, entityId, form])
+
+  useEffect(() => {
+    if (roleIds.length === 0 && showSelectedRolesOnly) {
+      setShowSelectedRolesOnly(false)
+    }
+  }, [roleIds.length, showSelectedRolesOnly])
+
+  const availableRoles = contextAwareRoles
+    ? entityRolesQuery.data?.items ?? []
+    : genericRolesQuery.data?.items ?? []
+  const rolesError = contextAwareRoles ? entityRolesQuery.error : genericRolesQuery.error
+  const rolesPending = contextAwareRoles
+    ? Boolean(selectedEntity) && entityRolesQuery.isPending
+    : genericRolesQuery.isPending
   const sortedRoles = useMemo(
     () =>
-      [...roles].sort((left, right) =>
+      [...availableRoles].sort((left, right) =>
         left.display_name.localeCompare(right.display_name)
       ),
-    [roles]
+    [availableRoles]
+  )
+  const visibleRoles = useMemo(
+    () =>
+      showSelectedRolesOnly
+        ? sortedRoles.filter((role) => roleIds.includes(role.id))
+        : sortedRoles,
+    [roleIds, showSelectedRolesOnly, sortedRoles]
   )
 
   const emailField = form.register('email')
@@ -122,10 +188,6 @@ export function InviteUserDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <DialogTitle className="text-2xl">Invite user</DialogTitle>
-            <DialogDescription className="max-w-2xl text-base leading-7">
-              Create the account, choose the exact entity scope, and attach
-              roles that should activate after acceptance.
-            </DialogDescription>
           </DialogHeader>
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -136,7 +198,10 @@ export function InviteUserDialog({
                   first_name: values.firstName?.trim() || undefined,
                   last_name: values.lastName?.trim() || undefined,
                   entity_id: values.entityId || undefined,
-                  role_ids: values.roleIds.length > 0 ? values.roleIds : undefined,
+                  role_ids:
+                    values.entityId && values.roleIds.length > 0
+                      ? values.roleIds
+                      : undefined,
                 })
                 onOpenChange(false)
               } catch {
@@ -144,8 +209,8 @@ export function InviteUserDialog({
               }
             })}
           >
-            <div className="grid min-h-0 flex-1 gap-6 overflow-auto px-6 py-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
-              <div className="space-y-5">
+            <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
+              <div className="flex min-h-0 flex-col gap-5 pr-1">
                 <div className="space-y-2">
                   <Label htmlFor="invite-email">Email</Label>
                   <Input
@@ -185,17 +250,12 @@ export function InviteUserDialog({
                   </div>
                 </div>
 
-                <section className="rounded-xl border p-4">
+                <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
                   <div className="space-y-1">
                     <h3 className="font-medium">Entity scope</h3>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Search the hierarchy and choose the exact entity this
-                      invite belongs to. Higher-level entities usually imply a
-                      broader starting scope once roles are applied.
-                    </p>
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
                     <Controller
                       name="entityId"
                       control={form.control}
@@ -253,7 +313,7 @@ export function InviteUserDialog({
                     />
 
                     {selectedEntity ? (
-                      <div className="rounded-xl bg-muted/40 p-4">
+                      <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-muted/30 p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium">{selectedEntity.title}</p>
                           <Badge variant="outline">
@@ -266,17 +326,47 @@ export function InviteUserDialog({
                             <Badge variant="secondary">Top level</Badge>
                           ) : null}
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                          Full path: {selectedEntity.pathLabel}
-                        </p>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        <div className="mt-4 space-y-2">
+                          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                            Hierarchy path
+                          </p>
+                          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                            <div className="flex min-w-max items-center gap-1">
+                              {selectedEntityPath.map((segment, index) => {
+                                const isLast = index === selectedEntityPath.length - 1
+
+                                return (
+                                  <div
+                                    key={`${segment}-${index}`}
+                                    className="flex shrink-0 items-center gap-1"
+                                  >
+                                    {index > 0 ? (
+                                      <ChevronRight className="size-3 text-muted-foreground" />
+                                    ) : null}
+                                    <span
+                                      className={cn(
+                                        'inline-flex shrink-0 whitespace-nowrap rounded-sm border px-2 py-0.5 text-xs leading-5',
+                                        isLast
+                                          ? 'border-foreground bg-foreground text-background'
+                                          : 'bg-background text-foreground'
+                                      )}
+                                    >
+                                      {segment}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm leading-6 text-muted-foreground">
                           {selectedEntity.isTopLevel
                             ? 'This selection sits at the top of the hierarchy and usually grants the broadest starting scope.'
                             : `Parent path: ${selectedEntity.parentPathLabel}`}
                         </p>
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed p-4">
+                      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-dashed p-4">
                         <p className="font-medium">No entity selected</p>
                         <p className="mt-1 text-sm leading-6 text-muted-foreground">
                           Leave this empty only when the account should be
@@ -288,26 +378,52 @@ export function InviteUserDialog({
                 </section>
               </div>
 
-              <section className="flex min-h-0 flex-col rounded-xl border">
-                <div className="border-b px-4 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-medium">Roles</h3>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Select the roles that should activate after the invite
-                        is accepted.
-                      </p>
+              <section className="flex min-h-0 h-full flex-col overflow-hidden rounded-xl border bg-background">
+                <div className="border-b px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-medium">Roles</h3>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{roleIds.length} selected</Badge>
+                      {roleIds.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id="invite-selected-roles-only"
+                            checked={showSelectedRolesOnly}
+                            onCheckedChange={setShowSelectedRolesOnly}
+                            aria-label="Show selected roles only"
+                          />
+                          <Label
+                            htmlFor="invite-selected-roles-only"
+                            className="text-xs font-medium text-muted-foreground"
+                          >
+                            Selected only
+                          </Label>
+                        </div>
+                      ) : null}
                     </div>
-                    <Badge variant="outline">
-                      {roleIds.length} selected
-                    </Badge>
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-auto">
-                  {sortedRoles.length > 0 ? (
+                <div className="min-h-0 flex-1 overflow-auto bg-background">
+                  {contextAwareRoles && !selectedEntity ? (
+                    <div className="px-4 py-6 text-sm text-muted-foreground">
+                      Roles are assigned through the membership created for the selected
+                      entity. Choose an entity scope first to load the valid role set.
+                    </div>
+                  ) : rolesPending ? (
+                    <div className="px-4 py-6 text-sm text-muted-foreground">
+                      Loading roles for this entity…
+                    </div>
+                  ) : rolesError ? (
+                    <div className="px-4 py-6 text-sm text-destructive">
+                      {getApiErrorMessage(
+                        rolesError,
+                        'The roles for the selected entity could not be loaded.'
+                      )}
+                    </div>
+                  ) : visibleRoles.length > 0 ? (
                     <div className="divide-y">
-                      {sortedRoles.map((role) => {
+                      {visibleRoles.map((role) => {
                         const checked = roleIds.includes(role.id)
                         const roleInputId = `invite-role-${role.id}`
                         const assignableTypes = formatAssignableTypes(role)
@@ -316,7 +432,7 @@ export function InviteUserDialog({
                           <div
                             key={role.id}
                             className={cn(
-                              'px-4 py-4 transition-colors',
+                              'px-4 py-3 transition-colors',
                               checked ? 'bg-muted/30' : 'bg-background'
                             )}
                           >
@@ -338,7 +454,7 @@ export function InviteUserDialog({
                                 className="mt-1"
                               />
 
-                              <div className="min-w-0 flex-1 space-y-2">
+                              <div className="min-w-0 flex-1 space-y-1.5">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <Label
                                     htmlFor={roleInputId}
@@ -354,7 +470,7 @@ export function InviteUserDialog({
                                   </Badge>
                                 </div>
 
-                                <p className="text-sm leading-6 text-muted-foreground">
+                                <p className="text-sm leading-5 text-muted-foreground">
                                   {role.description || role.name}
                                 </p>
 
@@ -372,7 +488,11 @@ export function InviteUserDialog({
                     </div>
                   ) : (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
-                      No assignable roles are available for this backend.
+                      {showSelectedRolesOnly
+                        ? 'No selected roles match the current filter.'
+                        : selectedEntity
+                          ? 'No roles are available for the selected entity.'
+                          : 'No assignable roles are available for this backend.'}
                     </div>
                   )}
                 </div>
@@ -385,7 +505,7 @@ export function InviteUserDialog({
               </section>
             </div>
 
-            <DialogFooter className="mt-0 shrink-0">
+            <DialogFooter className="mt-0 shrink-0 !mx-0 !mb-0 rounded-b-[inherit] px-6 py-4">
               <Button
                 type="button"
                 variant="outline"
