@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { assignRoleToUser } from '@/features/users/api/assign-role-to-user'
-import type { AssignUserRoleInput } from '@/features/users/types/users.types'
+import { removeRoleFromUser } from '@/features/users/api/remove-role-from-user'
 import { usersKeys } from '@/features/users/api/users.keys'
+import type { RemoveUserRoleInput } from '@/features/users/types/users.types'
 
-export function useAssignRoleToUserMutation() {
+export function useRemoveRoleFromUserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: usersKeys.all,
-    mutationFn: (input: AssignUserRoleInput) => assignRoleToUser(input),
-    onSuccess: async (_assignment, variables) => {
+    mutationFn: (input: RemoveUserRoleInput) => removeRoleFromUser(input),
+    onSuccess: async (_result, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: usersKeys.roles(variables.userId),
@@ -20,6 +20,9 @@ export function useAssignRoleToUserMutation() {
         }),
         queryClient.invalidateQueries({
           queryKey: usersKeys.permissions(variables.userId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: usersKeys.detail(variables.userId),
         }),
       ])
     },

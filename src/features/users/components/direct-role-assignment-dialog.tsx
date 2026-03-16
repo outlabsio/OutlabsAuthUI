@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 
+import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -41,6 +42,8 @@ export function DirectRoleAssignmentDialog({
 }: DirectRoleAssignmentDialogProps) {
   const previousOpenRef = useRef(open)
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
+  const [validFrom, setValidFrom] = useState('')
+  const [validUntil, setValidUntil] = useState('')
   const assignRoleMutation = useAssignRoleToUserMutation()
   const rolesQuery = useQuery({
     ...getRolesQueryOptions({ limit: 100 }),
@@ -52,6 +55,8 @@ export function DirectRoleAssignmentDialog({
 
     if (wasOpen && !open) {
       setSelectedRoleIds([])
+      setValidFrom('')
+      setValidUntil('')
       assignRoleMutation.reset()
     }
 
@@ -75,6 +80,10 @@ export function DirectRoleAssignmentDialog({
         'The selected direct roles could not be assigned.'
       )
     : null
+  const validityError =
+    validFrom && validUntil && new Date(validUntil).getTime() < new Date(validFrom).getTime()
+      ? 'Valid until must be after valid from.'
+      : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,7 +101,11 @@ export function DirectRoleAssignmentDialog({
             onSubmit={async (event) => {
               event.preventDefault()
 
-              if (!canAssignDirectRoles || selectedRoleIds.length === 0) {
+              if (
+                !canAssignDirectRoles ||
+                selectedRoleIds.length === 0 ||
+                validityError
+              ) {
                 return
               }
 
@@ -101,6 +114,8 @@ export function DirectRoleAssignmentDialog({
                   await assignRoleMutation.mutateAsync({
                     userId,
                     roleId,
+                    valid_from: validFrom ? new Date(validFrom).toISOString() : undefined,
+                    valid_until: validUntil ? new Date(validUntil).toISOString() : undefined,
                   })
                 }
 
@@ -127,70 +142,116 @@ export function DirectRoleAssignmentDialog({
                   )}
                 </div>
               ) : availableRoles.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border bg-background">
-                  <div className="divide-y">
-                    {availableRoles.map((role) => {
-                      const isAssigned = assignedRoleIds.has(role.id)
-                      const checked = selectedRoleIds.includes(role.id)
-                      const inputId = `direct-role-${role.id}`
-                      const assignableTypes = formatAssignableTypes(role)
+                <div className="space-y-4">
+                  <div className="rounded-xl border bg-muted/20 p-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Assignment window</div>
+                      <p className="text-sm text-muted-foreground">
+                        Optional. The same validity window will be applied to each selected direct role.
+                      </p>
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="direct-role-valid-from">Valid from</Label>
+                        <AppDateTimePicker
+                          id="direct-role-valid-from"
+                          value={validFrom}
+                          onChange={setValidFrom}
+                          disabled={assignRoleMutation.isPending}
+                          placeholder="Pick a start date"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="direct-role-valid-until">Valid until</Label>
+                        <AppDateTimePicker
+                          id="direct-role-valid-until"
+                          value={validUntil}
+                          onChange={setValidUntil}
+                          disabled={assignRoleMutation.isPending}
+                          placeholder="Pick an end date"
+                        />
+                      </div>
+                    </div>
+                    {validityError ? (
+                      <div className="mt-4">
+                        <FieldError>{validityError}</FieldError>
+                      </div>
+                    ) : null}
+                  </div>
 
-                      return (
-                        <div
-                          key={role.id}
-                          className={cn(
-                            'px-5 py-4 transition-colors',
-                            checked ? 'bg-muted/30' : 'bg-background'
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              id={inputId}
-                              checked={checked}
-                              disabled={isAssigned || assignRoleMutation.isPending}
-                              onCheckedChange={(nextChecked) => {
-                                const nextRoleIds = nextChecked
-                                  ? [...selectedRoleIds, role.id]
-                                  : selectedRoleIds.filter(
-                                      (selectedRoleId) => selectedRoleId !== role.id
-                                    )
+                  <div className="overflow-hidden rounded-xl border bg-background">
+                    <div className="divide-y">
+                      {availableRoles.map((role) => {
+                        const isAssigned = assignedRoleIds.has(role.id)
+                        const checked = selectedRoleIds.includes(role.id)
+                        const inputId = `direct-role-${role.id}`
+                        const assignableTypes = formatAssignableTypes(role)
 
-                                setSelectedRoleIds(nextRoleIds)
-                              }}
-                              className="mt-1"
-                            />
+                        return (
+                          <div
+                            key={role.id}
+                            className={cn(
+                              'px-5 py-4 transition-colors',
+                              checked ? 'bg-muted/30' : 'bg-background'
+                            )}
+                          >
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                id={inputId}
+                                checked={checked}
+                                disabled={isAssigned || assignRoleMutation.isPending}
+                                onCheckedChange={(nextChecked) => {
+                                  const nextRoleIds = nextChecked
+                                    ? [...selectedRoleIds, role.id]
+                                    : selectedRoleIds.filter(
+                                        (selectedRoleId) => selectedRoleId !== role.id
+                                      )
 
-                            <div className="min-w-0 flex-1 space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Label
-                                  htmlFor={inputId}
-                                  className={cn(
-                                    'text-sm font-medium',
-                                    isAssigned ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
-                                  )}
-                                >
-                                  {role.display_name}
-                                </Label>
-                                {role.is_global ? <Badge variant="outline">Global</Badge> : null}
-                                <Badge variant="outline">
-                                  {role.permissions.length} permissions
-                                </Badge>
-                                {isAssigned ? <Badge variant="secondary">Assigned</Badge> : null}
-                              </div>
+                                  setSelectedRoleIds(nextRoleIds)
+                                }}
+                                className="mt-1"
+                              />
 
-                              <p className="text-sm leading-6 text-muted-foreground">
-                                {role.description || role.name}
-                              </p>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Label
+                                    htmlFor={inputId}
+                                    className={cn(
+                                      'text-sm font-medium',
+                                      isAssigned
+                                        ? 'cursor-not-allowed opacity-70'
+                                        : 'cursor-pointer'
+                                    )}
+                                  >
+                                    {role.display_name}
+                                  </Label>
+                                  {role.is_global ? (
+                                    <Badge variant="outline">Global</Badge>
+                                  ) : null}
+                                  <Badge variant="outline">
+                                    {role.permissions.length} permissions
+                                  </Badge>
+                                  {isAssigned ? (
+                                    <Badge variant="secondary">Assigned</Badge>
+                                  ) : null}
+                                </div>
 
-                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                <span>{getRoleScopeSummary(role)}</span>
-                                {assignableTypes ? <span>Assignable at: {assignableTypes}</span> : null}
+                                <p className="text-sm leading-6 text-muted-foreground">
+                                  {role.description || role.name}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  <span>{getRoleScopeSummary(role)}</span>
+                                  {assignableTypes ? (
+                                    <span>Assignable at: {assignableTypes}</span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -207,23 +268,24 @@ export function DirectRoleAssignmentDialog({
             </div>
 
             <DialogFooter className="mt-0 shrink-0 !mx-0 !mb-0 rounded-b-[inherit] px-6 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  !canAssignDirectRoles ||
-                  assignRoleMutation.isPending ||
-                  selectedRoleIds.length === 0
-                }
-              >
-                {assignRoleMutation.isPending ? 'Assigning roles...' : 'Assign roles'}
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    !canAssignDirectRoles ||
+                    assignRoleMutation.isPending ||
+                    selectedRoleIds.length === 0 ||
+                    Boolean(validityError)
+                  }
+                >
+                  {assignRoleMutation.isPending ? 'Assigning roles...' : 'Assign roles'}
+                </Button>
             </DialogFooter>
           </form>
         </div>

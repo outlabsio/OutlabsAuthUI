@@ -4,7 +4,9 @@ OutlabsAuthUI is a SPA frontend for OutlabsAuth built with Vite, React, TypeScri
 
 ## Docs
 
+- Docs index: [`docs/README.md`](./docs/README.md)
 - Project rules index: [`docs/rules/README.md`](./docs/rules/README.md)
+- Progress index: [`docs/progress/README.md`](./docs/progress/README.md)
 - Agent instructions: [`agents.md`](./agents.md)
 
 ## Rule Sets

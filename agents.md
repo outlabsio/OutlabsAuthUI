@@ -41,6 +41,11 @@ Package manager policy:
 
 Detailed frontend rules now live under [`docs/rules/README.md`](./docs/rules/README.md).
 
+General docs and progress live under:
+
+- [`docs/README.md`](./docs/README.md)
+- [`docs/progress/README.md`](./docs/progress/README.md)
+
 Direct links:
 
 - [`docs/rules/architecture.md`](./docs/rules/architecture.md)

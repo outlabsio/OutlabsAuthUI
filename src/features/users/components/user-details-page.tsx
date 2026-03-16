@@ -12,6 +12,7 @@ import {
   Shield,
 } from 'lucide-react'
 
+import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppPage } from '@/components/app/app-page'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -45,13 +46,17 @@ import {
   formatRoleToken,
 } from '@/features/roles/utils/role-display'
 import type { Role } from '@/features/roles/types/roles.types'
+import { DeleteUserDialog } from '@/features/users/components/delete-user-dialog'
 import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog'
 import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog'
+import { ResetUserPasswordDialog } from '@/features/users/components/reset-user-password-dialog'
 import {
   getUserPermissionsQueryOptions,
   getUserQueryOptions,
-  getUserRolesQueryOptions,
+  getUserRoleMembershipsQueryOptions,
 } from '@/features/users/api/users.query-options'
+import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation'
+import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation'
 import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation'
 import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation'
 import {
@@ -74,6 +79,7 @@ import { cn } from '@/lib/utils/cn'
 type UserDetailsPageProps = {
   userId: string
   onBack: () => void
+  onDeleted: () => void
 }
 
 type DetailSectionProps = {
@@ -221,12 +227,15 @@ function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
 export function UserDetailsPage({
   userId,
   onBack,
+  onDeleted,
 }: UserDetailsPageProps) {
   const sessionQuery = useSessionQuery()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const entitiesQuery = useQuery(getEntitiesQueryOptions())
   const userQuery = useQuery(getUserQueryOptions(userId))
-  const directRolesQuery = useQuery(getUserRolesQueryOptions(userId))
+  const directRoleMembershipsQuery = useQuery(
+    getUserRoleMembershipsQueryOptions(userId, { includeInactive: true })
+  )
   const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId))
   const membershipsQuery = useQuery(
     getUserMembershipsQueryOptions(userId, { includeInactive: true })
@@ -238,7 +247,14 @@ export function UserDetailsPage({
   const updateUserMutation = useUpdateUserMutation()
   const updateUserStatusMutation = useUpdateUserStatusMutation()
   const updateMembershipMutation = useUpdateMembershipMutation()
+  const resendInviteMutation = useResendInviteMutation()
+  const removeRoleMutation = useRemoveRoleFromUserMutation()
   const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false)
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
+  const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false)
+  const [confirmingDirectRoleId, setConfirmingDirectRoleId] = useState<string | null>(
+    null
+  )
   const [membershipAccessDialogState, setMembershipAccessDialogState] = useState<{
     open: boolean
     entityId: string | null
@@ -293,6 +309,13 @@ export function UserDetailsPage({
         actorPermissionNames.has('user:update') &&
         hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree']))
     : directRolesFeatureEnabled
+  const canUpdateUsers = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser || actorPermissionNames.has('user:update')
+    : true
+  const canDeleteUsers = actorPermissionsQuery.isSuccess
+    ? isActorSuperuser || actorPermissionNames.has('user:delete')
+    : true
+  const canRemoveDirectRoles = canUpdateUsers
   const canManageMembershipAccess = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (membershipRolesFeatureEnabled &&
@@ -321,8 +344,8 @@ export function UserDetailsPage({
   })
   const membershipRoleById = new Map<string, Role>()
 
-  for (const role of directRolesQuery.data ?? []) {
-    membershipRoleById.set(role.id, role)
+  for (const membership of directRoleMembershipsQuery.data ?? []) {
+    membershipRoleById.set(membership.role.id, membership.role)
   }
 
   for (const query of membershipRoleQueries) {
@@ -335,12 +358,27 @@ export function UserDetailsPage({
     () => groupPermissionsByResource(userPermissionsQuery.data ?? []),
     [userPermissionsQuery.data]
   )
+  const canResetPassword = canUpdateUsers && user?.status !== 'deleted'
+  const canResendInvite =
+    (authConfigQuery.data?.features.invitations ?? false) &&
+    user?.status === 'invited' &&
+    canUpdateUsers
+  const canDeleteThisUser =
+    canDeleteUsers &&
+    sessionQuery.data?.id !== userId &&
+    user?.status !== 'deleted'
   const watchedStatus = statusForm.watch('status')
   const profileError = updateUserMutation.error
     ? getApiErrorMessage(updateUserMutation.error, 'Unable to update this user.')
     : null
   const statusError = updateUserStatusMutation.error
     ? getApiErrorMessage(updateUserStatusMutation.error, 'Unable to update account status.')
+    : null
+  const resendInviteError = resendInviteMutation.error
+    ? getApiErrorMessage(resendInviteMutation.error, 'Unable to resend the invitation.')
+    : null
+  const removeRoleError = removeRoleMutation.error
+    ? getApiErrorMessage(removeRoleMutation.error, 'Unable to remove the direct role.')
     : null
 
   useEffect(() => {
@@ -451,12 +489,12 @@ export function UserDetailsPage({
                 {membershipsQuery.data?.length ?? 0}
               </div>
             </div>
-            <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
-              <div className="text-[0.8rem] text-muted-foreground">Direct roles</div>
-              <div className="mt-1 text-lg font-semibold">
-                {directRolesQuery.data?.length ?? 0}
+              <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
+                <div className="text-[0.8rem] text-muted-foreground">Direct roles</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {directRoleMembershipsQuery.data?.filter((membership) => membership.status === 'active').length ?? 0}
+                </div>
               </div>
-            </div>
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
               <div className="text-[0.8rem] text-muted-foreground">Permissions</div>
               <div className="mt-1 text-lg font-semibold">
@@ -550,16 +588,31 @@ export function UserDetailsPage({
             title="Account status"
             description="Change account access now, or suspend access until a specific date."
             action={
-              <Button
-                type="submit"
-                size="sm"
-                form="user-status-form"
-                disabled={
-                  updateUserStatusMutation.isPending || !statusForm.formState.isDirty
-                }
-              >
-                {updateUserStatusMutation.isPending ? 'Updating…' : 'Update status'}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                {canResendInvite ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={resendInviteMutation.isPending}
+                    onClick={() => {
+                      void resendInviteMutation.mutateAsync(userId)
+                    }}
+                  >
+                    {resendInviteMutation.isPending ? 'Sending…' : 'Resend invite'}
+                  </Button>
+                ) : null}
+                <Button
+                  type="submit"
+                  size="sm"
+                  form="user-status-form"
+                  disabled={
+                    updateUserStatusMutation.isPending || !statusForm.formState.isDirty
+                  }
+                >
+                  {updateUserStatusMutation.isPending ? 'Updating…' : 'Update status'}
+                </Button>
+              </div>
             }
           >
             <form
@@ -622,11 +675,18 @@ export function UserDetailsPage({
               {watchedStatus === 'suspended' ? (
                 <div className="space-y-2">
                   <Label htmlFor="user-detail-suspended-until">Suspend until</Label>
-                  <Input
-                    id="user-detail-suspended-until"
-                    type="datetime-local"
-                    disabled={updateUserStatusMutation.isPending}
-                    {...statusForm.register('suspendedUntil')}
+                  <Controller
+                    control={statusForm.control}
+                    name="suspendedUntil"
+                    render={({ field }) => (
+                      <AppDateTimePicker
+                        id="user-detail-suspended-until"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        disabled={updateUserStatusMutation.isPending}
+                        placeholder="Pick a suspension end"
+                      />
+                    )}
                   />
                   <FieldError errors={[statusForm.formState.errors.suspendedUntil]} />
                 </div>
@@ -644,6 +704,16 @@ export function UserDetailsPage({
               {statusError ? (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                   {statusError}
+                </div>
+              ) : null}
+              {resendInviteError ? (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  {resendInviteError}
+                </div>
+              ) : null}
+              {resendInviteMutation.isSuccess ? (
+                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  Invitation email re-sent successfully.
                 </div>
               ) : null}
             </form>
@@ -695,9 +765,17 @@ export function UserDetailsPage({
 
           <DetailSection
             title="Security"
-            description="Password reset and credential recovery live here in the next pass."
+            description="Reset credentials and review the current account lock state."
             action={
-              <Button type="button" size="sm" variant="outline" disabled>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canResetPassword}
+                onClick={() => {
+                  setResetPasswordDialogOpen(true)
+                }}
+              >
                 Reset password
               </Button>
             }
@@ -721,6 +799,30 @@ export function UserDetailsPage({
                   {formatDateTime(user.locked_until, 'No active lock')}
                 </p>
               </div>
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            title="Danger zone"
+            description="Delete this account when it should no longer be accessible."
+            action={
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={!canDeleteThisUser}
+                onClick={() => {
+                  setDeleteUserDialogOpen(true)
+                }}
+              >
+                Delete user
+              </Button>
+            }
+          >
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {sessionQuery.data?.id === userId
+                ? 'You cannot delete your own account from this screen.'
+                : 'Deleting the account soft-removes access, preserves historical records, and takes the user out of active sign-in flows.'}
             </div>
           </DetailSection>
         </div>
@@ -911,20 +1013,41 @@ export function UserDetailsPage({
               </Button>
             }
           >
-            {directRolesQuery.isError ? (
+            {directRoleMembershipsQuery.isError ? (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                 {getApiErrorMessage(
-                  directRolesQuery.error,
+                  directRoleMembershipsQuery.error,
                   'The direct role assignments could not be loaded.'
                 )}
               </div>
-            ) : directRolesQuery.data && directRolesQuery.data.length > 0 ? (
+            ) : directRoleMembershipsQuery.data && directRoleMembershipsQuery.data.length > 0 ? (
               <div className="space-y-3">
-                {directRolesQuery.data.map((role) => (
-                  <div key={role.id} className="rounded-lg border bg-muted/30 px-4 py-3">
+                {removeRoleError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {removeRoleError}
+                  </div>
+                ) : null}
+                {directRoleMembershipsQuery.data.map((membership) => {
+                  const role = membership.role
+
+                  return (
+                  <div key={membership.id} className="rounded-lg border bg-muted/30 px-4 py-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <div className="font-medium">{role.display_name}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-medium">{role.display_name}</div>
+                          <Badge
+                            variant={
+                              membership.status === 'active' && membership.can_grant_permissions
+                                ? 'secondary'
+                                : membership.status === 'revoked'
+                                  ? 'destructive'
+                                  : 'outline'
+                            }
+                          >
+                            {formatToken(membership.status)}
+                          </Badge>
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {role.description || role.name}
                         </div>
@@ -932,6 +1055,21 @@ export function UserDetailsPage({
                       <div className="flex flex-wrap justify-end gap-2">
                         {role.is_global ? <Badge variant="outline">Global</Badge> : null}
                         <Badge variant="outline">{role.permissions.length} permissions</Badge>
+                        {canRemoveDirectRoles && membership.status === 'active' ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={removeRoleMutation.isPending}
+                            onClick={() => {
+                              setConfirmingDirectRoleId((currentRoleId) =>
+                                currentRoleId === membership.role_id ? null : membership.role_id
+                              )
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -945,10 +1083,85 @@ export function UserDetailsPage({
                             .map((type) => formatRoleToken(type))
                             .join(', ')}
                         </span>
-                      ) : null}
+                        ) : null}
                     </div>
+                    <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                      <div className="rounded-lg border bg-background/70 px-3 py-2">
+                        <div className="font-medium text-foreground">Assigned</div>
+                        <div className="mt-1">
+                          {formatDateTime(membership.assigned_at, 'Unknown')}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 px-3 py-2">
+                        <div className="font-medium text-foreground">Window</div>
+                        <div className="mt-1">
+                          {membership.valid_from || membership.valid_until
+                            ? `${formatDateTime(membership.valid_from, 'Now')} -> ${formatDateTime(
+                                membership.valid_until,
+                                'Open ended'
+                              )}`
+                            : 'Always on'}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 px-3 py-2">
+                        <div className="font-medium text-foreground">Current access</div>
+                        <div className="mt-1">
+                          {membership.can_grant_permissions
+                            ? 'Grants permissions now'
+                            : 'Does not currently grant permissions'}
+                        </div>
+                      </div>
+                    </div>
+                    {membership.revocation_reason ? (
+                      <div className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
+                        {membership.revocation_reason}
+                      </div>
+                    ) : null}
+                    {confirmingDirectRoleId === membership.role_id ? (
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2">
+                        <span className="text-sm text-muted-foreground">
+                          Remove this direct role from the account?
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={removeRoleMutation.isPending}
+                            onClick={() => {
+                              setConfirmingDirectRoleId(null)
+                            }}
+                          >
+                            Keep role
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={removeRoleMutation.isPending}
+                            onClick={async () => {
+                              try {
+                                await removeRoleMutation.mutateAsync({
+                                  userId,
+                                  roleId: membership.role_id,
+                                })
+                                setConfirmingDirectRoleId(null)
+                              } catch {
+                                return
+                              }
+                            }}
+                          >
+                            {removeRoleMutation.isPending &&
+                            removeRoleMutation.variables?.roleId === membership.role_id
+                              ? 'Removing…'
+                              : 'Confirm remove'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
@@ -1017,8 +1230,25 @@ export function UserDetailsPage({
         open={directRoleDialogOpen}
         onOpenChange={setDirectRoleDialogOpen}
         userId={userId}
-        assignedRoles={directRolesQuery.data ?? []}
+        assignedRoles={(directRoleMembershipsQuery.data ?? [])
+          .filter((membership) => membership.status === 'active')
+          .map((membership) => membership.role)}
         canAssignDirectRoles={canAssignDirectRoles}
+      />
+
+      <ResetUserPasswordDialog
+        open={resetPasswordDialogOpen}
+        onOpenChange={setResetPasswordDialogOpen}
+        userId={userId}
+        userEmail={user.email}
+      />
+
+      <DeleteUserDialog
+        open={deleteUserDialogOpen}
+        onOpenChange={setDeleteUserDialogOpen}
+        userId={userId}
+        userEmail={user.email}
+        onDeleted={onDeleted}
       />
 
       <MembershipAccessDialog

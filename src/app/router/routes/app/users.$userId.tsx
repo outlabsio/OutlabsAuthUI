@@ -18,6 +18,12 @@ function UserDetailsRouteComponent() {
           search,
         })
       }}
+      onDeleted={() => {
+        void navigate({
+          to: routes.app.users,
+          search,
+        })
+      }}
     />
   )
 }

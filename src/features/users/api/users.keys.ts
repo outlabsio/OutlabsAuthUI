@@ -6,6 +6,12 @@ export const usersKeys = {
   list: (filters: UsersListFilters) => [...usersKeys.lists(), filters] as const,
   detail: (userId: string) => [...usersKeys.all, 'detail', userId] as const,
   roles: (userId: string) => [...usersKeys.all, 'roles', userId] as const,
+  roleMemberships: (userId: string) => [...usersKeys.all, 'role-memberships', userId] as const,
+  roleMembershipsList: (userId: string, options?: { includeInactive?: boolean }) =>
+    [
+      ...usersKeys.roleMemberships(userId),
+      { includeInactive: options?.includeInactive ?? false },
+    ] as const,
   permissions: (userId: string) => [...usersKeys.all, 'permissions', userId] as const,
   invite: () => [...usersKeys.all, 'invite'] as const,
   resendInvite: (userId: string) => [...usersKeys.all, 'resend-invite', userId] as const,

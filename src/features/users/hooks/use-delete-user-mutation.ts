@@ -1,22 +1,26 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { assignRoleToUser } from '@/features/users/api/assign-role-to-user'
-import type { AssignUserRoleInput } from '@/features/users/types/users.types'
+import { deleteUser } from '@/features/users/api/delete-user'
 import { usersKeys } from '@/features/users/api/users.keys'
+import type { DeleteUserInput } from '@/features/users/types/users.types'
 
-export function useAssignRoleToUserMutation() {
+export function useDeleteUserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: usersKeys.all,
-    mutationFn: (input: AssignUserRoleInput) => assignRoleToUser(input),
-    onSuccess: async (_assignment, variables) => {
+    mutationFn: (input: DeleteUserInput) => deleteUser(input),
+    onSuccess: async (_result, variables) => {
+      queryClient.removeQueries({
+        queryKey: usersKeys.detail(variables.userId),
+      })
+
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: usersKeys.roles(variables.userId),
+          queryKey: usersKeys.lists(),
         }),
         queryClient.invalidateQueries({
-          queryKey: usersKeys.roleMemberships(variables.userId),
+          queryKey: usersKeys.roles(variables.userId),
         }),
         queryClient.invalidateQueries({
           queryKey: usersKeys.permissions(variables.userId),

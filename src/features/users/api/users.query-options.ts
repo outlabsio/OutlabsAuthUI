@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 
 import { getUser } from '@/features/users/api/get-user'
 import { getUserPermissions } from '@/features/users/api/get-user-permissions'
+import { getUserRoleMemberships } from '@/features/users/api/get-user-role-memberships'
 import { getUserRoles } from '@/features/users/api/get-user-roles'
 import { getUsers } from '@/features/users/api/get-users'
 import { usersKeys } from '@/features/users/api/users.keys'
@@ -25,6 +26,16 @@ export function getUserRolesQueryOptions(userId: string) {
   return queryOptions({
     queryKey: usersKeys.roles(userId),
     queryFn: () => getUserRoles(userId),
+  })
+}
+
+export function getUserRoleMembershipsQueryOptions(
+  userId: string,
+  options?: { includeInactive?: boolean }
+) {
+  return queryOptions({
+    queryKey: usersKeys.roleMembershipsList(userId, options),
+    queryFn: () => getUserRoleMemberships(userId, options),
   })
 }
 

@@ -1,3 +1,4 @@
+import type { Role } from '@/features/roles/types/roles.types'
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
 export type UserStatusValue = 'active' | 'invited' | 'suspended' | 'banned' | 'deleted'
@@ -75,6 +76,20 @@ export type AssignUserRoleInput = {
   valid_until?: string
 }
 
+export type RemoveUserRoleInput = {
+  userId: string
+  roleId: string
+}
+
+export type ResetUserPasswordInput = {
+  userId: string
+  new_password: string
+}
+
+export type DeleteUserInput = {
+  userId: string
+}
+
 export type UserRoleAssignment = {
   id: string
   user_id: string
@@ -86,8 +101,13 @@ export type UserRoleAssignment = {
   status: string
   revoked_at?: string | null
   revoked_by_id?: string | null
+  revocation_reason?: string | null
   is_currently_valid: boolean
   can_grant_permissions: boolean
+}
+
+export type UserRoleMembership = UserRoleAssignment & {
+  role: Role
 }
 
 export type UserPermission = {
