@@ -290,21 +290,24 @@ export function MembershipAccessDialog({
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
             <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
-              <section className="flex min-h-0 flex-col rounded-xl border p-4">
-                <div className="space-y-1">
-                  <h3 className="font-medium">Entity scope</h3>
-                  {existingMembership ? (
-                    <p className="text-sm text-muted-foreground">
-                      Update how this user belongs to the selected entity.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Choose where this user should belong in the hierarchy.
-                    </p>
-                  )}
+              <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border">
+                <div className="border-b px-4 py-4">
+                  <div className="space-y-1">
+                    <h3 className="font-medium">Entity scope</h3>
+                    {existingMembership ? (
+                      <p className="text-sm text-muted-foreground">
+                        Update how this user belongs to the selected entity.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Choose where this user should belong in the hierarchy.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                  <div className="flex flex-col gap-4">
                   <div className="space-y-2">
                     <Combobox
                       items={entityOptions}
@@ -351,7 +354,7 @@ export function MembershipAccessDialog({
                   </div>
 
                   {selectedEntity ? (
-                    <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl border bg-muted/30 p-4">
+                    <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium">{selectedEntity.title}</p>
                         <Badge variant="outline">{selectedEntity.entityTypeLabel}</Badge>
@@ -513,10 +516,11 @@ export function MembershipAccessDialog({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                    <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
                       Choose an entity to configure scoped access.
                     </div>
                   )}
+                  </div>
                 </div>
               </section>
 
