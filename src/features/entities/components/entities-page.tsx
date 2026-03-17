@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, Plus } from 'lucide-react'
 
-import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
@@ -370,39 +369,7 @@ export function EntitiesPage({
   }
 
   const headerAction = (
-    <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <span>
-          <span className="font-medium text-foreground">{allScopeNodes.length}</span> entities
-        </span>
-        <span>
-          <span className="font-medium text-foreground">{directChildren.length}</span> direct children
-        </span>
-        <span>
-          <span className="font-medium text-foreground">{members.length}</span> members loaded
-        </span>
-      </div>
-
-      <div className="min-w-0 flex-1 rounded-xl border bg-card/70 px-3 py-2.5">
-        <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Active root
-          <AppInfoPopover
-            label="Explain active root"
-            title="Active root"
-          >
-            Search, selection, and hierarchy browsing stay inside the current root scope. Switch
-            roots to review a different organization branch.
-          </AppInfoPopover>
-        </div>
-        {activeRootQuery.data ? (
-          <div className="mt-1 truncate text-sm font-medium text-foreground">
-            {activeRootQuery.data.display_name}
-          </div>
-        ) : (
-          <div className="mt-1 text-sm text-muted-foreground">No root scope is active yet.</div>
-        )}
-      </div>
-
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {canCreateRootEntities ? (
         <Button
           type="button"
