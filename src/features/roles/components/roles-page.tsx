@@ -16,8 +16,8 @@ import {
 } from '@/features/roles/components/role-form-dialog'
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { RoleDetailsPanel } from '@/features/roles/components/role-details-panel'
-import { RolesCatalogPanel } from '@/features/roles/components/roles-catalog-panel'
-import { RolesFilterRail } from '@/features/roles/components/roles-filter-rail'
+import { RolesFiltersBar } from '@/features/roles/components/roles-filters-bar'
+import { RolesTable } from '@/features/roles/components/roles-table'
 import {
   getRoleConditionGroupsQueryOptions,
   getRoleConditionsQueryOptions,
@@ -27,7 +27,6 @@ import {
 import type { Role, RolesPageSearch } from '@/features/roles/types/roles.types'
 import {
   formatRoleToken,
-  getRoleType,
   matchesRolesSearchFilters,
   sortRolesForCatalog,
 } from '@/features/roles/utils/role-display'
@@ -189,45 +188,6 @@ export function RolesPage({
   }, [filteredRoles, selectedRoleId])
   const activeRole = roleDetailQuery.data ?? visibleRole
 
-  const roleGroups = useMemo(() => {
-    const globalRoles: Role[] = []
-    const rootRoles: Role[] = []
-    const entityRoles: Role[] = []
-
-    filteredRoles.forEach((role) => {
-      switch (getRoleType(role)) {
-        case 'global':
-          globalRoles.push(role)
-          break
-        case 'entity':
-          entityRoles.push(role)
-          break
-        case 'root':
-        default:
-          rootRoles.push(role)
-          break
-      }
-    })
-
-    return [
-      {
-        key: 'global' as const,
-        label: 'Global',
-        roles: globalRoles,
-      },
-      {
-        key: 'root' as const,
-        label: 'Organization',
-        roles: rootRoles,
-      },
-      {
-        key: 'entity' as const,
-        label: 'Entity-defined',
-        roles: entityRoles,
-      },
-    ]
-  }, [filteredRoles])
-
   const permissionOptions = useMemo(() => {
     if (permissionsCatalogQuery.data?.items?.length) {
       return buildPermissionOptions(permissionsCatalogQuery.data.items)
@@ -277,41 +237,22 @@ export function RolesPage({
       <AppPage
         title="Roles"
         action={
-          <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
-            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>
-                <span className="font-medium text-foreground">{filteredRoles.length}</span> visible
-              </span>
-              <span>
-                <span className="font-medium text-foreground">
-                  {filteredRoles.filter((role) => role.is_auto_assigned).length}
-                </span>{' '}
-                auto-assigned
-              </span>
-              <span>
-                <span className="font-medium text-foreground">
-                  {filteredRoles.filter((role) => role.is_system_role).length}
-                </span>{' '}
-                system
-              </span>
-            </div>
-            {canCreateRoles ? (
-              <Button
-                type="button"
-                className="shrink-0"
-                onClick={() =>
-                  setRoleDialogState({
-                    open: true,
-                    mode: 'create',
-                    role: null,
-                  })
-                }
-              >
-                <ShieldPlus className="size-4" />
-                Create role
-              </Button>
-            ) : null}
-          </div>
+          canCreateRoles ? (
+            <Button
+              type="button"
+              className="shrink-0"
+              onClick={() =>
+                setRoleDialogState({
+                  open: true,
+                  mode: 'create',
+                  role: null,
+                })
+              }
+            >
+              <ShieldPlus className="size-4" />
+              Create role
+            </Button>
+          ) : undefined
         }
       >
         {!canReadRoles ? (
@@ -319,80 +260,84 @@ export function RolesPage({
             Your current session cannot read the role catalog.
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,0.95fr)_minmax(0,1.1fr)]">
-            <RolesFilterRail
+          <div className="space-y-4">
+            <RolesFiltersBar
               search={search}
               rootOptions={rootOptions}
               entityTypes={entityTypes}
               stats={{
                 total: filteredRoles.length,
-                global: roleGroups[0].roles.length,
-                root: roleGroups[1].roles.length,
-                entity: roleGroups[2].roles.length,
+                global: filteredRoles.filter((role) => role.is_global && !role.scope_entity_id).length,
+                root: filteredRoles.filter((role) => !role.is_global && !role.scope_entity_id).length,
+                entity: filteredRoles.filter((role) => Boolean(role.scope_entity_id)).length,
+                auto: filteredRoles.filter((role) => role.is_auto_assigned).length,
+                system: filteredRoles.filter((role) => role.is_system_role).length,
               }}
-              onSearchChange={onSearchChange}
+              onApply={onSearchChange}
+              onReset={() => onSearchChange({})}
             />
 
-            <RolesCatalogPanel
-              roleGroups={roleGroups}
-              selectedRoleId={selectedRoleId}
-              isLoading={rolesQuery.isPending}
-              isRefreshing={rolesQuery.isFetching && !rolesQuery.isPending}
-              errorMessage={undefined}
-              onRoleSelect={(roleId) => onRoleSelect(roleId)}
-            />
-
-            <div className="space-y-4">
-              {roleDetailErrorMessage ? (
-                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
-                  {roleDetailErrorMessage}
-                </div>
-              ) : null}
-              <RoleDetailsPanel
-                role={activeRole}
-                conditions={conditionsQuery.data ?? []}
-                conditionGroups={conditionGroupsQuery.data ?? []}
-                isRoleLoading={roleDetailQuery.isPending}
-                conditionsLoading={conditionsQuery.isPending}
-                conditionGroupsLoading={conditionGroupsQuery.isPending}
-                conditionsErrorMessage={
-                  conditionsQuery.error
-                    ? getApiErrorMessage(
-                        conditionsQuery.error,
-                        'The role conditions could not be loaded.'
-                      )
-                    : undefined
-                }
-                conditionGroupsErrorMessage={
-                  conditionGroupsQuery.error
-                    ? getApiErrorMessage(
-                        conditionGroupsQuery.error,
-                        'The role condition groups could not be loaded.'
-                      )
-                    : undefined
-                }
-                abacEnabled={abacEnabled}
-                canUpdateRoles={canUpdateRoles}
-                canDeleteRoles={canDeleteRoles}
-                onEditRole={() => {
-                  if (!activeRole) {
-                    return
-                  }
-
-                  setRoleDialogState({
-                    open: true,
-                    mode: 'edit',
-                    role: activeRole,
-                  })
-                }}
-                onDeleteRole={() => {
-                  if (!activeRole) {
-                    return
-                  }
-
-                  setDeleteDialogOpen(true)
-                }}
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <RolesTable
+                roles={filteredRoles}
+                selectedRoleId={selectedRoleId}
+                isLoading={rolesQuery.isPending}
+                isRefreshing={rolesQuery.isFetching && !rolesQuery.isPending}
+                onRoleSelect={(roleId) => onRoleSelect(roleId)}
               />
+
+              <div className="space-y-4">
+                {roleDetailErrorMessage ? (
+                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+                    {roleDetailErrorMessage}
+                  </div>
+                ) : null}
+                <RoleDetailsPanel
+                  role={activeRole}
+                  conditions={conditionsQuery.data ?? []}
+                  conditionGroups={conditionGroupsQuery.data ?? []}
+                  isRoleLoading={roleDetailQuery.isPending}
+                  conditionsLoading={conditionsQuery.isPending}
+                  conditionGroupsLoading={conditionGroupsQuery.isPending}
+                  conditionsErrorMessage={
+                    conditionsQuery.error
+                      ? getApiErrorMessage(
+                          conditionsQuery.error,
+                          'The role conditions could not be loaded.'
+                        )
+                      : undefined
+                  }
+                  conditionGroupsErrorMessage={
+                    conditionGroupsQuery.error
+                      ? getApiErrorMessage(
+                          conditionGroupsQuery.error,
+                          'The role condition groups could not be loaded.'
+                        )
+                      : undefined
+                  }
+                  abacEnabled={abacEnabled}
+                  canUpdateRoles={canUpdateRoles}
+                  canDeleteRoles={canDeleteRoles}
+                  onEditRole={() => {
+                    if (!activeRole) {
+                      return
+                    }
+
+                    setRoleDialogState({
+                      open: true,
+                      mode: 'edit',
+                      role: activeRole,
+                    })
+                  }}
+                  onDeleteRole={() => {
+                    if (!activeRole) {
+                      return
+                    }
+
+                    setDeleteDialogOpen(true)
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

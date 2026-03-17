@@ -174,7 +174,9 @@ test.describe('Users Workspace', () => {
     const dialog = page.getByRole('dialog', { name: 'Assign direct roles' })
     await expect(dialog).toBeVisible()
 
-    await dialog.getByRole('checkbox', { name: roleName }).click()
+    const roleLabel = dialog.getByText(roleName, { exact: true }).first()
+    await expect(roleLabel).toBeVisible()
+    await roleLabel.click()
     await dialog.getByRole('button', { name: 'Assign roles' }).click()
 
     await expect(dialog).toBeHidden()

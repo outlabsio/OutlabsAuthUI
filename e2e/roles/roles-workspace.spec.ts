@@ -14,18 +14,24 @@ async function gotoRolesWorkspace(page: Page) {
       name: 'Roles',
     })
   ).toBeVisible()
-  await expect(page.getByText('Role catalog')).toBeVisible()
+  await expect(page.getByText('Role catalog', { exact: true })).toBeVisible()
+  await expect(page.getByRole('table')).toBeVisible()
+}
+
+function getRoleRow(page: Page, roleName: string) {
+  return page
+    .locator('tbody tr')
+    .filter({
+      has: page.getByText(roleName, { exact: true }),
+    })
+    .first()
 }
 
 async function openRole(page: Page, roleName: string) {
-  const roleCard = page
-    .getByRole('button', {
-      name: new RegExp(roleName, 'i'),
-    })
-    .first()
+  const roleRow = getRoleRow(page, roleName)
 
-  await expect(roleCard).toBeVisible()
-  await roleCard.click()
+  await expect(roleRow).toBeVisible()
+  await roleRow.click()
   await expect(
     page.getByRole('heading', {
       name: roleName,
@@ -81,7 +87,7 @@ test.describe('Roles Workspace', () => {
 
     await openRole(page, 'SF Team Default Member')
     await expect(page.getByText('Automatic baseline access')).toBeVisible()
-    await expect(page.getByText('Defined at SF Residential Team', { exact: true })).toBeVisible()
+    await expect(page.getByText('Defined at SF Residential Team', { exact: true }).last()).toBeVisible()
   })
 
   test('admin can create and delete a root-scoped role', async ({ page }) => {
@@ -133,9 +139,7 @@ test.describe('Roles Workspace', () => {
       })
     ).toBeVisible()
     await expect(
-      page.getByRole('button', {
-        name: new RegExp(displayName, 'i'),
-      })
+      getRoleRow(page, displayName)
     ).toHaveCount(0)
   })
 
@@ -235,22 +239,22 @@ test.describe('Roles Workspace', () => {
       await gotoRolesWorkspace(page)
 
       await expect(
-        page.getByRole('button', { name: /West Coast Hierarchy Admin/i })
+        getRoleRow(page, 'West Coast Hierarchy Admin')
       ).toBeVisible()
       await expect(
-        page.getByRole('button', { name: /ACME Org Admin/i })
+        getRoleRow(page, 'ACME Org Admin')
       ).toBeVisible()
       await expect(
-        page.getByRole('button', { name: /SF Office Local Admin/i })
+        getRoleRow(page, 'SF Office Local Admin')
       ).toBeVisible()
       await expect(
-        page.getByRole('button', { name: /East Coast Hierarchy Admin/i })
+        getRoleRow(page, 'East Coast Hierarchy Admin')
       ).toBeVisible()
       await expect(
-        page.getByRole('button', { name: /Summit Org Admin/i })
+        getRoleRow(page, 'Summit Org Admin')
       ).toHaveCount(0)
       await expect(
-        page.getByRole('button', { name: /Scoped Roles Admin/i })
+        getRoleRow(page, 'Scoped Roles Admin')
       ).toHaveCount(0)
 
       await page.getByRole('button', { name: 'Create role' }).click()
