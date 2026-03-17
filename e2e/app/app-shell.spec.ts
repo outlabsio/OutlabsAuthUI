@@ -22,17 +22,22 @@ async function openUserMenu(page: Page, email: string) {
 }
 
 test.describe('App Shell', () => {
-  test('admin can navigate the shell and see disabled coming-soon items', async ({
+  test('admin can navigate the shell with only live workspace routes', async ({
     page,
   }) => {
     await gotoDashboard(page)
 
     await expect(page.getByText('OutlabsAuth Console')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Providers' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'Policies' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'Invites' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'Sessions' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'Branding' })).toBeDisabled()
+    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Permissions' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Roles' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Entities' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Providers' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Policies' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Invites' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Sessions' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Branding' })).toHaveCount(0)
 
     await page.getByRole('link', { name: 'Users' }).click()
     await expect(

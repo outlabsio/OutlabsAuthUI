@@ -1,16 +1,12 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
-  Blocks,
   Building2,
   ChevronsUpDown,
-  Clock3,
   KeyRound,
   LayoutDashboard,
   LogOut,
-  Mail,
   Shield,
   ShieldCheck,
-  SlidersHorizontal,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -57,14 +53,13 @@ type AppSidebarProps = {
 
 type NavigationItem = {
   title: string
-  to?:
+  to:
     | typeof routes.app.dashboard
     | typeof routes.app.users
     | typeof routes.app.permissions
     | typeof routes.app.roles
     | typeof routes.app.entities
   icon: React.ComponentType<{ className?: string }>
-  comingSoon?: boolean
 }
 
 const navigationGroups: Array<{
@@ -78,16 +73,6 @@ const navigationGroups: Array<{
         title: 'Dashboard',
         to: routes.app.dashboard,
         icon: LayoutDashboard,
-      },
-      {
-        title: 'Providers',
-        icon: Blocks,
-        comingSoon: true,
-      },
-      {
-        title: 'Policies',
-        icon: ShieldCheck,
-        comingSoon: true,
       },
     ],
   },
@@ -113,21 +98,6 @@ const navigationGroups: Array<{
         title: 'Entities',
         to: routes.app.entities,
         icon: Building2,
-      },
-      {
-        title: 'Invites',
-        icon: Mail,
-        comingSoon: true,
-      },
-      {
-        title: 'Sessions',
-        icon: Clock3,
-        comingSoon: true,
-      },
-      {
-        title: 'Branding',
-        icon: SlidersHorizontal,
-        comingSoon: true,
       },
     ],
   },
@@ -263,30 +233,19 @@ export function AppSidebar({
               <SidebarMenu>
                 {group.items.map((item) => {
                   const Icon = item.icon
-                  const isActive = item.to
-                    ? pathname === item.to || pathname.startsWith(`${item.to}/`)
-                    : false
-                  const tooltip = item.comingSoon
-                    ? `${item.title} (coming soon)`
-                    : item.title
+                  const isActive =
+                    pathname === item.to || pathname.startsWith(`${item.to}/`)
 
                   return (
                     <SidebarMenuItem key={item.title}>
-                      {item.to ? (
-                        <SidebarMenuButton
-                          tooltip={tooltip}
-                          isActive={isActive}
-                          render={<Link to={item.to} />}
-                        >
-                          <Icon />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton tooltip={tooltip} disabled>
-                          <Icon />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      )}
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        isActive={isActive}
+                        render={<Link to={item.to} />}
+                      >
+                        <Icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   )
                 })}
