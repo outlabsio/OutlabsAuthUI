@@ -1,0 +1,785 @@
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller, type Resolver, useForm } from 'react-hook-form'
+import { Compass, Network, Orbit, ShieldCheck, Sparkles } from 'lucide-react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import type { Entity } from '@/features/entities/types/entities.types'
+import { useCreateRoleMutation } from '@/features/roles/hooks/use-create-role-mutation'
+import { useUpdateRoleMutation } from '@/features/roles/hooks/use-update-role-mutation'
+import {
+  roleFormSchema,
+  type RoleFormValues,
+} from '@/features/roles/schemas/role-form.schema'
+import type { Role, RoleType } from '@/features/roles/types/roles.types'
+import {
+  formatRoleToken,
+  getRoleType,
+  getRoleTypeDescription,
+  getRoleTypeLabel,
+} from '@/features/roles/utils/role-display'
+import { getApiErrorMessage } from '@/lib/api/errors'
+import { cn } from '@/lib/utils/cn'
+
+type RoleFormDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  mode: 'create' | 'edit'
+  role?: Role | null
+  entities: Entity[]
+  permissionOptions: RolePermissionOption[]
+  canCreateGlobalRoles: boolean
+  onSuccess?: (role: Role) => void
+}
+
+export type RolePermissionOption = {
+  name: string
+  label: string
+  resource: string
+  description?: string | null
+}
+
+const roleTypeOptions: Array<{
+  value: RoleType
+  icon: typeof Orbit
+}> = [
+  {
+    value: 'global',
+    icon: Orbit,
+  },
+  {
+    value: 'root',
+    icon: Network,
+  },
+  {
+    value: 'entity',
+    icon: Compass,
+  },
+]
+
+function slugifyRoleName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 100)
+}
+
+function resolveRootEntityId(entitiesById: Map<string, Entity>, entityId?: string) {
+  if (!entityId) {
+    return ''
+  }
+
+  let currentEntity = entitiesById.get(entityId) ?? null
+
+  while (currentEntity?.parent_entity_id) {
+    currentEntity = entitiesById.get(currentEntity.parent_entity_id) ?? null
+  }
+
+  return currentEntity?.id ?? ''
+}
+
+function getDefaultValues(role?: Role | null): RoleFormValues {
+  if (!role) {
+    return {
+      roleType: 'root',
+      name: '',
+      displayName: '',
+      description: '',
+      rootEntityId: '',
+      scopeEntityId: '',
+      scope: 'hierarchy',
+      isAutoAssigned: false,
+      assignableAtTypes: [],
+      permissionNames: [],
+    }
+  }
+
+  return {
+    roleType: getRoleType(role),
+    name: role.name,
+    displayName: role.display_name,
+    description: role.description ?? '',
+    rootEntityId: role.root_entity_id ?? '',
+    scopeEntityId: role.scope_entity_id ?? '',
+    scope: role.scope,
+    isAutoAssigned: role.is_auto_assigned,
+    assignableAtTypes: role.assignable_at_types,
+    permissionNames: role.permissions,
+  }
+}
+
+function getRoleTypeCardSummary(value: RoleType) {
+  switch (value) {
+    case 'global':
+      return 'System role catalog. Assignable anywhere.'
+    case 'root':
+      return 'Top-level role owned by one organization.'
+    case 'entity':
+      return 'Defined at one entity with explicit blast radius.'
+  }
+}
+
+function PermissionCheckbox({
+  checked,
+  disabled,
+  label,
+  description,
+  onCheckedChange,
+}: {
+  checked: boolean
+  disabled?: boolean
+  label: string
+  description?: string | null
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-background/80 px-3 py-3">
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(nextChecked) => onCheckedChange(Boolean(nextChecked))}
+        className="mt-0.5"
+      />
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{label}</div>
+        {description ? (
+          <p className="text-xs leading-5 text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+    </label>
+  )
+}
+
+export function RoleFormDialog({
+  open,
+  onOpenChange,
+  mode,
+  role,
+  entities,
+  permissionOptions,
+  canCreateGlobalRoles,
+  onSuccess,
+}: RoleFormDialogProps) {
+  const createRoleMutation = useCreateRoleMutation()
+  const updateRoleMutation = useUpdateRoleMutation()
+  const [nameTouched, setNameTouched] = useState(false)
+  const resolver = zodResolver(roleFormSchema) as Resolver<RoleFormValues>
+  const form = useForm<RoleFormValues>({
+    resolver,
+    defaultValues: getDefaultValues(role),
+  })
+
+  const entitiesById = useMemo(
+    () => new Map(entities.map((entity) => [entity.id, entity])),
+    [entities]
+  )
+  const rootEntities = useMemo(
+    () =>
+      entities
+        .filter((entity) => entity.parent_entity_id == null)
+        .sort((left, right) => left.display_name.localeCompare(right.display_name)),
+    [entities]
+  )
+  const entityOptions = useMemo(
+    () =>
+      [...entities].sort((left, right) =>
+        left.display_name.localeCompare(right.display_name)
+      ),
+    [entities]
+  )
+  const entityTypeOptions = useMemo(
+    () =>
+      [...new Set(entities.map((entity) => entity.entity_type))]
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right)),
+    [entities]
+  )
+  const groupedPermissions = useMemo(() => {
+    const groups = new Map<string, RolePermissionOption[]>()
+
+    permissionOptions.forEach((permissionOption) => {
+      const group = groups.get(permissionOption.resource) ?? []
+      group.push(permissionOption)
+      groups.set(permissionOption.resource, group)
+    })
+
+    return [...groups.entries()]
+      .map(([resource, items]) => ({
+        resource,
+        label: formatRoleToken(resource, 'General'),
+        items: items.sort((left, right) => left.label.localeCompare(right.label)),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label))
+  }, [permissionOptions])
+
+  const roleType = form.watch('roleType')
+  const displayName = form.watch('displayName')
+  const selectedPermissionNames = form.watch('permissionNames')
+  const assignableAtTypes = form.watch('assignableAtTypes')
+  const scopeEntityId = form.watch('scopeEntityId')
+  const derivedRootEntityId = useMemo(
+    () => resolveRootEntityId(entitiesById, scopeEntityId),
+    [entitiesById, scopeEntityId]
+  )
+  const derivedRootEntity = derivedRootEntityId
+    ? entitiesById.get(derivedRootEntityId) ?? null
+    : null
+
+  const isPending = createRoleMutation.isPending || updateRoleMutation.isPending
+  const submitError =
+    createRoleMutation.error ?? updateRoleMutation.error
+  const submitErrorMessage = submitError
+    ? getApiErrorMessage(
+        submitError,
+        mode === 'create' ? 'The role could not be created.' : 'The role could not be updated.'
+      )
+    : null
+  const resetDialogState = useEffectEvent(() => {
+    form.reset(getDefaultValues(role))
+    setNameTouched(false)
+    createRoleMutation.reset()
+    updateRoleMutation.reset()
+  })
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    resetDialogState()
+  }, [open, role])
+
+  useEffect(() => {
+    if (mode !== 'create' || nameTouched) {
+      return
+    }
+
+    form.setValue('name', slugifyRoleName(displayName), {
+      shouldDirty: Boolean(displayName),
+      shouldValidate: false,
+    })
+  }, [displayName, form, mode, nameTouched])
+
+  useEffect(() => {
+    if (roleType !== 'entity') {
+      form.setValue('scopeEntityId', '', { shouldDirty: true, shouldValidate: false })
+      form.setValue('scope', 'hierarchy', { shouldDirty: true, shouldValidate: false })
+      form.setValue('isAutoAssigned', false, {
+        shouldDirty: true,
+        shouldValidate: false,
+      })
+      form.setValue('assignableAtTypes', [], {
+        shouldDirty: true,
+        shouldValidate: false,
+      })
+    }
+
+    if (roleType === 'global') {
+      form.setValue('rootEntityId', '', { shouldDirty: true, shouldValidate: false })
+    }
+  }, [form, roleType])
+
+  async function handleSubmit(values: RoleFormValues) {
+    try {
+      const nextRole =
+        mode === 'create'
+          ? await createRoleMutation.mutateAsync({
+              name: values.name,
+              display_name: values.displayName,
+              description: values.description || undefined,
+              permissions: values.permissionNames,
+              is_global: values.roleType === 'global',
+              root_entity_id:
+                values.roleType === 'root'
+                  ? values.rootEntityId || undefined
+                  : undefined,
+              scope_entity_id:
+                values.roleType === 'entity'
+                  ? values.scopeEntityId || undefined
+                  : undefined,
+              scope: values.roleType === 'entity' ? values.scope : 'hierarchy',
+              is_auto_assigned:
+                values.roleType === 'entity' ? values.isAutoAssigned : false,
+              assignable_at_types:
+                values.roleType === 'entity' ? values.assignableAtTypes : [],
+            })
+          : await updateRoleMutation.mutateAsync({
+              roleId: role!.id,
+              display_name: values.displayName,
+              description: values.description || undefined,
+              permissions: values.permissionNames,
+              is_global: roleType === 'global',
+              scope: roleType === 'entity' ? values.scope : undefined,
+              is_auto_assigned:
+                roleType === 'entity' ? values.isAutoAssigned : undefined,
+              assignable_at_types:
+                roleType === 'entity' ? values.assignableAtTypes : undefined,
+            })
+
+      onSuccess?.(nextRole)
+      onOpenChange(false)
+    } catch {
+      return
+    }
+  }
+
+  const dialogTitle =
+    mode === 'create'
+      ? 'Create role'
+      : `Edit ${role?.display_name ?? 'role'}`
+
+  const isEditingSystemRole = Boolean(role?.is_system_role)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-5xl">
+        <div className="flex max-h-[calc(100svh-2rem)] flex-col">
+          <DialogHeader className="border-b px-6 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <DialogTitle className="text-2xl">{dialogTitle}</DialogTitle>
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                  Make the role’s ownership boundary, assignment rules, and blast radius explicit before saving it.
+                </p>
+              </div>
+              {mode === 'edit' ? (
+                <Badge variant="outline" className="gap-1.5">
+                  <ShieldCheck className="size-3.5" />
+                  {getRoleTypeLabel(roleType)}
+                </Badge>
+              ) : null}
+            </div>
+          </DialogHeader>
+
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={form.handleSubmit(handleSubmit)}
+          >
+            <div className="grid min-h-0 flex-1 gap-6 overflow-auto px-6 py-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <div className="space-y-5">
+                <div className="rounded-3xl border bg-linear-to-br from-primary/6 via-background to-accent/10 p-5">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Sparkles className="size-4 text-primary" />
+                    Role type
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    {roleTypeOptions
+                      .filter((option) => canCreateGlobalRoles || option.value !== 'global')
+                      .map((option) => {
+                        const Icon = option.icon
+                        const checked = roleType === option.value
+                        const disabled = mode === 'edit'
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              form.setValue('roleType', option.value, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }}
+                            className={cn(
+                              'rounded-2xl border px-4 py-4 text-left transition-colors',
+                              checked
+                                ? 'border-primary bg-primary/8'
+                                : 'border-border/80 bg-background/80 hover:bg-muted/40',
+                              disabled ? 'cursor-default opacity-80' : 'cursor-pointer'
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Icon className="size-4 text-primary" />
+                              <span className="font-medium">{getRoleTypeLabel(option.value)}</span>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                              {getRoleTypeCardSummary(option.value)}
+                            </p>
+                          </button>
+                        )
+                      })}
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    {getRoleTypeDescription(roleType)}
+                  </p>
+                </div>
+
+                <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="role-display-name">Display name</Label>
+                    <Input
+                      id="role-display-name"
+                      disabled={isPending || isEditingSystemRole}
+                      {...form.register('displayName')}
+                    />
+                    <FieldError errors={[form.formState.errors.displayName]} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="role-name">System name</Label>
+                    <Input
+                      id="role-name"
+                      disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                      {...form.register('name', {
+                        onChange: () => {
+                          setNameTouched(true)
+                        },
+                      })}
+                    />
+                    <FieldError errors={[form.formState.errors.name]} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="role-description">How should admins use this role?</Label>
+                    <Textarea
+                      id="role-description"
+                      rows={4}
+                      disabled={isPending || isEditingSystemRole}
+                      placeholder="Describe when this role should be assigned and what operational responsibility it carries."
+                      {...form.register('description')}
+                    />
+                    <FieldError errors={[form.formState.errors.description]} />
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Ownership and reach</div>
+                    <p className="text-sm text-muted-foreground">
+                      Define where this role lives and how far its permissions travel.
+                    </p>
+                  </div>
+
+                  {roleType === 'root' ? (
+                    <div className="space-y-2">
+                      <Label>Owning organization</Label>
+                      <Controller
+                        control={form.control}
+                        name="rootEntityId"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value || 'none'}
+                            onValueChange={(nextValue) => {
+                              form.setValue(
+                                'rootEntityId',
+                                nextValue === 'none' ? '' : String(nextValue),
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                }
+                              )
+                            }}
+                            disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pick a root organization" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Select root organization</SelectItem>
+                              {rootEntities.map((entity) => (
+                                <SelectItem key={entity.id} value={entity.id}>
+                                  {entity.display_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError errors={[form.formState.errors.rootEntityId]} />
+                    </div>
+                  ) : null}
+
+                  {roleType === 'entity' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Defining entity</Label>
+                        <Controller
+                          control={form.control}
+                          name="scopeEntityId"
+                          render={({ field }) => (
+                          <Select
+                            value={field.value || 'none'}
+                            onValueChange={(nextValue) => {
+                              form.setValue(
+                                'scopeEntityId',
+                                nextValue === 'none' ? '' : String(nextValue),
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                }
+                              )
+                            }}
+                            disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                          >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pick the entity that defines this role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Select defining entity</SelectItem>
+                                {entityOptions.map((entity) => (
+                                  <SelectItem key={entity.id} value={entity.id}>
+                                    {entity.display_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        <FieldError errors={[form.formState.errors.scopeEntityId]} />
+                      </div>
+
+                      <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm">
+                        <div className="font-medium">Derived root organization</div>
+                        <div className="mt-1 text-muted-foreground">
+                          {derivedRootEntity?.display_name ?? 'Pick a defining entity to resolve the root scope.'}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Scope mode</Label>
+                          <Controller
+                            control={form.control}
+                            name="scope"
+                            render={({ field }) => (
+                              <Select
+                                value={field.value}
+                                onValueChange={(nextValue) => {
+                                  form.setValue('scope', nextValue as RoleFormValues['scope'], {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }}
+                                disabled={isPending || isEditingSystemRole}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="hierarchy">Hierarchy</SelectItem>
+                                  <SelectItem value="entity_only">Entity only</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Auto-assigned</Label>
+                          <div className="flex min-h-10 items-center justify-between rounded-2xl border px-4">
+                            <span className="text-sm text-muted-foreground">
+                              Grant automatically to in-scope members
+                            </span>
+                            <Controller
+                              control={form.control}
+                              name="isAutoAssigned"
+                              render={({ field }) => (
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  disabled={isPending || isEditingSystemRole}
+                                />
+                              )}
+                            />
+                          </div>
+                          <FieldError errors={[form.formState.errors.isAutoAssigned]} />
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {(roleType === 'global' || roleType === 'root') && role ? (
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                      {roleType === 'global'
+                        ? 'Global roles stay system-wide and do not expose entity-local controls.'
+                        : 'Organization roles keep their owner root fixed after creation.'}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Permissions</div>
+                    <p className="text-sm text-muted-foreground">
+                      Choose the actions this role grants. Permissions are grouped by resource.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-2xl border bg-muted/20 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium">
+                        {selectedPermissionNames.length} permissions selected
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Keep the role as narrow as the operational job allows.
+                      </div>
+                    </div>
+                    <Badge variant="outline">{selectedPermissionNames.length}</Badge>
+                  </div>
+
+                  {groupedPermissions.length > 0 ? (
+                    <div className="max-h-[34rem] space-y-4 overflow-auto pr-1">
+                      {groupedPermissions.map((group) => (
+                        <div key={group.resource} className="space-y-3 rounded-2xl border p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="font-medium">{group.label}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {group.items.length} available
+                              </div>
+                            </div>
+                            <Badge variant="outline">{group.items.length}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {group.items.map((permissionOption) => (
+                              <PermissionCheckbox
+                                key={permissionOption.name}
+                                checked={selectedPermissionNames.includes(permissionOption.name)}
+                                disabled={isPending || isEditingSystemRole}
+                                label={permissionOption.label}
+                                description={permissionOption.description ?? permissionOption.name}
+                                onCheckedChange={(checked) => {
+                                  const nextPermissions = checked
+                                    ? [...selectedPermissionNames, permissionOption.name]
+                                    : selectedPermissionNames.filter(
+                                        (permissionName) => permissionName !== permissionOption.name
+                                      )
+
+                                  form.setValue('permissionNames', nextPermissions, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+                      No permission catalog is available for this backend response.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Assignment rules</div>
+                    <p className="text-sm text-muted-foreground">
+                      Restrict where admins can assign this role in entity context.
+                    </p>
+                  </div>
+
+                  {roleType === 'entity' ? (
+                    <>
+                      <div className="flex items-center justify-between rounded-2xl border bg-muted/20 px-4 py-3">
+                        <div>
+                          <div className="text-sm font-medium">
+                            {assignableAtTypes.length > 0
+                              ? `${assignableAtTypes.length} entity types selected`
+                              : 'No entity type restriction'}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Empty means the role can be assigned at any entity type in scope.
+                          </div>
+                        </div>
+                        <Badge variant="outline">
+                          {assignableAtTypes.length > 0 ? assignableAtTypes.length : 'Any'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {entityTypeOptions.map((entityType) => {
+                          const checked = assignableAtTypes.includes(entityType)
+
+                          return (
+                            <label
+                              key={entityType}
+                              className="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                disabled={isPending || isEditingSystemRole}
+                                onCheckedChange={(nextChecked) => {
+                                  const nextTypes = Boolean(nextChecked)
+                                    ? [...assignableAtTypes, entityType]
+                                    : assignableAtTypes.filter((value) => value !== entityType)
+
+                                  form.setValue('assignableAtTypes', nextTypes, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }}
+                              />
+                              <span className="text-sm font-medium">
+                                {formatRoleToken(entityType)}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                      {roleType === 'global'
+                        ? 'Global roles are not restricted by entity type.'
+                        : 'Organization roles are selected directly in the owning organization context.'}
+                    </div>
+                  )}
+                </div>
+
+                {submitErrorMessage ? (
+                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <FieldError>{submitErrorMessage}</FieldError>
+                  </div>
+                ) : null}
+
+                {isEditingSystemRole ? (
+                  <div className="rounded-2xl border border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                    System roles are protected by the backend and can be inspected here, but not changed.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <DialogFooter className="border-t px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending || isEditingSystemRole}>
+                {isPending ? 'Saving…' : mode === 'create' ? 'Create role' : 'Save changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

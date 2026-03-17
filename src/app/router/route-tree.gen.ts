@@ -14,11 +14,14 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AppUsersRouteImport } from './routes/app/users'
+import { Route as AppRolesRouteImport } from './routes/app/roles'
 import { Route as AppEntitiesRouteImport } from './routes/app/entities'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
+import { Route as AppRolesIndexRouteImport } from './routes/app/roles.index'
 import { Route as AppEntitiesIndexRouteImport } from './routes/app/entities.index'
 import { Route as AppUsersUserIdRouteImport } from './routes/app/users.$userId'
+import { Route as AppRolesRoleIdRouteImport } from './routes/app/roles.$roleId'
 import { Route as AppEntitiesEntityIdRouteImport } from './routes/app/entities.$entityId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -46,6 +49,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRolesRoute = AppRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEntitiesRoute = AppEntitiesRouteImport.update({
   id: '/entities',
   path: '/entities',
@@ -61,6 +69,11 @@ const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppUsersRoute,
 } as any)
+const AppRolesIndexRoute = AppRolesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRolesRoute,
+} as any)
 const AppEntitiesIndexRoute = AppEntitiesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -70,6 +83,11 @@ const AppUsersUserIdRoute = AppUsersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
   getParentRoute: () => AppUsersRoute,
+} as any)
+const AppRolesRoleIdRoute = AppRolesRoleIdRouteImport.update({
+  id: '/$roleId',
+  path: '/$roleId',
+  getParentRoute: () => AppRolesRoute,
 } as any)
 const AppEntitiesEntityIdRoute = AppEntitiesEntityIdRouteImport.update({
   id: '/$entityId',
@@ -83,11 +101,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
+  '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
+  '/app/roles/': typeof AppRolesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -97,8 +118,10 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardRoute
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities': typeof AppEntitiesIndexRoute
+  '/app/roles': typeof AppRolesIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesById {
@@ -108,11 +131,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
+  '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
+  '/app/roles/': typeof AppRolesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRouteTypes {
@@ -123,11 +149,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/dashboard'
     | '/app/entities'
+    | '/app/roles'
     | '/app/users'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities/'
+    | '/app/roles/'
     | '/app/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -137,8 +166,10 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities'
+    | '/app/roles'
     | '/app/users'
   id:
     | '__root__'
@@ -147,11 +178,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/dashboard'
     | '/app/entities'
+    | '/app/roles'
     | '/app/users'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities/'
+    | '/app/roles/'
     | '/app/users/'
   fileRoutesById: FileRoutesById
 }
@@ -198,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/roles': {
+      id: '/app/roles'
+      path: '/roles'
+      fullPath: '/app/roles'
+      preLoaderRoute: typeof AppRolesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/entities': {
       id: '/app/entities'
       path: '/entities'
@@ -219,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersIndexRouteImport
       parentRoute: typeof AppUsersRoute
     }
+    '/app/roles/': {
+      id: '/app/roles/'
+      path: '/'
+      fullPath: '/app/roles/'
+      preLoaderRoute: typeof AppRolesIndexRouteImport
+      parentRoute: typeof AppRolesRoute
+    }
     '/app/entities/': {
       id: '/app/entities/'
       path: '/'
@@ -232,6 +280,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/users/$userId'
       preLoaderRoute: typeof AppUsersUserIdRouteImport
       parentRoute: typeof AppUsersRoute
+    }
+    '/app/roles/$roleId': {
+      id: '/app/roles/$roleId'
+      path: '/$roleId'
+      fullPath: '/app/roles/$roleId'
+      preLoaderRoute: typeof AppRolesRoleIdRouteImport
+      parentRoute: typeof AppRolesRoute
     }
     '/app/entities/$entityId': {
       id: '/app/entities/$entityId'
@@ -257,6 +312,20 @@ const AppEntitiesRouteWithChildren = AppEntitiesRoute._addFileChildren(
   AppEntitiesRouteChildren,
 )
 
+interface AppRolesRouteChildren {
+  AppRolesRoleIdRoute: typeof AppRolesRoleIdRoute
+  AppRolesIndexRoute: typeof AppRolesIndexRoute
+}
+
+const AppRolesRouteChildren: AppRolesRouteChildren = {
+  AppRolesRoleIdRoute: AppRolesRoleIdRoute,
+  AppRolesIndexRoute: AppRolesIndexRoute,
+}
+
+const AppRolesRouteWithChildren = AppRolesRoute._addFileChildren(
+  AppRolesRouteChildren,
+)
+
 interface AppUsersRouteChildren {
   AppUsersUserIdRoute: typeof AppUsersUserIdRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
@@ -274,12 +343,14 @@ const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntitiesRoute: typeof AppEntitiesRouteWithChildren
+  AppRolesRoute: typeof AppRolesRouteWithChildren
   AppUsersRoute: typeof AppUsersRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppEntitiesRoute: AppEntitiesRouteWithChildren,
+  AppRolesRoute: AppRolesRouteWithChildren,
   AppUsersRoute: AppUsersRouteWithChildren,
 }
 

@@ -1,12 +1,24 @@
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
+export type RoleScopeMode = 'entity_only' | 'hierarchy'
+export type RoleType = 'global' | 'root' | 'entity'
+export type RoleUsageFilter = 'all' | 'auto' | 'manual'
+export type RoleSystemFilter = 'all' | 'system' | 'custom'
+export type RoleTypeFilter = 'all' | RoleType
+export type RoleScopeFilter = 'all' | RoleScopeMode
+export type RoleConditionValueType =
+  | 'string'
+  | 'integer'
+  | 'float'
+  | 'boolean'
+  | 'list'
+
 export type Role = {
   id: string
   name: string
   display_name: string
   description?: string | null
   permissions: string[]
-  entity_type_permissions?: Record<string, string[]> | null
   is_system_role: boolean
   is_global: boolean
   root_entity_id?: string | null
@@ -14,13 +26,131 @@ export type Role = {
   assignable_at_types: string[]
   scope_entity_id?: string | null
   scope_entity_name?: string | null
-  scope: string
+  scope: RoleScopeMode
   is_auto_assigned: boolean
 }
 
 export type GetRolesParams = {
   page?: number
   limit?: number
+  search?: string
+  isGlobal?: boolean
+  rootEntityId?: string
 }
 
 export type RolesListResponse = PaginatedResponse<Role>
+
+export type RolesPageSearch = {
+  search?: string
+  roleType?: RoleTypeFilter
+  scopeMode?: RoleScopeFilter
+  scopeRootId?: string
+  assignableType?: string
+  usage?: RoleUsageFilter
+  system?: RoleSystemFilter
+}
+
+export type CreateRoleInput = {
+  name: string
+  display_name: string
+  description?: string
+  permissions: string[]
+  is_global: boolean
+  root_entity_id?: string
+  scope_entity_id?: string
+  scope: RoleScopeMode
+  is_auto_assigned: boolean
+  assignable_at_types: string[]
+}
+
+export type UpdateRoleInput = {
+  roleId: string
+  display_name?: string
+  description?: string
+  permissions?: string[]
+  is_global?: boolean
+  scope?: RoleScopeMode
+  is_auto_assigned?: boolean
+  assignable_at_types?: string[]
+}
+
+export type DeleteRoleInput = {
+  roleId: string
+}
+
+export type PermissionCatalogItem = {
+  id: string
+  name: string
+  display_name: string
+  description?: string | null
+  resource?: string | null
+  action?: string | null
+  scope?: string | null
+  is_system: boolean
+  is_active: boolean
+  tags: string[]
+}
+
+export type PermissionsCatalogResponse = PaginatedResponse<PermissionCatalogItem>
+
+export type RoleConditionGroup = {
+  id: string
+  operator: 'AND' | 'OR'
+  description?: string | null
+  role_id?: string | null
+  permission_id?: string | null
+}
+
+export type RoleCondition = {
+  id: string
+  attribute: string
+  operator: string
+  value?: string | null
+  value_type: RoleConditionValueType
+  description?: string | null
+  condition_group_id?: string | null
+}
+
+export type CreateRoleConditionGroupInput = {
+  roleId: string
+  operator: 'AND' | 'OR'
+  description?: string
+}
+
+export type UpdateRoleConditionGroupInput = {
+  roleId: string
+  groupId: string
+  operator?: 'AND' | 'OR'
+  description?: string
+}
+
+export type DeleteRoleConditionGroupInput = {
+  roleId: string
+  groupId: string
+}
+
+export type CreateRoleConditionInput = {
+  roleId: string
+  attribute: string
+  operator: string
+  value?: string | number | boolean | string[] | null
+  value_type: RoleConditionValueType
+  description?: string
+  condition_group_id?: string | null
+}
+
+export type UpdateRoleConditionInput = {
+  roleId: string
+  conditionId: string
+  attribute?: string
+  operator?: string
+  value?: string | number | boolean | string[] | null
+  value_type?: RoleConditionValueType
+  description?: string
+  condition_group_id?: string | null
+}
+
+export type DeleteRoleConditionInput = {
+  roleId: string
+  conditionId: string
+}

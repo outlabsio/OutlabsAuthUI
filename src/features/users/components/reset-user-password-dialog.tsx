@@ -1,32 +1,32 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { FieldError } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useResetUserPasswordMutation } from '@/features/users/hooks/use-reset-user-password-mutation'
+} from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useResetUserPasswordMutation } from '@/features/users/hooks/use-reset-user-password-mutation';
 import {
   type ResetUserPasswordFormValues,
   resetUserPasswordSchema,
-} from '@/features/users/schemas/reset-user-password.schema'
-import { getApiErrorMessage } from '@/lib/api/errors'
+} from '@/features/users/schemas/reset-user-password.schema';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 type ResetUserPasswordDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  userId: string
-  userEmail: string
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userId: string;
+  userEmail: string;
+};
 
 export function ResetUserPasswordDialog({
   open,
@@ -34,28 +34,33 @@ export function ResetUserPasswordDialog({
   userId,
   userEmail,
 }: ResetUserPasswordDialogProps) {
-  const resetUserPasswordMutation = useResetUserPasswordMutation()
+  const resetUserPasswordMutation = useResetUserPasswordMutation();
+  const previousOpenRef = useRef(open);
   const form = useForm<ResetUserPasswordFormValues>({
     resolver: zodResolver(resetUserPasswordSchema),
     defaultValues: {
       newPassword: '',
       confirmPassword: '',
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open) {
-      form.reset()
-      resetUserPasswordMutation.reset()
+    const wasOpen = previousOpenRef.current;
+
+    if (wasOpen && !open) {
+      form.reset();
+      resetUserPasswordMutation.reset();
     }
-  }, [form, open, resetUserPasswordMutation])
+
+    previousOpenRef.current = open;
+  }, [form, open, resetUserPasswordMutation]);
 
   const submitError = resetUserPasswordMutation.error
     ? getApiErrorMessage(
         resetUserPasswordMutation.error,
-        'The password could not be reset.'
+        'The password could not be reset.',
       )
-    : null
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,15 +77,16 @@ export function ResetUserPasswordDialog({
               await resetUserPasswordMutation.mutateAsync({
                 userId,
                 new_password: values.newPassword,
-              })
-              onOpenChange(false)
+              });
+              onOpenChange(false);
             } catch {
-              return
+              return;
             }
           })}
         >
           <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            Set a new password for <span className="font-medium text-foreground">{userEmail}</span>.
+            Set a new password for{' '}
+            <span className="font-medium text-foreground">{userEmail}</span>.
             The current password will stop working immediately.
           </div>
 
@@ -97,7 +103,9 @@ export function ResetUserPasswordDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reset-user-password-confirm">Confirm password</Label>
+            <Label htmlFor="reset-user-password-confirm">
+              Confirm password
+            </Label>
             <Input
               id="reset-user-password-confirm"
               type="password"
@@ -129,10 +137,12 @@ export function ResetUserPasswordDialog({
             form="reset-user-password-form"
             disabled={resetUserPasswordMutation.isPending}
           >
-            {resetUserPasswordMutation.isPending ? 'Resetting…' : 'Reset password'}
+            {resetUserPasswordMutation.isPending
+              ? 'Resetting…'
+              : 'Reset password'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

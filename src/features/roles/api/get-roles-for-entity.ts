@@ -1,7 +1,7 @@
 import type { GetRolesParams, RolesListResponse } from '@/features/roles/types/roles.types'
 import { apiClient } from '@/lib/api/client'
 
-const defaultRolesForEntityParams: Required<GetRolesParams> = {
+const defaultRolesForEntityParams: Required<Pick<GetRolesParams, 'page' | 'limit'>> = {
   page: 1,
   limit: 100,
 }

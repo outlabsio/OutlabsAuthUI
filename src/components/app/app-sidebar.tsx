@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  Shield,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
@@ -58,6 +59,7 @@ type NavigationItem = {
   to?:
     | typeof routes.app.dashboard
     | typeof routes.app.users
+    | typeof routes.app.roles
     | typeof routes.app.entities
   icon: React.ComponentType<{ className?: string }>
   comingSoon?: boolean
@@ -94,6 +96,11 @@ const navigationGroups: Array<{
         title: 'Users',
         to: routes.app.users,
         icon: Users,
+      },
+      {
+        title: 'Roles',
+        to: routes.app.roles,
+        icon: Shield,
       },
       {
         title: 'Entities',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
@@ -170,26 +170,26 @@ export function EntityFormDialog({
           : 'The entity could not be updated.'
       )
     : null
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
+  const resetDialogState = useEffectEvent(() => {
     form.reset(
       mode === 'create' ? getCreateDefaults(parentEntity) : getUpdateDefaults(entity)
     )
     setSlugTouched(false)
     createEntityMutation.reset()
     updateEntityMutation.reset()
+  })
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    resetDialogState()
   }, [
-    createEntityMutation,
     entity,
-    form,
     mode,
     open,
     parentEntity,
-    updateEntityMutation,
   ])
 
   useEffect(() => {
@@ -378,7 +378,16 @@ export function EntityFormDialog({
                         render={({ field }) => (
                           <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(nextValue) => {
+                              form.setValue(
+                                'entityClass',
+                                nextValue as EntityFormValues['entityClass'],
+                                {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                }
+                              )
+                            }}
                             disabled={isPending}
                           >
                             <SelectTrigger>
@@ -406,7 +415,12 @@ export function EntityFormDialog({
                       render={({ field }) => (
                         <Select
                           value={field.value}
-                          onValueChange={field.onChange}
+                          onValueChange={(nextValue) => {
+                            form.setValue('status', nextValue as EntityFormValues['status'], {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
                           disabled={isPending}
                         >
                           <SelectTrigger>

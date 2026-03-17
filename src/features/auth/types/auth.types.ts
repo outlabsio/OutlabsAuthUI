@@ -19,12 +19,6 @@ export type SessionUser = {
   root_entity_name?: string | null
 }
 
-export type AuthConfigPermission = {
-  value: string
-  label: string
-  category: string
-}
-
 export type AuthConfig = {
   preset: string
   features: {
@@ -37,5 +31,5 @@ export type AuthConfig = {
     activity_tracking: boolean
     invitations: boolean
   }
-  available_permissions: AuthConfigPermission[]
+  available_permissions: string[]
 }

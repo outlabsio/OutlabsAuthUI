@@ -1,33 +1,33 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { FieldError } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useDeleteUserMutation } from '@/features/users/hooks/use-delete-user-mutation'
+} from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useDeleteUserMutation } from '@/features/users/hooks/use-delete-user-mutation';
 import {
   createDeleteUserSchema,
   type DeleteUserFormValues,
-} from '@/features/users/schemas/delete-user.schema'
-import { getApiErrorMessage } from '@/lib/api/errors'
+} from '@/features/users/schemas/delete-user.schema';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 type DeleteUserDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  userId: string
-  userEmail: string
-  onDeleted: () => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userId: string;
+  userEmail: string;
+  onDeleted: () => void;
+};
 
 export function DeleteUserDialog({
   open,
@@ -36,27 +36,32 @@ export function DeleteUserDialog({
   userEmail,
   onDeleted,
 }: DeleteUserDialogProps) {
-  const deleteUserMutation = useDeleteUserMutation()
+  const deleteUserMutation = useDeleteUserMutation();
+  const previousOpenRef = useRef(open);
   const form = useForm<DeleteUserFormValues>({
     resolver: zodResolver(createDeleteUserSchema(userEmail)),
     defaultValues: {
       email: '',
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open) {
-      form.reset()
-      deleteUserMutation.reset()
+    const wasOpen = previousOpenRef.current;
+
+    if (wasOpen && !open) {
+      form.reset();
+      deleteUserMutation.reset();
     }
-  }, [deleteUserMutation, form, open])
+
+    previousOpenRef.current = open;
+  }, [deleteUserMutation, form, open]);
 
   const submitError = deleteUserMutation.error
     ? getApiErrorMessage(
         deleteUserMutation.error,
-        'The user could not be deleted.'
+        'The user could not be deleted.',
       )
-    : null
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,15 +77,16 @@ export function DeleteUserDialog({
             try {
               await deleteUserMutation.mutateAsync({
                 userId,
-              })
-              onDeleted()
+              });
+              onDeleted();
             } catch {
-              return
+              return;
             }
           })}
         >
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            This soft-deletes the account, blocks future sign-in, and preserves the audit trail.
+            This soft-deletes the account, blocks future sign-in, and preserves
+            the audit trail.
           </div>
 
           <div className="space-y-2">
@@ -124,5 +130,5 @@ export function DeleteUserDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

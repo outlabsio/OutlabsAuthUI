@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -135,12 +135,7 @@ export function EntityMemberAccessDialog({
       reason: '',
     },
   })
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
+  const resetDialogState = useEffectEvent(() => {
     form.reset({
       userId: existingMember?.user_id ?? '',
       roleIds: existingMember?.roles.map((role) => role.id) ?? [],
@@ -154,13 +149,17 @@ export function EntityMemberAccessDialog({
     createMembershipMutation.reset()
     updateMembershipMutation.reset()
     removeMembershipMutation.reset()
+  })
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    resetDialogState()
   }, [
-    createMembershipMutation,
     existingMember,
-    form,
     open,
-    removeMembershipMutation,
-    updateMembershipMutation,
   ])
 
   const usersQuery = useQuery({
@@ -493,7 +492,16 @@ export function EntityMemberAccessDialog({
                             render={({ field }) => (
                               <Select
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(nextValue) => {
+                                  form.setValue(
+                                    'status',
+                                    nextValue as EntityMemberAccessFormValues['status'],
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    }
+                                  )
+                                }}
                                 disabled={isPending || !canManageMembershipAccess}
                               >
                                 <SelectTrigger>

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useQueries, useQuery } from '@tanstack/react-query'
-import { Controller, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueries, useQuery } from '@tanstack/react-query';
+import { Controller, useForm } from 'react-hook-form';
 import {
   ArrowLeft,
   Building2,
@@ -10,17 +10,17 @@ import {
   KeyRound,
   Mail,
   Shield,
-} from 'lucide-react'
+} from 'lucide-react';
 
-import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
-import { AppPage } from '@/components/app/app-page'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { FieldError } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
+import { AppPage } from '@/components/app/app-page';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -28,73 +28,73 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
-import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
-import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
-import { getUserMembershipsQueryOptions } from '@/features/memberships/api/memberships.query-options'
-import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation'
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options';
+import { useSessionQuery } from '@/features/auth/hooks/use-session-query';
+import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options';
+import { buildEntityOptions } from '@/features/entities/utils/build-entity-options';
+import { getUserMembershipsQueryOptions } from '@/features/memberships/api/memberships.query-options';
+import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation';
 import {
   formatMembershipToken,
   getMembershipStatusVariant,
-} from '@/features/memberships/utils/membership-display'
-import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
+} from '@/features/memberships/utils/membership-display';
+import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options';
 import {
   getRoleScopeSummary,
   formatRoleToken,
-} from '@/features/roles/utils/role-display'
-import type { Role } from '@/features/roles/types/roles.types'
-import { DeleteUserDialog } from '@/features/users/components/delete-user-dialog'
-import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog'
-import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog'
-import { ResetUserPasswordDialog } from '@/features/users/components/reset-user-password-dialog'
+} from '@/features/roles/utils/role-display';
+import type { Role } from '@/features/roles/types/roles.types';
+import { DeleteUserDialog } from '@/features/users/components/delete-user-dialog';
+import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog';
+import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog';
+import { ResetUserPasswordDialog } from '@/features/users/components/reset-user-password-dialog';
 import {
   getUserPermissionsQueryOptions,
   getUserQueryOptions,
   getUserRoleMembershipsQueryOptions,
-} from '@/features/users/api/users.query-options'
-import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation'
-import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation'
-import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation'
-import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation'
+} from '@/features/users/api/users.query-options';
+import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation';
+import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation';
+import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation';
+import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation';
 import {
   type UpdateUserProfileFormValues,
   updateUserProfileSchema,
-} from '@/features/users/schemas/update-user-profile.schema'
+} from '@/features/users/schemas/update-user-profile.schema';
 import {
   type UpdateUserStatusFormValues,
   updateUserStatusSchema,
-} from '@/features/users/schemas/update-user-status.schema'
+} from '@/features/users/schemas/update-user-status.schema';
 import type {
   User,
   UserPermissionSource,
   UserStatusUpdateValue,
   UserStatusValue,
-} from '@/features/users/types/users.types'
-import { getApiErrorMessage } from '@/lib/api/errors'
-import { cn } from '@/lib/utils/cn'
+} from '@/features/users/types/users.types';
+import { getApiErrorMessage } from '@/lib/api/errors';
+import { cn } from '@/lib/utils/cn';
 
 type UserDetailsPageProps = {
-  userId: string
-  onBack: () => void
-  onDeleted: () => void
-}
+  userId: string;
+  onBack: () => void;
+  onDeleted: () => void;
+};
 
 type DetailSectionProps = {
-  title: string
-  description?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-  className?: string
-}
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+};
 
 const statusOptions = [
   { label: 'Active', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
   { label: 'Banned', value: 'banned' },
-] satisfies Array<{ label: string; value: UserStatusUpdateValue }>
+] satisfies Array<{ label: string; value: UserStatusUpdateValue }>;
 
 function DetailSection({
   title,
@@ -116,98 +116,102 @@ function DetailSection({
       </div>
       <div className="px-5 py-4">{children}</div>
     </Card>
-  )
+  );
 }
 
-function getUserDisplayName(user?: Pick<User, 'email' | 'first_name' | 'last_name'> | null) {
+function getUserDisplayName(
+  user?: Pick<User, 'email' | 'first_name' | 'last_name'> | null,
+) {
   if (!user) {
-    return 'Unknown user'
+    return 'Unknown user';
   }
 
   const displayName = [user.first_name, user.last_name]
     .filter(Boolean)
     .join(' ')
-    .trim()
+    .trim();
 
   if (displayName) {
-    return displayName
+    return displayName;
   }
 
-  return user.email.split('@')[0] || 'Unknown user'
+  return user.email.split('@')[0] || 'Unknown user';
 }
 
-function getUserInitials(user?: Pick<User, 'email' | 'first_name' | 'last_name'> | null) {
+function getUserInitials(
+  user?: Pick<User, 'email' | 'first_name' | 'last_name'> | null,
+) {
   if (!user) {
-    return 'U'
+    return 'U';
   }
 
   const initials = [user.first_name, user.last_name]
     .filter(Boolean)
     .map((value) => value?.charAt(0).toUpperCase())
-    .join('')
+    .join('');
 
   if (initials) {
-    return initials.slice(0, 2)
+    return initials.slice(0, 2);
   }
 
-  return user.email.slice(0, 2).toUpperCase()
+  return user.email.slice(0, 2).toUpperCase();
 }
 
 function formatDateTime(value?: string | null, fallback = 'Never') {
   if (!value) {
-    return fallback
+    return fallback;
   }
 
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value))
+  }).format(new Date(value));
 }
 
 function formatToken(value?: string | null, fallback = 'General') {
   if (!value) {
-    return fallback
+    return fallback;
   }
 
   return value
     .split(/[_:-]/g)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+    .join(' ');
 }
 
 function getStatusVariant(status: UserStatusValue) {
   switch (status) {
     case 'active':
-      return 'secondary'
+      return 'secondary';
     case 'suspended':
     case 'banned':
-      return 'destructive'
+      return 'destructive';
     case 'invited':
     case 'deleted':
     default:
-      return 'outline'
+      return 'outline';
   }
 }
 
 function toDateTimeLocalValue(value?: string | null) {
   if (!value) {
-    return ''
+    return '';
   }
 
-  const date = new Date(value)
-  const offset = date.getTimezoneOffset()
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16)
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
 function groupPermissionsByResource(permissionSources: UserPermissionSource[]) {
-  const groups = new Map<string, UserPermissionSource[]>()
+  const groups = new Map<string, UserPermissionSource[]>();
 
   for (const permissionSource of permissionSources) {
-    const key = permissionSource.permission.resource ?? 'general'
-    const existing = groups.get(key) ?? []
-    existing.push(permissionSource)
-    groups.set(key, existing)
+    const key = permissionSource.permission.resource ?? 'general';
+    const existing = groups.get(key) ?? [];
+    existing.push(permissionSource);
+    groups.set(key, existing);
   }
 
   return [...groups.entries()]
@@ -215,13 +219,15 @@ function groupPermissionsByResource(permissionSources: UserPermissionSource[]) {
     .map(([resource, items]) => ({
       resource,
       items: items.sort((left, right) =>
-        left.permission.display_name.localeCompare(right.permission.display_name)
+        left.permission.display_name.localeCompare(
+          right.permission.display_name,
+        ),
       ),
-    }))
+    }));
 }
 
 function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
+  return candidates.some((candidate) => permissionNames.has(candidate));
 }
 
 export function UserDetailsPage({
@@ -229,41 +235,42 @@ export function UserDetailsPage({
   onBack,
   onDeleted,
 }: UserDetailsPageProps) {
-  const sessionQuery = useSessionQuery()
-  const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const entitiesQuery = useQuery(getEntitiesQueryOptions())
-  const userQuery = useQuery(getUserQueryOptions(userId))
+  const sessionQuery = useSessionQuery();
+  const authConfigQuery = useQuery(getAuthConfigQueryOptions());
+  const entitiesQuery = useQuery(getEntitiesQueryOptions());
+  const userQuery = useQuery(getUserQueryOptions(userId));
   const directRoleMembershipsQuery = useQuery(
-    getUserRoleMembershipsQueryOptions(userId, { includeInactive: true })
-  )
-  const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId))
+    getUserRoleMembershipsQueryOptions(userId, { includeInactive: true }),
+  );
+  const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId));
   const membershipsQuery = useQuery(
-    getUserMembershipsQueryOptions(userId, { includeInactive: true })
-  )
+    getUserMembershipsQueryOptions(userId, { includeInactive: true }),
+  );
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
     enabled: Boolean(sessionQuery.data?.id),
-  })
-  const updateUserMutation = useUpdateUserMutation()
-  const updateUserStatusMutation = useUpdateUserStatusMutation()
-  const updateMembershipMutation = useUpdateMembershipMutation()
-  const resendInviteMutation = useResendInviteMutation()
-  const removeRoleMutation = useRemoveRoleFromUserMutation()
-  const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false)
-  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
-  const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false)
-  const [confirmingDirectRoleId, setConfirmingDirectRoleId] = useState<string | null>(
-    null
-  )
-  const [membershipAccessDialogState, setMembershipAccessDialogState] = useState<{
-    open: boolean
-    entityId: string | null
-    lockEntity: boolean
-  }>({
-    open: false,
-    entityId: null,
-    lockEntity: false,
-  })
+  });
+  const updateUserMutation = useUpdateUserMutation();
+  const updateUserStatusMutation = useUpdateUserStatusMutation();
+  const updateMembershipMutation = useUpdateMembershipMutation();
+  const resendInviteMutation = useResendInviteMutation();
+  const removeRoleMutation = useRemoveRoleFromUserMutation();
+  const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
+  const [confirmingDirectRoleId, setConfirmingDirectRoleId] = useState<
+    string | null
+  >(null);
+  const [membershipAccessDialogState, setMembershipAccessDialogState] =
+    useState<{
+      open: boolean;
+      entityId: string | null;
+      lockEntity: boolean;
+    }>({
+      open: false,
+      entityId: null,
+      lockEntity: false,
+    });
   const profileForm = useForm<UpdateUserProfileFormValues>({
     resolver: zodResolver(updateUserProfileSchema),
     defaultValues: {
@@ -271,7 +278,7 @@ export function UserDetailsPage({
       lastName: '',
       email: '',
     },
-  })
+  });
   const statusForm = useForm<UpdateUserStatusFormValues>({
     resolver: zodResolver(updateUserStatusSchema),
     defaultValues: {
@@ -279,43 +286,50 @@ export function UserDetailsPage({
       suspendedUntil: '',
       reason: '',
     },
-  })
+  });
 
-  const user = userQuery.data
+  const user = userQuery.data;
   const entityOptions = useMemo(
     () => buildEntityOptions(entitiesQuery.data?.items ?? []),
-    [entitiesQuery.data?.items]
-  )
+    [entitiesQuery.data?.items],
+  );
   const entityById = useMemo(
     () => new Map(entityOptions.map((entity) => [entity.id, entity])),
-    [entityOptions]
-  )
+    [entityOptions],
+  );
   const actorPermissionNames = useMemo(
     () =>
-      new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
-  const pageError = userQuery.error ?? authConfigQuery.error
-  const membershipRolesFeatureEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
-  const directRolesFeatureEnabled = true
-  const isActorSuperuser = sessionQuery.data?.is_superuser === true
+      new Set(
+        (actorPermissionsQuery.data ?? []).map((item) => item.permission.name),
+      ),
+    [actorPermissionsQuery.data],
+  );
+  const pageError = userQuery.error ?? authConfigQuery.error;
+  const membershipRolesFeatureEnabled =
+    authConfigQuery.data?.features.entity_hierarchy ?? false;
+  const userStatusFeatureEnabled =
+    authConfigQuery.data?.features.user_status ?? true;
+  const activityTrackingFeatureEnabled =
+    authConfigQuery.data?.features.activity_tracking ?? true;
+  const directRolesFeatureEnabled = true;
+  const isActorSuperuser = sessionQuery.data?.is_superuser === true;
   const canReadScopedRoleCatalog = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree'])
-    : membershipRolesFeatureEnabled
+    : isActorSuperuser;
   const canAssignDirectRoles = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (directRolesFeatureEnabled &&
         actorPermissionNames.has('user:update') &&
         hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree']))
-    : directRolesFeatureEnabled
+    : isActorSuperuser && directRolesFeatureEnabled;
   const canUpdateUsers = actorPermissionsQuery.isSuccess
     ? isActorSuperuser || actorPermissionNames.has('user:update')
-    : true
+    : isActorSuperuser;
   const canDeleteUsers = actorPermissionsQuery.isSuccess
     ? isActorSuperuser || actorPermissionNames.has('user:delete')
-    : true
-  const canRemoveDirectRoles = canUpdateUsers
+    : isActorSuperuser;
+  const canRemoveDirectRoles = canUpdateUsers;
   const canManageMembershipAccess = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (membershipRolesFeatureEnabled &&
@@ -327,7 +341,7 @@ export function UserDetailsPage({
             'membership:update',
             'membership:update_tree',
           ])))
-    : membershipRolesFeatureEnabled
+    : isActorSuperuser && membershipRolesFeatureEnabled;
   const canRemoveMemberships = actorPermissionsQuery.isSuccess
     ? isActorSuperuser ||
       (membershipRolesFeatureEnabled &&
@@ -335,62 +349,74 @@ export function UserDetailsPage({
           'membership:delete',
           'membership:delete_tree',
         ]))
-    : membershipRolesFeatureEnabled
+    : isActorSuperuser && membershipRolesFeatureEnabled;
   const membershipRoleQueries = useQueries({
     queries: (membershipsQuery.data ?? []).map((membership) => ({
       ...getRolesForEntityQueryOptions(membership.entity_id, { limit: 100 }),
       enabled: Boolean(membership.entity_id) && canReadScopedRoleCatalog,
     })),
-  })
-  const membershipRoleById = new Map<string, Role>()
+  });
+  const membershipRoleById = new Map<string, Role>();
 
   for (const membership of directRoleMembershipsQuery.data ?? []) {
-    membershipRoleById.set(membership.role.id, membership.role)
+    membershipRoleById.set(membership.role.id, membership.role);
   }
 
   for (const query of membershipRoleQueries) {
     for (const role of query.data?.items ?? []) {
-      membershipRoleById.set(role.id, role)
+      membershipRoleById.set(role.id, role);
     }
   }
 
   const groupedPermissions = useMemo(
     () => groupPermissionsByResource(userPermissionsQuery.data ?? []),
-    [userPermissionsQuery.data]
-  )
-  const canResetPassword = canUpdateUsers && user?.status !== 'deleted'
+    [userPermissionsQuery.data],
+  );
+  const canResetPassword = canUpdateUsers && user?.status !== 'deleted';
   const canResendInvite =
     (authConfigQuery.data?.features.invitations ?? false) &&
     user?.status === 'invited' &&
-    canUpdateUsers
+    canUpdateUsers;
   const canDeleteThisUser =
     canDeleteUsers &&
     sessionQuery.data?.id !== userId &&
-    user?.status !== 'deleted'
-  const watchedStatus = statusForm.watch('status')
+    user?.status !== 'deleted';
+  const watchedStatus = statusForm.watch('status');
   const profileError = updateUserMutation.error
-    ? getApiErrorMessage(updateUserMutation.error, 'Unable to update this user.')
-    : null
+    ? getApiErrorMessage(
+        updateUserMutation.error,
+        'Unable to update this user.',
+      )
+    : null;
   const statusError = updateUserStatusMutation.error
-    ? getApiErrorMessage(updateUserStatusMutation.error, 'Unable to update account status.')
-    : null
+    ? getApiErrorMessage(
+        updateUserStatusMutation.error,
+        'Unable to update account status.',
+      )
+    : null;
   const resendInviteError = resendInviteMutation.error
-    ? getApiErrorMessage(resendInviteMutation.error, 'Unable to resend the invitation.')
-    : null
+    ? getApiErrorMessage(
+        resendInviteMutation.error,
+        'Unable to resend the invitation.',
+      )
+    : null;
   const removeRoleError = removeRoleMutation.error
-    ? getApiErrorMessage(removeRoleMutation.error, 'Unable to remove the direct role.')
-    : null
+    ? getApiErrorMessage(
+        removeRoleMutation.error,
+        'Unable to remove the direct role.',
+      )
+    : null;
 
   useEffect(() => {
     if (!user) {
-      return
+      return;
     }
 
     profileForm.reset({
       firstName: user.first_name ?? '',
       lastName: user.last_name ?? '',
       email: user.email,
-    })
+    });
     statusForm.reset({
       status:
         user.status === 'invited' || user.status === 'deleted'
@@ -398,8 +424,8 @@ export function UserDetailsPage({
           : user.status,
       suspendedUntil: toDateTimeLocalValue(user.suspended_until),
       reason: '',
-    })
-  }, [profileForm, statusForm, user])
+    });
+  }, [profileForm, statusForm, user]);
 
   if (userQuery.isPending) {
     return (
@@ -416,7 +442,7 @@ export function UserDetailsPage({
           Loading user details…
         </div>
       </AppPage>
-    )
+    );
   }
 
   if (!user || pageError) {
@@ -431,10 +457,13 @@ export function UserDetailsPage({
         }
       >
         <div className="max-w-xl rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-          {getApiErrorMessage(pageError, 'The selected user could not be loaded.')}
+          {getApiErrorMessage(
+            pageError,
+            'The selected user could not be loaded.',
+          )}
         </div>
       </AppPage>
-    )
+    );
   }
 
   return (
@@ -455,16 +484,25 @@ export function UserDetailsPage({
         <div className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <Avatar size="lg" className="size-14">
-              <AvatarImage src={user.avatar_url ?? undefined} alt={getUserDisplayName(user)} />
+              <AvatarImage
+                src={user.avatar_url ?? undefined}
+                alt={getUserDisplayName(user)}
+              />
               <AvatarFallback className="text-base font-medium">
                 {getUserInitials(user)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={getStatusVariant(user.status)}>{formatToken(user.status)}</Badge>
-                {user.email_verified ? <Badge variant="outline">Verified</Badge> : null}
-                {user.is_superuser ? <Badge variant="outline">Superuser</Badge> : null}
+                <Badge variant={getStatusVariant(user.status)}>
+                  {formatToken(user.status)}
+                </Badge>
+                {user.email_verified ? (
+                  <Badge variant="outline">Verified</Badge>
+                ) : null}
+                {user.is_superuser ? (
+                  <Badge variant="outline">Superuser</Badge>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
@@ -484,19 +522,27 @@ export function UserDetailsPage({
           </div>
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
-              <div className="text-[0.8rem] text-muted-foreground">Memberships</div>
+              <div className="text-[0.8rem] text-muted-foreground">
+                Memberships
+              </div>
               <div className="mt-1 text-lg font-semibold">
                 {membershipsQuery.data?.length ?? 0}
               </div>
             </div>
-              <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
-                <div className="text-[0.8rem] text-muted-foreground">Direct roles</div>
-                <div className="mt-1 text-lg font-semibold">
-                  {directRoleMembershipsQuery.data?.filter((membership) => membership.status === 'active').length ?? 0}
-                </div>
-              </div>
             <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
-              <div className="text-[0.8rem] text-muted-foreground">Permissions</div>
+              <div className="text-[0.8rem] text-muted-foreground">
+                Direct roles
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {directRoleMembershipsQuery.data?.filter(
+                  (membership) => membership.status === 'active',
+                ).length ?? 0}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
+              <div className="text-[0.8rem] text-muted-foreground">
+                Permissions
+              </div>
               <div className="mt-1 text-lg font-semibold">
                 {userPermissionsQuery.data?.length ?? 0}
               </div>
@@ -521,7 +567,11 @@ export function UserDetailsPage({
                 type="submit"
                 size="sm"
                 form="user-profile-form"
-                disabled={updateUserMutation.isPending || !profileForm.formState.isDirty}
+                disabled={
+                  !canUpdateUsers ||
+                  updateUserMutation.isPending ||
+                  !profileForm.formState.isDirty
+                }
               >
                 {updateUserMutation.isPending ? 'Saving…' : 'Save profile'}
               </Button>
@@ -537,9 +587,9 @@ export function UserDetailsPage({
                     email: values.email.trim(),
                     first_name: values.firstName.trim() || undefined,
                     last_name: values.lastName.trim() || undefined,
-                  })
+                  });
                 } catch {
-                  return
+                  return;
                 }
               })}
             >
@@ -549,20 +599,24 @@ export function UserDetailsPage({
                   <Input
                     id="user-detail-first-name"
                     placeholder="First name"
-                    disabled={updateUserMutation.isPending}
+                    disabled={!canUpdateUsers || updateUserMutation.isPending}
                     {...profileForm.register('firstName')}
                   />
-                  <FieldError errors={[profileForm.formState.errors.firstName]} />
+                  <FieldError
+                    errors={[profileForm.formState.errors.firstName]}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-detail-last-name">Last name</Label>
                   <Input
                     id="user-detail-last-name"
                     placeholder="Last name"
-                    disabled={updateUserMutation.isPending}
+                    disabled={!canUpdateUsers || updateUserMutation.isPending}
                     {...profileForm.register('lastName')}
                   />
-                  <FieldError errors={[profileForm.formState.errors.lastName]} />
+                  <FieldError
+                    errors={[profileForm.formState.errors.lastName]}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -571,11 +625,17 @@ export function UserDetailsPage({
                   id="user-detail-email"
                   type="email"
                   placeholder="person@example.com"
-                  disabled={updateUserMutation.isPending}
+                  disabled={!canUpdateUsers || updateUserMutation.isPending}
                   {...profileForm.register('email')}
                 />
                 <FieldError errors={[profileForm.formState.errors.email]} />
               </div>
+              {!canUpdateUsers ? (
+                <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                  Your account can view this profile, but it cannot update user
+                  details.
+                </div>
+              ) : null}
               {profileError ? (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                   {profileError}
@@ -584,184 +644,216 @@ export function UserDetailsPage({
             </form>
           </DetailSection>
 
-          <DetailSection
-            title="Account status"
-            description="Change account access now, or suspend access until a specific date."
-            action={
-              <div className="flex flex-wrap items-center gap-2">
-                {canResendInvite ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={resendInviteMutation.isPending}
-                    onClick={() => {
-                      void resendInviteMutation.mutateAsync(userId)
-                    }}
-                  >
-                    {resendInviteMutation.isPending ? 'Sending…' : 'Resend invite'}
-                  </Button>
-                ) : null}
-                <Button
-                  type="submit"
-                  size="sm"
-                  form="user-status-form"
-                  disabled={
-                    updateUserStatusMutation.isPending || !statusForm.formState.isDirty
-                  }
-                >
-                  {updateUserStatusMutation.isPending ? 'Updating…' : 'Update status'}
-                </Button>
-              </div>
-            }
-          >
-            <form
-              id="user-status-form"
-              className="space-y-4"
-              onSubmit={statusForm.handleSubmit(async (values) => {
-                if (!values.status) {
-                  return
-                }
-
-                try {
-                  await updateUserStatusMutation.mutateAsync({
-                    userId,
-                    status: values.status,
-                    suspended_until:
-                      values.status === 'suspended' && values.suspendedUntil
-                        ? new Date(values.suspendedUntil).toISOString()
-                        : undefined,
-                    reason: values.reason?.trim() || undefined,
-                  })
-                } catch {
-                  return
-                }
-              })}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="user-detail-status">Next status</Label>
-                <Controller
-                  control={statusForm.control}
-                  name="status"
-                  render={({ field }) => (
-                    <Select
-                      items={statusOptions}
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value ?? undefined)
+          {userStatusFeatureEnabled ? (
+            <DetailSection
+              title="Account status"
+              description="Change account access now, or suspend access until a specific date."
+              action={
+                <div className="flex flex-wrap items-center gap-2">
+                  {canResendInvite ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={resendInviteMutation.isPending}
+                      onClick={() => {
+                        void resendInviteMutation.mutateAsync(userId);
                       }}
                     >
-                      <SelectTrigger
-                        id="user-detail-status"
-                        className="w-full"
-                        aria-label="Change account status"
-                      >
-                        <SelectValue placeholder="Select a new status" />
-                      </SelectTrigger>
-                      <SelectContent align="start" alignItemWithTrigger={false}>
-                        <SelectGroup>
-                          {statusOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FieldError errors={[statusForm.formState.errors.status]} />
-              </div>
-              {watchedStatus === 'suspended' ? (
+                      {resendInviteMutation.isPending
+                        ? 'Sending…'
+                        : 'Resend invite'}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="submit"
+                    size="sm"
+                    form="user-status-form"
+                    disabled={
+                      !canUpdateUsers ||
+                      updateUserStatusMutation.isPending ||
+                      !statusForm.formState.isDirty
+                    }
+                  >
+                    {updateUserStatusMutation.isPending
+                      ? 'Updating…'
+                      : 'Update status'}
+                  </Button>
+                </div>
+              }
+            >
+              <form
+                id="user-status-form"
+                className="space-y-4"
+                onSubmit={statusForm.handleSubmit(async (values) => {
+                  if (!values.status) {
+                    return;
+                  }
+
+                  try {
+                    await updateUserStatusMutation.mutateAsync({
+                      userId,
+                      status: values.status,
+                      suspended_until:
+                        values.status === 'suspended' && values.suspendedUntil
+                          ? new Date(values.suspendedUntil).toISOString()
+                          : undefined,
+                      reason: values.reason?.trim() || undefined,
+                    });
+                  } catch {
+                    return;
+                  }
+                })}
+              >
                 <div className="space-y-2">
-                  <Label htmlFor="user-detail-suspended-until">Suspend until</Label>
+                  <Label htmlFor="user-detail-status">Next status</Label>
                   <Controller
                     control={statusForm.control}
-                    name="suspendedUntil"
+                    name="status"
                     render={({ field }) => (
-                      <AppDateTimePicker
-                        id="user-detail-suspended-until"
-                        value={field.value ?? ''}
-                        onChange={field.onChange}
-                        disabled={updateUserStatusMutation.isPending}
-                        placeholder="Pick a suspension end"
-                      />
+                      <Select
+                        items={statusOptions}
+                        value={field.value ?? null}
+                        onValueChange={(value) => {
+                          field.onChange(value ?? undefined);
+                        }}
+                        disabled={!canUpdateUsers}
+                      >
+                        <SelectTrigger
+                          id="user-detail-status"
+                          className="w-full"
+                          aria-label="Change account status"
+                        >
+                          <SelectValue placeholder="Select a new status" />
+                        </SelectTrigger>
+                        <SelectContent
+                          align="start"
+                          alignItemWithTrigger={false}
+                        >
+                          <SelectGroup>
+                            {statusOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     )}
                   />
-                  <FieldError errors={[statusForm.formState.errors.suspendedUntil]} />
+                  <FieldError errors={[statusForm.formState.errors.status]} />
                 </div>
-              ) : null}
-              <div className="space-y-2">
-                <Label htmlFor="user-detail-status-reason">Reason</Label>
-                <Textarea
-                  id="user-detail-status-reason"
-                  placeholder="Optional note for the audit trail"
-                  disabled={updateUserStatusMutation.isPending}
-                  {...statusForm.register('reason')}
-                />
-                <FieldError errors={[statusForm.formState.errors.reason]} />
-              </div>
-              {statusError ? (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  {statusError}
+                {watchedStatus === 'suspended' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="user-detail-suspended-until">
+                      Suspend until
+                    </Label>
+                    <Controller
+                      control={statusForm.control}
+                      name="suspendedUntil"
+                      render={({ field }) => (
+                        <AppDateTimePicker
+                          id="user-detail-suspended-until"
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          disabled={
+                            !canUpdateUsers ||
+                            updateUserStatusMutation.isPending
+                          }
+                          placeholder="Pick a suspension end"
+                        />
+                      )}
+                    />
+                    <FieldError
+                      errors={[statusForm.formState.errors.suspendedUntil]}
+                    />
+                  </div>
+                ) : null}
+                <div className="space-y-2">
+                  <Label htmlFor="user-detail-status-reason">Reason</Label>
+                  <Textarea
+                    id="user-detail-status-reason"
+                    placeholder="Optional note for the audit trail"
+                    disabled={
+                      !canUpdateUsers || updateUserStatusMutation.isPending
+                    }
+                    {...statusForm.register('reason')}
+                  />
+                  <FieldError errors={[statusForm.formState.errors.reason]} />
                 </div>
-              ) : null}
-              {resendInviteError ? (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  {resendInviteError}
-                </div>
-              ) : null}
-              {resendInviteMutation.isSuccess ? (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  Invitation email re-sent successfully.
-                </div>
-              ) : null}
-            </form>
-          </DetailSection>
+                {!canUpdateUsers ? (
+                  <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                    Your account can view this status, but it cannot change
+                    account access.
+                  </div>
+                ) : null}
+                {statusError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                    {statusError}
+                  </div>
+                ) : null}
+                {resendInviteError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                    {resendInviteError}
+                  </div>
+                ) : null}
+                {resendInviteMutation.isSuccess ? (
+                  <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    Invitation email re-sent successfully.
+                  </div>
+                ) : null}
+              </form>
+            </DetailSection>
+          ) : null}
 
-          <DetailSection
-            title="Activity and lifecycle"
-            description="Operational timestamps and account lifecycle signals from the auth system."
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Created</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.created_at, 'Unknown')}
+          {activityTrackingFeatureEnabled ? (
+            <DetailSection
+              title="Activity and lifecycle"
+              description="Operational timestamps and account lifecycle signals from the auth system."
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Created</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.created_at, 'Unknown')}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Updated</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.updated_at, 'Unknown')}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Last login</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.last_login, 'No sign-in yet')}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Last activity</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.last_activity, 'No recent activity')}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Suspended until</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.suspended_until, 'Not suspended')}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="text-sm font-medium">Deleted at</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(user.deleted_at, 'Active account')}
+                  </div>
                 </div>
               </div>
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Updated</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.updated_at, 'Unknown')}
-                </div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Last login</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.last_login, 'No sign-in yet')}
-                </div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Last activity</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.last_activity, 'No recent activity')}
-                </div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Suspended until</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.suspended_until, 'Not suspended')}
-                </div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                <div className="text-sm font-medium">Deleted at</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {formatDateTime(user.deleted_at, 'Active account')}
-                </div>
-              </div>
-            </div>
-          </DetailSection>
+            </DetailSection>
+          ) : null}
 
           <DetailSection
             title="Security"
@@ -773,7 +865,7 @@ export function UserDetailsPage({
                 variant="outline"
                 disabled={!canResetPassword}
                 onClick={() => {
-                  setResetPasswordDialogOpen(true)
+                  setResetPasswordDialogOpen(true);
                 }}
               >
                 Reset password
@@ -787,7 +879,10 @@ export function UserDetailsPage({
                   Last password change
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {formatDateTime(user.last_password_change, 'No password has been set yet')}
+                  {formatDateTime(
+                    user.last_password_change,
+                    'No password has been set yet',
+                  )}
                 </p>
               </div>
               <div className="rounded-lg border bg-muted/40 px-4 py-3">
@@ -812,7 +907,7 @@ export function UserDetailsPage({
                 variant="destructive"
                 disabled={!canDeleteThisUser}
                 onClick={() => {
-                  setDeleteUserDialogOpen(true)
+                  setDeleteUserDialogOpen(true);
                 }}
               >
                 Delete user
@@ -842,7 +937,7 @@ export function UserDetailsPage({
                     open: true,
                     entityId: null,
                     lockEntity: false,
-                  })
+                  });
                 }}
               >
                 Assign entity
@@ -853,7 +948,7 @@ export function UserDetailsPage({
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                 {getApiErrorMessage(
                   membershipsQuery.error,
-                  'The user memberships could not be loaded.'
+                  'The user memberships could not be loaded.',
                 )}
               </div>
             ) : membershipsQuery.data && membershipsQuery.data.length > 0 ? (
@@ -862,19 +957,21 @@ export function UserDetailsPage({
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                     {getApiErrorMessage(
                       updateMembershipMutation.error,
-                      'The membership access could not be updated.'
+                      'The membership access could not be updated.',
                     )}
                   </div>
                 ) : null}
                 {membershipsQuery.data.map((membership) => {
-                  const entity = entityById.get(membership.entity_id)
-                  const membershipStatus = membership.effective_status || membership.status
+                  const entity = entityById.get(membership.entity_id);
+                  const membershipStatus =
+                    membership.effective_status || membership.status;
                   const membershipRoles = membership.role_ids
                     .map((roleId) => membershipRoleById.get(roleId))
-                    .filter((role): role is Role => Boolean(role))
+                    .filter((role): role is Role => Boolean(role));
                   const isRestoringMembership =
                     updateMembershipMutation.isPending &&
-                    updateMembershipMutation.variables?.entityId === membership.entity_id
+                    updateMembershipMutation.variables?.entityId ===
+                      membership.entity_id;
 
                   return (
                     <div
@@ -887,7 +984,11 @@ export function UserDetailsPage({
                             <div className="font-medium">
                               {entity?.title ?? membership.entity_id}
                             </div>
-                            <Badge variant={getMembershipStatusVariant(membershipStatus)}>
+                            <Badge
+                              variant={getMembershipStatusVariant(
+                                membershipStatus,
+                              )}
+                            >
                               {formatMembershipToken(membershipStatus)}
                             </Badge>
                           </div>
@@ -900,7 +1001,10 @@ export function UserDetailsPage({
                             type="button"
                             size="sm"
                             variant="ghost"
-                            disabled={!canManageMembershipAccess || isRestoringMembership}
+                            disabled={
+                              !canManageMembershipAccess ||
+                              isRestoringMembership
+                            }
                             onClick={async () => {
                               try {
                                 await updateMembershipMutation.mutateAsync({
@@ -908,26 +1012,33 @@ export function UserDetailsPage({
                                   entityId: membership.entity_id,
                                   status: 'active',
                                   reason: null,
-                                })
+                                });
                               } catch {
-                                return
+                                return;
                               }
                             }}
                           >
-                            {isRestoringMembership ? 'Restoring…' : 'Restore access'}
+                            {isRestoringMembership
+                              ? 'Restoring…'
+                              : 'Restore access'}
                           </Button>
                         ) : (
                           <Button
                             type="button"
                             size="sm"
                             variant="ghost"
-                            disabled={!(canManageMembershipAccess || canRemoveMemberships)}
+                            disabled={
+                              !(
+                                canManageMembershipAccess ||
+                                canRemoveMemberships
+                              )
+                            }
                             onClick={() => {
                               setMembershipAccessDialogState({
                                 open: true,
                                 entityId: membership.entity_id,
                                 lockEntity: true,
-                              })
+                              });
                             }}
                           >
                             Manage access
@@ -936,24 +1047,30 @@ export function UserDetailsPage({
                       </div>
                       <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
                         <div className="rounded-lg border bg-background/70 px-3 py-2">
-                          <div className="font-medium text-foreground">Joined</div>
+                          <div className="font-medium text-foreground">
+                            Joined
+                          </div>
                           <div className="mt-1">
                             {formatDateTime(membership.joined_at, 'Unknown')}
                           </div>
                         </div>
                         <div className="rounded-lg border bg-background/70 px-3 py-2">
-                          <div className="font-medium text-foreground">Window</div>
+                          <div className="font-medium text-foreground">
+                            Window
+                          </div>
                           <div className="mt-1">
                             {membership.valid_from || membership.valid_until
                               ? `${formatDateTime(membership.valid_from, 'Now')} -> ${formatDateTime(
                                   membership.valid_until,
-                                  'Open ended'
+                                  'Open ended',
                                 )}`
                               : 'Always on'}
                           </div>
                         </div>
                         <div className="rounded-lg border bg-background/70 px-3 py-2">
-                          <div className="font-medium text-foreground">Current access</div>
+                          <div className="font-medium text-foreground">
+                            Current access
+                          </div>
                           <div className="mt-1">
                             {membership.can_grant_permissions
                               ? 'Grants permissions now'
@@ -986,7 +1103,7 @@ export function UserDetailsPage({
                         )}
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             ) : (
@@ -1006,7 +1123,7 @@ export function UserDetailsPage({
                 variant="outline"
                 disabled={!canAssignDirectRoles}
                 onClick={() => {
-                  setDirectRoleDialogOpen(true)
+                  setDirectRoleDialogOpen(true);
                 }}
               >
                 Assign direct role
@@ -1017,10 +1134,11 @@ export function UserDetailsPage({
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                 {getApiErrorMessage(
                   directRoleMembershipsQuery.error,
-                  'The direct role assignments could not be loaded.'
+                  'The direct role assignments could not be loaded.',
                 )}
               </div>
-            ) : directRoleMembershipsQuery.data && directRoleMembershipsQuery.data.length > 0 ? (
+            ) : directRoleMembershipsQuery.data &&
+              directRoleMembershipsQuery.data.length > 0 ? (
               <div className="space-y-3">
                 {removeRoleError ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -1028,139 +1146,159 @@ export function UserDetailsPage({
                   </div>
                 ) : null}
                 {directRoleMembershipsQuery.data.map((membership) => {
-                  const role = membership.role
+                  const role = membership.role;
 
                   return (
-                  <div key={membership.id} className="rounded-lg border bg-muted/30 px-4 py-3">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="font-medium">{role.display_name}</div>
-                          <Badge
-                            variant={
-                              membership.status === 'active' && membership.can_grant_permissions
-                                ? 'secondary'
-                                : membership.status === 'revoked'
-                                  ? 'destructive'
-                                  : 'outline'
-                            }
-                          >
-                            {formatToken(membership.status)}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {role.description || role.name}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {role.is_global ? <Badge variant="outline">Global</Badge> : null}
-                        <Badge variant="outline">{role.permissions.length} permissions</Badge>
-                        {canRemoveDirectRoles && membership.status === 'active' ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={removeRoleMutation.isPending}
-                            onClick={() => {
-                              setConfirmingDirectRoleId((currentRoleId) =>
-                                currentRoleId === membership.role_id ? null : membership.role_id
-                              )
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
-                        {getRoleScopeSummary(role)}
-                      </span>
-                      {role.assignable_at_types.length > 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
-                          Assignable at{' '}
-                          {role.assignable_at_types
-                            .map((type) => formatRoleToken(type))
-                            .join(', ')}
-                        </span>
-                        ) : null}
-                    </div>
-                    <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-                      <div className="rounded-lg border bg-background/70 px-3 py-2">
-                        <div className="font-medium text-foreground">Assigned</div>
-                        <div className="mt-1">
-                          {formatDateTime(membership.assigned_at, 'Unknown')}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 px-3 py-2">
-                        <div className="font-medium text-foreground">Window</div>
-                        <div className="mt-1">
-                          {membership.valid_from || membership.valid_until
-                            ? `${formatDateTime(membership.valid_from, 'Now')} -> ${formatDateTime(
-                                membership.valid_until,
-                                'Open ended'
-                              )}`
-                            : 'Always on'}
-                        </div>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 px-3 py-2">
-                        <div className="font-medium text-foreground">Current access</div>
-                        <div className="mt-1">
-                          {membership.can_grant_permissions
-                            ? 'Grants permissions now'
-                            : 'Does not currently grant permissions'}
-                        </div>
-                      </div>
-                    </div>
-                    {membership.revocation_reason ? (
-                      <div className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
-                        {membership.revocation_reason}
-                      </div>
-                    ) : null}
-                    {confirmingDirectRoleId === membership.role_id ? (
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2">
-                        <span className="text-sm text-muted-foreground">
-                          Remove this direct role from the account?
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={removeRoleMutation.isPending}
-                            onClick={() => {
-                              setConfirmingDirectRoleId(null)
-                            }}
-                          >
-                            Keep role
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            disabled={removeRoleMutation.isPending}
-                            onClick={async () => {
-                              try {
-                                await removeRoleMutation.mutateAsync({
-                                  userId,
-                                  roleId: membership.role_id,
-                                })
-                                setConfirmingDirectRoleId(null)
-                              } catch {
-                                return
+                    <div
+                      key={membership.id}
+                      className="rounded-lg border bg-muted/30 px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-medium">
+                              {role.display_name}
+                            </div>
+                            <Badge
+                              variant={
+                                membership.status === 'active' &&
+                                membership.can_grant_permissions
+                                  ? 'secondary'
+                                  : membership.status === 'revoked'
+                                    ? 'destructive'
+                                    : 'outline'
                               }
-                            }}
-                          >
-                            {removeRoleMutation.isPending &&
-                            removeRoleMutation.variables?.roleId === membership.role_id
-                              ? 'Removing…'
-                              : 'Confirm remove'}
-                          </Button>
+                            >
+                              {formatToken(membership.status)}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {role.description || role.name}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {role.is_global ? (
+                            <Badge variant="outline">Global</Badge>
+                          ) : null}
+                          <Badge variant="outline">
+                            {role.permissions.length} permissions
+                          </Badge>
+                          {canRemoveDirectRoles &&
+                          membership.status === 'active' ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={removeRoleMutation.isPending}
+                              onClick={() => {
+                                setConfirmingDirectRoleId((currentRoleId) =>
+                                  currentRoleId === membership.role_id
+                                    ? null
+                                    : membership.role_id,
+                                );
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
-                    ) : null}
-                  </div>
-                  )
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
+                          {getRoleScopeSummary(role)}
+                        </span>
+                        {role.assignable_at_types.length > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
+                            Assignable at{' '}
+                            {role.assignable_at_types
+                              .map((type) => formatRoleToken(type))
+                              .join(', ')}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">
+                            Assigned
+                          </div>
+                          <div className="mt-1">
+                            {formatDateTime(membership.assigned_at, 'Unknown')}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">
+                            Window
+                          </div>
+                          <div className="mt-1">
+                            {membership.valid_from || membership.valid_until
+                              ? `${formatDateTime(membership.valid_from, 'Now')} -> ${formatDateTime(
+                                  membership.valid_until,
+                                  'Open ended',
+                                )}`
+                              : 'Always on'}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background/70 px-3 py-2">
+                          <div className="font-medium text-foreground">
+                            Current access
+                          </div>
+                          <div className="mt-1">
+                            {membership.can_grant_permissions
+                              ? 'Grants permissions now'
+                              : 'Does not currently grant permissions'}
+                          </div>
+                        </div>
+                      </div>
+                      {membership.revocation_reason ? (
+                        <div className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
+                          {membership.revocation_reason}
+                        </div>
+                      ) : null}
+                      {confirmingDirectRoleId === membership.role_id ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2">
+                          <span className="text-sm text-muted-foreground">
+                            Remove this direct role from the account?
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={removeRoleMutation.isPending}
+                              onClick={() => {
+                                setConfirmingDirectRoleId(null);
+                              }}
+                            >
+                              Keep role
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              disabled={removeRoleMutation.isPending}
+                              onClick={async () => {
+                                try {
+                                  await removeRoleMutation.mutateAsync({
+                                    userId,
+                                    roleId: membership.role_id,
+                                  });
+                                  setConfirmingDirectRoleId(null);
+                                } catch {
+                                  return;
+                                }
+                              }}
+                            >
+                              {removeRoleMutation.isPending &&
+                              removeRoleMutation.variables?.roleId ===
+                                membership.role_id
+                                ? 'Removing…'
+                                : 'Confirm remove'}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
                 })}
               </div>
             ) : (
@@ -1180,15 +1318,20 @@ export function UserDetailsPage({
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
             {getApiErrorMessage(
               userPermissionsQuery.error,
-              'The effective permission set could not be loaded.'
+              'The effective permission set could not be loaded.',
             )}
           </div>
         ) : groupedPermissions.length > 0 ? (
           <div className="space-y-4">
             {groupedPermissions.map((group) => (
-              <div key={group.resource} className="rounded-lg border bg-muted/30 px-4 py-3">
+              <div
+                key={group.resource}
+                className="rounded-lg border bg-muted/30 px-4 py-3"
+              >
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="font-medium">{formatToken(group.resource)}</div>
+                  <div className="font-medium">
+                    {formatToken(group.resource)}
+                  </div>
                   <Badge variant="outline">{group.items.length}</Badge>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -1257,7 +1400,7 @@ export function UserDetailsPage({
           setMembershipAccessDialogState((currentState) => ({
             ...currentState,
             open: nextOpen,
-          }))
+          }));
         }}
         userId={userId}
         entities={entitiesQuery.data?.items ?? []}
@@ -1268,5 +1411,5 @@ export function UserDetailsPage({
         canRemoveMemberships={canRemoveMemberships}
       />
     </AppPage>
-  )
+  );
 }

@@ -11,6 +11,8 @@ export const routes = {
     dashboard: '/app/dashboard',
     users: '/app/users',
     userDetail: '/app/users/$userId',
+    roles: '/app/roles',
+    roleDetail: '/app/roles/$roleId',
     entities: '/app/entities',
     entityDetail: '/app/entities/$entityId',
   },
