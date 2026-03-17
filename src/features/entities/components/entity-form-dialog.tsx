@@ -99,20 +99,28 @@ function parseMaxMembers(value?: string) {
 }
 
 function getCreateDefaults(parentEntity?: Entity | null): EntityFormValues {
+  const defaultChildClass =
+    parentEntity?.allowed_child_classes?.length === 1
+      ? parentEntity.allowed_child_classes[0]
+      : 'structural'
+  const defaultChildType =
+    parentEntity?.allowed_child_types?.length === 1
+      ? parentEntity.allowed_child_types[0]
+      : ''
+
   return {
     name: '',
     displayName: '',
     slug: '',
     description: '',
-    entityClass: parentEntity?.entity_class ?? 'structural',
-    entityType: '',
+    entityClass: defaultChildClass,
+    entityType: defaultChildType,
     status: 'active',
     validFrom: '',
     validUntil: '',
-    allowedChildClasses: parentEntity?.allowed_child_classes ?? [],
-    allowedChildTypes: parentEntity?.allowed_child_types?.join(', ') ?? '',
-    maxMembers:
-      parentEntity?.max_members != null ? String(parentEntity.max_members) : '',
+    allowedChildClasses: [],
+    allowedChildTypes: '',
+    maxMembers: '',
   }
 }
 
@@ -158,6 +166,23 @@ export function EntityFormDialog({
 
   const nameValue = form.watch('name')
   const displayNameValue = form.watch('displayName')
+  const parentAllowedChildTypeOptions = useMemo(
+    () =>
+      mode === 'create'
+        ? (parentEntity?.allowed_child_types ?? []).filter(Boolean)
+        : [],
+    [mode, parentEntity?.allowed_child_types]
+  )
+  const parentAllowedChildClassOptions = useMemo(() => {
+    if (mode !== 'create' || !parentEntity?.allowed_child_classes?.length) {
+      return entityClassOptions
+    }
+
+    return entityClassOptions.filter((option) =>
+      parentEntity.allowed_child_classes?.includes(option.value)
+    )
+  }, [mode, parentEntity?.allowed_child_classes])
+  const hasConstrainedChildTypeOptions = parentAllowedChildTypeOptions.length > 0
   const isPending =
     createEntityMutation.isPending || updateEntityMutation.isPending
   const submitError =
@@ -205,6 +230,53 @@ export function EntityFormDialog({
       shouldValidate: false,
     })
   }, [displayNameValue, form, mode, nameValue, slugTouched])
+
+  useEffect(() => {
+    if (mode !== 'create' || !open) {
+      return
+    }
+
+    if (parentAllowedChildClassOptions.length > 0) {
+      const currentClass = form.getValues('entityClass')
+      const currentClassAllowed = parentAllowedChildClassOptions.some(
+        (option) => option.value === currentClass
+      )
+
+      if (!currentClassAllowed) {
+        form.setValue('entityClass', parentAllowedChildClassOptions[0].value, {
+          shouldDirty: false,
+          shouldValidate: true,
+        })
+      }
+    }
+
+    if (hasConstrainedChildTypeOptions) {
+      const currentEntityType = form.getValues('entityType')
+      const currentTypeAllowed = parentAllowedChildTypeOptions.some(
+        (option) => option.toLowerCase() === currentEntityType.toLowerCase()
+      )
+
+      if (!currentTypeAllowed) {
+        form.setValue(
+          'entityType',
+          parentAllowedChildTypeOptions.length === 1
+            ? parentAllowedChildTypeOptions[0]
+            : '',
+          {
+            shouldDirty: false,
+            shouldValidate: true,
+          }
+        )
+      }
+    }
+  }, [
+    form,
+    hasConstrainedChildTypeOptions,
+    mode,
+    open,
+    parentAllowedChildClassOptions,
+    parentAllowedChildTypeOptions,
+  ])
 
   const dialogTitle =
     mode === 'create'
@@ -309,6 +381,27 @@ export function EntityFormDialog({
                         <p className="text-sm text-muted-foreground">
                           This entity will be created under {parentEntity.display_name}.
                         </p>
+                        {parentEntity.allowed_child_classes?.length ||
+                        parentEntity.allowed_child_types?.length ? (
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {parentEntity.allowed_child_classes?.length ? (
+                              <Badge variant="outline">
+                                Classes:{' '}
+                                {parentEntity.allowed_child_classes
+                                  .map((value) => formatEntityToken(value))
+                                  .join(', ')}
+                              </Badge>
+                            ) : null}
+                            {parentEntity.allowed_child_types?.length ? (
+                              <Badge variant="outline">
+                                Types:{' '}
+                                {parentEntity.allowed_child_types
+                                  .map((value) => formatEntityToken(value))
+                                  .join(', ')}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </section>
@@ -358,13 +451,59 @@ export function EntityFormDialog({
 
                   {mode === 'create' ? (
                     <div className="space-y-2">
-                      <Label htmlFor="entity-type">Entity type</Label>
-                      <Input
-                        id="entity-type"
-                        disabled={isPending}
-                        placeholder="department"
-                        {...form.register('entityType')}
-                      />
+                      <Label htmlFor={hasConstrainedChildTypeOptions ? undefined : 'entity-type'}>
+                        Entity type
+                      </Label>
+                      {hasConstrainedChildTypeOptions ? (
+                        <Controller
+                          control={form.control}
+                          name="entityType"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value}
+                              onValueChange={(nextValue) => {
+                                if (!nextValue) {
+                                  return
+                                }
+
+                                form.setValue('entityType', nextValue, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                              }}
+                              disabled={
+                                isPending || parentAllowedChildTypeOptions.length === 1
+                              }
+                            >
+                              <SelectTrigger aria-label="Entity type">
+                                <SelectValue placeholder="Choose an entity type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {parentAllowedChildTypeOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {formatEntityToken(option)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      ) : (
+                        <Input
+                          id="entity-type"
+                          disabled={isPending}
+                          placeholder="department"
+                          {...form.register('entityType')}
+                        />
+                      )}
+                      {hasConstrainedChildTypeOptions ? (
+                        <p className="text-xs text-muted-foreground">
+                          This parent scope only allows {parentAllowedChildTypeOptions
+                            .map((value) => formatEntityToken(value))
+                            .join(', ')}
+                          .
+                        </p>
+                      ) : null}
                       <FieldError errors={[form.formState.errors.entityType]} />
                     </div>
                   ) : null}
@@ -388,13 +527,15 @@ export function EntityFormDialog({
                                 }
                               )
                             }}
-                            disabled={isPending}
+                            disabled={
+                              isPending || parentAllowedChildClassOptions.length === 1
+                            }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger aria-label="Entity class">
                               <SelectValue placeholder="Choose a class" />
                             </SelectTrigger>
                             <SelectContent>
-                              {entityClassOptions.map((option) => (
+                              {parentAllowedChildClassOptions.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
                                 </SelectItem>
@@ -403,6 +544,15 @@ export function EntityFormDialog({
                           </Select>
                         )}
                       />
+                      {mode === 'create' &&
+                      parentEntity?.allowed_child_classes?.length ? (
+                        <p className="text-xs text-muted-foreground">
+                          This parent scope allows {parentAllowedChildClassOptions
+                            .map((option) => option.label.toLowerCase())
+                            .join(', ')}
+                          .
+                        </p>
+                      ) : null}
                       <FieldError errors={[form.formState.errors.entityClass]} />
                     </div>
                   ) : null}

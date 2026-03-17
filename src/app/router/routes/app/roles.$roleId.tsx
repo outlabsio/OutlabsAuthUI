@@ -1,39 +1,26 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { Route as RolesLayoutRoute } from '@/app/router/routes/app/roles'
-import { RolesPage } from '@/features/roles/components/roles-page'
+import { RoleDetailsPage } from '@/features/roles/components/role-details-page'
 import { routes } from '@/lib/constants/routes'
 
 function RoleDetailsRouteComponent() {
   const navigate = useNavigate()
-  const params = Route.useParams()
+  const { roleId } = Route.useParams()
   const search = RolesLayoutRoute.useSearch()
 
   return (
-    <RolesPage
-      selectedRoleId={params.roleId}
-      search={search}
-      onSearchChange={(next) => {
+    <RoleDetailsPage
+      roleId={roleId}
+      onBack={() => {
         void navigate({
-          to: routes.app.roleDetail,
-          params,
-          search: next,
+          to: routes.app.roles,
+          search,
         })
       }}
-      onRoleSelect={(roleId) => {
-        if (!roleId) {
-          void navigate({
-            to: routes.app.roles,
-            search,
-          })
-          return
-        }
-
+      onDeleted={() => {
         void navigate({
-          to: routes.app.roleDetail,
-          params: {
-            roleId,
-          },
+          to: routes.app.roles,
           search,
         })
       }}

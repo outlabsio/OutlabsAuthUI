@@ -1,12 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
-import {
-  ArrowRight,
-  Building2,
-  FolderTree,
-  UserPlus,
-  Users,
-} from 'lucide-react'
+import { ArrowRight, FolderTree, ShieldPlus, UserPlus, Users } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
@@ -25,26 +19,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EntityMembersTable } from '@/features/entities/components/entity-members-table'
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
 import {
   formatEntityToken,
   getEntityClassLabel,
   getEntityStatusVariant,
 } from '@/features/entities/utils/entity-display'
-import {
-  formatMembershipToken,
-  getMembershipStatusVariant,
-} from '@/features/memberships/utils/membership-display'
 import type { Role } from '@/features/roles/types/roles.types'
+import { RolesTable } from '@/features/roles/components/roles-table'
 import { cn } from '@/lib/utils/cn'
 
 type EntityDetailPanelProps = {
@@ -67,6 +51,8 @@ type EntityDetailPanelProps = {
   canCreateRootEntities: boolean
   canCreateChildEntities: boolean
   canEditEntities: boolean
+  canCreateRoles: boolean
+  canUpdateRoles: boolean
   canAddMembers: boolean
   canEditMemberships: boolean
   canInviteMembers: boolean
@@ -76,12 +62,16 @@ type EntityDetailPanelProps = {
   onCreateRoot: () => void
   onCreateChild: () => void
   onEditEntity: () => void
-  onAddMember: () => void
-  onInviteMember: () => void
+  onRoleSelect: (roleId: string) => void
+  onCreateRole: () => void
+  onEditRole: () => void
+  onAddMember: (initialRoleIds?: string[]) => void
+  onInviteMember: (initialRoleIds?: string[]) => void
   onManageMember: (member: EntityMember) => void
+  selectedRoleId?: string
 }
 
-type EntityWorkspaceView = 'members' | 'roles' | 'children'
+type EntityContextTab = 'configuration' | 'children' | 'roles' | 'members'
 
 type DetailSectionInfo = {
   label: string
@@ -175,15 +165,6 @@ function formatList(values?: string[] | null, fallback = 'No restriction') {
   return values.map((value) => formatEntityToken(value)).join(', ')
 }
 
-function getMemberDisplayName(member: EntityMember) {
-  const displayName = [member.user_first_name, member.user_last_name]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-
-  return displayName || member.user_email
-}
-
 export function EntityDetailPanel({
   scopeRoot,
   entity,
@@ -204,6 +185,8 @@ export function EntityDetailPanel({
   canCreateRootEntities,
   canCreateChildEntities,
   canEditEntities,
+  canCreateRoles,
+  canUpdateRoles,
   canAddMembers,
   canEditMemberships,
   canInviteMembers,
@@ -213,51 +196,16 @@ export function EntityDetailPanel({
   onCreateRoot,
   onCreateChild,
   onEditEntity,
+  onRoleSelect,
+  onCreateRole,
+  onEditRole,
   onAddMember,
   onInviteMember,
   onManageMember,
+  selectedRoleId,
 }: EntityDetailPanelProps) {
-  const [activeWorkspaceView, setActiveWorkspaceView] =
-    useState<EntityWorkspaceView>('members')
-  const availableWorkspaceViews = [
-    canReadMembers ? 'members' : null,
-    canReadRoles ? 'roles' : null,
-    'children',
-  ].filter((value): value is EntityWorkspaceView => value !== null)
-
-  useEffect(() => {
-    if (availableWorkspaceViews.includes(activeWorkspaceView)) {
-      return
-    }
-
-    setActiveWorkspaceView(availableWorkspaceViews[0] ?? 'children')
-  }, [activeWorkspaceView, availableWorkspaceViews])
-
-  const workspaceButtons = (
-    <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border bg-muted/20 p-1">
-      {availableWorkspaceViews.map((view) => {
-        const label =
-          view === 'members'
-            ? 'Members'
-            : view === 'roles'
-              ? 'Assignable roles'
-              : 'Child entities'
-        const isActive = activeWorkspaceView === view
-
-        return (
-          <Button
-            key={view}
-            type="button"
-            size="sm"
-            variant={isActive ? 'secondary' : 'ghost'}
-            onClick={() => setActiveWorkspaceView(view)}
-          >
-            {label}
-          </Button>
-        )
-      })}
-    </div>
-  )
+  const [activeContextTab, setActiveContextTab] =
+    useState<EntityContextTab>('configuration')
 
   if (!entity) {
     return (
@@ -289,7 +237,61 @@ export function EntityDetailPanel({
   const canShowMembersTable = canReadMembers
   const rolesCountLabel = rolesLoading ? '...' : String(roles.length)
   const membersCountLabel = membersLoading ? '...' : String(members.length)
-  const childCountLabel = `${directChildren.length} child${directChildren.length === 1 ? '' : 'ren'}`
+  const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null
+  const canEditSelectedRole =
+    canUpdateRoles &&
+    Boolean(
+      selectedRole &&
+        (selectedRole.scope_entity_id === entity.id ||
+          (entity.parent_entity_id == null &&
+            selectedRole.root_entity_id === entity.id &&
+            selectedRole.scope_entity_id == null))
+    )
+
+  const entityContextAction = (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {canEditEntities ? (
+        <Button type="button" variant="outline" onClick={onEditEntity}>
+          Edit entity
+        </Button>
+      ) : null}
+      {activeContextTab === 'children' && canCreateChildEntities ? (
+        <Button type="button" variant="outline" onClick={onCreateChild}>
+          Create child
+        </Button>
+      ) : null}
+      {activeContextTab === 'roles' && canCreateRoles ? (
+        <Button type="button" variant="outline" onClick={onCreateRole}>
+          <ShieldPlus className="size-4" />
+          Create role here
+        </Button>
+      ) : null}
+      {activeContextTab === 'roles' && canEditSelectedRole ? (
+        <Button type="button" onClick={onEditRole}>
+          Edit role
+        </Button>
+      ) : null}
+      {activeContextTab === 'members' ? (
+        <>
+          {membersRefreshing ? (
+            <Badge variant="outline">Refreshing…</Badge>
+          ) : null}
+          {canAddMembers ? (
+            <Button type="button" variant="outline" onClick={() => onAddMember()}>
+              <Users className="size-4" />
+              Add member
+            </Button>
+          ) : null}
+          {canInviteMembers ? (
+            <Button type="button" onClick={() => onInviteMember()}>
+              <UserPlus className="size-4" />
+              Invite member
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
 
   return (
     <div className="space-y-4">
@@ -299,15 +301,10 @@ export function EntityDetailPanel({
         </div>
       ) : null}
 
-      <Card className="border border-border/70 bg-linear-to-br from-primary/5 via-card to-accent/10">
-        <CardContent className="space-y-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-4">
-              <Badge variant="outline" className="gap-1.5">
-                <Building2 className="size-3.5" />
-                {scopeRoot?.display_name ?? 'Hierarchy scope'}
-              </Badge>
-
+      <Card className="border border-border/70 bg-card/95">
+        <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+          <div className="min-w-0 space-y-1.5">
+            <div className="min-w-0 text-xs text-muted-foreground">
               <Breadcrumb>
                 <BreadcrumbList>
                   {path.map((pathEntity, index) => {
@@ -334,318 +331,163 @@ export function EntityDetailPanel({
                   })}
                 </BreadcrumbList>
               </Breadcrumb>
-
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                    {entity.display_name}
-                  </h2>
-                  <Badge variant={getEntityStatusVariant(entity.status)}>
-                    {formatEntityToken(entity.status)}
-                  </Badge>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{formatEntityToken(entity.entity_type)}</Badge>
-                  <Badge variant="outline">{getEntityClassLabel(entity.entity_class)}</Badge>
-                  <Badge variant="outline">{entity.slug}</Badge>
-                </div>
-
-                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {entity.description || 'No description yet.'}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">{scopeEntityCount} in scope</Badge>
-                  <Badge variant="outline">{descendantCount} descendants</Badge>
-                  <Badge variant="outline">{membersCountLabel} members</Badge>
-                  <Badge variant="outline">{rolesCountLabel} roles</Badge>
-                </div>
-              </div>
             </div>
 
-            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-              {canEditEntities ? (
-                <Button type="button" variant="outline" onClick={onEditEntity}>
-                  Edit entity
-                </Button>
-              ) : null}
-              {canCreateChildEntities ? (
-                <Button type="button" variant="outline" onClick={onCreateChild}>
-                  Create child
-                </Button>
-              ) : null}
-              {canAddMembers ? (
-                <Button type="button" variant="outline" onClick={onAddMember}>
-                  <Users className="size-4" />
-                  Add member
-                </Button>
-              ) : null}
-              {canInviteMembers ? (
-                <Button type="button" onClick={onInviteMember}>
-                  <UserPlus className="size-4" />
-                  Invite member
-                </Button>
-              ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                {entity.display_name}
+              </h2>
+              <Badge variant={getEntityStatusVariant(entity.status)}>
+                {formatEntityToken(entity.status)}
+              </Badge>
+            </div>
+
+            {entity.description ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {entity.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+            <div className="grid gap-1 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Type
+                </span>
+                <span className="font-medium text-foreground">
+                  {formatEntityToken(entity.entity_type)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Class
+                </span>
+                <span className="font-medium text-foreground">
+                  {getEntityClassLabel(entity.entity_class)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Slug
+                </span>
+                <span className="truncate text-right font-mono text-xs text-foreground">
+                  {entity.slug}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+            <div className="grid gap-1 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Root
+                </span>
+                <span className="truncate text-right font-medium text-foreground">
+                  {scopeRoot?.display_name ?? entity.display_name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Scope
+                </span>
+                <span className="text-right text-foreground">
+                  {scopeEntityCount} in scope · {descendantCount} down
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                  Access
+                </span>
+                <span className="text-right text-foreground">
+                  {membersCountLabel} members · {rolesCountLabel} roles
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <DetailSection
-        title="Configuration snapshot"
+        title="Entity context"
         info={{
-          label: 'Explain configuration snapshot',
-          title: 'Configuration snapshot',
+          label: 'Explain entity context tabs',
+          title: 'Entity context',
           content:
-            'This condenses the stable entity facts and governance limits into one place. The title, badges, and breadcrumb above already carry the rest of the navigation context.',
+            'Use these tabs to inspect stable configuration, the immediate child branch, the local role catalog, and member access without stacking separate sections down the page.',
         }}
+        action={entityContextAction}
       >
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <CompactDetailList
-            title="Identity"
-            items={[
-              { label: 'System name', value: entity.name },
-              { label: 'Slug', value: entity.slug },
-              {
-                label: 'Parent',
-                value: parentEntity?.display_name ?? 'Root entity',
-              },
-              { label: 'Entity type', value: formatEntityToken(entity.entity_type) },
-              { label: 'Entity class', value: getEntityClassLabel(entity.entity_class) },
-              { label: 'Valid from', value: formatDateTime(entity.valid_from) },
-              {
-                label: 'Valid until',
-                value: formatDateTime(entity.valid_until, 'Open-ended'),
-              },
-            ]}
-          />
+        <Tabs
+          value={activeContextTab}
+          onValueChange={(value) => {
+            if (
+              value === 'configuration' ||
+              value === 'children' ||
+              value === 'roles' ||
+              value === 'members'
+            ) {
+              setActiveContextTab(value)
+            }
+          }}
+          className="space-y-4"
+        >
+          <TabsList>
+            <TabsTrigger value="configuration">Configuration snapshot</TabsTrigger>
+            <TabsTrigger value="children">Child entities</TabsTrigger>
+            <TabsTrigger value="roles">Roles</TabsTrigger>
+            <TabsTrigger value="members">Members and access</TabsTrigger>
+          </TabsList>
 
-          <CompactDetailList
-            title="Governance"
-            items={[
-              {
-                label: 'Allowed child classes',
-                value: formatList(entity.allowed_child_classes),
-              },
-              {
-                label: 'Allowed child types',
-                value: formatList(entity.allowed_child_types),
-              },
-              {
-                label: 'Member cap',
-                value:
-                  entity.max_members != null ? `${entity.max_members} members` : 'Unlimited',
-              },
-              {
-                label: 'Current path',
-                value: path.map((pathEntity) => pathEntity.display_name).join(' / '),
-              },
-            ]}
-          />
-        </div>
-      </DetailSection>
-
-      <DetailSection
-        title={
-          activeWorkspaceView === 'members'
-            ? 'Members and access'
-            : activeWorkspaceView === 'roles'
-              ? 'Assignable roles'
-              : 'Child entities'
-        }
-        info={{
-          label:
-            activeWorkspaceView === 'members'
-              ? 'Explain members and access'
-              : activeWorkspaceView === 'roles'
-                ? 'Explain assignable roles'
-                : 'Explain child entities',
-          title:
-            activeWorkspaceView === 'members'
-              ? 'Members and access'
-              : activeWorkspaceView === 'roles'
-                ? 'Assignable roles'
-                : 'Child entities',
-          content:
-            activeWorkspaceView === 'members'
-              ? 'Memberships attach people to this entity. Local roles on a membership can add scoped access inside this branch without changing the user record globally.'
-              : activeWorkspaceView === 'roles'
-                ? 'Role availability depends on scope, entity type restrictions, and what the backend allows at this entity. This is the safest place to confirm what can be granted locally.'
-                : 'This list only shows the next level down. Use the tree on the left when you need the full branch context.',
-        }}
-        action={
-          <div className="flex items-center gap-2">
-            {activeWorkspaceView === 'members' && membersRefreshing ? (
-              <Badge variant="outline">Refreshing…</Badge>
-            ) : null}
-            {activeWorkspaceView === 'members' && canAddMembers ? (
-              <Button type="button" variant="outline" onClick={onAddMember}>
-                <Users className="size-4" />
-                Add member
-              </Button>
-            ) : null}
-            {activeWorkspaceView === 'members' && canInviteMembers ? (
-              <Button type="button" onClick={onInviteMember}>
-                <UserPlus className="size-4" />
-                Invite
-              </Button>
-            ) : null}
-            {activeWorkspaceView === 'children' && canCreateChildEntities ? (
-              <Button type="button" variant="outline" onClick={onCreateChild}>
-                Create child
-              </Button>
-            ) : null}
-          </div>
-        }
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {workspaceButtons}
-          <div className="flex flex-wrap items-center gap-2">
-            {activeWorkspaceView === 'members' ? (
-              <>
-                <Badge variant="outline">{membersCountLabel} loaded</Badge>
-                <Badge variant="outline">
-                  {membersLoading ? 'Loading access' : 'Membership catalog'}
-                </Badge>
-              </>
-            ) : null}
-            {activeWorkspaceView === 'roles' ? (
-              <Badge variant="outline">{rolesCountLabel} available</Badge>
-            ) : null}
-            {activeWorkspaceView === 'children' ? (
-              <Badge variant="outline">{childCountLabel}</Badge>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          {activeWorkspaceView === 'members' ? (
-            !canShowMembersTable ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Your account cannot read memberships in this entity.
-              </div>
-            ) : membersErrorMessage ? (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {membersErrorMessage}
-              </div>
-            ) : membersLoading ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Loading entity members…
-              </div>
-            ) : members.length > 0 ? (
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Member</TableHead>
-                        <TableHead>Roles</TableHead>
-                        <TableHead>Membership</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell className="whitespace-normal">
-                            <div className="space-y-1">
-                              <div className="font-medium text-foreground">
-                                {getMemberDisplayName(member)}
-                              </div>
-                              <div className="text-sm text-muted-foreground">{member.user_email}</div>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span>User: {formatMembershipToken(member.user_status)}</span>
-                                <span>&#8226;</span>
-                                <span>Assignment: {formatMembershipToken(member.status)}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-normal">
-                            <div className="flex flex-wrap gap-2">
-                              {member.roles.length > 0 ? (
-                                member.roles.map((role) => (
-                                  <Badge key={role.id} variant="outline">
-                                    {role.display_name}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-sm text-muted-foreground">No roles</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-normal">
-                            <div className="space-y-2">
-                              <Badge variant={getMembershipStatusVariant(member.effective_status)}>
-                                {formatMembershipToken(member.effective_status)}
-                              </Badge>
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                <div>From: {formatDateTime(member.valid_from, 'Immediate')}</div>
-                                <div>Until: {formatDateTime(member.valid_until, 'Open-ended')}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{formatDateTime(member.joined_at)}</TableCell>
-                          <TableCell className="text-right">
-                            {showMemberActions ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onManageMember(member)}
-                              >
-                                Manage
-                              </Button>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Read only</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {canLoadMoreMembers ? (
-                  <div className="flex justify-end">
-                    <Button type="button" variant="outline" onClick={onLoadMoreMembers}>
-                      Load more members
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                No memberships have been attached to this entity yet.
-              </div>
-            )
-          ) : null}
-
-          {activeWorkspaceView === 'roles' ? (
-            !canReadRoles ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Your account cannot inspect entity role catalogs.
-              </div>
-            ) : rolesErrorMessage ? (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {rolesErrorMessage}
-              </div>
-            ) : rolesLoading ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Loading roles…
-              </div>
-            ) : (
-              <EntityAssignableRolesTable
-                roles={roles}
-                emptyMessage="No roles are assignable at this entity yet."
-                searchPlaceholder="Search assignable roles"
+          <TabsContent value="configuration" className="pt-1">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <CompactDetailList
+                title="Identity"
+                items={[
+                  { label: 'System name', value: entity.name },
+                  { label: 'Slug', value: entity.slug },
+                  {
+                    label: 'Parent',
+                    value: parentEntity?.display_name ?? 'Root entity',
+                  },
+                  { label: 'Entity type', value: formatEntityToken(entity.entity_type) },
+                  { label: 'Entity class', value: getEntityClassLabel(entity.entity_class) },
+                  { label: 'Valid from', value: formatDateTime(entity.valid_from) },
+                  {
+                    label: 'Valid until',
+                    value: formatDateTime(entity.valid_until, 'Open-ended'),
+                  },
+                ]}
               />
-            )
-          ) : null}
 
-          {activeWorkspaceView === 'children' ? (
-            directChildren.length > 0 ? (
+              <CompactDetailList
+                title="Governance"
+                items={[
+                  {
+                    label: 'Allowed child classes',
+                    value: formatList(entity.allowed_child_classes),
+                  },
+                  {
+                    label: 'Allowed child types',
+                    value: formatList(entity.allowed_child_types),
+                  },
+                  {
+                    label: 'Member cap',
+                    value:
+                      entity.max_members != null ? `${entity.max_members} members` : 'Unlimited',
+                  },
+                  {
+                    label: 'Current path',
+                    value: path.map((pathEntity) => pathEntity.display_name).join(' / '),
+                  },
+                ]}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="children" className="pt-1">
+            {directChildren.length > 0 ? (
               <div className="space-y-3">
                 {directChildren.map((childEntity) => (
                   <button
@@ -675,9 +517,50 @@ export function EntityDetailPanel({
               <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
                 No direct child entities yet.
               </div>
-            )
-          ) : null}
-        </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="roles" className="pt-1">
+            {!canReadRoles ? (
+              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                Your account cannot inspect entity role catalogs.
+              </div>
+            ) : rolesErrorMessage ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {rolesErrorMessage}
+              </div>
+            ) : rolesLoading ? (
+              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                Loading roles…
+              </div>
+            ) : (
+              <RolesTable
+                roles={roles}
+                selectedRoleId={selectedRoleId}
+                isLoading={false}
+                isRefreshing={false}
+                onRoleSelect={onRoleSelect}
+                embedded
+                showHeader={false}
+                emptyTitle="No roles are available in this entity context."
+                emptyDescription="Create a role here or adjust the current entity scope."
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="members" className="pt-1">
+            <EntityMembersTable
+              members={members}
+              membersLoading={membersLoading}
+              membersErrorMessage={membersErrorMessage}
+              canReadMembers={canShowMembersTable}
+              canEditMemberships={showMemberActions}
+              canLoadMoreMembers={canLoadMoreMembers}
+              onLoadMoreMembers={onLoadMoreMembers}
+              onManageMember={onManageMember}
+            />
+          </TabsContent>
+        </Tabs>
       </DetailSection>
     </div>
   )

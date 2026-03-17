@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -61,6 +62,18 @@ const systemOptions: Array<{ label: string; value: RoleSystemFilter }> = [
   { label: 'Custom only', value: 'custom' },
 ]
 
+function getFilterLabel<T extends string>(
+  value: T | 'all',
+  options: Array<{ label: string; value: T }>,
+  allLabel: string
+) {
+  if (value === 'all') {
+    return allLabel
+  }
+
+  return options.find((option) => option.value === value)?.label ?? allLabel
+}
+
 export function RolesFiltersBar({
   search,
   rootOptions,
@@ -105,6 +118,18 @@ export function RolesFiltersBar({
       system !== 'all'
   )
 
+  const roleTypeLabel = getFilterLabel(roleType, roleTypeOptions, 'All role types')
+  const scopeModeLabel = getFilterLabel(scopeMode, scopeModeOptions, 'All scope modes')
+  const usageLabel = getFilterLabel(usage, usageOptions, 'All assignment modes')
+  const systemLabel = getFilterLabel(system, systemOptions, 'All system statuses')
+  const scopeRootLabel =
+    scopeRootId === 'all'
+      ? 'All owning roots'
+      : rootOptions.find((rootOption) => rootOption.id === scopeRootId)?.display_name ??
+        'All owning roots'
+  const assignableTypeLabel =
+    assignableType === 'all' ? 'Any entity type' : formatRoleToken(assignableType)
+
   return (
     <Card className="border border-border/70 bg-card/90">
       <CardHeader className="gap-4 border-b border-border/60">
@@ -128,7 +153,7 @@ export function RolesFiltersBar({
       </CardHeader>
       <CardContent className="pt-4">
         <form
-          className="flex min-w-0 flex-wrap items-center gap-2"
+          className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[minmax(0,1.2fr)_repeat(6,minmax(0,0.8fr))_auto]"
           onSubmit={(event) => {
             event.preventDefault()
             onApply({
@@ -142,24 +167,32 @@ export function RolesFiltersBar({
             })
           }}
         >
-          <div className="relative min-w-[240px] flex-[1_1_320px]">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search roles, entities, or permissions"
-              aria-label="Search roles"
-              className="pl-9"
-            />
+          <div className="space-y-1.5 xl:col-span-2 2xl:col-span-1">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Search
+            </Label>
+            <div className="relative min-w-0">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="Search roles, entities, or permissions"
+                aria-label="Search roles"
+                className="pl-9"
+              />
+            </div>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[160px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Role type
+            </Label>
             <Select
               value={roleType}
               onValueChange={(value) => setRoleType((value ?? 'all') as RoleTypeFilter | 'all')}
             >
               <SelectTrigger className="w-full" aria-label="Filter by role type">
-                <SelectValue placeholder="Role type" />
+                <SelectValue>{roleTypeLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
@@ -174,13 +207,16 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[160px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Scope mode
+            </Label>
             <Select
               value={scopeMode}
               onValueChange={(value) => setScopeMode((value ?? 'all') as RoleScopeFilter | 'all')}
             >
               <SelectTrigger className="w-full" aria-label="Filter by scope mode">
-                <SelectValue placeholder="Scope mode" />
+                <SelectValue>{scopeModeLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
@@ -195,14 +231,17 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[180px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Owning root
+            </Label>
             <Select value={scopeRootId} onValueChange={(value) => setScopeRootId(String(value ?? 'all'))}>
               <SelectTrigger className="w-full" aria-label="Filter by owning root">
-                <SelectValue placeholder="All roots" />
+                <SelectValue>{scopeRootLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
-                  <SelectItem value="all">All roots</SelectItem>
+                  <SelectItem value="all">All owning roots</SelectItem>
                   {rootOptions.map((rootOption) => (
                     <SelectItem key={rootOption.id} value={rootOption.id}>
                       {rootOption.display_name}
@@ -213,13 +252,16 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[180px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Assignable at
+            </Label>
             <Select
               value={assignableType}
               onValueChange={(value) => setAssignableType(String(value ?? 'all'))}
             >
               <SelectTrigger className="w-full" aria-label="Filter by assignable entity type">
-                <SelectValue placeholder="Any entity type" />
+                <SelectValue>{assignableTypeLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
@@ -234,17 +276,20 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[160px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              Assignment mode
+            </Label>
             <Select
               value={usage}
               onValueChange={(value) => setUsage((value ?? 'all') as RoleUsageFilter | 'all')}
             >
               <SelectTrigger className="w-full" aria-label="Filter by assignment mode">
-                <SelectValue placeholder="Assignment mode" />
+                <SelectValue>{usageLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
-                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="all">All assignment modes</SelectItem>
                   {usageOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -255,17 +300,20 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="w-full shrink-0 sm:w-[150px]">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+              System status
+            </Label>
             <Select
               value={system}
               onValueChange={(value) => setSystem((value ?? 'all') as RoleSystemFilter | 'all')}
             >
               <SelectTrigger className="w-full" aria-label="Filter by system status">
-                <SelectValue placeholder="System status" />
+                <SelectValue>{systemLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
-                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="all">All system statuses</SelectItem>
                   {systemOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -276,8 +324,10 @@ export function RolesFiltersBar({
             </Select>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <Button type="submit">Apply</Button>
+          <div className="flex items-end gap-2 2xl:justify-end">
+            <Button type="submit" className="min-w-24">
+              Apply
+            </Button>
             {hasDraftFilters ? (
               <Button
                 type="button"

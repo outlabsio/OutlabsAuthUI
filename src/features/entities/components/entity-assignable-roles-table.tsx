@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { type ReactNode, useDeferredValue, useMemo, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -31,6 +31,7 @@ type EntityAssignableRolesTableProps = {
   selectedRoleIds?: string[]
   onRoleToggle?: (roleId: string, checked: boolean) => void
   disabled?: boolean
+  toolbarActions?: ReactNode
 }
 
 export function EntityAssignableRolesTable({
@@ -40,6 +41,7 @@ export function EntityAssignableRolesTable({
   selectedRoleIds,
   onRoleToggle,
   disabled = false,
+  toolbarActions,
 }: EntityAssignableRolesTableProps) {
   const [searchValue, setSearchValue] = useState('')
   const deferredSearchValue = useDeferredValue(searchValue)
@@ -104,7 +106,7 @@ export function EntityAssignableRolesTable({
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              aria-label="Search assignable roles"
+              aria-label="Search roles"
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
               className="pl-9"
@@ -130,6 +132,7 @@ export function EntityAssignableRolesTable({
                 </Button>
               </>
             ) : null}
+            {toolbarActions}
           </div>
         </div>
       </div>

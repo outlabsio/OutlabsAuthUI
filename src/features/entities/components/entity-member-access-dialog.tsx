@@ -53,6 +53,7 @@ type EntityMemberAccessDialogProps = {
   entity: Entity
   availableRoles: Role[]
   existingMember?: EntityMember | null
+  initialRoleIds?: string[]
   existingUserIds: string[]
   rootEntityId?: string | null
   canCreateMemberships: boolean
@@ -107,6 +108,7 @@ export function EntityMemberAccessDialog({
   entity,
   availableRoles,
   existingMember,
+  initialRoleIds = [],
   existingUserIds,
   rootEntityId,
   canCreateMemberships,
@@ -126,7 +128,7 @@ export function EntityMemberAccessDialog({
     resolver,
     defaultValues: {
       userId: existingMember?.user_id ?? '',
-      roleIds: existingMember?.roles.map((role) => role.id) ?? [],
+      roleIds: existingMember?.roles.map((role) => role.id) ?? initialRoleIds,
       status: existingMember?.status === 'suspended' ? 'suspended' : 'active',
       validFrom: toDateTimeLocalValue(existingMember?.valid_from),
       validUntil: toDateTimeLocalValue(existingMember?.valid_until),
@@ -136,7 +138,7 @@ export function EntityMemberAccessDialog({
   const resetDialogState = useEffectEvent(() => {
     form.reset({
       userId: existingMember?.user_id ?? '',
-      roleIds: existingMember?.roles.map((role) => role.id) ?? [],
+      roleIds: existingMember?.roles.map((role) => role.id) ?? initialRoleIds,
       status: existingMember?.status === 'suspended' ? 'suspended' : 'active',
       validFrom: toDateTimeLocalValue(existingMember?.valid_from),
       validUntil: toDateTimeLocalValue(existingMember?.valid_until),
@@ -157,6 +159,7 @@ export function EntityMemberAccessDialog({
     resetDialogState()
   }, [
     existingMember,
+    initialRoleIds,
     open,
   ])
 
@@ -447,7 +450,7 @@ export function EntityMemberAccessDialog({
                       selectedRoleIds={selectedRoleIds}
                       onRoleToggle={handleRoleToggle}
                       disabled={isPending || !canManageMembershipAccess}
-                      emptyMessage="No assignable roles are available for this entity yet."
+                      emptyMessage="No roles are available for this entity yet."
                       searchPlaceholder="Search roles for this membership"
                     />
                   </div>

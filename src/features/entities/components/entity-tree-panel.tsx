@@ -3,10 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Building2,
   ChevronRight,
-  GitBranch,
-  LockKeyhole,
   Search,
-  Workflow,
 } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
@@ -90,21 +87,21 @@ function EntityTreeRow({
 
   return (
     <Collapsible open={isExpanded}>
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <div
           className={cn(
-            'flex items-start gap-2 rounded-2xl border p-2 transition-colors',
+            'flex items-start gap-2 rounded-xl border px-2.5 py-2 transition-colors',
             isSelected
               ? 'border-primary/25 bg-primary/6 shadow-sm'
               : isInSelectedPath
-                ? 'border-border/70 bg-muted/25'
-                : 'border-transparent hover:border-border/70 hover:bg-muted/25'
+                ? 'border-border/70 bg-muted/20'
+                : 'border-transparent hover:border-border/70 hover:bg-muted/20'
           )}
         >
           {hasChildren ? (
             <CollapsibleTrigger
               className={cn(
-                'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-transform hover:bg-muted/60',
+                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-transform hover:bg-muted/60',
                 isExpanded ? 'text-foreground' : null,
                 searchActive ? 'cursor-default opacity-70' : null
               )}
@@ -118,12 +115,12 @@ function EntityTreeRow({
               }}
             >
               <ChevronRight
-                className={cn('size-4 transition-transform', isExpanded ? 'rotate-90' : null)}
+                className={cn('size-3.5 transition-transform', isExpanded ? 'rotate-90' : null)}
               />
             </CollapsibleTrigger>
           ) : (
-            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/60 text-muted-foreground">
-              <Building2 className="size-4" />
+            <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-muted-foreground">
+              <Building2 className="size-3.5" />
             </div>
           )}
 
@@ -134,24 +131,25 @@ function EntityTreeRow({
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate font-medium text-foreground">
-                  {node.display_name}
-                </span>
+                <span className="truncate text-sm font-medium text-foreground">{node.display_name}</span>
                 {isSelected ? <Badge variant="secondary">Current</Badge> : null}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatEntityToken(node.entity_type)}</span>
                 <span>&#8226;</span>
                 <span>{getEntityClassLabel(node.entity_class)}</span>
+                {hasChildren ? (
+                  <>
+                    <span>&#8226;</span>
+                    <span>
+                      {node.children.length} child{node.children.length === 1 ? '' : 'ren'}
+                    </span>
+                  </>
+                ) : null}
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {hasChildren ? (
-                <Badge variant="outline" className="hidden sm:inline-flex">
-                  {node.children.length} child{node.children.length === 1 ? '' : 'ren'}
-                </Badge>
-              ) : null}
+            <div className="flex shrink-0 items-center">
               <Badge variant={getEntityStatusVariant(node.status)}>
                 {formatEntityToken(node.status)}
               </Badge>
@@ -160,8 +158,8 @@ function EntityTreeRow({
         </div>
 
         {hasChildren ? (
-          <CollapsibleContent className="ml-4 border-l border-border/60 pl-3">
-            <div className="space-y-1 pt-1">
+          <CollapsibleContent className="ml-3 border-l border-border/50 pl-2.5">
+            <div className="space-y-0.5 pt-0.5">
               {node.children.map((childNode) => (
                 <EntityTreeRow
                   key={childNode.id}
@@ -241,14 +239,11 @@ export function EntityTreePanel({
 
   return (
     <Card className="flex min-h-0 flex-col border border-border/70 bg-card/90">
-      <CardHeader className="border-b border-border/60 pb-4">
-        <div className="flex items-start gap-3">
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-            <Workflow className="size-5" />
-          </div>
+      <CardHeader className="border-b border-border/60 px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <CardTitle>Hierarchy navigator</CardTitle>
+              <CardTitle className="text-base">Hierarchy navigator</CardTitle>
               <AppInfoPopover
                 label="Explain hierarchy navigator"
                 title="Hierarchy navigator"
@@ -259,30 +254,24 @@ export function EntityTreePanel({
               </AppInfoPopover>
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Badge variant="outline">{visibleCount} visible</Badge>
+            <Badge variant="outline">{totalCount} in scope</Badge>
+            <Badge variant="outline">
+              {canSwitchRoot ? 'Scope switch enabled' : 'Scope locked'}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
-        <section className="rounded-2xl border bg-muted/20 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <GitBranch className="size-3.5" />
-              {visibleCount} visible
-            </Badge>
-            <Badge variant="outline">{totalCount} in scope</Badge>
-            {canSwitchRoot ? (
-              <Badge variant="outline">Scope switch enabled</Badge>
-            ) : (
-              <Badge variant="outline" className="gap-1">
-                <LockKeyhole className="size-3.5" />
-                Scope locked
-              </Badge>
-            )}
-          </div>
-
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="entities-root-scope">Root scope</Label>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4">
+        <section className="space-y-3 rounded-xl border bg-muted/15 p-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="entities-root-scope" className="text-xs tracking-wide text-muted-foreground uppercase">
+                Root scope
+              </Label>
               <AppInfoPopover
                 label="Explain root scope"
                 title="Root scope"
@@ -303,7 +292,7 @@ export function EntityTreePanel({
                   onRootChange(value)
                 }}
               >
-                <SelectTrigger id="entities-root-scope" className="w-full">
+                <SelectTrigger id="entities-root-scope" size="sm" className="w-full">
                   <SelectValue placeholder="Select a root entity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -317,12 +306,12 @@ export function EntityTreePanel({
                 </SelectContent>
               </Select>
             ) : (
-              <div className="rounded-xl border bg-background px-3 py-2.5 text-sm">
+              <div className="rounded-lg border bg-background px-3 py-2 text-sm">
                 <div className="font-medium text-foreground">
                   {rootEntity?.display_name ?? 'No root scope assigned'}
                 </div>
                 {rootEntity ? (
-                  <div className="mt-1 text-muted-foreground">
+                  <div className="mt-0.5 text-xs text-muted-foreground">
                     {formatEntityToken(rootEntity.entity_type)}
                   </div>
                 ) : null}
@@ -330,8 +319,10 @@ export function EntityTreePanel({
             )}
           </div>
 
-          <div className="mt-4 space-y-2">
-            <Label htmlFor="entities-tree-search">Search this hierarchy</Label>
+          <div className="space-y-2">
+            <Label htmlFor="entities-tree-search" className="text-xs tracking-wide text-muted-foreground uppercase">
+              Search this hierarchy
+            </Label>
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -339,7 +330,7 @@ export function EntityTreePanel({
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="Search names, types, or descriptions"
-                className="pl-9"
+                className="h-8 pl-9"
               />
             </div>
           </div>
@@ -348,7 +339,7 @@ export function EntityTreePanel({
         <div className="min-h-0 flex-1 overflow-auto pr-1">
           {rootEntity ? (
             tree.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {tree.map((rootNode) => (
                   <EntityTreeRow
                     key={rootNode.id}

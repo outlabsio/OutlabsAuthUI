@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { Building2, Plus } from 'lucide-react'
+import { Building2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import {
@@ -20,7 +21,12 @@ import { EntityFormDialog } from '@/features/entities/components/entity-form-dia
 import { EntityMemberAccessDialog } from '@/features/entities/components/entity-member-access-dialog'
 import { EntityMemberInviteDialog } from '@/features/entities/components/entity-member-invite-dialog'
 import { EntityTreePanel } from '@/features/entities/components/entity-tree-panel'
+import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
+import { RoleFormDialog } from '@/features/roles/components/role-form-dialog'
+import type { Role } from '@/features/roles/types/roles.types'
+import { buildRolePermissionOptions } from '@/features/roles/utils/build-role-permission-options'
+import { formatRoleToken } from '@/features/roles/utils/role-display'
 import {
   buildEntityTree,
   filterEntityTree,
@@ -49,6 +55,23 @@ type EntityFormDialogState = {
   mode: 'create' | 'edit'
   entity: Entity | null
   parentEntity: Entity | null
+}
+
+type MembershipDialogState = {
+  open: boolean
+  member: EntityMember | null
+  initialRoleIds: string[]
+}
+
+type InviteDialogState = {
+  open: boolean
+  initialRoleIds: string[]
+}
+
+type RoleDialogState = {
+  open: boolean
+  mode: 'create' | 'edit'
+  role: Role | null
 }
 
 function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
@@ -89,6 +112,7 @@ export function EntitiesPage({
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const isSuperuser = Boolean(sessionUser?.is_superuser)
+  const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
     enabled: Boolean(sessionUser?.id),
@@ -127,25 +151,22 @@ export function EntitiesPage({
   const canManageExistingMemberships = canUpdateMemberships || canRemoveMemberships
   const canInviteMembers = hasAnyPermission(actorPermissionNames, ['user:create'])
   const canReadRoles = hasAnyPermission(actorPermissionNames, ['role:read'])
+  const canCreateRoles = hasAnyPermission(actorPermissionNames, ['role:create'])
+  const canUpdateRoles = hasAnyPermission(actorPermissionNames, ['role:update'])
   const canCreateRootEntities = Boolean(isSuperuser && canCreateEntities)
 
-  const rootOptions = useMemo(
+  const fetchedRootOptions = useMemo(
     () =>
-      uniqueEntities([
-        ...(rootEntitiesQuery.data?.items ?? []),
-        selectedEntityPathQuery.data?.[0],
-      ]).sort((left, right) => left.display_name.localeCompare(right.display_name)),
-    [rootEntitiesQuery.data?.items, selectedEntityPathQuery.data]
+      uniqueEntities(rootEntitiesQuery.data?.items ?? []).sort((left, right) =>
+        left.display_name.localeCompare(right.display_name)
+      ),
+    [rootEntitiesQuery.data?.items]
   )
   const selectedRootIdFromPath = selectedEntityPathQuery.data?.[0]?.id
-  const firstRootId = rootOptions[0]?.id
+  const firstRootId = fetchedRootOptions[0]?.id
   const activeRootId = useMemo(() => {
     if (isSuperuser) {
-      if (
-        search.scopeRootId &&
-        (rootOptions.length === 0 ||
-          rootOptions.some((entityOption) => entityOption.id === search.scopeRootId))
-      ) {
+      if (search.scopeRootId) {
         return search.scopeRootId
       }
 
@@ -156,7 +177,6 @@ export function EntitiesPage({
   }, [
     firstRootId,
     isSuperuser,
-    rootOptions,
     search.scopeRootId,
     selectedRootIdFromPath,
     sessionUser?.root_entity_id,
@@ -174,6 +194,15 @@ export function EntitiesPage({
     ...getEntityQueryOptions(selectedEntityId ?? ''),
     enabled: Boolean(selectedEntityId) && selectedEntityId !== activeRootId,
   })
+  const rootOptions = useMemo(
+    () =>
+      uniqueEntities([
+        ...fetchedRootOptions,
+        activeRootQuery.data,
+        selectedEntityPathQuery.data?.[0],
+      ]).sort((left, right) => left.display_name.localeCompare(right.display_name)),
+    [activeRootQuery.data, fetchedRootOptions, selectedEntityPathQuery.data]
+  )
 
   const scopeEntities = useMemo(
     () =>
@@ -279,6 +308,14 @@ export function EntitiesPage({
     }),
     enabled: Boolean(activeEntity?.id) && canReadRoles,
   })
+  const permissionsCatalogQuery = useQuery({
+    ...getPermissionsQueryOptions({
+      page: 1,
+      limit: 1000,
+    }),
+    retry: false,
+    enabled: Boolean(sessionUser?.id) && (canCreateRoles || canUpdateRoles),
+  })
 
   const members = useMemo(
     () => memberQueries.flatMap((memberQuery) => memberQuery.data ?? []),
@@ -286,6 +323,21 @@ export function EntitiesPage({
   )
   const membersError = memberQueries.find((memberQuery) => memberQuery.error)?.error
   const roles = entityRolesQuery.data?.items ?? []
+  const permissionOptions = useMemo(() => {
+    if (permissionsCatalogQuery.data?.items?.length) {
+      return buildRolePermissionOptions(permissionsCatalogQuery.data.items)
+    }
+
+    const fallbackPermissionNames = authConfigQuery.data?.available_permissions ?? []
+    return buildRolePermissionOptions(
+      fallbackPermissionNames.map((permissionName) => ({
+        name: permissionName,
+        display_name: formatRoleToken(permissionName),
+        description: null,
+        resource: permissionName.split(':')[0] || 'general',
+      }))
+    )
+  }, [authConfigQuery.data?.available_permissions, permissionsCatalogQuery.data?.items])
   const rolesError = entityRolesQuery.error
   const membersLoading =
     Boolean(activeEntity) &&
@@ -306,14 +358,36 @@ export function EntitiesPage({
     entity: null,
     parentEntity: null,
   })
-  const [memberAccessDialogState, setMemberAccessDialogState] = useState<{
-    open: boolean
-    member: EntityMember | null
-  }>({
+  const [memberAccessDialogState, setMemberAccessDialogState] = useState<MembershipDialogState>({
     open: false,
     member: null,
+    initialRoleIds: [],
   })
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [inviteDialogState, setInviteDialogState] = useState<InviteDialogState>({
+    open: false,
+    initialRoleIds: [],
+  })
+  const [roleDialogState, setRoleDialogState] = useState<RoleDialogState>({
+    open: false,
+    mode: 'create',
+    role: null,
+  })
+  const [selectedRoleId, setSelectedRoleId] = useState<string>()
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState(false)
+
+  useEffect(() => {
+    setSelectedRoleId(undefined)
+  }, [activeEntity?.id])
+
+  useEffect(() => {
+    if (!selectedRoleId) {
+      return
+    }
+
+    if (!roles.some((role) => role.id === selectedRoleId)) {
+      setSelectedRoleId(undefined)
+    }
+  }, [roles, selectedRoleId])
 
   const pageError =
     sessionQuery.error ??
@@ -361,7 +435,10 @@ export function EntitiesPage({
         ...search,
         scopeRootId: nextEntity.id,
       })
-      onEntitySelect(undefined)
+      return
+    }
+
+    if (nextEntity.parent_entity_id) {
       return
     }
 
@@ -370,6 +447,15 @@ export function EntitiesPage({
 
   const headerAction = (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setIsTreeCollapsed((currentValue) => !currentValue)}
+      >
+        {isTreeCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+        {isTreeCollapsed ? 'Show hierarchy' : 'Hide hierarchy'}
+      </Button>
+
       {canCreateRootEntities ? (
         <Button
           type="button"
@@ -389,23 +475,6 @@ export function EntitiesPage({
         </Button>
       ) : null}
 
-      {canCreateEntities && activeEntity ? (
-        <Button
-          type="button"
-          className="shrink-0"
-          onClick={() => {
-            setEntityFormDialogState({
-              open: true,
-              mode: 'create',
-              entity: null,
-              parentEntity: activeEntity,
-            })
-          }}
-        >
-          <Plus className="size-4" />
-          Create child
-        </Button>
-      ) : null}
     </div>
   )
 
@@ -453,27 +522,35 @@ export function EntitiesPage({
             </CardContent>
           </Card>
         ) : (
-          <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <EntityTreePanel
-              rootEntity={activeRootQuery.data ?? null}
-              rootOptions={rootOptions}
-              canSwitchRoot={isSuperuser}
-              selectedRootId={activeRootId ?? undefined}
-              searchValue={search.search ?? ''}
-              totalCount={allScopeNodes.length}
-              visibleCount={visibleScopeNodes.length}
-              selectedPathIds={activeEntityPathIds}
-              selectedEntityId={activeEntity?.id}
-              tree={filteredEntityTree}
-              onSearchChange={(nextSearch) => {
-                onSearchChange({
-                  ...search,
-                  search: nextSearch || undefined,
-                })
-              }}
-              onRootChange={handleScopeRootChange}
-              onEntitySelect={(entityId) => onEntitySelect(entityId)}
-            />
+          <div
+            className={
+              isTreeCollapsed
+                ? 'grid min-h-0 flex-1 gap-4'
+                : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]'
+            }
+          >
+            {!isTreeCollapsed ? (
+              <EntityTreePanel
+                rootEntity={activeRootQuery.data ?? null}
+                rootOptions={rootOptions}
+                canSwitchRoot={isSuperuser}
+                selectedRootId={activeRootId ?? undefined}
+                searchValue={search.search ?? ''}
+                totalCount={allScopeNodes.length}
+                visibleCount={visibleScopeNodes.length}
+                selectedPathIds={activeEntityPathIds}
+                selectedEntityId={activeEntity?.id}
+                tree={filteredEntityTree}
+                onSearchChange={(nextSearch) => {
+                  onSearchChange({
+                    ...search,
+                    search: nextSearch || undefined,
+                  })
+                }}
+                onRootChange={handleScopeRootChange}
+                onEntitySelect={(entityId) => onEntitySelect(entityId)}
+              />
+            ) : null}
 
             <div className="min-h-0 overflow-auto pr-1">
               <EntityDetailPanel
@@ -496,6 +573,8 @@ export function EntitiesPage({
                 canCreateRootEntities={canCreateRootEntities}
                 canCreateChildEntities={canCreateEntities && Boolean(activeEntity)}
                 canEditEntities={canEditEntities}
+                canCreateRoles={canCreateRoles}
+                canUpdateRoles={canUpdateRoles}
                 canAddMembers={canCreateMemberships}
                 canEditMemberships={canManageExistingMemberships}
                 canInviteMembers={canInviteMembers}
@@ -527,19 +606,48 @@ export function EntitiesPage({
                       activeEntityPath.length > 1
                         ? activeEntityPath[activeEntityPath.length - 2]
                         : null,
+                    })
+                }}
+                selectedRoleId={selectedRoleId}
+                onRoleSelect={(roleId) => setSelectedRoleId(roleId)}
+                onCreateRole={() => {
+                  setRoleDialogState({
+                    open: true,
+                    mode: 'create',
+                    role: null,
                   })
                 }}
-                onAddMember={() => {
+                onEditRole={() => {
+                  const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null
+
+                  if (!selectedRole) {
+                    return
+                  }
+
+                  setRoleDialogState({
+                    open: true,
+                    mode: 'edit',
+                    role: selectedRole,
+                  })
+                }}
+                onAddMember={(initialRoleIds) => {
                   setMemberAccessDialogState({
                     open: true,
                     member: null,
+                    initialRoleIds: initialRoleIds ?? [],
                   })
                 }}
-                onInviteMember={() => setInviteDialogOpen(true)}
+                onInviteMember={(initialRoleIds) =>
+                  setInviteDialogState({
+                    open: true,
+                    initialRoleIds: initialRoleIds ?? [],
+                  })
+                }
                 onManageMember={(member) => {
                   setMemberAccessDialogState({
                     open: true,
                     member,
+                    initialRoleIds: [],
                   })
                 }}
               />
@@ -563,6 +671,34 @@ export function EntitiesPage({
       />
 
       {activeEntity ? (
+        <RoleFormDialog
+          open={roleDialogState.open}
+          onOpenChange={(open) => {
+            setRoleDialogState((currentState) => ({
+              ...currentState,
+              open,
+            }))
+          }}
+          mode={roleDialogState.mode}
+          role={roleDialogState.role}
+          createContext={{
+            roleType: 'entity',
+            rootEntityId: activeRootId ?? undefined,
+            scopeEntityId: activeEntity.id,
+            lockRoleType: true,
+            lockRootEntityId: true,
+            lockScopeEntityId: true,
+          }}
+          entities={scopeEntities}
+          permissionOptions={permissionOptions}
+          canCreateGlobalRoles={isSuperuser}
+          onSuccess={(role) => {
+            setSelectedRoleId(role.id)
+          }}
+        />
+      ) : null}
+
+      {activeEntity ? (
         <>
           <EntityMemberAccessDialog
             open={memberAccessDialogState.open}
@@ -575,6 +711,7 @@ export function EntitiesPage({
             entity={activeEntity}
             availableRoles={roles}
             existingMember={memberAccessDialogState.member}
+            initialRoleIds={memberAccessDialogState.initialRoleIds}
             existingUserIds={members.map((member) => member.user_id)}
             rootEntityId={activeRootId ?? undefined}
             canCreateMemberships={canCreateMemberships}
@@ -583,10 +720,16 @@ export function EntitiesPage({
           />
 
           <EntityMemberInviteDialog
-            open={inviteDialogOpen}
-            onOpenChange={setInviteDialogOpen}
+            open={inviteDialogState.open}
+            onOpenChange={(open) => {
+              setInviteDialogState((currentState) => ({
+                ...currentState,
+                open,
+              }))
+            }}
             entity={activeEntity}
             availableRoles={roles}
+            initialRoleIds={inviteDialogState.initialRoleIds}
             canInviteMembers={canInviteMembers}
           />
         </>

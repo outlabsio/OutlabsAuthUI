@@ -28,10 +28,16 @@ function getRoleRow(page: Page, roleName: string) {
 }
 
 async function openRole(page: Page, roleName: string) {
+  if (!page.url().includes('/app/roles?') && !page.url().endsWith('/app/roles')) {
+    await page.getByRole('button', { name: 'Back to roles' }).click()
+    await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
+  }
+
   const roleRow = getRoleRow(page, roleName)
 
   await expect(roleRow).toBeVisible()
   await roleRow.click()
+  await expect(page).toHaveURL(/\/app\/roles\/.+/)
   await expect(
     page.getByRole('heading', {
       name: roleName,
@@ -133,11 +139,7 @@ test.describe('Roles Workspace', () => {
     await expect(deleteDialog).toBeVisible()
     await deleteDialog.getByRole('button', { name: 'Delete role' }).click()
 
-    await expect(
-      page.getByRole('heading', {
-        name: 'Select a role',
-      })
-    ).toBeVisible()
+    await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
     await expect(
       getRoleRow(page, displayName)
     ).toHaveCount(0)

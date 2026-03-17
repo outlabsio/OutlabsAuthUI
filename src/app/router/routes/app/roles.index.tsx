@@ -18,14 +18,6 @@ function RolesIndexRouteComponent() {
         })
       }}
       onRoleSelect={(roleId) => {
-        if (!roleId) {
-          void navigate({
-            to: routes.app.roles,
-            search,
-          })
-          return
-        }
-
         void navigate({
           to: routes.app.roleDetail,
           params: {

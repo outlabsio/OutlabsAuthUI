@@ -13,10 +13,14 @@ import {
 import type { Role } from '@/features/roles/types/roles.types'
 import {
   formatAssignableTypes,
+  getRoleAssignmentRuleLabel,
   getRoleBlastRadiusLabel,
   getRoleDefinitionLabel,
+  getRoleOperationalSummary,
   getRoleScopeSummary,
+  getRoleTypeDescription,
   getRoleTypeLabel,
+  groupPermissions,
 } from '@/features/roles/utils/role-display'
 
 type RolesTableProps = {
@@ -25,6 +29,11 @@ type RolesTableProps = {
   isLoading: boolean
   isRefreshing: boolean
   onRoleSelect: (roleId: string) => void
+  embedded?: boolean
+  showHeader?: boolean
+  title?: string
+  emptyTitle?: string
+  emptyDescription?: string
 }
 
 export function RolesTable({
@@ -33,20 +42,27 @@ export function RolesTable({
   isLoading,
   isRefreshing,
   onRoleSelect,
+  embedded = false,
+  showHeader = true,
+  title = 'Role catalog',
+  emptyTitle = 'No roles matched these filters.',
+  emptyDescription = 'Adjust or clear the current filters.',
 }: RolesTableProps) {
-  return (
-    <Card className="flex min-h-0 flex-col overflow-hidden border border-border/70 bg-card/90">
-      <CardHeader className="border-b border-border/60">
-        <div className="flex items-center justify-between gap-4">
-          <CardTitle className="text-base">Role catalog</CardTitle>
-          {isRefreshing ? (
-            <Badge variant="outline" className="gap-1.5">
-              <Sparkles className="size-3.5" />
-              Refreshing
-            </Badge>
-          ) : null}
-        </div>
-      </CardHeader>
+  const content = (
+    <>
+      {showHeader ? (
+        <CardHeader className="border-b border-border/60">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-base">{title}</CardTitle>
+            {isRefreshing ? (
+              <Badge variant="outline" className="gap-1.5">
+                <Sparkles className="size-3.5" />
+                Refreshing
+              </Badge>
+            ) : null}
+          </div>
+        </CardHeader>
+      ) : null}
 
       <CardContent className="min-h-0 flex-1 p-0">
         {isLoading ? (
@@ -55,8 +71,8 @@ export function RolesTable({
           </div>
         ) : roles.length === 0 ? (
           <div className="flex min-h-[28rem] flex-col items-center justify-center gap-2 p-6 text-center">
-            <p className="font-medium">No roles matched these filters.</p>
-            <p className="text-sm text-muted-foreground">Adjust or clear the current filters.</p>
+            <p className="font-medium">{emptyTitle}</p>
+            <p className="text-sm text-muted-foreground">{emptyDescription}</p>
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
@@ -64,17 +80,17 @@ export function RolesTable({
               <Table className="table-fixed">
                 <TableHeader className="bg-background">
                   <TableRow className="hover:bg-background">
-                    <TableHead className="sticky top-0 z-10 w-[28%] bg-background px-4">
+                    <TableHead className="sticky top-0 z-10 w-[29%] bg-background px-4">
                       Role
                     </TableHead>
-                    <TableHead className="sticky top-0 z-10 w-[26%] bg-background px-4">
-                      Ownership
+                    <TableHead className="sticky top-0 z-10 w-[25%] bg-background px-4">
+                      Applicability
                     </TableHead>
                     <TableHead className="sticky top-0 z-10 w-[24%] bg-background px-4">
-                      Reach
+                      Assignment
                     </TableHead>
                     <TableHead className="sticky top-0 z-10 w-[22%] bg-background px-4">
-                      Status
+                      Permission footprint
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -82,6 +98,12 @@ export function RolesTable({
                   {roles.map((role) => {
                     const isSelected = selectedRoleId === role.id
                     const assignableTypes = formatAssignableTypes(role)
+                    const permissionGroups = groupPermissions(role.permissions)
+                    const permissionPreview = permissionGroups.slice(0, 3)
+                    const hiddenPermissionGroupsCount = Math.max(
+                      permissionGroups.length - permissionPreview.length,
+                      0
+                    )
 
                     return (
                       <TableRow
@@ -101,47 +123,70 @@ export function RolesTable({
                       >
                         <TableCell className="px-4 py-4 align-top whitespace-normal">
                           <div className="space-y-1.5">
-                            <div className="font-medium">{role.display_name}</div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="font-medium">{role.display_name}</div>
+                              <Badge variant="outline">{getRoleTypeLabel(role)}</Badge>
+                              {role.is_system_role ? <Badge variant="secondary">System</Badge> : null}
+                              {role.is_auto_assigned ? (
+                                <Badge variant="outline">Auto</Badge>
+                              ) : null}
+                            </div>
                             <div className="break-all font-mono text-xs text-muted-foreground">
                               {role.name}
                             </div>
                             {role.description ? (
-                              <div className="text-sm text-muted-foreground">{role.description}</div>
+                              <div className="line-clamp-2 text-sm text-muted-foreground">
+                                {role.description}
+                              </div>
                             ) : null}
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline">{getRoleTypeLabel(role)}</Badge>
-                              {role.is_system_role ? <Badge variant="secondary">System</Badge> : null}
-                            </div>
-                            <div className="text-sm font-medium">{getRoleDefinitionLabel(role)}</div>
-                            <div className="text-xs text-muted-foreground">{getRoleScopeSummary(role)}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2">
-                            <div className="text-sm font-medium">{getRoleBlastRadiusLabel(role)}</div>
+                          <div className="space-y-2.5">
+                            <div className="text-sm font-medium">{getRoleTypeDescription(role)}</div>
+                            <div className="text-sm text-foreground">{getRoleDefinitionLabel(role)}</div>
                             <div className="text-xs text-muted-foreground">
-                              {assignableTypes ? `Assignable at ${assignableTypes}` : 'Assignable at any entity type'}
+                              {getRoleBlastRadiusLabel(role)}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
+                            <div className="text-sm font-medium">
+                              {role.is_auto_assigned ? 'Auto-assigned access' : 'Intentional admin grant'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {getRoleAssignmentRuleLabel(role)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {getRoleOperationalSummary(role)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-4 align-top whitespace-normal">
+                          <div className="space-y-2.5">
                             <div className="flex flex-wrap gap-2">
-                              {role.is_auto_assigned ? (
-                                <Badge variant="outline">Auto-assigned</Badge>
-                              ) : (
-                                <Badge variant="outline">Manual</Badge>
-                              )}
                               <Badge variant="outline">
                                 {role.permissions.length} permission{role.permissions.length === 1 ? '' : 's'}
                               </Badge>
+                              {assignableTypes ? (
+                                <Badge variant="outline">{assignableTypes}</Badge>
+                              ) : (
+                                <Badge variant="outline">Any entity type</Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {permissionPreview.map((permissionGroup) => (
+                                <Badge key={permissionGroup.resource} variant="secondary">
+                                  {permissionGroup.label}
+                                </Badge>
+                              ))}
+                              {hiddenPermissionGroupsCount > 0 ? (
+                                <Badge variant="secondary">+{hiddenPermissionGroupsCount} more</Badge>
+                              ) : null}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {role.scope === 'entity_only' ? 'Entity only' : 'Hierarchy'}
+                              {getRoleScopeSummary(role)}
                             </div>
                           </div>
                         </TableCell>
@@ -158,6 +203,20 @@ export function RolesTable({
           </div>
         )}
       </CardContent>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/90">
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="flex min-h-0 flex-col overflow-hidden border border-border/70 bg-card/90">
+      {content}
     </Card>
   )
 }

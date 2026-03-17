@@ -28,6 +28,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { Entity } from '@/features/entities/types/entities.types'
+import { RolePermissionsPicker } from '@/features/roles/components/role-permissions-picker'
 import { useCreateRoleMutation } from '@/features/roles/hooks/use-create-role-mutation'
 import { useUpdateRoleMutation } from '@/features/roles/hooks/use-update-role-mutation'
 import {
@@ -35,6 +36,7 @@ import {
   type RoleFormValues,
 } from '@/features/roles/schemas/role-form.schema'
 import type { Role, RoleType } from '@/features/roles/types/roles.types'
+import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
 import {
   formatRoleToken,
   getRoleType,
@@ -48,17 +50,18 @@ type RoleFormDialogProps = {
   onOpenChange: (open: boolean) => void
   mode: 'create' | 'edit'
   role?: Role | null
+  createContext?: {
+    roleType?: RoleType
+    rootEntityId?: string
+    scopeEntityId?: string
+    lockRoleType?: boolean
+    lockRootEntityId?: boolean
+    lockScopeEntityId?: boolean
+  }
   entities: Entity[]
   permissionOptions: RolePermissionOption[]
   canCreateGlobalRoles: boolean
   onSuccess?: (role: Role) => void
-}
-
-export type RolePermissionOption = {
-  name: string
-  label: string
-  resource: string
-  description?: string | null
 }
 
 const roleTypeOptions: Array<{
@@ -102,20 +105,30 @@ function resolveRootEntityId(entitiesById: Map<string, Entity>, entityId?: strin
   return currentEntity?.id ?? ''
 }
 
-function getDefaultValues(role?: Role | null): RoleFormValues {
-  if (!role) {
-    return {
-      roleType: 'root',
-      name: '',
-      displayName: '',
-      description: '',
-      rootEntityId: '',
-      scopeEntityId: '',
-      scope: 'hierarchy',
-      isAutoAssigned: false,
-      assignableAtTypes: [],
-      permissionNames: [],
-    }
+function getDefaultCreateValues(
+  createContext?: RoleFormDialogProps['createContext']
+): RoleFormValues {
+  return {
+    roleType: createContext?.roleType ?? 'root',
+    name: '',
+    displayName: '',
+    description: '',
+    rootEntityId: createContext?.rootEntityId ?? '',
+    scopeEntityId: createContext?.scopeEntityId ?? '',
+    scope: 'hierarchy',
+    isAutoAssigned: false,
+    assignableAtTypes: [],
+    permissionNames: [],
+  }
+}
+
+function getDefaultValues(
+  mode: RoleFormDialogProps['mode'],
+  role?: Role | null,
+  createContext?: RoleFormDialogProps['createContext']
+): RoleFormValues {
+  if (mode === 'create' || !role) {
+    return getDefaultCreateValues(createContext)
   }
 
   return {
@@ -132,53 +145,12 @@ function getDefaultValues(role?: Role | null): RoleFormValues {
   }
 }
 
-function getRoleTypeCardSummary(value: RoleType) {
-  switch (value) {
-    case 'global':
-      return 'System role catalog. Assignable anywhere.'
-    case 'root':
-      return 'Top-level role owned by one organization.'
-    case 'entity':
-      return 'Defined at one entity with explicit blast radius.'
-  }
-}
-
-function PermissionCheckbox({
-  checked,
-  disabled,
-  label,
-  description,
-  onCheckedChange,
-}: {
-  checked: boolean
-  disabled?: boolean
-  label: string
-  description?: string | null
-  onCheckedChange: (checked: boolean) => void
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-background/80 px-3 py-3">
-      <Checkbox
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={(nextChecked) => onCheckedChange(Boolean(nextChecked))}
-        className="mt-0.5"
-      />
-      <div className="space-y-1">
-        <div className="text-sm font-medium">{label}</div>
-        {description ? (
-          <p className="text-xs leading-5 text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-    </label>
-  )
-}
-
 export function RoleFormDialog({
   open,
   onOpenChange,
   mode,
   role,
+  createContext,
   entities,
   permissionOptions,
   canCreateGlobalRoles,
@@ -187,11 +159,16 @@ export function RoleFormDialog({
   const createRoleMutation = useCreateRoleMutation()
   const updateRoleMutation = useUpdateRoleMutation()
   const [nameTouched, setNameTouched] = useState(false)
+  const [showSelectedPermissionsOnly, setShowSelectedPermissionsOnly] = useState(false)
+  const [visiblePermissionCount, setVisiblePermissionCount] = useState(permissionOptions.length)
   const resolver = zodResolver(roleFormSchema) as Resolver<RoleFormValues>
   const form = useForm<RoleFormValues>({
     resolver,
-    defaultValues: getDefaultValues(role),
+    defaultValues: getDefaultValues(mode, role, createContext),
   })
+  const lockRoleType = Boolean(mode === 'create' && createContext?.lockRoleType)
+  const lockRootEntityId = Boolean(mode === 'create' && createContext?.lockRootEntityId)
+  const lockScopeEntityId = Boolean(mode === 'create' && createContext?.lockScopeEntityId)
 
   const entitiesById = useMemo(
     () => new Map(entities.map((entity) => [entity.id, entity])),
@@ -218,23 +195,6 @@ export function RoleFormDialog({
         .sort((left, right) => left.localeCompare(right)),
     [entities]
   )
-  const groupedPermissions = useMemo(() => {
-    const groups = new Map<string, RolePermissionOption[]>()
-
-    permissionOptions.forEach((permissionOption) => {
-      const group = groups.get(permissionOption.resource) ?? []
-      group.push(permissionOption)
-      groups.set(permissionOption.resource, group)
-    })
-
-    return [...groups.entries()]
-      .map(([resource, items]) => ({
-        resource,
-        label: formatRoleToken(resource, 'General'),
-        items: items.sort((left, right) => left.label.localeCompare(right.label)),
-      }))
-      .sort((left, right) => left.label.localeCompare(right.label))
-  }, [permissionOptions])
 
   const roleType = form.watch('roleType')
   const displayName = form.watch('displayName')
@@ -259,8 +219,10 @@ export function RoleFormDialog({
       )
     : null
   const resetDialogState = useEffectEvent(() => {
-    form.reset(getDefaultValues(role))
+    form.reset(getDefaultValues(mode, role, createContext))
     setNameTouched(false)
+    setShowSelectedPermissionsOnly(false)
+    setVisiblePermissionCount(permissionOptions.length)
     createRoleMutation.reset()
     updateRoleMutation.reset()
   })
@@ -271,7 +233,7 @@ export function RoleFormDialog({
     }
 
     resetDialogState()
-  }, [open, role])
+  }, [createContext, mode, open, role])
 
   useEffect(() => {
     if (mode !== 'create' || nameTouched) {
@@ -283,6 +245,14 @@ export function RoleFormDialog({
       shouldValidate: false,
     })
   }, [displayName, form, mode, nameTouched])
+
+  useEffect(() => {
+    if (selectedPermissionNames.length > 0 || !showSelectedPermissionsOnly) {
+      return
+    }
+
+    setShowSelectedPermissionsOnly(false)
+  }, [selectedPermissionNames.length, showSelectedPermissionsOnly])
 
   useEffect(() => {
     if (roleType !== 'entity') {
@@ -410,7 +380,7 @@ export function RoleFormDialog({
                           <button
                             key={option.value}
                             type="button"
-                            disabled={disabled}
+                            disabled={disabled || lockRoleType}
                             onClick={() => {
                               form.setValue('roleType', option.value, {
                                 shouldDirty: true,
@@ -418,20 +388,21 @@ export function RoleFormDialog({
                               })
                             }}
                             className={cn(
-                              'rounded-2xl border px-4 py-4 text-left transition-colors',
+                              'rounded-2xl border px-4 py-3 text-left transition-colors',
                               checked
                                 ? 'border-primary bg-primary/8'
                                 : 'border-border/80 bg-background/80 hover:bg-muted/40',
-                              disabled ? 'cursor-default opacity-80' : 'cursor-pointer'
+                              disabled || lockRoleType
+                                ? 'cursor-default opacity-80'
+                                : 'cursor-pointer'
                             )}
                           >
                             <div className="flex items-center gap-2">
                               <Icon className="size-4 text-primary" />
-                              <span className="font-medium">{getRoleTypeLabel(option.value)}</span>
+                              <span className="font-medium">
+                                {getRoleTypeLabel(option.value)}
+                              </span>
                             </div>
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                              {getRoleTypeCardSummary(option.value)}
-                            </p>
                           </button>
                         )
                       })}
@@ -439,28 +410,30 @@ export function RoleFormDialog({
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="role-display-name">Display name</Label>
-                    <Input
-                      id="role-display-name"
-                      disabled={isPending || isEditingSystemRole}
-                      {...form.register('displayName')}
-                    />
-                    <FieldError errors={[form.formState.errors.displayName]} />
-                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="role-display-name">Display name</Label>
+                      <Input
+                        id="role-display-name"
+                        disabled={isPending || isEditingSystemRole}
+                        {...form.register('displayName')}
+                      />
+                      <FieldError errors={[form.formState.errors.displayName]} />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="role-name">System name</Label>
-                    <Input
-                      id="role-name"
-                      disabled={isPending || mode === 'edit' || isEditingSystemRole}
-                      {...form.register('name', {
-                        onChange: () => {
-                          setNameTouched(true)
-                        },
-                      })}
-                    />
-                    <FieldError errors={[form.formState.errors.name]} />
+                    <div className="space-y-2">
+                      <Label htmlFor="role-name">System name</Label>
+                      <Input
+                        id="role-name"
+                        disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                        {...form.register('name', {
+                          onChange: () => {
+                            setNameTouched(true)
+                          },
+                        })}
+                      />
+                      <FieldError errors={[form.formState.errors.name]} />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -507,7 +480,12 @@ export function RoleFormDialog({
                                 }
                               )
                             }}
-                            disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                            disabled={
+                              isPending ||
+                              mode === 'edit' ||
+                              isEditingSystemRole ||
+                              lockRootEntityId
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Pick a root organization" />
@@ -547,7 +525,12 @@ export function RoleFormDialog({
                                 }
                               )
                             }}
-                            disabled={isPending || mode === 'edit' || isEditingSystemRole}
+                            disabled={
+                              isPending ||
+                              mode === 'edit' ||
+                              isEditingSystemRole ||
+                              lockScopeEntityId
+                            }
                           >
                               <SelectTrigger>
                                 <SelectValue placeholder="Pick the entity that defines this role" />
@@ -637,68 +620,52 @@ export function RoleFormDialog({
 
               <div className="space-y-5">
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <span>Permissions</span>
-                    <AppInfoPopover
-                      label="Explain role permissions"
-                      title="Permissions"
-                    >
-                      Choose the actions this role grants. Permissions are grouped by resource only
-                      to make the catalog easier to scan.
-                    </AppInfoPopover>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span>Permissions</span>
+                      <AppInfoPopover
+                        label="Explain role permissions"
+                        title="Permissions"
+                      >
+                        Choose the actions this role grants. Permissions are grouped by resource only
+                        to make the catalog easier to scan.
+                      </AppInfoPopover>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">{visiblePermissionCount} visible</Badge>
+                      <Badge variant="outline">
+                        {selectedPermissionNames.length} selected
+                      </Badge>
+                      <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                        <Switch
+                          checked={showSelectedPermissionsOnly}
+                          disabled={selectedPermissionNames.length === 0}
+                          onCheckedChange={(checked) => {
+                            setShowSelectedPermissionsOnly(Boolean(checked))
+                          }}
+                          aria-label="Show selected permissions only"
+                        />
+                        <span className="whitespace-nowrap">Selected only</span>
+                      </label>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-2xl border bg-muted/20 px-4 py-3">
-                    <div className="text-sm font-medium">
-                      {selectedPermissionNames.length} permissions selected
-                    </div>
-                    <Badge variant="outline">{selectedPermissionNames.length}</Badge>
-                  </div>
-
-                  {groupedPermissions.length > 0 ? (
-                    <div className="max-h-[34rem] space-y-4 overflow-auto pr-1">
-                      {groupedPermissions.map((group) => (
-                        <div key={group.resource} className="space-y-3 rounded-2xl border p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="font-medium">{group.label}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {group.items.length} available
-                              </div>
-                            </div>
-                            <Badge variant="outline">{group.items.length}</Badge>
-                          </div>
-                          <div className="space-y-2">
-                            {group.items.map((permissionOption) => (
-                              <PermissionCheckbox
-                                key={permissionOption.name}
-                                checked={selectedPermissionNames.includes(permissionOption.name)}
-                                disabled={isPending || isEditingSystemRole}
-                                label={permissionOption.label}
-                                description={permissionOption.description ?? permissionOption.name}
-                                onCheckedChange={(checked) => {
-                                  const nextPermissions = checked
-                                    ? [...selectedPermissionNames, permissionOption.name]
-                                    : selectedPermissionNames.filter(
-                                        (permissionName) => permissionName !== permissionOption.name
-                                      )
-
-                                  form.setValue('permissionNames', nextPermissions, {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  })
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-                      No permission catalog is available for this backend response.
-                    </div>
-                  )}
+                  <RolePermissionsPicker
+                    permissionOptions={permissionOptions}
+                    selectedPermissionNames={selectedPermissionNames}
+                    showSelectedOnly={showSelectedPermissionsOnly}
+                    disabled={isPending || isEditingSystemRole}
+                    resetKey={`${mode}:${role?.id ?? 'create'}:${open ? 'open' : 'closed'}`}
+                    onShowSelectedOnlyChange={setShowSelectedPermissionsOnly}
+                    onVisiblePermissionCountChange={setVisiblePermissionCount}
+                    onChange={(nextPermissions) => {
+                      form.setValue('permissionNames', nextPermissions, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
@@ -781,11 +748,20 @@ export function RoleFormDialog({
               </div>
             </div>
 
-            <DialogFooter className="border-t px-6 py-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="mx-0 mb-0 mt-auto items-center justify-end gap-3 rounded-none border-t bg-background px-6 py-4 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="sm:min-w-28"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending || isEditingSystemRole}>
+              <Button
+                type="submit"
+                className="sm:min-w-32"
+                disabled={isPending || isEditingSystemRole}
+              >
                 {isPending ? 'Saving…' : mode === 'create' ? 'Create role' : 'Save changes'}
               </Button>
             </DialogFooter>

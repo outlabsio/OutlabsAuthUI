@@ -32,6 +32,7 @@ type EntityMemberInviteDialogProps = {
   onOpenChange: (open: boolean) => void
   entity: Entity
   availableRoles: Role[]
+  initialRoleIds?: string[]
   canInviteMembers: boolean
 }
 
@@ -40,6 +41,7 @@ export function EntityMemberInviteDialog({
   onOpenChange,
   entity,
   availableRoles,
+  initialRoleIds = [],
   canInviteMembers,
 }: EntityMemberInviteDialogProps) {
   const queryClient = useQueryClient()
@@ -51,7 +53,7 @@ export function EntityMemberInviteDialog({
       email: '',
       firstName: '',
       lastName: '',
-      roleIds: [],
+      roleIds: initialRoleIds,
     },
   })
 
@@ -60,7 +62,7 @@ export function EntityMemberInviteDialog({
       email: '',
       firstName: '',
       lastName: '',
-      roleIds: [],
+      roleIds: initialRoleIds,
     })
     inviteMutation.reset()
   })
@@ -71,7 +73,7 @@ export function EntityMemberInviteDialog({
     }
 
     resetDialogState()
-  }, [open])
+  }, [initialRoleIds, open])
 
   const selectedRoleIds = form.watch('roleIds')
   const submitErrorMessage = inviteMutation.error
@@ -197,7 +199,7 @@ export function EntityMemberInviteDialog({
                       selectedRoleIds={selectedRoleIds}
                       onRoleToggle={handleRoleToggle}
                       disabled={inviteMutation.isPending || !canInviteMembers}
-                      emptyMessage="No roles are currently assignable at this entity."
+                      emptyMessage="No roles are currently available at this entity."
                       searchPlaceholder="Search initial roles"
                     />
                   </div>
