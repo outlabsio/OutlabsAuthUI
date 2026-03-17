@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { PencilLine, Plus, Trash2 } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -63,7 +64,12 @@ type AbacConditionPayload = {
 
 type DetailSectionProps = {
   title: string
-  description: string
+  description?: string
+  info?: {
+    label: string
+    title: string
+    content: React.ReactNode
+  }
   action?: React.ReactNode
   children: React.ReactNode
 }
@@ -99,6 +105,7 @@ type AbacConditionsSectionProps = {
 function DetailSection({
   title,
   description,
+  info,
   action,
   children,
 }: DetailSectionProps) {
@@ -107,8 +114,15 @@ function DetailSection({
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">{title}</CardTitle>
+              {info ? (
+                <AppInfoPopover label={info.label} title={info.title}>
+                  {info.content}
+                </AppInfoPopover>
+              ) : null}
+            </div>
+            {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
           </div>
           {action}
         </div>
@@ -579,7 +593,11 @@ export function AbacConditionsSection({
     <>
       <DetailSection
         title="ABAC conditions"
-        description={`Optional attribute-based rules can narrow when this ${subjectLabel} is effective.`}
+        info={{
+          label: `Explain ${subjectLabel} ABAC`,
+          title: 'ABAC conditions',
+          content: `Optional attribute-based rules can narrow when this ${subjectLabel} is effective.`,
+        }}
         action={
           canManage ? (
             <div className="flex flex-wrap gap-2">
@@ -612,13 +630,13 @@ export function AbacConditionsSection({
       >
         {!abacEnabled ? (
           <div className="rounded-2xl border border-dashed px-4 py-4 text-sm text-muted-foreground">
-            ABAC is disabled for this auth backend, so this {subjectLabel} only uses explicit grants.
+            ABAC is disabled on this backend.
           </div>
         ) : (
           <div className="space-y-4">
             {subjectIsProtected ? (
               <div className="rounded-2xl border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                System {subjectLabel}s can be inspected here, but ABAC mutations are blocked by the backend.
+                System {subjectLabel}s are read-only here.
               </div>
             ) : null}
 

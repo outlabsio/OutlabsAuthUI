@@ -9,6 +9,7 @@ import {
   TreePine,
 } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -55,7 +56,12 @@ type RoleDetailsPanelProps = {
 
 type DetailSectionProps = {
   title: string
-  description: string
+  description?: string
+  info?: {
+    label: string
+    title: string
+    content: React.ReactNode
+  }
   children: React.ReactNode
 }
 
@@ -64,13 +70,20 @@ type MetricCardProps = {
   value: string
 }
 
-function DetailSection({ title, description, children }: DetailSectionProps) {
+function DetailSection({ title, description, info, children }: DetailSectionProps) {
   return (
     <Card className="border border-border/70 bg-card/90">
       <CardHeader className="border-b border-border/60">
         <div className="space-y-1">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">{title}</CardTitle>
+            {info ? (
+              <AppInfoPopover label={info.label} title={info.title}>
+                {info.content}
+              </AppInfoPopover>
+            ) : null}
+          </div>
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -148,9 +161,7 @@ export function RoleDetailsPanel({
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold tracking-tight">Select a role</h2>
-            <p className="text-sm text-muted-foreground">
-              Inspect where a role is defined, what it affects, how it can be assigned, and any ABAC guardrails attached to it.
-            </p>
+            <p className="text-sm text-muted-foreground">Select a role to inspect it.</p>
           </div>
         </CardContent>
       </Card>
@@ -210,7 +221,12 @@ export function RoleDetailsPanel({
       <div className="grid gap-4 xl:grid-cols-2">
         <DetailSection
           title="Role type"
-          description="Explain the ownership boundary and usage category at a glance."
+          info={{
+            label: 'Explain role type',
+            title: 'Role type',
+            content:
+              'Role type tells you who owns the role and where it belongs in the model: system-wide, root-owned, or defined at one entity.',
+          }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Type" value={getRoleTypeLabel(role)} />
@@ -225,7 +241,12 @@ export function RoleDetailsPanel({
 
         <DetailSection
           title="Ownership and reach"
-          description="Show where the role lives and how its permissions travel."
+          info={{
+            label: 'Explain ownership and reach',
+            title: 'Ownership and reach',
+            content:
+              'These fields show where the role is anchored and whether it stays local or can flow down the hierarchy.',
+          }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Root organization" value={role.root_entity_name ?? 'System-wide'} />
@@ -238,7 +259,12 @@ export function RoleDetailsPanel({
 
       <DetailSection
         title="Assignment rules"
-        description="Clarify where this role can be assigned and what admins should expect."
+        info={{
+          label: 'Explain assignment rules',
+          title: 'Assignment rules',
+          content:
+            'Use this section to confirm whether the role is manual or auto-assigned, and whether entity type restrictions limit where it can be granted.',
+        }}
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <DetailField label="Assignable at" value={getRoleAssignmentRuleLabel(role)} />
@@ -253,7 +279,12 @@ export function RoleDetailsPanel({
 
       <DetailSection
         title="Permissions"
-        description="Permissions are grouped by resource to make the blast radius readable."
+        info={{
+          label: 'Explain grouped permissions',
+          title: 'Grouped permissions',
+          content:
+            'Permissions are grouped by resource only to make scanning easier. The role still grants the full permission set together.',
+        }}
       >
         {groupedPermissions.length > 0 ? (
           <div className="space-y-4">
@@ -282,7 +313,12 @@ export function RoleDetailsPanel({
 
       <DetailSection
         title="Operational behavior"
-        description="Make audit and runtime consequences visible before admins change the role."
+        info={{
+          label: 'Explain operational behavior',
+          title: 'Operational behavior',
+          content:
+            'These fields make the biggest safety questions obvious: can the role be edited, is it granted automatically, and can it affect descendants?',
+        }}
       >
         <div className="grid gap-3 sm:grid-cols-3">
           <DetailField

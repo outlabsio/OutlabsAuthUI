@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { KeyRound, ShieldCheck, Sparkles } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -217,13 +218,17 @@ export function PermissionFormDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
+              <div className="flex items-center gap-2">
                 <DialogTitle className="text-2xl">
                   {mode === 'create' ? 'Create permission' : `Edit ${permission?.display_name ?? 'permission'}`}
                 </DialogTitle>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  Permissions define capabilities. Roles decide where those capabilities take effect.
-                </p>
+                <AppInfoPopover
+                  label="Explain permission editor"
+                  title="Permission editor"
+                >
+                  Permissions define capability atoms. Roles decide where those capabilities take
+                  effect, and ABAC can narrow them at runtime.
+                </AppInfoPopover>
               </div>
               {mode === 'edit' ? (
                 <Badge variant="outline" className="gap-1.5">
@@ -241,6 +246,13 @@ export function PermissionFormDialog({
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Sparkles className="size-4 text-primary" />
                     Permission identity
+                    <AppInfoPopover
+                      label="Explain permission identity"
+                      title="Permission identity"
+                    >
+                      Resource and action become the immutable system name. Choose them carefully,
+                      because they define the capability token other parts of the system will use.
+                    </AppInfoPopover>
                   </div>
                   <div className="mt-4 space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
@@ -328,7 +340,16 @@ export function PermissionFormDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="permission-tags">Tags</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="permission-tags">Tags</Label>
+                      <AppInfoPopover
+                        label="Explain permission tags"
+                        title="Tags"
+                      >
+                        Tags are only for discoverability and review. They do not change runtime
+                        behavior.
+                      </AppInfoPopover>
+                    </div>
                     <Controller
                       control={form.control}
                       name="tagsText"
@@ -342,29 +363,37 @@ export function PermissionFormDialog({
                         />
                       )}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Use commas or new lines. Tags help operators find related permissions quickly.
-                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-5">
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Lifecycle and safety</div>
-                    <p className="text-sm text-muted-foreground">
-                      Control whether the permission is protected or generally available in the catalog.
-                    </p>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>Lifecycle and safety</span>
+                    <AppInfoPopover
+                      label="Explain permission lifecycle and safety"
+                      title="Lifecycle and safety"
+                    >
+                      Use these controls to decide whether the permission is protected as a system
+                      default and whether it is available for new role composition.
+                    </AppInfoPopover>
                   </div>
 
                   {canCreateSystemPermissions && mode === 'create' ? (
                     <div className="space-y-2">
-                      <Label>Protected system permission</Label>
+                      <div className="flex items-center gap-2">
+                        <Label>Protected system permission</Label>
+                        <AppInfoPopover
+                          label="Explain system permission toggle"
+                          title="Protected system permission"
+                        >
+                          System permissions are backend-protected after creation. Use this only
+                          for platform-level defaults that operators should not edit later.
+                        </AppInfoPopover>
+                      </div>
                       <div className="flex min-h-10 items-center justify-between rounded-2xl border px-4">
-                        <span className="text-sm text-muted-foreground">
-                          Mark this permission as system-managed and immutable after creation
-                        </span>
+                        <span className="text-sm text-muted-foreground">System-managed after creation</span>
                         <Switch
                           checked={isSystem}
                           onCheckedChange={(checked) =>
@@ -380,11 +409,18 @@ export function PermissionFormDialog({
                   ) : null}
 
                   <div className="space-y-2">
-                    <Label>Catalog availability</Label>
+                    <div className="flex items-center gap-2">
+                      <Label>Catalog availability</Label>
+                      <AppInfoPopover
+                        label="Explain catalog availability toggle"
+                        title="Catalog availability"
+                      >
+                        Inactive permissions stay visible for auditability, but they should not be
+                        used for new role grants.
+                      </AppInfoPopover>
+                    </div>
                     <div className="flex min-h-10 items-center justify-between rounded-2xl border px-4">
-                        <span className="text-sm text-muted-foreground">
-                          Allow roles to grant this permission right now
-                        </span>
+                        <span className="text-sm text-muted-foreground">Available for new grants</span>
                         <Switch
                           checked={isActive}
                           onCheckedChange={(checked) =>
@@ -409,6 +445,13 @@ export function PermissionFormDialog({
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <ShieldCheck className="size-4 text-primary" />
                     Permission preview
+                    <AppInfoPopover
+                      label="Explain permission preview"
+                      title="Permission preview"
+                    >
+                      This preview shows the permission object that will be created or updated from
+                      the values in the form.
+                    </AppInfoPopover>
                   </div>
                   <div className="mt-4 space-y-4">
                     <div className="flex flex-wrap items-center gap-2">

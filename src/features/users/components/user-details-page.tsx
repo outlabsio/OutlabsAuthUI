@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
+import { AppInfoPopover } from '@/components/app/app-info-popover';
 import { AppPage } from '@/components/app/app-page';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +86,11 @@ type UserDetailsPageProps = {
 type DetailSectionProps = {
   title: string;
   description?: string;
+  info?: {
+    label: string;
+    title: string;
+    content: React.ReactNode;
+  };
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -99,6 +105,7 @@ const statusOptions = [
 function DetailSection({
   title,
   description,
+  info,
   action,
   children,
   className,
@@ -107,7 +114,14 @@ function DetailSection({
     <Card className={cn('gap-0 overflow-hidden border py-0 ring-0', className)}>
       <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            {info ? (
+              <AppInfoPopover label={info.label} title={info.title}>
+                {info.content}
+              </AppInfoPopover>
+            ) : null}
+          </div>
           {description ? (
             <p className="text-sm text-muted-foreground">{description}</p>
           ) : null}
@@ -470,7 +484,6 @@ export function UserDetailsPage({
     <AppPage
       className="gap-5"
       title={getUserDisplayName(user)}
-      description={user.email}
       action={
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBack}>
@@ -561,7 +574,12 @@ export function UserDetailsPage({
         <div className="space-y-6">
           <DetailSection
             title="Profile"
-            description="Update the basic account information that appears across the workspace."
+            info={{
+              label: 'Explain profile section',
+              title: 'Profile',
+              content:
+                'These fields describe the person or service account itself. They do not explain scoped access; roles and memberships do that elsewhere on the page.',
+            }}
             action={
               <Button
                 type="submit"
@@ -647,7 +665,12 @@ export function UserDetailsPage({
           {userStatusFeatureEnabled ? (
             <DetailSection
               title="Account status"
-              description="Change account access now, or suspend access until a specific date."
+              info={{
+                label: 'Explain account status section',
+                title: 'Account status',
+                content:
+                  'Status controls whether the account can be used right now. Suspension windows and invite resend actions also live here because they affect account availability.',
+              }}
               action={
                 <div className="flex flex-wrap items-center gap-2">
                   {canResendInvite ? (
@@ -812,7 +835,12 @@ export function UserDetailsPage({
           {activityTrackingFeatureEnabled ? (
             <DetailSection
               title="Activity and lifecycle"
-              description="Operational timestamps and account lifecycle signals from the auth system."
+              info={{
+                label: 'Explain activity and lifecycle section',
+                title: 'Activity and lifecycle',
+                content:
+                  'These timestamps come from the auth system and help with audit reviews, troubleshooting, and confirming whether an account is still in active use.',
+              }}
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border bg-muted/30 px-4 py-3">
@@ -857,7 +885,12 @@ export function UserDetailsPage({
 
           <DetailSection
             title="Security"
-            description="Reset credentials and review the current account lock state."
+            info={{
+              label: 'Explain security section',
+              title: 'Security',
+              content:
+                'This section focuses on credentials and temporary lockouts. Use it when you need to recover access or confirm whether the account is currently blocked.',
+            }}
             action={
               <Button
                 type="button"
@@ -899,7 +932,12 @@ export function UserDetailsPage({
 
           <DetailSection
             title="Danger zone"
-            description="Delete this account when it should no longer be accessible."
+            info={{
+              label: 'Explain danger zone section',
+              title: 'Danger zone',
+              content:
+                'Deleting a user is an administrative cleanup action. It should only be used when the account should leave active auth flows entirely.',
+            }}
             action={
               <Button
                 type="button"
@@ -925,7 +963,12 @@ export function UserDetailsPage({
         <div className="space-y-6">
           <DetailSection
             title="Entity memberships"
-            description="Each entity access record combines scope, scoped roles, and lifecycle settings."
+            info={{
+              label: 'Explain entity memberships section',
+              title: 'Entity memberships',
+              content:
+                'Memberships attach the user to specific entities. They are the place to review local roles, time windows, and whether access comes from one branch of the hierarchy.',
+            }}
             action={
               <Button
                 type="button"
@@ -1115,7 +1158,12 @@ export function UserDetailsPage({
 
           <DetailSection
             title="Direct account roles"
-            description="These roles are assigned straight to the account. Scoped entity roles are managed through memberships above."
+            info={{
+              label: 'Explain direct account roles section',
+              title: 'Direct account roles',
+              content:
+                'Direct roles apply to the account itself, outside a single entity membership. Use memberships above when the access should stay scoped to one branch.',
+            }}
             action={
               <Button
                 type="button"
@@ -1172,9 +1220,11 @@ export function UserDetailsPage({
                               {formatToken(membership.status)}
                             </Badge>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {role.description || role.name}
-                          </div>
+                          {role.description ? (
+                            <div className="text-sm text-muted-foreground">
+                              {role.description}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap justify-end gap-2">
                           {role.is_global ? (
@@ -1312,7 +1362,12 @@ export function UserDetailsPage({
 
       <DetailSection
         title="Permissions"
-        description="Effective permissions resolved from the current role set."
+        info={{
+          label: 'Explain permissions section',
+          title: 'Permissions',
+          content:
+            'This is the resolved permission set after direct roles, memberships, inheritance, and other grant paths are combined.',
+        }}
       >
         {userPermissionsQuery.isError ? (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">

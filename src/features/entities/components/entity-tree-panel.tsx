@@ -9,8 +9,9 @@ import {
   Workflow,
 } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -245,11 +246,18 @@ export function EntityTreePanel({
           <div className="flex size-10 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
             <Workflow className="size-5" />
           </div>
-          <div className="min-w-0 space-y-1">
-            <CardTitle>Hierarchy navigator</CardTitle>
-            <CardDescription>
-              Move through the entity tree, switch top-level scope, and keep the current path visible.
-            </CardDescription>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <CardTitle>Hierarchy navigator</CardTitle>
+              <AppInfoPopover
+                label="Explain hierarchy navigator"
+                title="Hierarchy navigator"
+              >
+                Use the tree to move through one root scope at a time. Search only filters
+                the visible branch, and the current path stays expanded so you do not lose
+                context.
+              </AppInfoPopover>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -273,7 +281,16 @@ export function EntityTreePanel({
           </div>
 
           <div className="mt-4 space-y-2">
-            <Label htmlFor="entities-root-scope">Root scope</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="entities-root-scope">Root scope</Label>
+              <AppInfoPopover
+                label="Explain root scope"
+                title="Root scope"
+              >
+                The entity workspace operates inside one root scope at a time. Superusers can
+                switch roots here, while scoped admins stay locked to their allowed branch.
+              </AppInfoPopover>
+            </div>
             {canSwitchRoot ? (
               <Select
                 items={rootSelectItems}

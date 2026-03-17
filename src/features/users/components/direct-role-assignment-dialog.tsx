@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -91,7 +92,16 @@ export function DirectRoleAssignmentDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-center justify-between gap-3">
-              <DialogTitle className="text-2xl">Assign direct roles</DialogTitle>
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-2xl">Assign direct roles</DialogTitle>
+                <AppInfoPopover
+                  label="Explain direct role assignment"
+                  title="Direct role assignment"
+                >
+                  Direct roles apply to the account itself. Use entity memberships for access that
+                  should stay scoped to one branch of the hierarchy.
+                </AppInfoPopover>
+              </div>
               <Badge variant="outline">{selectedRoleIds.length} selected</Badge>
             </div>
           </DialogHeader>
@@ -144,11 +154,15 @@ export function DirectRoleAssignmentDialog({
               ) : availableRoles.length > 0 ? (
                 <div className="space-y-4">
                   <div className="rounded-xl border bg-muted/20 p-4">
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium">Assignment window</div>
-                      <p className="text-sm text-muted-foreground">
-                        Optional. The same validity window will be applied to each selected direct role.
-                      </p>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span>Assignment window</span>
+                      <AppInfoPopover
+                        label="Explain direct role assignment window"
+                        title="Assignment window"
+                      >
+                        This validity window is optional. If you set one, the same dates will be
+                        applied to every selected direct role.
+                      </AppInfoPopover>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -198,6 +212,7 @@ export function DirectRoleAssignmentDialog({
                             <div className="flex items-start gap-3">
                               <Checkbox
                                 id={inputId}
+                                aria-label={role.display_name}
                                 checked={checked}
                                 disabled={isAssigned || assignRoleMutation.isPending}
                                 onCheckedChange={(nextChecked) => {
@@ -236,9 +251,11 @@ export function DirectRoleAssignmentDialog({
                                   ) : null}
                                 </div>
 
-                                <p className="text-sm leading-6 text-muted-foreground">
-                                  {role.description || role.name}
-                                </p>
+                                {role.description ? (
+                                  <p className="text-sm leading-6 text-muted-foreground">
+                                    {role.description}
+                                  </p>
+                                ) : null}
 
                                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                   <span>{getRoleScopeSummary(role)}</span>

@@ -1,5 +1,6 @@
 import { ArrowRight, Sparkles } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Permission } from '@/features/permissions/types/permissions.types'
@@ -13,7 +14,6 @@ type PermissionsCatalogPanelProps = {
   permissionGroups: Array<{
     key: string
     label: string
-    description: string
     permissions: Permission[]
   }>
   selectedPermissionId?: string
@@ -35,11 +35,14 @@ export function PermissionsCatalogPanel({
     <Card className="flex min-h-0 flex-col overflow-hidden border border-border/70 bg-card/90">
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
+          <div className="flex items-center gap-2">
             <CardTitle className="text-base">Permission catalog</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Permissions are grouped by resource so action coverage is easy to inspect.
-            </p>
+            <AppInfoPopover
+              label="Explain permission catalog grouping"
+              title="Permission catalog"
+            >
+              Permissions are grouped by resource so related actions stay together while you review the catalog.
+            </AppInfoPopover>
           </div>
           {isRefreshing ? (
             <Badge variant="outline" className="gap-1.5">
@@ -69,10 +72,7 @@ export function PermissionsCatalogPanel({
             {permissionGroups.map((group) => (
               <section key={group.key} className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{group.label}</div>
-                    <div className="text-sm text-muted-foreground">{group.description}</div>
-                  </div>
+                  <div className="font-medium">{group.label}</div>
                   <Badge variant="outline">{group.permissions.length}</Badge>
                 </div>
 

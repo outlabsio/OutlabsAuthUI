@@ -6,6 +6,7 @@ import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { CalendarClock, ChevronRight, Search, UserRoundPlus } from 'lucide-react'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -266,9 +267,18 @@ export function EntityMemberAccessDialog({
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-4xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
-            <DialogTitle className="text-2xl">
-              {existingMember ? 'Manage member access' : `Add member to ${entity.display_name}`}
-            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-2xl">
+                {existingMember ? 'Manage member access' : `Add member to ${entity.display_name}`}
+              </DialogTitle>
+              <AppInfoPopover
+                label="Explain entity member access editor"
+                title="Entity member access"
+              >
+                This editor manages one membership inside {entity.display_name}. Use it to choose
+                the person, local roles, and lifecycle settings for that entity only.
+              </AppInfoPopover>
+            </div>
           </DialogHeader>
 
           <form
@@ -278,11 +288,15 @@ export function EntityMemberAccessDialog({
             <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
               <div className="flex min-h-0 flex-col gap-4">
                 <section className="rounded-xl border bg-muted/20 p-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <div className="font-medium">Entity context</div>
-                    <p className="text-sm text-muted-foreground">
-                      Access changes will apply only within {entity.display_name}.
-                    </p>
+                    <AppInfoPopover
+                      label="Explain entity context"
+                      title="Entity context"
+                    >
+                      All changes in this dialog are local to {entity.display_name}. They do not
+                      modify access in sibling entities or other branches.
+                    </AppInfoPopover>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <Badge variant="outline">{formatRoleToken(entity.entity_type)}</Badge>
@@ -310,11 +324,15 @@ export function EntityMemberAccessDialog({
                   </section>
                 ) : (
                   <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
-                    <div className="space-y-1">
+                    <div className="flex items-center gap-2">
                       <div className="font-medium">Choose a user</div>
-                      <p className="text-sm text-muted-foreground">
-                        Search the current user directory and attach this entity membership.
-                      </p>
+                      <AppInfoPopover
+                        label="Explain choose user"
+                        title="Choose a user"
+                      >
+                        Search the current user directory and select the person who should receive
+                        this entity membership.
+                      </AppInfoPopover>
                     </div>
 
                     <div className="mt-4 space-y-2">
@@ -405,11 +423,15 @@ export function EntityMemberAccessDialog({
 
               <div className="flex min-h-0 flex-col gap-4">
                 <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <div className="font-medium">Role assignment</div>
-                    <p className="text-sm text-muted-foreground">
-                      Roles available within this entity scope.
-                    </p>
+                    <AppInfoPopover
+                      label="Explain entity role assignment"
+                      title="Role assignment"
+                    >
+                      These roles are the ones currently assignable in this entity context. They
+                      apply to this membership only.
+                    </AppInfoPopover>
                   </div>
 
                   <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border bg-background">
@@ -453,12 +475,12 @@ export function EntityMemberAccessDialog({
                                     {role.permissions.length} permissions
                                   </Badge>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {role.description || role.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {roleScopeSummary}
-                                </p>
+                                {role.description ? (
+                                  <p className="text-sm text-muted-foreground">{role.description}</p>
+                                ) : null}
+                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  <span>{roleScopeSummary}</span>
+                                </div>
                               </div>
                             </label>
                           )
@@ -476,11 +498,15 @@ export function EntityMemberAccessDialog({
                   <div className="flex items-start gap-3">
                     <CalendarClock className="mt-0.5 size-4 text-muted-foreground" />
                     <div className="min-w-0 flex-1 space-y-4">
-                      <div className="space-y-1">
+                      <div className="flex items-center gap-2">
                         <div className="font-medium">Membership lifecycle</div>
-                        <p className="text-sm text-muted-foreground">
-                          Suspend access, schedule it, or keep it active immediately.
-                        </p>
+                        <AppInfoPopover
+                          label="Explain membership lifecycle"
+                          title="Membership lifecycle"
+                        >
+                          Use lifecycle settings to suspend access, schedule it, or let it remain
+                          active immediately inside this entity.
+                        </AppInfoPopover>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">

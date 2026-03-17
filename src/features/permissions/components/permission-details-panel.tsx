@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { Fingerprint, KeyRound, PencilLine, Trash2 } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -58,7 +59,12 @@ type PermissionDetailsPanelProps = {
 
 type DetailSectionProps = {
   title: string
-  description: string
+  description?: string
+  info?: {
+    label: string
+    title: string
+    content: React.ReactNode
+  }
   children: React.ReactNode
 }
 
@@ -72,13 +78,20 @@ type MetricCardProps = {
   value: string
 }
 
-function DetailSection({ title, description, children }: DetailSectionProps) {
+function DetailSection({ title, description, info, children }: DetailSectionProps) {
   return (
     <Card className="border border-border/70 bg-card/90">
       <CardHeader className="border-b border-border/60">
         <div className="space-y-1">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">{title}</CardTitle>
+            {info ? (
+              <AppInfoPopover label={info.label} title={info.title}>
+                {info.content}
+              </AppInfoPopover>
+            ) : null}
+          </div>
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -140,9 +153,7 @@ export function PermissionDetailsPanel({
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold tracking-tight">Select a permission</h2>
-            <p className="text-sm text-muted-foreground">
-              Inspect the action definition, lifecycle, linked roles, and any ABAC rules attached to it.
-            </p>
+            <p className="text-sm text-muted-foreground">Select a permission to inspect it.</p>
           </div>
         </CardContent>
       </Card>
@@ -198,7 +209,12 @@ export function PermissionDetailsPanel({
       <div className="grid gap-4 xl:grid-cols-2">
         <DetailSection
           title="Permission identity"
-          description="Show the atomic action this permission defines."
+          info={{
+            label: 'Explain permission identity',
+            title: 'Permission identity',
+            content:
+              'These fields describe the capability atom itself: which resource it targets, which action it represents, and whether the name includes a scope suffix.',
+          }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Resource" value={getPermissionResourceLabel(permission)} />
@@ -210,7 +226,12 @@ export function PermissionDetailsPanel({
 
         <DetailSection
           title="Operational model"
-          description="Explain what this permission means and what it does not do on its own."
+          info={{
+            label: 'Explain operational model',
+            title: 'Operational model',
+            content:
+              'Permissions define capability only. Roles decide where they apply, and ABAC can narrow them further at runtime.',
+          }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Behavior" value={getPermissionBehaviorSummary(permission)} />
@@ -226,7 +247,12 @@ export function PermissionDetailsPanel({
 
       <DetailSection
         title="Tags and auditability"
-        description="Tags make custom permissions easier to discover and review."
+        info={{
+          label: 'Explain tags and auditability',
+          title: 'Tags and auditability',
+          content:
+            'Tags help operators find related permissions quickly and make custom entries easier to review later.',
+        }}
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <DetailField
@@ -254,7 +280,12 @@ export function PermissionDetailsPanel({
 
       <DetailSection
         title="Roles using this permission"
-        description="Roles determine where this capability takes effect across the hierarchy."
+        info={{
+          label: 'Explain roles using this permission',
+          title: 'Roles using this permission',
+          content:
+            'This list shows where the capability is currently composed into roles. Scope and inheritance still come from those roles, not from the permission itself.',
+        }}
       >
         {!canReadRoles ? (
           <div className="rounded-2xl border border-dashed px-4 py-4 text-sm text-muted-foreground">

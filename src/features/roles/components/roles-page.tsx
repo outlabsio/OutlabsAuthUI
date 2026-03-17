@@ -213,19 +213,16 @@ export function RolesPage({
       {
         key: 'global' as const,
         label: 'Global',
-        description: 'System-wide roles that can affect every organization.',
         roles: globalRoles,
       },
       {
         key: 'root' as const,
         label: 'Organization',
-        description: 'Top-level roles owned by one root scope.',
         roles: rootRoles,
       },
       {
         key: 'entity' as const,
         label: 'Entity-defined',
-        description: 'Roles defined locally with explicit hierarchy behavior.',
         roles: entityRoles,
       },
     ]
@@ -259,20 +256,12 @@ export function RolesPage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
-    return (
-      <AppLoadingState
-        title="Loading roles workspace"
-        description="Resolving your permissions, catalog scope, and backend capabilities."
-      />
-    )
+    return <AppLoadingState title="Loading roles workspace" />
   }
 
   if (pageError) {
     return (
-      <AppPage
-        title="Roles"
-        description="Review the roles catalog, ownership model, and assignment safety rules."
-      >
+      <AppPage title="Roles">
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -287,7 +276,6 @@ export function RolesPage({
     <>
       <AppPage
         title="Roles"
-        description="A high-signal workspace for understanding where each role applies, how it is assigned, and what operational blast radius it carries."
         action={
           <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
             <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, Plus } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
@@ -345,12 +346,7 @@ export function EntitiesPage({
         (descendantsQuery.isPending && !descendantsQuery.data)))
 
   if (isPageLoading && !pageErrorMessage) {
-    return (
-      <AppLoadingState
-        title="Loading entity workspace"
-        description="Reading the visible hierarchy, resolving the active root, and preparing the management surface."
-      />
-    )
+    return <AppLoadingState title="Loading entity workspace" />
   }
 
   function handleScopeRootChange(nextRootId: string) {
@@ -387,14 +383,23 @@ export function EntitiesPage({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1 rounded-xl border bg-card/70 px-3 py-2.5 text-sm text-muted-foreground">
+      <div className="min-w-0 flex-1 rounded-xl border bg-card/70 px-3 py-2.5">
+        <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Active root
+          <AppInfoPopover
+            label="Explain active root"
+            title="Active root"
+          >
+            Search, selection, and hierarchy browsing stay inside the current root scope. Switch
+            roots to review a different organization branch.
+          </AppInfoPopover>
+        </div>
         {activeRootQuery.data ? (
-          <>
-            Working inside <span className="font-medium text-foreground">{activeRootQuery.data.display_name}</span>.
-            {' '}Search stays in the URL so admins can share or revisit a specific scope view.
-          </>
+          <div className="mt-1 truncate text-sm font-medium text-foreground">
+            {activeRootQuery.data.display_name}
+          </div>
         ) : (
-          'No root scope is active yet.'
+          <div className="mt-1 text-sm text-muted-foreground">No root scope is active yet.</div>
         )}
       </div>
 
@@ -443,7 +448,6 @@ export function EntitiesPage({
         className="flex-1 min-h-0 gap-4 overflow-hidden"
         eyebrow="Administration"
         title="Entities"
-        description="Navigate entity hierarchies, shape each scope, and manage who belongs where without losing the path context."
         action={headerAction}
       >
         {pageErrorMessage ? (
@@ -459,7 +463,7 @@ export function EntitiesPage({
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold tracking-tight">No entity scope available</h2>
                 <p className="text-sm text-muted-foreground">
-                  This account does not currently resolve to a root entity. Create a root scope or attach the account to one before continuing.
+                  This account does not currently resolve to a root entity.
                 </p>
               </div>
               {canCreateRootEntities ? (

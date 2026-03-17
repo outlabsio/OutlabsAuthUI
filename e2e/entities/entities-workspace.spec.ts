@@ -86,7 +86,7 @@ test.describe('Entities Workspace', () => {
       optionName: /Summit Commercial/i,
     })
 
-    await expect(page.getByText('Working inside Summit Commercial.')).toBeVisible()
+    await expect(page.getByText('Active root')).toBeVisible()
     await selectEntityFromTree(page, 'Austin Office', 'Austin Office')
     await expect(page.getByText('Austin commercial sales office.')).toBeVisible()
     await expect(
@@ -160,7 +160,7 @@ test.describe('Entities Workspace', () => {
       await expect(page.getByRole('button', { name: 'Edit entity' })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Create child' })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Invite member' })).toBeVisible()
-      await expect(page.getByText('Working inside ACME Realty.')).toBeVisible()
+      await expect(page.getByText('Active root')).toBeVisible()
     })
   })
 })

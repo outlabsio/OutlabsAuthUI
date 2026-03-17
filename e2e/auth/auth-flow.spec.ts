@@ -56,9 +56,9 @@ test.describe('Auth Flow', () => {
     await expect(page).toHaveURL(/\/app\/dashboard$/)
     await expect(
       page.getByRole('heading', {
-        name: 'Auth console shell',
+        name: 'Dashboard',
       })
     ).toBeVisible()
-    await expect(page.getByText('Next implementation slice')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Users workspace' })).toBeVisible()
   })
 })

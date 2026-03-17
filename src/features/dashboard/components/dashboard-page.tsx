@@ -1,90 +1,83 @@
-import { Activity, KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import {
+  ArrowRight,
+  Building2,
+  KeyRound,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
 
 import { AppPage } from '@/components/app/app-page'
+import { Badge } from '@/components/ui/badge'
 import {
   Card,
-  CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { routes } from '@/lib/constants/routes'
 
-const capabilityCards = [
+const workspaceCards = [
   {
-    title: 'Password flows',
-    description: 'Login, password reset, and invite acceptance are the first auth surfaces to wire.',
+    title: 'Users',
+    to: routes.app.users,
+    icon: Users,
+    accent: 'Accounts',
+  },
+  {
+    title: 'Permissions',
+    to: routes.app.permissions,
     icon: KeyRound,
+    accent: 'Capability catalog',
   },
   {
-    title: 'Library agnostic UI',
-    description: 'The shell stays frontend-only and talks to OutlabsAuth through the public API contract.',
+    title: 'Roles',
+    to: routes.app.roles,
     icon: ShieldCheck,
+    accent: 'Access composition',
   },
   {
-    title: 'Delivery path',
-    description: 'Next slices can expand from auth into users, roles, providers, and policy management.',
-    icon: Mail,
+    title: 'Entities',
+    to: routes.app.entities,
+    icon: Building2,
+    accent: 'Hierarchy',
   },
-]
-
-const roadmap = [
-  'Adapt the shadcn auth blocks to the OutlabsAuth password endpoints.',
-  'Add a shared auth client layer for login, refresh, logout, forgot-password, reset-password, and invite acceptance.',
-  'Replace preview user data with the authenticated session once auth is wired.',
 ]
 
 export function DashboardPage() {
   return (
-    <AppPage
-      eyebrow="Workspace"
-      title="Auth console shell"
-      description="This is the mixed inset and icon-collapse shell that will host the OutlabsAuth management UI."
-    >
-      <div className="grid auto-rows-fr gap-4 md:grid-cols-3">
-        {capabilityCards.map((item) => {
+    <AppPage eyebrow="Workspace" title="Dashboard">
+      <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {workspaceCards.map((item) => {
           const Icon = item.icon
 
           return (
-            <Card key={item.title} className="overflow-hidden border border-border/70 bg-card/90">
-              <CardHeader>
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                  <Icon className="size-5" />
+            <Card
+              key={item.title}
+              className="overflow-hidden border border-border/70 bg-card/90 transition-colors hover:bg-muted/20"
+            >
+              <Link
+                to={item.to}
+                aria-label={`Open ${item.title} workspace`}
+                className="flex h-full flex-col justify-between p-6"
+              >
+                <CardHeader className="p-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex size-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                      <Icon className="size-5" />
+                    </div>
+                    <Badge variant="outline">{item.accent}</Badge>
+                  </div>
+                  <CardTitle className="mt-5 text-xl">{item.title}</CardTitle>
+                </CardHeader>
+                <div className="mt-6 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  Open workspace
+                  <ArrowRight className="size-4" />
                 </div>
-                <CardTitle className="mt-3">{item.title}</CardTitle>
-                <CardDescription>{item.description}</CardDescription>
-              </CardHeader>
+              </Link>
             </Card>
           )
         })}
       </div>
-      <Card className="border border-border/70 bg-card/90">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <Activity className="size-5" />
-            </div>
-            <div>
-              <CardTitle>Next implementation slice</CardTitle>
-              <CardDescription>
-                The shell is in place. The next step is wiring the auth feature into the real backend contract.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ol className="space-y-3 text-sm text-muted-foreground">
-            {roadmap.map((item, index) => (
-              <li
-                key={item}
-                className="flex gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3"
-              >
-                <span className="font-semibold text-foreground">{index + 1}.</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
     </AppPage>
   )
 }

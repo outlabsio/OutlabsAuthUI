@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { type Resolver, useForm } from 'react-hook-form'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -85,9 +86,18 @@ export function EntityMemberInviteDialog({
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-3xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
-            <DialogTitle className="text-2xl">
-              Invite new member to {entity.display_name}
-            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-2xl">
+                Invite new member to {entity.display_name}
+              </DialogTitle>
+              <AppInfoPopover
+                label="Explain entity invite flow"
+                title="Entity invite"
+              >
+                This flow creates an invited user and attaches the first entity membership at the
+                same time. Optional initial roles apply only inside this entity context.
+              </AppInfoPopover>
+            </div>
           </DialogHeader>
 
           <form
@@ -115,11 +125,14 @@ export function EntityMemberInviteDialog({
             <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
               <div className="space-y-6">
                 <section className="rounded-xl border bg-muted/20 p-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <div className="font-medium">Invitation scope</div>
-                    <p className="text-sm text-muted-foreground">
-                      The invited user will land directly in {entity.display_name}.
-                    </p>
+                    <AppInfoPopover
+                      label="Explain invitation scope"
+                      title="Invitation scope"
+                    >
+                      The invited user will receive their first membership in {entity.display_name}.
+                    </AppInfoPopover>
                   </div>
                 </section>
 
@@ -161,11 +174,15 @@ export function EntityMemberInviteDialog({
 
                 <section className="rounded-xl border p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-1">
+                    <div className="flex items-center gap-2">
                       <div className="font-medium">Initial roles</div>
-                      <p className="text-sm text-muted-foreground">
-                        Optional. Apply entity-scoped roles as part of the invitation.
-                      </p>
+                      <AppInfoPopover
+                        label="Explain initial invite roles"
+                        title="Initial roles"
+                      >
+                        Initial roles are optional. They are applied through the membership created
+                        for this entity, not as global account roles.
+                      </AppInfoPopover>
                     </div>
                     <Badge variant="outline">{selectedRoleIds.length} selected</Badge>
                   </div>
@@ -210,9 +227,9 @@ export function EntityMemberInviteDialog({
                                     {role.permissions.length} permissions
                                   </Badge>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {role.description || role.name}
-                                </p>
+                                {role.description ? (
+                                  <p className="text-sm text-muted-foreground">{role.description}</p>
+                                ) : null}
                                 <p className="text-xs text-muted-foreground">
                                   {getRoleScopeSummary(role)}
                                 </p>

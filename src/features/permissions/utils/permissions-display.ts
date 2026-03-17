@@ -150,7 +150,6 @@ export function groupPermissionsByResource(permissions: Permission[]) {
     .map(([resource, items]) => ({
       key: resource,
       label: formatPermissionToken(resource, 'General'),
-      description: `Actions that describe ${formatPermissionToken(resource, 'general')} access.`,
       permissions: sortPermissionsForCatalog(items),
     }))
     .sort((left, right) => left.label.localeCompare(right.label))
@@ -159,7 +158,6 @@ export function groupPermissionsByResource(permissions: Permission[]) {
     grouped.unshift({
       key: 'wildcard',
       label: 'Wildcard',
-      description: 'Broad permissions that match many resources or actions.',
       permissions: sortPermissionsForCatalog(wildcardPermissions),
     })
   }

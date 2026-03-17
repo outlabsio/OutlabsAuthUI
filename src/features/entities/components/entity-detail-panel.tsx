@@ -3,14 +3,12 @@ import type { ReactNode } from 'react'
 import {
   ArrowRight,
   Building2,
-  CalendarClock,
   FolderTree,
-  Layers3,
-  Shield,
   UserPlus,
   Users,
 } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import {
   Breadcrumb,
@@ -93,6 +91,12 @@ type EntityMetricProps = {
   value: string
 }
 
+type DetailSectionInfo = {
+  label: string
+  title: string
+  content: ReactNode
+}
+
 function DetailField({ label, value }: DetailFieldProps) {
   return (
     <div className="space-y-1 rounded-2xl border bg-muted/20 px-4 py-3">
@@ -117,12 +121,14 @@ function DetailSection({
   title,
   description,
   action,
+  info,
   children,
   className,
 }: {
   title: string
-  description: string
+  description?: string
   action?: ReactNode
+  info?: DetailSectionInfo
   children: ReactNode
   className?: string
 }) {
@@ -131,8 +137,15 @@ function DetailSection({
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
+            <div className="flex items-center gap-2">
+              <CardTitle>{title}</CardTitle>
+              {info ? (
+                <AppInfoPopover label={info.label} title={info.title}>
+                  {info.content}
+                </AppInfoPopover>
+              ) : null}
+            </div>
+            {description ? <CardDescription>{description}</CardDescription> : null}
           </div>
           {action}
         </div>
@@ -213,7 +226,7 @@ export function EntityDetailPanel({
           <div className="space-y-2">
             <h2 className="text-xl font-semibold tracking-tight">No entity selected</h2>
             <p className="text-sm text-muted-foreground">
-              Pick a scope from the hierarchy to inspect its structure, manage child entities, and control access.
+              Pick a scope from the hierarchy to start working.
             </p>
           </div>
           {canCreateRootEntities ? (
@@ -295,8 +308,7 @@ export function EntityDetailPanel({
                 </div>
 
                 <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {entity.description ||
-                    'No description has been captured yet. Use the entity settings to explain what this scope owns and how it should be used.'}
+                  {entity.description || 'No description yet.'}
                 </p>
               </div>
             </div>
@@ -339,7 +351,12 @@ export function EntityDetailPanel({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <DetailSection
           title="Entity overview"
-          description="Identity, parentage, and lifecycle details for the current scope."
+          info={{
+            label: 'Explain entity overview',
+            title: 'Entity overview',
+            content:
+              'These fields describe the entity itself: its stable identifiers, where it sits in the tree, and any time bounds on when it should be active.',
+          }}
         >
           <div className="grid gap-3 md:grid-cols-2">
             <DetailField label="System name" value={entity.name} />
@@ -355,7 +372,12 @@ export function EntityDetailPanel({
 
         <DetailSection
           title="Governance controls"
-          description="The rules this entity uses to shape its children and membership growth."
+          info={{
+            label: 'Explain governance controls',
+            title: 'Governance controls',
+            content:
+              'These settings constrain what can be created under this entity and how large the membership surface can grow.',
+          }}
         >
           <div className="grid gap-3">
             <DetailField
@@ -381,7 +403,12 @@ export function EntityDetailPanel({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <DetailSection
           title="Child entities"
-          description="Direct descendants that sit immediately under this scope."
+          info={{
+            label: 'Explain child entities',
+            title: 'Child entities',
+            content:
+              'This list only shows the next level down. Use the tree on the left when you need the full branch context.',
+          }}
           action={
             canCreateChildEntities ? (
               <Button type="button" variant="outline" onClick={onCreateChild}>
@@ -425,7 +452,12 @@ export function EntityDetailPanel({
 
         <DetailSection
           title="Assignable roles"
-          description="Roles that can be applied inside this entity context."
+          info={{
+            label: 'Explain assignable roles',
+            title: 'Assignable roles',
+            content:
+              'Role availability depends on scope, entity type restrictions, and what the backend allows at this entity. This is the safest place to confirm what can be granted locally.',
+          }}
           action={
             canReadRoles ? (
               <Badge variant="outline">{roles.length} role{roles.length === 1 ? '' : 's'}</Badge>
@@ -455,9 +487,9 @@ export function EntityDetailPanel({
                     ) : null}
                     <Badge variant="outline">{role.permissions.length} permissions</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {role.description || role.name}
-                  </p>
+                  {role.description ? (
+                    <p className="mt-2 text-sm text-muted-foreground">{role.description}</p>
+                  ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
                     {getRoleScopeSummary(role)}
                   </p>
@@ -474,7 +506,12 @@ export function EntityDetailPanel({
 
       <DetailSection
         title="Members and access"
-        description="People attached to this entity, their roles, and their membership lifecycle."
+        info={{
+          label: 'Explain members and access',
+          title: 'Members and access',
+          content:
+            'Memberships attach people to this entity. Local roles on a membership can add scoped access inside this branch without changing the user record globally.',
+        }}
         action={
           <div className="flex items-center gap-2">
             {membersRefreshing ? (
@@ -593,70 +630,6 @@ export function EntityDetailPanel({
           </div>
         ) : null}
       </DetailSection>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <DetailSection
-          title="Hierarchy posture"
-          description="A quick explanation of where this scope sits in the larger model."
-          className="h-full"
-        >
-          <div className="space-y-3">
-            <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Layers3 className="size-4 text-muted-foreground" />
-                Scope root
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {scopeRoot
-                  ? `${scopeRoot.display_name} anchors this visible workspace. Every row in the navigator belongs to that branch.`
-                  : 'No root scope is currently available.'}
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <CalendarClock className="size-4 text-muted-foreground" />
-                Lifecycle posture
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {entity.valid_from || entity.valid_until
-                  ? `This entity is time-bounded from ${formatDateTime(entity.valid_from, 'now')} to ${formatDateTime(entity.valid_until, 'an open end')}.`
-                  : 'This entity is active without a scheduled start or end window.'}
-              </p>
-            </div>
-          </div>
-        </DetailSection>
-
-        <DetailSection
-          title="Access posture"
-          description="The current administration surface available at this scope."
-          className="h-full"
-        >
-          <div className="space-y-3">
-            <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Shield className="size-4 text-muted-foreground" />
-                Membership management
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {canAddMembers || canEditMemberships
-                  ? 'This workspace can apply entity memberships and adjust member access from the right-hand detail surface.'
-                  : 'This account currently has read-only access to membership administration at this scope.'}
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Users className="size-4 text-muted-foreground" />
-                Invitation support
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {canInviteMembers
-                  ? 'Invitations can be sent directly from this entity workspace with an initial role set.'
-                  : 'Invitations are not available for this account in the current context.'}
-              </p>
-            </div>
-          </div>
-        </DetailSection>
-      </div>
     </div>
   )
 }

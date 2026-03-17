@@ -7,7 +7,7 @@ async function gotoDashboard(page: Page) {
 
   await expect(
     page.getByRole('heading', {
-      name: 'Auth console shell',
+      name: 'Dashboard',
     })
   ).toBeVisible()
 }
@@ -30,48 +30,48 @@ test.describe('App Shell', () => {
     await expect(page.getByText('OutlabsAuth Console')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Permissions' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Roles' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Entities' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Permissions', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Roles', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Entities', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Providers' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Policies' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Invites' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Sessions' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Branding' })).toHaveCount(0)
 
-    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('link', { name: 'Users', exact: true }).click()
     await expect(
       page.getByRole('heading', {
         name: 'Users',
       })
     ).toBeVisible()
 
-    await page.getByRole('link', { name: 'Permissions' }).click()
+    await page.getByRole('link', { name: 'Permissions', exact: true }).click()
     await expect(
       page.getByRole('heading', {
         name: 'Permissions',
       })
     ).toBeVisible()
 
-    await page.getByRole('link', { name: 'Roles' }).click()
+    await page.getByRole('link', { name: 'Roles', exact: true }).click()
     await expect(
       page.getByRole('heading', {
         name: 'Roles',
       })
     ).toBeVisible()
 
-    await page.getByRole('link', { name: 'Entities' }).click()
+    await page.getByRole('link', { name: 'Entities', exact: true }).click()
     await expect(
       page.getByRole('heading', {
         name: 'Entities',
       })
     ).toBeVisible()
 
-    await page.getByRole('link', { name: 'Dashboard' }).click()
+    await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
     await expect(
       page.getByRole('heading', {
-        name: 'Auth console shell',
+        name: 'Dashboard',
       })
     ).toBeVisible()
 

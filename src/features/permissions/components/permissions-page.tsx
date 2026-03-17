@@ -165,20 +165,12 @@ export function PermissionsPage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
-    return (
-      <AppLoadingState
-        title="Loading permissions workspace"
-        description="Resolving your permission catalog access, backend features, and safety controls."
-      />
-    )
+    return <AppLoadingState title="Loading permissions workspace" />
   }
 
   if (pageError) {
     return (
-      <AppPage
-        title="Permissions"
-        description="Create custom permissions, review capability atoms, and manage permission-level ABAC."
-      >
+      <AppPage title="Permissions">
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -193,7 +185,6 @@ export function PermissionsPage({
     <>
       <AppPage
         title="Permissions"
-        description="Define capability atoms, understand which roles grant them, and attach ABAC rules where runtime narrowing matters."
         action={
           <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
             <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">

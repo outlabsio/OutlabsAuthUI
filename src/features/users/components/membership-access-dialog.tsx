@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarClock, ChevronRight } from 'lucide-react'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -274,6 +275,12 @@ export function MembershipAccessDialog({
   const currentStatusVariant = existingMembership
     ? getMembershipStatusVariant(existingMembership.effective_status)
     : 'outline'
+  const accessWindowStateMessage =
+    existingMembership?.effective_status === 'expired'
+      ? 'Window ended.'
+      : existingMembership?.effective_status === 'pending'
+        ? 'Window starts later.'
+        : null
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
@@ -281,9 +288,19 @@ export function MembershipAccessDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-center justify-between gap-3">
-              <DialogTitle className="text-2xl">
-                {existingMembership ? 'Manage entity access' : 'Assign entity'}
-              </DialogTitle>
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-2xl">
+                  {existingMembership ? 'Manage entity access' : 'Assign entity'}
+                </DialogTitle>
+                <AppInfoPopover
+                  label="Explain membership access editor"
+                  title="Membership access"
+                >
+                  Entity memberships attach the user to one branch of the hierarchy. Use this
+                  editor to choose the entity, local roles, and lifecycle window for that scoped
+                  access.
+                </AppInfoPopover>
+              </div>
               <Badge variant="outline">{selectedRoleIds.length} roles</Badge>
             </div>
           </DialogHeader>
@@ -292,17 +309,15 @@ export function MembershipAccessDialog({
             <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
               <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border">
                 <div className="border-b px-4 py-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <h3 className="font-medium">Entity scope</h3>
-                    {existingMembership ? (
-                      <p className="text-sm text-muted-foreground">
-                        Update how this user belongs to the selected entity.
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Choose where this user should belong in the hierarchy.
-                      </p>
-                    )}
+                    <AppInfoPopover
+                      label="Explain entity scope"
+                      title="Entity scope"
+                    >
+                      Choose the entity where this membership lives. Any roles selected here apply
+                      only in that entity context.
+                    </AppInfoPopover>
                   </div>
                 </div>
 
@@ -420,15 +435,18 @@ export function MembershipAccessDialog({
                       </div>
 
                       <div className="space-y-3 rounded-lg border bg-background/80 p-4">
-                        <div className="space-y-1">
+                        <div className="flex items-center gap-2">
                           <Label htmlFor="membership-access-status" className="text-base">
                             Access state
                           </Label>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedStatus === 'suspended'
-                              ? 'Suspended memberships stay linked to the entity, but they stop granting access until restored.'
-                              : 'Active memberships can grant access immediately or within the window you set below.'}
-                          </p>
+                          <AppInfoPopover
+                            label="Explain membership access state"
+                            title="Access state"
+                          >
+                            Active memberships can grant access now or within the configured window.
+                            Suspended memberships stay linked to the entity but stop granting
+                            access until restored.
+                          </AppInfoPopover>
                         </div>
 
                         <Select
@@ -463,14 +481,19 @@ export function MembershipAccessDialog({
                           <div className="flex items-center gap-2 font-medium text-foreground">
                             <CalendarClock className="size-4 text-muted-foreground" />
                             <span>Access window</span>
+                            <AppInfoPopover
+                              label="Explain membership access window"
+                              title="Access window"
+                            >
+                              Start and end dates are optional. Use them when the membership should
+                              activate later or expire automatically.
+                            </AppInfoPopover>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {existingMembership?.effective_status === 'expired'
-                              ? 'This membership is active in configuration, but its access window has already ended.'
-                              : existingMembership?.effective_status === 'pending'
-                                ? 'This membership is configured and will start granting access when its window begins.'
-                                : 'Set optional start and end dates when access should activate or expire automatically.'}
-                          </p>
+                          {accessWindowStateMessage ? (
+                            <p className="text-sm text-muted-foreground">
+                              {accessWindowStateMessage}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
@@ -526,11 +549,15 @@ export function MembershipAccessDialog({
 
               <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border">
                 <div className="border-b px-4 py-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <h3 className="font-medium">Roles</h3>
-                    <p className="text-sm text-muted-foreground">
-                      These roles apply only within the selected entity context.
-                    </p>
+                    <AppInfoPopover
+                      label="Explain membership roles"
+                      title="Membership roles"
+                    >
+                      These are the roles available for the selected entity. They affect this
+                      membership only, not the user account globally.
+                    </AppInfoPopover>
                   </div>
                 </div>
 
@@ -589,9 +616,9 @@ export function MembershipAccessDialog({
                                 </Badge>
                               </div>
 
-                              <p className="text-sm text-muted-foreground">
-                                {role.description || role.name}
-                              </p>
+                              {role.description ? (
+                                <p className="text-sm text-muted-foreground">{role.description}</p>
+                              ) : null}
 
                               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span className="inline-flex items-center rounded-full border px-2 py-1">

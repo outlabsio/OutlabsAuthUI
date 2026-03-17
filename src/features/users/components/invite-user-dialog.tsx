@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { ChevronRight } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -161,7 +162,16 @@ export function InviteUserDialog({
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-4xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
-            <DialogTitle className="text-2xl">Invite user</DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-2xl">Invite user</DialogTitle>
+              <AppInfoPopover
+                label="Explain invite user flow"
+                title="Invite user"
+              >
+                This flow creates the account invitation and can optionally attach an initial
+                entity membership with scoped roles.
+              </AppInfoPopover>
+            </div>
           </DialogHeader>
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -225,8 +235,15 @@ export function InviteUserDialog({
                 </div>
 
                 <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
-                  <div className="space-y-1">
+                  <div className="flex items-center gap-2">
                     <h3 className="font-medium">Entity scope</h3>
+                    <AppInfoPopover
+                      label="Explain invite entity scope"
+                      title="Entity scope"
+                    >
+                      Choose an entity when the invited user should start with a scoped membership.
+                      Leave it empty only if the account should be invited first and assigned later.
+                    </AppInfoPopover>
                   </div>
 
                   <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
@@ -333,19 +350,15 @@ export function InviteUserDialog({
                             </div>
                           </div>
                         </div>
-                        <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                          {selectedEntity.isTopLevel
-                            ? 'This selection sits at the top of the hierarchy and usually grants the broadest starting scope.'
-                            : `Parent path: ${selectedEntity.parentPathLabel}`}
-                        </p>
+                        {!selectedEntity.isTopLevel ? (
+                          <div className="mt-4 text-sm text-muted-foreground">
+                            Parent: {selectedEntity.parentPathLabel}
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-dashed p-4">
                         <p className="font-medium">No entity selected</p>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Leave this empty only when the account should be
-                          created first and assigned to an entity later.
-                        </p>
                       </div>
                     )}
                   </div>
@@ -355,7 +368,16 @@ export function InviteUserDialog({
               <section className="flex min-h-0 h-full flex-col overflow-hidden rounded-xl border bg-background">
                 <div className="border-b px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-medium">Roles</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">Roles</h3>
+                      <AppInfoPopover
+                        label="Explain invite roles"
+                        title="Roles"
+                      >
+                        Selected roles are applied through the membership created for the chosen
+                        entity. Without an entity, no scoped roles can be assigned here.
+                      </AppInfoPopover>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{roleIds.length} selected</Badge>
                       {roleIds.length > 0 ? (
@@ -381,8 +403,7 @@ export function InviteUserDialog({
                 <div className="min-h-0 flex-1 overflow-auto bg-background">
                   {contextAwareRoles && !selectedEntity ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
-                      Roles are assigned through the membership created for the selected
-                      entity. Choose an entity scope first to load the valid role set.
+                      Choose an entity to load roles.
                     </div>
                   ) : rolesPending ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -444,9 +465,11 @@ export function InviteUserDialog({
                                   </Badge>
                                 </div>
 
-                                <p className="text-sm leading-5 text-muted-foreground">
-                                  {role.description || role.name}
-                                </p>
+                                {role.description ? (
+                                  <p className="text-sm leading-5 text-muted-foreground">
+                                    {role.description}
+                                  </p>
+                                ) : null}
 
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                   <span>{getRoleScopeSummary(role)}</span>
@@ -466,7 +489,7 @@ export function InviteUserDialog({
                         ? 'No selected roles match the current filter.'
                         : selectedEntity
                           ? 'No roles are available for the selected entity.'
-                          : 'No assignable roles are available for this backend.'}
+                          : 'No roles are available.'}
                     </div>
                   )}
                 </div>

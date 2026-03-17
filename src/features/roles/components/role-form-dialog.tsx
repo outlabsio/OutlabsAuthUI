@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { Compass, Network, Orbit, ShieldCheck, Sparkles } from 'lucide-react'
 
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -37,7 +38,6 @@ import type { Role, RoleType } from '@/features/roles/types/roles.types'
 import {
   formatRoleToken,
   getRoleType,
-  getRoleTypeDescription,
   getRoleTypeLabel,
 } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
@@ -360,11 +360,15 @@ export function RoleFormDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
+              <div className="flex items-center gap-2">
                 <DialogTitle className="text-2xl">{dialogTitle}</DialogTitle>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  Make the role’s ownership boundary, assignment rules, and blast radius explicit before saving it.
-                </p>
+                <AppInfoPopover
+                  label="Explain role editor"
+                  title="Role editor"
+                >
+                  Roles bundle permissions and decide where they apply. Use this form to define
+                  ownership, reach, and assignment rules before saving.
+                </AppInfoPopover>
               </div>
               {mode === 'edit' ? (
                 <Badge variant="outline" className="gap-1.5">
@@ -385,6 +389,14 @@ export function RoleFormDialog({
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Sparkles className="size-4 text-primary" />
                     Role type
+                    <AppInfoPopover
+                      label="Explain role type choices"
+                      title="Role type"
+                    >
+                      Choose the ownership shape first. Global roles are system-wide, root roles
+                      belong to one organization, and entity-defined roles live at one entity with
+                      explicit local or inherited reach.
+                    </AppInfoPopover>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
                     {roleTypeOptions
@@ -424,9 +436,6 @@ export function RoleFormDialog({
                         )
                       })}
                   </div>
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    {getRoleTypeDescription(roleType)}
-                  </p>
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
@@ -468,11 +477,15 @@ export function RoleFormDialog({
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Ownership and reach</div>
-                    <p className="text-sm text-muted-foreground">
-                      Define where this role lives and how far its permissions travel.
-                    </p>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>Ownership and reach</span>
+                    <AppInfoPopover
+                      label="Explain ownership and reach"
+                      title="Ownership and reach"
+                    >
+                      These fields determine where the role is anchored and whether it stays local
+                      or can affect descendant entities.
+                    </AppInfoPopover>
                   </div>
 
                   {roleType === 'root' ? (
@@ -615,8 +628,8 @@ export function RoleFormDialog({
                   {(roleType === 'global' || roleType === 'root') && role ? (
                     <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                       {roleType === 'global'
-                        ? 'Global roles stay system-wide and do not expose entity-local controls.'
-                        : 'Organization roles keep their owner root fixed after creation.'}
+                        ? 'Entity-local controls do not apply to global roles.'
+                        : 'The owning root stays fixed after creation.'}
                     </div>
                   ) : null}
                 </div>
@@ -624,21 +637,20 @@ export function RoleFormDialog({
 
               <div className="space-y-5">
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Permissions</div>
-                    <p className="text-sm text-muted-foreground">
-                      Choose the actions this role grants. Permissions are grouped by resource.
-                    </p>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>Permissions</span>
+                    <AppInfoPopover
+                      label="Explain role permissions"
+                      title="Permissions"
+                    >
+                      Choose the actions this role grants. Permissions are grouped by resource only
+                      to make the catalog easier to scan.
+                    </AppInfoPopover>
                   </div>
 
                   <div className="flex items-center justify-between rounded-2xl border bg-muted/20 px-4 py-3">
-                    <div>
-                      <div className="text-sm font-medium">
-                        {selectedPermissionNames.length} permissions selected
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Keep the role as narrow as the operational job allows.
-                      </div>
+                    <div className="text-sm font-medium">
+                      {selectedPermissionNames.length} permissions selected
                     </div>
                     <Badge variant="outline">{selectedPermissionNames.length}</Badge>
                   </div>
@@ -690,25 +702,25 @@ export function RoleFormDialog({
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Assignment rules</div>
-                    <p className="text-sm text-muted-foreground">
-                      Restrict where admins can assign this role in entity context.
-                    </p>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>Assignment rules</span>
+                    <AppInfoPopover
+                      label="Explain role assignment rules"
+                      title="Assignment rules"
+                    >
+                      Use these controls to restrict where the role can be granted in entity
+                      context. Empty entity-type restrictions mean the role can be assigned anywhere
+                      in scope.
+                    </AppInfoPopover>
                   </div>
 
                   {roleType === 'entity' ? (
                     <>
                       <div className="flex items-center justify-between rounded-2xl border bg-muted/20 px-4 py-3">
-                        <div>
-                          <div className="text-sm font-medium">
-                            {assignableAtTypes.length > 0
-                              ? `${assignableAtTypes.length} entity types selected`
-                              : 'No entity type restriction'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Empty means the role can be assigned at any entity type in scope.
-                          </div>
+                        <div className="text-sm font-medium">
+                          {assignableAtTypes.length > 0
+                            ? `${assignableAtTypes.length} entity types selected`
+                            : 'No entity type restriction'}
                         </div>
                         <Badge variant="outline">
                           {assignableAtTypes.length > 0 ? assignableAtTypes.length : 'Any'}
