@@ -455,35 +455,34 @@ export function EntitiesPage({
         {isTreeCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
         {isTreeCollapsed ? 'Show hierarchy' : 'Hide hierarchy'}
       </Button>
-
-      {canCreateRootEntities ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="shrink-0"
-          onClick={() => {
-            setEntityFormDialogState({
-              open: true,
-              mode: 'create',
-              entity: null,
-              parentEntity: null,
-            })
-          }}
-        >
-          <Building2 className="size-4" />
-          Create root
-        </Button>
-      ) : null}
-
     </div>
   )
+
+  const shellAction = canCreateRootEntities ? (
+    <Button
+      type="button"
+      className="shrink-0"
+      onClick={() => {
+        setEntityFormDialogState({
+          open: true,
+          mode: 'create',
+          entity: null,
+          parentEntity: null,
+        })
+      }}
+    >
+      <Building2 className="size-4" />
+      Create root
+    </Button>
+  ) : undefined
 
   return (
     <>
       <AppPage
         className="flex-1 min-h-0 gap-4 overflow-hidden"
-        eyebrow="Administration"
         title="Entities"
+        hideTitle
+        shellAction={shellAction}
         action={headerAction}
       >
         {pageErrorMessage ? (

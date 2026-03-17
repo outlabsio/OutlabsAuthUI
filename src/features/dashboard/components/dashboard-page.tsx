@@ -45,7 +45,7 @@ const workspaceCards = [
 
 export function DashboardPage() {
   return (
-    <AppPage eyebrow="Workspace" title="Dashboard">
+    <AppPage title="Dashboard" hideTitle>
       <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4">
         {workspaceCards.map((item) => {
           const Icon = item.icon

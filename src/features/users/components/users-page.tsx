@@ -63,12 +63,20 @@ export function UsersPage({
   const invitedUsers = users.filter((user) => user.status === 'invited').length
   const adminUsers = users.filter((user) => user.is_superuser).length
   const verifiedUsers = users.filter((user) => user.email_verified).length
+  const shellAction = canInviteUsers ? (
+    <Button type="button" className="shrink-0" onClick={() => setIsInviteDialogOpen(true)}>
+      <UserPlus className="size-4" />
+      Invite user
+    </Button>
+  ) : undefined
 
   return (
     <>
       <AppPage
         className="flex-1 min-h-0 gap-4 overflow-hidden"
         title="Users"
+        hideTitle
+        shellAction={shellAction}
         action={
           <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
             <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -98,12 +106,6 @@ export function UsersPage({
                 }}
               />
             </div>
-            {canInviteUsers ? (
-              <Button type="button" className="shrink-0" onClick={() => setIsInviteDialogOpen(true)}>
-                <UserPlus className="size-4" />
-                Invite user
-              </Button>
-            ) : null}
           </div>
         }
       >

@@ -9,11 +9,8 @@ const usersPath = '/app/users'
 async function gotoUsersWorkspace(page: Page) {
   await page.goto(usersPath)
 
-  await expect(
-    page.getByRole('heading', {
-      name: 'Users',
-    })
-  ).toBeVisible()
+  await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)
+  await expect(page.getByRole('button', { name: 'Open Users guide' })).toBeVisible()
   await expect(
     page.getByRole('button', {
       name: 'Invite user',

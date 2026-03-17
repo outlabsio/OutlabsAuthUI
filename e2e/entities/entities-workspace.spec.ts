@@ -8,11 +8,8 @@ const entitiesPath = '/app/entities'
 async function gotoEntitiesWorkspace(page: Page) {
   await page.goto(entitiesPath)
 
-  await expect(
-    page.getByRole('heading', {
-      name: 'Entities',
-    })
-  ).toBeVisible()
+  await expect(page).toHaveURL(/\/app\/entities(?:\?.*)?$/)
+  await expect(page.getByRole('button', { name: 'Open Entities guide' })).toBeVisible()
   await expect(page.getByText('Hierarchy navigator')).toBeVisible()
 }
 
@@ -426,7 +423,8 @@ test.describe('Entities Workspace', () => {
     await expect(dialog).toBeHidden()
 
     await page.goto('/app/users')
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)
+    await expect(page.getByRole('button', { name: 'Open Users guide' })).toBeVisible()
 
     const searchField = page.getByPlaceholder('Search people by name or email')
     await searchField.fill(invitedEmail)

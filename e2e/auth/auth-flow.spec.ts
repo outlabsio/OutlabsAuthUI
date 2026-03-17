@@ -54,11 +54,7 @@ test.describe('Auth Flow', () => {
     await signIn(page, authPersonas.admin.email, authPersonas.admin.password)
 
     await expect(page).toHaveURL(/\/app\/dashboard$/)
-    await expect(
-      page.getByRole('heading', {
-        name: 'Dashboard',
-      })
-    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Users workspace' })).toBeVisible()
   })
 })

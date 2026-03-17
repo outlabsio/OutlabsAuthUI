@@ -1,11 +1,16 @@
 import type { ReactNode } from 'react'
 
+import { createPortal } from 'react-dom'
+
+import { useAppShellActionContainer } from '@/components/app/app-shell-action'
 import { cn } from '@/lib/utils/cn'
 
 type AppPageProps = {
   eyebrow?: string
   title: string
   description?: string
+  hideTitle?: boolean
+  shellAction?: ReactNode
   action?: ReactNode
   toolbar?: ReactNode
   children: ReactNode
@@ -16,37 +21,57 @@ export function AppPage({
   eyebrow,
   title,
   description,
+  hideTitle = false,
+  shellAction,
   action,
   toolbar,
   children,
   className,
 }: AppPageProps) {
+  const shellActionContainer = useAppShellActionContainer()
+  const showIntro = !hideTitle && Boolean(eyebrow || title || description)
+  const showHeader = showIntro || Boolean(action) || Boolean(toolbar)
+
   return (
-    <section className={cn('flex flex-col gap-6', className)}>
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-3">
-            {eyebrow ? (
-              <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                {eyebrow}
-              </p>
+    <>
+      {shellAction && shellActionContainer
+        ? createPortal(shellAction, shellActionContainer)
+        : null}
+      <section className={cn('flex flex-col gap-6', className)}>
+        {hideTitle ? <h1 className="sr-only">{title}</h1> : null}
+        {showHeader ? (
+          <header className="flex flex-col gap-4">
+            {showIntro ? (
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-3">
+                  {eyebrow ? (
+                    <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
+                      {eyebrow}
+                    </p>
+                  ) : null}
+                  <div className="space-y-2">
+                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      {title}
+                    </h1>
+                    {description ? (
+                      <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                        {description}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                {action ? (
+                  <div className="w-full md:min-w-0 md:w-auto">{action}</div>
+                ) : null}
+              </div>
+            ) : action ? (
+              <div>{action}</div>
             ) : null}
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                {title}
-              </h1>
-              {description ? (
-                <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                  {description}
-                </p>
-              ) : null}
-            </div>
-          </div>
-          {action ? <div className="w-full md:min-w-0 md:w-auto">{action}</div> : null}
-        </div>
-        {toolbar}
-      </header>
-      {children}
-    </section>
+            {toolbar}
+          </header>
+        ) : null}
+        {children}
+      </section>
+    </>
   )
 }

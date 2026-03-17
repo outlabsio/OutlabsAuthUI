@@ -8,11 +8,8 @@ const permissionsPath = '/app/permissions'
 async function gotoPermissionsWorkspace(page: Page) {
   await page.goto(permissionsPath)
 
-  await expect(
-    page.getByRole('heading', {
-      name: 'Permissions',
-    })
-  ).toBeVisible()
+  await expect(page).toHaveURL(/\/app\/permissions(?:\?.*)?$/)
+  await expect(page.getByRole('button', { name: 'Open Permissions guide' })).toBeVisible()
   await expect(page.getByText('Permission catalog')).toBeVisible()
   await expect(page.getByRole('table')).toBeVisible()
 }

@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 
+import { AppThemeToggle } from '@/components/app/app-theme-toggle'
 import {
   Avatar,
   AvatarFallback,
@@ -176,6 +177,7 @@ function SidebarUserMenu({
                 <UserRound />
                 Account
               </DropdownMenuItem>
+              <AppThemeToggle variant="menu-item" />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

@@ -157,7 +157,7 @@ export function RolesPage({
 
   if (pageError) {
     return (
-      <AppPage title="Roles">
+      <AppPage title="Roles" hideTitle>
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -172,7 +172,8 @@ export function RolesPage({
     <>
       <AppPage
         title="Roles"
-        action={
+        hideTitle
+        shellAction={
           canCreateRoles ? (
             <Button
               type="button"

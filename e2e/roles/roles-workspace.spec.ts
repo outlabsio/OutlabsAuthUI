@@ -9,11 +9,8 @@ const rolesPath = '/app/roles'
 async function gotoRolesWorkspace(page: Page) {
   await page.goto(rolesPath)
 
-  await expect(
-    page.getByRole('heading', {
-      name: 'Roles',
-    })
-  ).toBeVisible()
+  await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
+  await expect(page.getByRole('button', { name: 'Open Roles guide' })).toBeVisible()
   await expect(page.getByText('Role catalog', { exact: true })).toBeVisible()
   await expect(page.getByRole('table')).toBeVisible()
 }

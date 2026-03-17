@@ -176,7 +176,7 @@ export function PermissionsPage({
 
   if (pageError) {
     return (
-      <AppPage title="Permissions">
+      <AppPage title="Permissions" hideTitle>
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -191,7 +191,8 @@ export function PermissionsPage({
     <>
       <AppPage
         title="Permissions"
-        action={
+        hideTitle
+        shellAction={
           canCreatePermissions ? (
             <Button
               type="button"
