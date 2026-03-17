@@ -1,5 +1,4 @@
-import { Layers3, Orbit, ShieldCheck, TreePine } from 'lucide-react'
-
+import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,35 +36,6 @@ export function RolesFilterRail({
 }: RolesFilterRailProps) {
   return (
     <div className="space-y-4">
-      <Card className="border border-border/70 bg-linear-to-br from-primary/6 via-background to-accent/12">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Mental model</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <div className="flex items-start gap-3 rounded-2xl border bg-background/70 px-3 py-3">
-            <Orbit className="mt-0.5 size-4 text-primary" />
-            <div>
-              <div className="font-medium text-foreground">Global</div>
-              <div>Visible everywhere. Managed by superusers only.</div>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 rounded-2xl border bg-background/70 px-3 py-3">
-            <Layers3 className="mt-0.5 size-4 text-primary" />
-            <div>
-              <div className="font-medium text-foreground">Organization</div>
-              <div>Owned by one root scope and assignable across that organization.</div>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 rounded-2xl border bg-background/70 px-3 py-3">
-            <TreePine className="mt-0.5 size-4 text-primary" />
-            <div>
-              <div className="font-medium text-foreground">Entity-defined</div>
-              <div>Defined at one entity. Scope mode decides whether it stays local or inherits down the tree.</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card className="border border-border/70 bg-card/90">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
@@ -127,7 +97,16 @@ export function RolesFilterRail({
           </div>
 
           <div className="space-y-2">
-            <Label>Scope mode</Label>
+            <div className="flex items-center gap-1.5">
+              <Label>Scope mode</Label>
+              <AppInfoPopover
+                label="Explain role scope mode"
+                title="Scope mode"
+              >
+                Hierarchy roles apply at the defining entity and its descendants.
+                Entity-only roles stay local to one entity.
+              </AppInfoPopover>
+            </div>
             <Select
               value={search.scopeMode ?? 'all'}
               onValueChange={(value) =>
@@ -149,7 +128,16 @@ export function RolesFilterRail({
           </div>
 
           <div className="space-y-2">
-            <Label>Owning root</Label>
+            <div className="flex items-center gap-1.5">
+              <Label>Owning root</Label>
+              <AppInfoPopover
+                label="Explain owning root"
+                title="Owning root"
+              >
+                Organization and entity-defined roles belong to one root entity.
+                Global roles have no root owner.
+              </AppInfoPopover>
+            </div>
             <Select
               value={search.scopeRootId ?? 'all'}
               onValueChange={(value) =>
@@ -174,7 +162,17 @@ export function RolesFilterRail({
           </div>
 
           <div className="space-y-2">
-            <Label>Assignable entity type</Label>
+            <div className="flex items-center gap-1.5">
+              <Label>Assignable entity type</Label>
+              <AppInfoPopover
+                label="Explain assignable entity type"
+                title="Assignable entity type"
+              >
+                Some roles can only be granted at specific entity types. Use this
+                filter to find roles that are valid for a region, office, team, or
+                another local shape in the tree.
+              </AppInfoPopover>
+            </div>
             <Select
               value={search.assignableType ?? 'all'}
               onValueChange={(value) =>
@@ -200,7 +198,16 @@ export function RolesFilterRail({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Assignment mode</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Assignment mode</Label>
+                <AppInfoPopover
+                  label="Explain assignment mode"
+                  title="Assignment mode"
+                >
+                  Auto-assigned roles are granted automatically in supported entity
+                  contexts. Manual roles require an explicit assignment.
+                </AppInfoPopover>
+              </div>
               <Select
                 value={search.usage ?? 'all'}
                 onValueChange={(value) =>
@@ -280,15 +287,6 @@ export function RolesFilterRail({
                 <div className="text-xs text-muted-foreground">Local and inherited roles</div>
               </div>
               <Badge variant="outline">{stats.entity}</Badge>
-            </div>
-          </div>
-          <div className="rounded-2xl border bg-background/80 px-4 py-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2 font-medium text-foreground">
-              <ShieldCheck className="size-4 text-primary" />
-              Operational safety
-            </div>
-            <div className="mt-2 leading-5">
-              Scope, assignability, and auto-assignment are shown before actions to reduce mistaken grants.
             </div>
           </div>
         </CardContent>

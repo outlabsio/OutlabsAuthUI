@@ -54,9 +54,13 @@ test.describe('Permissions Workspace', () => {
   test('admin can inspect seeded custom permission and ABAC details', async ({ page }) => {
     await gotoPermissionsWorkspace(page)
 
+    await expect(page.getByText('Permissions are capability atoms')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Open Permissions guide' }).click()
+    await expect(page.getByRole('heading', { name: 'Permissions guide' })).toBeVisible()
     await expect(page.getByText('Permissions are capability atoms')).toBeVisible()
     await expect(page.getByText('Roles decide scope')).toBeVisible()
     await expect(page.getByText('ABAC narrows runtime use')).toBeVisible()
+    await page.getByRole('button', { name: 'Close' }).click()
 
     await openPermission(page, 'Lead Escalate After Hours')
     await expect(

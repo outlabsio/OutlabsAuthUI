@@ -57,6 +57,10 @@ test.describe('Roles Workspace', () => {
 
     await expect(
       page.getByText('Visible everywhere. Managed by superusers only.')
+    ).toHaveCount(0)
+    await page.getByRole('button', { name: 'Open Roles guide' }).click()
+    await expect(
+      page.getByText('Visible everywhere. Managed by superusers only.')
     ).toBeVisible()
     await expect(
       page.getByText('Owned by one root scope and assignable across that organization.')
@@ -66,6 +70,7 @@ test.describe('Roles Workspace', () => {
         'Defined at one entity. Scope mode decides whether it stays local or inherits down the tree.'
       )
     ).toBeVisible()
+    await page.getByRole('button', { name: 'Close' }).click()
 
     await openRole(page, 'West Coast After Hours Override')
     await expect(page.getByText('ABAC conditions', { exact: true })).toBeVisible()

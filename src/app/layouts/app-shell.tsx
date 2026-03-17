@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 import { Link, useRouterState } from '@tanstack/react-router'
 
+import { getAppPageGuide } from '@/app/internal-docs/page-guides'
+import { AppPageGuideDrawer } from '@/components/app/app-page-guide-drawer'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppThemeToggle } from '@/components/app/app-theme-toggle'
 import {
@@ -46,6 +48,7 @@ export function AppShell({
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
+  const currentGuide = getAppPageGuide(pathname)
 
   const segments = pathname
     .split('/')
@@ -53,7 +56,8 @@ export function AppShell({
     .filter((segment) => segment !== 'app')
 
   const currentPage =
-    segments.length > 0 ? formatSegment(segments[segments.length - 1]) : 'Dashboard'
+    currentGuide.label ||
+    (segments.length > 0 ? formatSegment(segments[segments.length - 1]) : 'Dashboard')
 
   return (
     <SidebarProvider>
@@ -87,6 +91,7 @@ export function AppShell({
             </Breadcrumb>
           </div>
           <div className="ml-auto flex items-center gap-2 px-2">
+            <AppPageGuideDrawer pathname={pathname} />
             <AppThemeToggle />
           </div>
         </header>

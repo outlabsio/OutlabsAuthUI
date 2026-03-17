@@ -28,6 +28,7 @@ test.describe('App Shell', () => {
     await gotoDashboard(page)
 
     await expect(page.getByText('OutlabsAuth Console')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Permissions' })).toBeVisible()
