@@ -11,5 +11,7 @@ export const routes = {
     dashboard: '/app/dashboard',
     users: '/app/users',
     userDetail: '/app/users/$userId',
+    entities: '/app/entities',
+    entityDetail: '/app/entities/$entityId',
   },
 } as const

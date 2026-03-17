@@ -15,6 +15,8 @@ export type SessionUser = {
   first_name?: string | null
   last_name?: string | null
   is_superuser?: boolean
+  root_entity_id?: string | null
+  root_entity_name?: string | null
 }
 
 export type AuthConfigPermission = {

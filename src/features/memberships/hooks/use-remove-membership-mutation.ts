@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
 import { removeMembership } from '@/features/memberships/api/remove-membership'
 import type { RemoveMembershipInput } from '@/features/memberships/types/memberships.types'
@@ -21,6 +22,9 @@ export function useRemoveMembershipMutation() {
         }),
         queryClient.invalidateQueries({
           queryKey: usersKeys.detail(variables.userId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: entitiesKeys.memberLists(),
         }),
       ])
     },

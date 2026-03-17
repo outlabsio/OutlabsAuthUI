@@ -1,6 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
   Blocks,
+  Building2,
   ChevronsUpDown,
   KeyRound,
   LayoutDashboard,
@@ -54,7 +55,10 @@ type AppSidebarProps = {
 
 type NavigationItem = {
   title: string
-  to?: typeof routes.app.dashboard | typeof routes.app.users
+  to?:
+    | typeof routes.app.dashboard
+    | typeof routes.app.users
+    | typeof routes.app.entities
   icon: React.ComponentType<{ className?: string }>
   comingSoon?: boolean
 }
@@ -90,6 +94,11 @@ const navigationGroups: Array<{
         title: 'Users',
         to: routes.app.users,
         icon: Users,
+      },
+      {
+        title: 'Entities',
+        to: routes.app.entities,
+        icon: Building2,
       },
       {
         title: 'Invites',
@@ -239,7 +248,9 @@ export function AppSidebar({
               <SidebarMenu>
                 {group.items.map((item) => {
                   const Icon = item.icon
-                  const isActive = item.to ? pathname === item.to : false
+                  const isActive = item.to
+                    ? pathname === item.to || pathname.startsWith(`${item.to}/`)
+                    : false
                   const tooltip = item.comingSoon
                     ? `${item.title} (coming soon)`
                     : item.title

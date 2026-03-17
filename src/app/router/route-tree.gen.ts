@@ -14,9 +14,12 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AppUsersRouteImport } from './routes/app/users'
+import { Route as AppEntitiesRouteImport } from './routes/app/entities'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
+import { Route as AppEntitiesIndexRouteImport } from './routes/app/entities.index'
 import { Route as AppUsersUserIdRouteImport } from './routes/app/users.$userId'
+import { Route as AppEntitiesEntityIdRouteImport } from './routes/app/entities.$entityId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -43,6 +46,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEntitiesRoute = AppEntitiesRouteImport.update({
+  id: '/entities',
+  path: '/entities',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -53,10 +61,20 @@ const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppUsersRoute,
 } as any)
+const AppEntitiesIndexRoute = AppEntitiesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEntitiesRoute,
+} as any)
 const AppUsersUserIdRoute = AppUsersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
   getParentRoute: () => AppUsersRoute,
+} as any)
+const AppEntitiesEntityIdRoute = AppEntitiesEntityIdRouteImport.update({
+  id: '/$entityId',
+  path: '/$entityId',
+  getParentRoute: () => AppEntitiesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -64,9 +82,12 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
+  '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -75,7 +96,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
   '/auth/login': typeof AuthLoginRoute
+  '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/entities': typeof AppEntitiesIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesById {
@@ -84,9 +107,12 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
+  '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRouteTypes {
@@ -96,9 +122,12 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/app/dashboard'
+    | '/app/entities'
     | '/app/users'
     | '/auth/login'
+    | '/app/entities/$entityId'
     | '/app/users/$userId'
+    | '/app/entities/'
     | '/app/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -107,7 +136,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/dashboard'
     | '/auth/login'
+    | '/app/entities/$entityId'
     | '/app/users/$userId'
+    | '/app/entities'
     | '/app/users'
   id:
     | '__root__'
@@ -115,9 +146,12 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/app/dashboard'
+    | '/app/entities'
     | '/app/users'
     | '/auth/login'
+    | '/app/entities/$entityId'
     | '/app/users/$userId'
+    | '/app/entities/'
     | '/app/users/'
   fileRoutesById: FileRoutesById
 }
@@ -164,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/entities': {
+      id: '/app/entities'
+      path: '/entities'
+      fullPath: '/app/entities'
+      preLoaderRoute: typeof AppEntitiesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/dashboard': {
       id: '/app/dashboard'
       path: '/dashboard'
@@ -178,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersIndexRouteImport
       parentRoute: typeof AppUsersRoute
     }
+    '/app/entities/': {
+      id: '/app/entities/'
+      path: '/'
+      fullPath: '/app/entities/'
+      preLoaderRoute: typeof AppEntitiesIndexRouteImport
+      parentRoute: typeof AppEntitiesRoute
+    }
     '/app/users/$userId': {
       id: '/app/users/$userId'
       path: '/$userId'
@@ -185,8 +233,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersUserIdRouteImport
       parentRoute: typeof AppUsersRoute
     }
+    '/app/entities/$entityId': {
+      id: '/app/entities/$entityId'
+      path: '/$entityId'
+      fullPath: '/app/entities/$entityId'
+      preLoaderRoute: typeof AppEntitiesEntityIdRouteImport
+      parentRoute: typeof AppEntitiesRoute
+    }
   }
 }
+
+interface AppEntitiesRouteChildren {
+  AppEntitiesEntityIdRoute: typeof AppEntitiesEntityIdRoute
+  AppEntitiesIndexRoute: typeof AppEntitiesIndexRoute
+}
+
+const AppEntitiesRouteChildren: AppEntitiesRouteChildren = {
+  AppEntitiesEntityIdRoute: AppEntitiesEntityIdRoute,
+  AppEntitiesIndexRoute: AppEntitiesIndexRoute,
+}
+
+const AppEntitiesRouteWithChildren = AppEntitiesRoute._addFileChildren(
+  AppEntitiesRouteChildren,
+)
 
 interface AppUsersRouteChildren {
   AppUsersUserIdRoute: typeof AppUsersUserIdRoute
@@ -204,11 +273,13 @@ const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
+  AppEntitiesRoute: typeof AppEntitiesRouteWithChildren
   AppUsersRoute: typeof AppUsersRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
+  AppEntitiesRoute: AppEntitiesRouteWithChildren,
   AppUsersRoute: AppUsersRouteWithChildren,
 }
 

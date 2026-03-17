@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
 import { updateMembership } from '@/features/memberships/api/update-membership'
 import type { UpdateMembershipInput } from '@/features/memberships/types/memberships.types'
@@ -21,6 +22,9 @@ export function useUpdateMembershipMutation() {
         }),
         queryClient.invalidateQueries({
           queryKey: usersKeys.detail(variables.userId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: entitiesKeys.memberLists(),
         }),
       ])
     },
