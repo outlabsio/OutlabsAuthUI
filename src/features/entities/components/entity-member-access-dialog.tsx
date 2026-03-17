@@ -9,7 +9,6 @@ import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
 import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
 import type { User } from '@/features/users/types/users.types'
 import { useCreateMembershipMutation } from '@/features/memberships/hooks/use-create-membership-mutation'
@@ -43,10 +43,7 @@ import {
   formatMembershipToken,
   getMembershipStatusVariant,
 } from '@/features/memberships/utils/membership-display'
-import {
-  formatRoleToken,
-  getRoleScopeSummary,
-} from '@/features/roles/utils/role-display'
+import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { cn } from '@/lib/utils/cn'
 
@@ -215,6 +212,16 @@ export function EntityMemberAccessDialog({
           : 'The member could not be added to this entity.'
       )
     : null
+
+  function handleRoleToggle(roleId: string, checked: boolean) {
+    const nextRoleIds = checked
+      ? [...selectedRoleIds, roleId]
+      : selectedRoleIds.filter((currentRoleId) => currentRoleId !== roleId)
+
+    form.setValue('roleIds', nextRoleIds, {
+      shouldDirty: true,
+    })
+  }
 
   async function handleSubmit(values: EntityMemberAccessFormValues) {
     try {
@@ -434,64 +441,15 @@ export function EntityMemberAccessDialog({
                     </AppInfoPopover>
                   </div>
 
-                  <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border bg-background">
-                    {availableRoles.length > 0 ? (
-                      <div className="divide-y">
-                        {availableRoles.map((role) => {
-                          const isChecked = selectedRoleIds.includes(role.id)
-                          const roleScopeSummary = getRoleScopeSummary(role)
-
-                          return (
-                            <label
-                              key={role.id}
-                              className={cn(
-                                'flex cursor-pointer gap-3 px-4 py-3 transition-colors',
-                                isChecked ? 'bg-muted/30' : 'hover:bg-muted/20'
-                              )}
-                            >
-                              <Checkbox
-                                aria-label={role.display_name}
-                                checked={isChecked}
-                                disabled={isPending || !canManageMembershipAccess}
-                                onCheckedChange={(checked) => {
-                                  const nextRoleIds = checked
-                                    ? [...selectedRoleIds, role.id]
-                                    : selectedRoleIds.filter(
-                                        (roleId) => roleId !== role.id
-                                      )
-
-                                  form.setValue('roleIds', nextRoleIds, {
-                                    shouldDirty: true,
-                                  })
-                                }}
-                                className="mt-1"
-                              />
-                              <div className="min-w-0 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium">{role.display_name}</span>
-                                  {role.is_auto_assigned ? (
-                                    <Badge variant="outline">Auto-assigned</Badge>
-                                  ) : null}
-                                  <Badge variant="outline">
-                                    {role.permissions.length} permissions
-                                  </Badge>
-                                </div>
-                                {role.description ? (
-                                  <p className="text-sm text-muted-foreground">{role.description}</p>
-                                ) : null}
-                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                  <span>{roleScopeSummary}</span>
-                                </div>
-                              </div>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-6 text-sm text-muted-foreground">
-                        No assignable roles are available for this entity yet.
-                      </div>
-                    )}
+                  <div className="mt-4 min-h-0 flex-1">
+                    <EntityAssignableRolesTable
+                      roles={availableRoles}
+                      selectedRoleIds={selectedRoleIds}
+                      onRoleToggle={handleRoleToggle}
+                      disabled={isPending || !canManageMembershipAccess}
+                      emptyMessage="No assignable roles are available for this entity yet."
+                      searchPlaceholder="Search roles for this membership"
+                    />
                   </div>
                 </section>
 

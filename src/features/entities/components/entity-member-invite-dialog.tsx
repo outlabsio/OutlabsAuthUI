@@ -5,9 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type Resolver, useForm } from 'react-hook-form'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +16,7 @@ import {
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
 import { useInviteUserMutation } from '@/features/users/hooks/use-invite-user-mutation'
 import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import {
@@ -26,9 +25,7 @@ import {
 } from '@/features/entities/schemas/entity-member-invite.schema'
 import type { Entity } from '@/features/entities/types/entities.types'
 import type { Role } from '@/features/roles/types/roles.types'
-import { getRoleScopeSummary } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
-import { cn } from '@/lib/utils/cn'
 
 type EntityMemberInviteDialogProps = {
   open: boolean
@@ -80,6 +77,16 @@ export function EntityMemberInviteDialog({
   const submitErrorMessage = inviteMutation.error
     ? getApiErrorMessage(inviteMutation.error, 'The invitation could not be sent.')
     : null
+
+  function handleRoleToggle(roleId: string, checked: boolean) {
+    const nextRoleIds = checked
+      ? [...selectedRoleIds, roleId]
+      : selectedRoleIds.filter((currentRoleId) => currentRoleId !== roleId)
+
+    form.setValue('roleIds', nextRoleIds, {
+      shouldDirty: true,
+    })
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,77 +180,26 @@ export function EntityMemberInviteDialog({
                 </div>
 
                 <section className="rounded-xl border p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium">Initial roles</div>
-                      <AppInfoPopover
-                        label="Explain initial invite roles"
-                        title="Initial roles"
-                      >
-                        Initial roles are optional. They are applied through the membership created
-                        for this entity, not as global account roles.
-                      </AppInfoPopover>
-                    </div>
-                    <Badge variant="outline">{selectedRoleIds.length} selected</Badge>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium">Initial roles</div>
+                    <AppInfoPopover
+                      label="Explain initial invite roles"
+                      title="Initial roles"
+                    >
+                      Initial roles are optional. They are applied through the membership created
+                      for this entity, not as global account roles.
+                    </AppInfoPopover>
                   </div>
 
-                  <div className="mt-4 overflow-hidden rounded-xl border bg-background">
-                    {availableRoles.length > 0 ? (
-                      <div className="divide-y">
-                        {availableRoles.map((role) => {
-                          const isChecked = selectedRoleIds.includes(role.id)
-
-                          return (
-                            <label
-                              key={role.id}
-                              className={cn(
-                                'flex cursor-pointer gap-3 px-4 py-3 transition-colors',
-                                isChecked ? 'bg-muted/30' : 'hover:bg-muted/20'
-                              )}
-                            >
-                              <Checkbox
-                                aria-label={role.display_name}
-                                checked={isChecked}
-                                disabled={inviteMutation.isPending || !canInviteMembers}
-                                onCheckedChange={(checked) => {
-                                  const nextRoleIds = checked
-                                    ? [...selectedRoleIds, role.id]
-                                    : selectedRoleIds.filter(
-                                        (roleId) => roleId !== role.id
-                                      )
-
-                                  form.setValue('roleIds', nextRoleIds, {
-                                    shouldDirty: true,
-                                  })
-                                }}
-                                className="mt-1"
-                              />
-                              <div className="min-w-0 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium">{role.display_name}</span>
-                                  {role.is_auto_assigned ? (
-                                    <Badge variant="outline">Auto-assigned</Badge>
-                                  ) : null}
-                                  <Badge variant="outline">
-                                    {role.permissions.length} permissions
-                                  </Badge>
-                                </div>
-                                {role.description ? (
-                                  <p className="text-sm text-muted-foreground">{role.description}</p>
-                                ) : null}
-                                <p className="text-xs text-muted-foreground">
-                                  {getRoleScopeSummary(role)}
-                                </p>
-                              </div>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-6 text-sm text-muted-foreground">
-                        No roles are currently assignable at this entity.
-                      </div>
-                    )}
+                  <div className="mt-4">
+                    <EntityAssignableRolesTable
+                      roles={availableRoles}
+                      selectedRoleIds={selectedRoleIds}
+                      onRoleToggle={handleRoleToggle}
+                      disabled={inviteMutation.isPending || !canInviteMembers}
+                      emptyMessage="No roles are currently assignable at this entity."
+                      searchPlaceholder="Search initial roles"
+                    />
                   </div>
                 </section>
 

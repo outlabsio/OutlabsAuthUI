@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
 import {
   formatEntityToken,
@@ -44,7 +45,6 @@ import {
   getMembershipStatusVariant,
 } from '@/features/memberships/utils/membership-display'
 import type { Role } from '@/features/roles/types/roles.types'
-import { getRoleScopeSummary } from '@/features/roles/utils/role-display'
 import { cn } from '@/lib/utils/cn'
 
 type EntityDetailPanelProps = {
@@ -458,11 +458,6 @@ export function EntityDetailPanel({
             content:
               'Role availability depends on scope, entity type restrictions, and what the backend allows at this entity. This is the safest place to confirm what can be granted locally.',
           }}
-          action={
-            canReadRoles ? (
-              <Badge variant="outline">{roles.length} role{roles.length === 1 ? '' : 's'}</Badge>
-            ) : null
-          }
         >
           {!canReadRoles ? (
             <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
@@ -476,30 +471,12 @@ export function EntityDetailPanel({
             <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
               Loading roles…
             </div>
-          ) : roles.length > 0 ? (
-            <div className="space-y-3">
-              {roles.map((role) => (
-                <div key={role.id} className="rounded-2xl border bg-muted/15 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{role.display_name}</span>
-                    {role.is_auto_assigned ? (
-                      <Badge variant="outline">Auto-assigned</Badge>
-                    ) : null}
-                    <Badge variant="outline">{role.permissions.length} permissions</Badge>
-                  </div>
-                  {role.description ? (
-                    <p className="mt-2 text-sm text-muted-foreground">{role.description}</p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {getRoleScopeSummary(role)}
-                  </p>
-                </div>
-              ))}
-            </div>
           ) : (
-            <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-              No roles are assignable at this entity yet.
-            </div>
+            <EntityAssignableRolesTable
+              roles={roles}
+              emptyMessage="No roles are assignable at this entity yet."
+              searchPlaceholder="Search assignable roles"
+            />
           )}
         </DetailSection>
       </div>
