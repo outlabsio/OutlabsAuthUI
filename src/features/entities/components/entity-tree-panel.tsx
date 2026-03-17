@@ -229,6 +229,14 @@ export function EntityTreePanel({
   const autoExpandedIds = useMemo(() => collectExpandableIds(tree), [tree])
   const resolvedExpandedIds = searchActive ? autoExpandedIds : expandedIds
   const selectedPathIdsSet = useMemo(() => new Set(selectedPathIds), [selectedPathIds])
+  const rootSelectItems = useMemo(
+    () =>
+      rootOptions.map((rootOption) => ({
+        label: rootOption.display_name,
+        value: rootOption.id,
+      })),
+    [rootOptions]
+  )
 
   return (
     <Card className="flex min-h-0 flex-col border border-border/70 bg-card/90">
@@ -268,6 +276,7 @@ export function EntityTreePanel({
             <Label htmlFor="entities-root-scope">Root scope</Label>
             {canSwitchRoot ? (
               <Select
+                items={rootSelectItems}
                 value={selectedRootId}
                 onValueChange={(value) => {
                   if (!value) {
@@ -281,13 +290,10 @@ export function EntityTreePanel({
                   <SelectValue placeholder="Select a root entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  {rootOptions.map((entityOption) => (
-                    <SelectItem key={entityOption.id} value={entityOption.id}>
+                  {rootSelectItems.map((entityOption) => (
+                    <SelectItem key={entityOption.value} value={entityOption.value}>
                       <div className="flex flex-col items-start">
-                        <span>{entityOption.display_name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatEntityToken(entityOption.entity_type)}
-                        </span>
+                        <span>{entityOption.label}</span>
                       </div>
                     </SelectItem>
                   ))}

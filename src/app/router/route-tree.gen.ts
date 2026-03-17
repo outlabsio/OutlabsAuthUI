@@ -15,13 +15,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AppUsersRouteImport } from './routes/app/users'
 import { Route as AppRolesRouteImport } from './routes/app/roles'
+import { Route as AppPermissionsRouteImport } from './routes/app/permissions'
 import { Route as AppEntitiesRouteImport } from './routes/app/entities'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
 import { Route as AppRolesIndexRouteImport } from './routes/app/roles.index'
+import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions.index'
 import { Route as AppEntitiesIndexRouteImport } from './routes/app/entities.index'
 import { Route as AppUsersUserIdRouteImport } from './routes/app/users.$userId'
 import { Route as AppRolesRoleIdRouteImport } from './routes/app/roles.$roleId'
+import { Route as AppPermissionsPermissionIdRouteImport } from './routes/app/permissions.$permissionId'
 import { Route as AppEntitiesEntityIdRouteImport } from './routes/app/entities.$entityId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -54,6 +57,11 @@ const AppRolesRoute = AppRolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPermissionsRoute = AppPermissionsRouteImport.update({
+  id: '/permissions',
+  path: '/permissions',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEntitiesRoute = AppEntitiesRouteImport.update({
   id: '/entities',
   path: '/entities',
@@ -74,6 +82,11 @@ const AppRolesIndexRoute = AppRolesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRolesRoute,
 } as any)
+const AppPermissionsIndexRoute = AppPermissionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPermissionsRoute,
+} as any)
 const AppEntitiesIndexRoute = AppEntitiesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -89,6 +102,12 @@ const AppRolesRoleIdRoute = AppRolesRoleIdRouteImport.update({
   path: '/$roleId',
   getParentRoute: () => AppRolesRoute,
 } as any)
+const AppPermissionsPermissionIdRoute =
+  AppPermissionsPermissionIdRouteImport.update({
+    id: '/$permissionId',
+    path: '/$permissionId',
+    getParentRoute: () => AppPermissionsRoute,
+  } as any)
 const AppEntitiesEntityIdRoute = AppEntitiesEntityIdRouteImport.update({
   id: '/$entityId',
   path: '/$entityId',
@@ -101,13 +120,16 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
+  '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
+  '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
@@ -118,9 +140,11 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardRoute
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities': typeof AppEntitiesIndexRoute
+  '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/roles': typeof AppRolesIndexRoute
   '/app/users': typeof AppUsersIndexRoute
 }
@@ -131,13 +155,16 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
+  '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
+  '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
+  '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
 }
@@ -149,13 +176,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/dashboard'
     | '/app/entities'
+    | '/app/permissions'
     | '/app/roles'
     | '/app/users'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities/'
+    | '/app/permissions/'
     | '/app/roles/'
     | '/app/users/'
   fileRoutesByTo: FileRoutesByTo
@@ -166,9 +196,11 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities'
+    | '/app/permissions'
     | '/app/roles'
     | '/app/users'
   id:
@@ -178,13 +210,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/dashboard'
     | '/app/entities'
+    | '/app/permissions'
     | '/app/roles'
     | '/app/users'
     | '/auth/login'
     | '/app/entities/$entityId'
+    | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/entities/'
+    | '/app/permissions/'
     | '/app/roles/'
     | '/app/users/'
   fileRoutesById: FileRoutesById
@@ -239,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRolesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/permissions': {
+      id: '/app/permissions'
+      path: '/permissions'
+      fullPath: '/app/permissions'
+      preLoaderRoute: typeof AppPermissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/entities': {
       id: '/app/entities'
       path: '/entities'
@@ -267,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRolesIndexRouteImport
       parentRoute: typeof AppRolesRoute
     }
+    '/app/permissions/': {
+      id: '/app/permissions/'
+      path: '/'
+      fullPath: '/app/permissions/'
+      preLoaderRoute: typeof AppPermissionsIndexRouteImport
+      parentRoute: typeof AppPermissionsRoute
+    }
     '/app/entities/': {
       id: '/app/entities/'
       path: '/'
@@ -287,6 +336,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/roles/$roleId'
       preLoaderRoute: typeof AppRolesRoleIdRouteImport
       parentRoute: typeof AppRolesRoute
+    }
+    '/app/permissions/$permissionId': {
+      id: '/app/permissions/$permissionId'
+      path: '/$permissionId'
+      fullPath: '/app/permissions/$permissionId'
+      preLoaderRoute: typeof AppPermissionsPermissionIdRouteImport
+      parentRoute: typeof AppPermissionsRoute
     }
     '/app/entities/$entityId': {
       id: '/app/entities/$entityId'
@@ -310,6 +366,20 @@ const AppEntitiesRouteChildren: AppEntitiesRouteChildren = {
 
 const AppEntitiesRouteWithChildren = AppEntitiesRoute._addFileChildren(
   AppEntitiesRouteChildren,
+)
+
+interface AppPermissionsRouteChildren {
+  AppPermissionsPermissionIdRoute: typeof AppPermissionsPermissionIdRoute
+  AppPermissionsIndexRoute: typeof AppPermissionsIndexRoute
+}
+
+const AppPermissionsRouteChildren: AppPermissionsRouteChildren = {
+  AppPermissionsPermissionIdRoute: AppPermissionsPermissionIdRoute,
+  AppPermissionsIndexRoute: AppPermissionsIndexRoute,
+}
+
+const AppPermissionsRouteWithChildren = AppPermissionsRoute._addFileChildren(
+  AppPermissionsRouteChildren,
 )
 
 interface AppRolesRouteChildren {
@@ -343,6 +413,7 @@ const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntitiesRoute: typeof AppEntitiesRouteWithChildren
+  AppPermissionsRoute: typeof AppPermissionsRouteWithChildren
   AppRolesRoute: typeof AppRolesRouteWithChildren
   AppUsersRoute: typeof AppUsersRouteWithChildren
 }
@@ -350,6 +421,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppEntitiesRoute: AppEntitiesRouteWithChildren,
+  AppPermissionsRoute: AppPermissionsRouteWithChildren,
   AppRolesRoute: AppRolesRouteWithChildren,
   AppUsersRoute: AppUsersRouteWithChildren,
 }

@@ -3,6 +3,7 @@ import {
   Blocks,
   Building2,
   ChevronsUpDown,
+  Clock3,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -59,6 +60,7 @@ type NavigationItem = {
   to?:
     | typeof routes.app.dashboard
     | typeof routes.app.users
+    | typeof routes.app.permissions
     | typeof routes.app.roles
     | typeof routes.app.entities
   icon: React.ComponentType<{ className?: string }>
@@ -98,6 +100,11 @@ const navigationGroups: Array<{
         icon: Users,
       },
       {
+        title: 'Permissions',
+        to: routes.app.permissions,
+        icon: KeyRound,
+      },
+      {
         title: 'Roles',
         to: routes.app.roles,
         icon: Shield,
@@ -114,7 +121,7 @@ const navigationGroups: Array<{
       },
       {
         title: 'Sessions',
-        icon: KeyRound,
+        icon: Clock3,
         comingSoon: true,
       },
       {
@@ -151,6 +158,7 @@ function SidebarUserMenu({
               <SidebarMenuButton
                 size="lg"
                 className="aria-expanded:bg-sidebar-accent aria-expanded:text-sidebar-accent-foreground"
+                aria-label={`Open account menu for ${user.email}`}
               />
             }
           >

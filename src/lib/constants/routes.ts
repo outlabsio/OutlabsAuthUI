@@ -11,6 +11,8 @@ export const routes = {
     dashboard: '/app/dashboard',
     users: '/app/users',
     userDetail: '/app/users/$userId',
+    permissions: '/app/permissions',
+    permissionDetail: '/app/permissions/$permissionId',
     roles: '/app/roles',
     roleDetail: '/app/roles/$roleId',
     entities: '/app/entities',

@@ -14,6 +14,14 @@ function EntityDetailsRouteComponent() {
       selectedEntityId={params.entityId}
       search={search}
       onSearchChange={(next) => {
+        if (next.scopeRootId !== search.scopeRootId) {
+          void navigate({
+            to: routes.app.entities,
+            search: next,
+          })
+          return
+        }
+
         void navigate({
           to: routes.app.entityDetail,
           params,

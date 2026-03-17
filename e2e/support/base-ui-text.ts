@@ -13,12 +13,52 @@ function getTextboxByLabel(container: Locator, label: string | RegExp) {
 }
 
 export async function typeIntoBaseUiTextbox(control: Locator, value: string) {
-  await expect(control).toBeVisible()
-  await control.click()
-  await control.press(selectAllShortcut)
-  await control.press('Backspace')
-  await control.pressSequentially(value)
-  await expect(control).toHaveValue(value)
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await expect(control).toBeVisible()
+      await control.click()
+      const currentValue = await control.inputValue()
+
+      if (currentValue.length > 0) {
+        await control.selectText()
+        await control.press('Backspace')
+
+        const clearedValue = await control.inputValue()
+        if (clearedValue.length > 0) {
+          await control.press(selectAllShortcut)
+          await control.press('Backspace')
+        }
+      }
+
+      await control.type(value)
+
+      const nextValue = await control.inputValue()
+
+      if (nextValue === value) {
+        return
+      }
+
+      const firstCharacterDropped =
+        value.length === 1 ? nextValue === '' : nextValue === value.slice(1)
+
+      if (firstCharacterDropped && value.length > 0) {
+        await control.selectText()
+        await control.press('Backspace')
+        await control.type(`${value[0]}${value}`)
+        await expect(control).toHaveValue(value, { timeout: 1_500 })
+        return
+      }
+
+      await expect(control).toHaveValue(value, { timeout: 1_500 })
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError
 }
 
 export async function typeIntoBaseUiField(

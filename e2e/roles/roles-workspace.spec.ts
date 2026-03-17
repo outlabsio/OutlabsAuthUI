@@ -33,6 +33,24 @@ async function openRole(page: Page, roleName: string) {
   ).toBeVisible()
 }
 
+function getConditionGroupCard(page: Page, description: string) {
+  return page
+    .locator('div.rounded-2xl')
+    .filter({
+      hasText: description,
+    })
+    .first()
+}
+
+function getConditionCard(page: Page, attribute: string) {
+  return page
+    .locator('div.rounded-2xl')
+    .filter({
+      has: page.getByText(attribute, { exact: true }),
+    })
+    .first()
+}
+
 test.describe('Roles Workspace', () => {
   test('admin can inspect seeded role types and ABAC details', async ({ page }) => {
     await gotoRolesWorkspace(page)
@@ -98,7 +116,7 @@ test.describe('Roles Workspace', () => {
     ).toBeVisible()
     await expect(page.getByText('Owned by ACME Realty', { exact: true }).first()).toBeVisible()
 
-    await page.getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
     const deleteDialog = page.getByRole('dialog', { name: 'Delete role' })
     await expect(deleteDialog).toBeVisible()
@@ -114,6 +132,93 @@ test.describe('Roles Workspace', () => {
         name: new RegExp(displayName, 'i'),
       })
     ).toHaveCount(0)
+  })
+
+  test('admin can create, edit, and delete ABAC artifacts on a custom role', async ({
+    page,
+  }) => {
+    const timestamp = Date.now()
+    const groupDescription = `Playwright ABAC group ${timestamp}`
+    const conditionAttribute = `request.playwright_${timestamp}`
+    const initialConditionValue = `seed-${timestamp}`
+    const updatedConditionValue = `updated-${timestamp}`
+    const updatedConditionDescription = `Playwright ABAC condition ${timestamp} updated`
+
+    await gotoRolesWorkspace(page)
+    await openRole(page, 'West Coast After Hours Override')
+
+    try {
+      await page.getByRole('button', { name: 'Add group' }).click()
+
+      const groupDialog = page.getByRole('dialog', { name: 'Add condition group' })
+      await expect(groupDialog).toBeVisible()
+      await selectBaseUiOption({
+        page,
+        container: groupDialog,
+        fieldLabel: 'Operator',
+        optionName: 'OR',
+      })
+      await typeIntoBaseUiField(groupDialog, 'Description', groupDescription)
+      await groupDialog.getByRole('button', { name: 'Create group' }).click()
+      await expect(groupDialog).toBeHidden()
+      await expect(page.getByText(groupDescription, { exact: true })).toBeVisible()
+
+      await page.getByRole('button', { name: 'Add condition' }).click()
+
+      const conditionDialog = page.getByRole('dialog', { name: 'Add condition' })
+      await expect(conditionDialog).toBeVisible()
+      await typeIntoBaseUiField(conditionDialog, 'Attribute path', conditionAttribute)
+      await selectBaseUiOption({
+        page,
+        container: conditionDialog,
+        fieldLabel: 'Condition group',
+        optionName: 'OR group',
+      })
+      await typeIntoBaseUiField(conditionDialog, 'Value', initialConditionValue)
+      await typeIntoBaseUiField(
+        conditionDialog,
+        'Description',
+        `Playwright ABAC condition ${timestamp}`
+      )
+      await conditionDialog.getByRole('button', { name: 'Create condition' }).click()
+      await expect(conditionDialog).toBeHidden()
+      await expect(page.getByText(conditionAttribute, { exact: true })).toBeVisible()
+      await expect(page.getByText(initialConditionValue, { exact: true })).toBeVisible()
+
+      const conditionCard = getConditionCard(page, conditionAttribute)
+      await conditionCard
+        .getByRole('button', { name: `Edit condition ${conditionAttribute}` })
+        .click()
+
+      const editConditionDialog = page.getByRole('dialog', { name: 'Edit condition' })
+      await expect(editConditionDialog).toBeVisible()
+      await typeIntoBaseUiField(editConditionDialog, 'Value', updatedConditionValue)
+      await typeIntoBaseUiField(
+        editConditionDialog,
+        'Description',
+        updatedConditionDescription
+      )
+      await editConditionDialog.getByRole('button', { name: 'Save changes' }).click()
+      await expect(editConditionDialog).toBeHidden()
+      await expect(page.getByText(updatedConditionValue, { exact: true })).toBeVisible()
+      await expect(page.getByText(updatedConditionDescription, { exact: true })).toBeVisible()
+    } finally {
+      const conditionCard = getConditionCard(page, conditionAttribute)
+
+      if (await conditionCard.isVisible().catch(() => false)) {
+        await conditionCard
+          .getByRole('button', { name: `Delete condition ${conditionAttribute}` })
+          .click()
+        await expect(page.getByText(conditionAttribute, { exact: true })).toHaveCount(0)
+      }
+
+      const groupCard = getConditionGroupCard(page, groupDescription)
+
+      if (await groupCard.isVisible().catch(() => false)) {
+        await groupCard.getByRole('button', { name: 'Delete OR group' }).click()
+        await expect(page.getByText(groupDescription, { exact: true })).toHaveCount(0)
+      }
+    }
   })
 
   test.describe('Scoped admin UX', () => {

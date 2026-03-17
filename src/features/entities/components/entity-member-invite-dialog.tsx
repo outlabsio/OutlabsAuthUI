@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
@@ -57,11 +57,7 @@ export function EntityMemberInviteDialog({
     },
   })
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
+  const resetDialogState = useEffectEvent(() => {
     form.reset({
       email: '',
       firstName: '',
@@ -69,7 +65,15 @@ export function EntityMemberInviteDialog({
       roleIds: [],
     })
     inviteMutation.reset()
-  }, [form, inviteMutation, open])
+  })
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    resetDialogState()
+  }, [open])
 
   const selectedRoleIds = form.watch('roleIds')
   const submitErrorMessage = inviteMutation.error

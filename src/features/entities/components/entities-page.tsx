@@ -358,7 +358,6 @@ export function EntitiesPage({
       ...search,
       scopeRootId: nextRootId,
     })
-    onEntitySelect(undefined)
   }
 
   function handleEntityFormSuccess(nextEntity: Entity) {

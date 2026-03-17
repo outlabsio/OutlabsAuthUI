@@ -5,8 +5,9 @@ This repo uses Playwright for reusable browser automation.
 Core pieces:
 
 - `playwright.config.ts`: shared browser config and Bun-powered frontend server bootstrap
-- `e2e/support/global-setup.ts`: persona login bootstrap and storage-state generation
+- `e2e/support/global-setup.ts`: backend reset, persona login bootstrap, and storage-state generation
 - `e2e/support/auth-fixture.ts`: per-test persona fixture
+- `e2e/support/reset-backend.ts`: reusable backend reseed entrypoint for deterministic runs
 - `e2e/support/base-ui-select.ts`: reusable helper for Base UI `Select` controls
 - `e2e/support/base-ui-text.ts`: reusable helper for Base UI text inputs and textareas
 
@@ -18,10 +19,34 @@ Run the full suite:
 bun run test:e2e
 ```
 
+Run just the backend reseed:
+
+```bash
+bun run test:e2e:reset-backend
+```
+
+Run the auth flow suite only:
+
+```bash
+bun run test:e2e:auth
+```
+
+Run the app shell suite only:
+
+```bash
+bun run test:e2e:app
+```
+
 Run the Roles workspace suite only:
 
 ```bash
 bun run test:e2e:roles
+```
+
+Run the Permissions workspace suite only:
+
+```bash
+bun run test:e2e:permissions
 ```
 
 Run the Users workspace suite only:
@@ -48,31 +73,44 @@ Open the Playwright UI runner:
 bun run test:e2e:ui
 ```
 
+Run without resetting backend data first:
+
+```bash
+bun run test:e2e:no-reset
+```
+
 ## Prerequisites
 
 - frontend app reachable at `http://localhost:3000`
 - auth backend reachable at `http://localhost:8004`
-- enterprise example seeded with the review personas from:
+- `uv` available on `PATH` so the reset runner can reseed the backend example
+- backend reset script available at:
   - `/Users/macbookm3/Documents/projects/outlabsAuth/examples/enterprise_rbac/reset_test_env.py`
 
 Use `localhost` consistently for both frontend and backend. Mixing `127.0.0.1` and `localhost` will break browser-origin assumptions in the auth flow.
 
-Playwright global setup will:
+Playwright global setup will, by default:
 
 - verify the frontend and backend are reachable
+- reset the backend to the seeded review fixture
 - log in seeded personas through the backend API
 - generate per-persona storage states in `playwright/.auth`
+
+This reset is important because the browser suite now intentionally exercises additive mutations like invites, temporary roles, and ABAC edits.
 
 Available seeded personas:
 
 - `admin`
 - `orgAdmin`
+- `permissionAdmin`
 - `regionalAdmin`
 - `officeAdmin`
+- `eastAdmin`
 - `auditor`
 - `teamLead`
 - `agent`
 - `commercialAgent`
+- `summitAdmin`
 
 Example:
 
@@ -87,9 +125,16 @@ test.use({ persona: 'regionalAdmin' })
 ```bash
 E2E_BASE_URL=http://localhost:3001
 E2E_API_BASE_URL=http://localhost:8005
+E2E_RESET_BACKEND=0
+E2E_BACKEND_REPO_DIR=/path/to/outlabsAuth
+E2E_BACKEND_RESET_SCRIPT=/path/to/reset_test_env.py
 ```
 
 These can be used when the frontend or backend run on non-default ports.
+
+- `E2E_RESET_BACKEND=0` skips the automatic reseed step.
+- `E2E_BACKEND_REPO_DIR` overrides the backend repo root used for reseeding.
+- `E2E_BACKEND_RESET_SCRIPT` overrides the exact reset script path.
 
 ## Authoring Guidance
 

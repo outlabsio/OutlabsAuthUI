@@ -1,6 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
 
-import { getPermissionsCatalog } from '@/features/roles/api/get-permissions-catalog'
 import { getRoleConditionGroups } from '@/features/roles/api/get-role-condition-groups'
 import { getRoleConditions } from '@/features/roles/api/get-role-conditions'
 import { getRole } from '@/features/roles/api/get-role'
@@ -32,13 +31,6 @@ export function getRolesForEntityQueryOptions(
     queryKey: rolesKeys.entityList(entityId, params),
     queryFn: () => getRolesForEntity(entityId, params),
     enabled: Boolean(entityId),
-  })
-}
-
-export function getPermissionsCatalogQueryOptions() {
-  return queryOptions({
-    queryKey: rolesKeys.permissionsCatalog(),
-    queryFn: getPermissionsCatalog,
   })
 }
 

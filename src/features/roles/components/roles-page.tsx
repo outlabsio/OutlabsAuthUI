@@ -14,11 +14,11 @@ import {
   type RolePermissionOption,
   RoleFormDialog,
 } from '@/features/roles/components/role-form-dialog'
+import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { RoleDetailsPanel } from '@/features/roles/components/role-details-panel'
 import { RolesCatalogPanel } from '@/features/roles/components/roles-catalog-panel'
 import { RolesFilterRail } from '@/features/roles/components/roles-filter-rail'
 import {
-  getPermissionsCatalogQueryOptions,
   getRoleConditionGroupsQueryOptions,
   getRoleConditionsQueryOptions,
   getRoleQueryOptions,
@@ -96,7 +96,10 @@ export function RolesPage({
     retry: false,
   })
   const permissionsCatalogQuery = useQuery({
-    ...getPermissionsCatalogQueryOptions(),
+    ...getPermissionsQueryOptions({
+      page: 1,
+      limit: 1000,
+    }),
     retry: false,
     enabled: Boolean(sessionUser?.id),
   })

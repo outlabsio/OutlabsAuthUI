@@ -19,6 +19,12 @@ export const authPersonas = {
     password: 'Testpass1!',
     storageState: path.join(authStorageDir, 'org-admin.json'),
   },
+  permissionAdmin: {
+    label: 'Permission catalog admin',
+    email: 'permissions-admin@acme.com',
+    password: 'Testpass1!',
+    storageState: path.join(authStorageDir, 'permission-admin.json'),
+  },
   regionalAdmin: {
     label: 'West Coast scoped admin',
     email: 'regional-admin@acme.com',
@@ -30,6 +36,12 @@ export const authPersonas = {
     email: 'manager@sf.acme.com',
     password: 'Testpass1!',
     storageState: path.join(authStorageDir, 'office-admin.json'),
+  },
+  eastAdmin: {
+    label: 'East Coast scoped admin',
+    email: 'east-admin@acme.com',
+    password: 'Testpass1!',
+    storageState: path.join(authStorageDir, 'east-admin.json'),
   },
   auditor: {
     label: 'Read-only auditor',
@@ -54,6 +66,12 @@ export const authPersonas = {
     email: 'commercial@sf.acme.com',
     password: 'Testpass1!',
     storageState: path.join(authStorageDir, 'commercial-agent.json'),
+  },
+  summitAdmin: {
+    label: 'Second root admin',
+    email: 'summit-admin@summit.com',
+    password: 'Testpass1!',
+    storageState: path.join(authStorageDir, 'summit-admin.json'),
   },
 } as const
 

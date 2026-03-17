@@ -1,4 +1,9 @@
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
+import type {
+  AbacCondition,
+  AbacConditionGroup,
+  AbacConditionValueType,
+} from '@/features/abac/types/abac.types'
 
 export type RoleScopeMode = 'entity_only' | 'hierarchy'
 export type RoleType = 'global' | 'root' | 'entity'
@@ -6,12 +11,6 @@ export type RoleUsageFilter = 'all' | 'auto' | 'manual'
 export type RoleSystemFilter = 'all' | 'system' | 'custom'
 export type RoleTypeFilter = 'all' | RoleType
 export type RoleScopeFilter = 'all' | RoleScopeMode
-export type RoleConditionValueType =
-  | 'string'
-  | 'integer'
-  | 'float'
-  | 'boolean'
-  | 'list'
 
 export type Role = {
   id: string
@@ -78,38 +77,9 @@ export type DeleteRoleInput = {
   roleId: string
 }
 
-export type PermissionCatalogItem = {
-  id: string
-  name: string
-  display_name: string
-  description?: string | null
-  resource?: string | null
-  action?: string | null
-  scope?: string | null
-  is_system: boolean
-  is_active: boolean
-  tags: string[]
-}
+export type RoleConditionGroup = AbacConditionGroup
 
-export type PermissionsCatalogResponse = PaginatedResponse<PermissionCatalogItem>
-
-export type RoleConditionGroup = {
-  id: string
-  operator: 'AND' | 'OR'
-  description?: string | null
-  role_id?: string | null
-  permission_id?: string | null
-}
-
-export type RoleCondition = {
-  id: string
-  attribute: string
-  operator: string
-  value?: string | null
-  value_type: RoleConditionValueType
-  description?: string | null
-  condition_group_id?: string | null
-}
+export type RoleCondition = AbacCondition
 
 export type CreateRoleConditionGroupInput = {
   roleId: string
@@ -134,7 +104,7 @@ export type CreateRoleConditionInput = {
   attribute: string
   operator: string
   value?: string | number | boolean | string[] | null
-  value_type: RoleConditionValueType
+  value_type: AbacConditionValueType
   description?: string
   condition_group_id?: string | null
 }
@@ -145,7 +115,7 @@ export type UpdateRoleConditionInput = {
   attribute?: string
   operator?: string
   value?: string | number | boolean | string[] | null
-  value_type?: RoleConditionValueType
+  value_type?: AbacConditionValueType
   description?: string
   condition_group_id?: string | null
 }

@@ -8,6 +8,7 @@ import {
   e2eApiBaseURL,
   e2eBaseURL,
 } from './auth-personas'
+import { runBackendReset, shouldResetBackend } from './reset-backend'
 
 type LoginResponse = {
   access_token: string
@@ -54,6 +55,11 @@ export default async function globalSetup(config: FullConfig) {
 
   await waitForOkResponse(`${configuredBaseURL}/auth/login`, 'Frontend dev server')
   await waitForOkResponse(`${e2eApiBaseURL}/v1/auth/config`, 'Auth backend')
+
+  if (shouldResetBackend()) {
+    await runBackendReset()
+    await waitForOkResponse(`${e2eApiBaseURL}/v1/auth/config`, 'Auth backend after reset')
+  }
 
   await fs.mkdir(authStorageDir, { recursive: true })
 

@@ -9,7 +9,6 @@ export const rolesKeys = {
   entityLists: () => [...rolesKeys.all, 'entity-list'] as const,
   entityList: (entityId: string, params: GetRolesParams) =>
     [...rolesKeys.entityLists(), entityId, params] as const,
-  permissionsCatalog: () => [...rolesKeys.all, 'permissions-catalog'] as const,
   conditionGroups: (roleId: string) => [...rolesKeys.all, roleId, 'condition-groups'] as const,
   conditions: (roleId: string) => [...rolesKeys.all, roleId, 'conditions'] as const,
 }
