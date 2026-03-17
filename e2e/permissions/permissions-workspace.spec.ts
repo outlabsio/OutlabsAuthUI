@@ -14,17 +14,23 @@ async function gotoPermissionsWorkspace(page: Page) {
     })
   ).toBeVisible()
   await expect(page.getByText('Permission catalog')).toBeVisible()
+  await expect(page.getByRole('table')).toBeVisible()
+}
+
+function getPermissionRow(page: Page, permissionName: string) {
+  return page
+    .locator('tbody tr')
+    .filter({
+      has: page.getByText(permissionName, { exact: true }),
+    })
+    .first()
 }
 
 async function openPermission(page: Page, permissionName: string) {
-  const permissionCard = page
-    .getByRole('button', {
-      name: new RegExp(permissionName, 'i'),
-    })
-    .first()
+  const permissionRow = getPermissionRow(page, permissionName)
 
-  await expect(permissionCard).toBeVisible()
-  await permissionCard.click()
+  await expect(permissionRow).toBeVisible()
+  await permissionRow.click()
   await expect(
     page.getByRole('heading', {
       name: permissionName,
@@ -137,9 +143,7 @@ test.describe('Permissions Workspace', () => {
       })
     ).toBeVisible()
     await expect(
-      page.getByRole('button', {
-        name: new RegExp(displayName, 'i'),
-      })
+      getPermissionRow(page, displayName)
     ).toHaveCount(0)
   })
 

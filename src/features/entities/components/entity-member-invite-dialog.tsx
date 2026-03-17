@@ -202,6 +202,7 @@ export function EntityMemberInviteDialog({
                               )}
                             >
                               <Checkbox
+                                aria-label={role.display_name}
                                 checked={isChecked}
                                 disabled={inviteMutation.isPending || !canInviteMembers}
                                 onCheckedChange={(checked) => {

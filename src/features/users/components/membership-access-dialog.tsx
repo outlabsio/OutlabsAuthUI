@@ -591,6 +591,7 @@ export function MembershipAccessDialog({
                             )}
                           >
                             <Checkbox
+                              aria-label={role.display_name}
                               checked={checked}
                               onCheckedChange={(nextChecked) => {
                                 setSelectedRoleIds((currentRoleIds) => {

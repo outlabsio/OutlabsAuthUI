@@ -16,12 +16,11 @@ import {
 } from '@/features/permissions/api/permissions.query-options'
 import { DeletePermissionDialog } from '@/features/permissions/components/delete-permission-dialog'
 import { PermissionDetailsPanel } from '@/features/permissions/components/permission-details-panel'
+import { PermissionsFiltersBar } from '@/features/permissions/components/permissions-filters-bar'
 import { PermissionFormDialog } from '@/features/permissions/components/permission-form-dialog'
-import { PermissionsCatalogPanel } from '@/features/permissions/components/permissions-catalog-panel'
-import { PermissionsFilterRail } from '@/features/permissions/components/permissions-filter-rail'
+import { PermissionsTable } from '@/features/permissions/components/permissions-table'
 import type { Permission, PermissionsPageSearch } from '@/features/permissions/types/permissions.types'
 import {
-  groupPermissionsByResource,
   matchesPermissionsSearchFilters,
   sortPermissionsForCatalog,
 } from '@/features/permissions/utils/permissions-display'
@@ -131,10 +130,6 @@ export function PermissionsPage({
         .sort((left, right) => left.localeCompare(right)),
     [permissionsQuery.data?.items]
   )
-  const permissionGroups = useMemo(
-    () => groupPermissionsByResource(filteredPermissions),
-    [filteredPermissions]
-  )
   const visiblePermission = useMemo(() => {
     if (!selectedPermissionId) {
       return null
@@ -152,6 +147,17 @@ export function PermissionsPage({
       role.permissions.includes(activePermission.name)
     )
   }, [activePermission, rolesQuery.data?.items])
+  const roleCountsByPermissionName = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    for (const role of rolesQuery.data?.items ?? []) {
+      for (const permissionName of role.permissions) {
+        counts.set(permissionName, (counts.get(permissionName) ?? 0) + 1)
+      }
+    }
+
+    return counts
+  }, [rolesQuery.data?.items])
 
   const [permissionDialogState, setPermissionDialogState] = useState<{
     open: boolean
@@ -186,41 +192,22 @@ export function PermissionsPage({
       <AppPage
         title="Permissions"
         action={
-          <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
-            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>
-                <span className="font-medium text-foreground">{filteredPermissions.length}</span> visible
-              </span>
-              <span>
-                <span className="font-medium text-foreground">
-                  {filteredPermissions.filter((permission) => !permission.is_system).length}
-                </span>{' '}
-                custom
-              </span>
-              <span>
-                <span className="font-medium text-foreground">
-                  {filteredPermissions.filter((permission) => permission.is_system).length}
-                </span>{' '}
-                system
-              </span>
-            </div>
-            {canCreatePermissions ? (
-              <Button
-                type="button"
-                className="shrink-0"
-                onClick={() =>
-                  setPermissionDialogState({
-                    open: true,
-                    mode: 'create',
-                    permission: null,
-                  })
-                }
-              >
-                <KeyRound className="size-4" />
-                Create permission
-              </Button>
-            ) : null}
-          </div>
+          canCreatePermissions ? (
+            <Button
+              type="button"
+              className="shrink-0"
+              onClick={() =>
+                setPermissionDialogState({
+                  open: true,
+                  mode: 'create',
+                  permission: null,
+                })
+              }
+            >
+              <KeyRound className="size-4" />
+              Create permission
+            </Button>
+          ) : undefined
         }
       >
         {!canReadPermissions ? (
@@ -228,8 +215,8 @@ export function PermissionsPage({
             Your current session cannot read the permission catalog.
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,0.95fr)_minmax(0,1.1fr)]">
-            <PermissionsFilterRail
+          <div className="space-y-4">
+            <PermissionsFiltersBar
               search={search}
               resources={resources}
               tags={tags}
@@ -239,71 +226,75 @@ export function PermissionsPage({
                 custom: filteredPermissions.filter((permission) => !permission.is_system).length,
                 active: filteredPermissions.filter((permission) => permission.is_active).length,
               }}
-              onSearchChange={onSearchChange}
+              onApply={onSearchChange}
+              onReset={() => onSearchChange({})}
             />
 
-            <PermissionsCatalogPanel
-              permissionGroups={permissionGroups}
-              selectedPermissionId={selectedPermissionId}
-              isLoading={permissionsQuery.isPending}
-              isRefreshing={permissionsQuery.isFetching && !permissionsQuery.isPending}
-              errorMessage={undefined}
-              onPermissionSelect={onPermissionSelect}
-            />
-
-            <div className="space-y-4">
-              {permissionDetailErrorMessage ? (
-                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
-                  {permissionDetailErrorMessage}
-                </div>
-              ) : null}
-
-              <PermissionDetailsPanel
-                permission={activePermission}
-                linkedRoles={linkedRoles}
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <PermissionsTable
+                permissions={filteredPermissions}
+                selectedPermissionId={selectedPermissionId}
+                isLoading={permissionsQuery.isPending}
+                isRefreshing={permissionsQuery.isFetching && !permissionsQuery.isPending}
                 canReadRoles={canReadRoles}
-                conditionGroups={conditionGroupsQuery.data ?? []}
-                conditions={conditionsQuery.data ?? []}
-                conditionGroupsLoading={conditionGroupsQuery.isPending}
-                conditionsLoading={conditionsQuery.isPending}
-                conditionGroupsErrorMessage={
-                  conditionGroupsQuery.error
-                    ? getApiErrorMessage(
-                        conditionGroupsQuery.error,
-                        'The permission condition groups could not be loaded.'
-                      )
-                    : undefined
-                }
-                conditionsErrorMessage={
-                  conditionsQuery.error
-                    ? getApiErrorMessage(
-                        conditionsQuery.error,
-                        'The permission conditions could not be loaded.'
-                      )
-                    : undefined
-                }
-                abacEnabled={abacEnabled}
-                canUpdatePermissions={canUpdatePermissions}
-                canDeletePermissions={canDeletePermissions}
-                onEditPermission={() => {
-                  if (!activePermission) {
-                    return
-                  }
-
-                  setPermissionDialogState({
-                    open: true,
-                    mode: 'edit',
-                    permission: activePermission,
-                  })
-                }}
-                onDeletePermission={() => {
-                  if (!activePermission) {
-                    return
-                  }
-
-                  setDeleteDialogOpen(true)
-                }}
+                roleCountsByPermissionName={roleCountsByPermissionName}
+                onPermissionSelect={onPermissionSelect}
               />
+
+              <div className="space-y-4">
+                {permissionDetailErrorMessage ? (
+                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+                    {permissionDetailErrorMessage}
+                  </div>
+                ) : null}
+
+                <PermissionDetailsPanel
+                  permission={activePermission}
+                  linkedRoles={linkedRoles}
+                  canReadRoles={canReadRoles}
+                  conditionGroups={conditionGroupsQuery.data ?? []}
+                  conditions={conditionsQuery.data ?? []}
+                  conditionGroupsLoading={conditionGroupsQuery.isPending}
+                  conditionsLoading={conditionsQuery.isPending}
+                  conditionGroupsErrorMessage={
+                    conditionGroupsQuery.error
+                      ? getApiErrorMessage(
+                          conditionGroupsQuery.error,
+                          'The permission condition groups could not be loaded.'
+                        )
+                      : undefined
+                  }
+                  conditionsErrorMessage={
+                    conditionsQuery.error
+                      ? getApiErrorMessage(
+                          conditionsQuery.error,
+                          'The permission conditions could not be loaded.'
+                        )
+                      : undefined
+                  }
+                  abacEnabled={abacEnabled}
+                  canUpdatePermissions={canUpdatePermissions}
+                  canDeletePermissions={canDeletePermissions}
+                  onEditPermission={() => {
+                    if (!activePermission) {
+                      return
+                    }
+
+                    setPermissionDialogState({
+                      open: true,
+                      mode: 'edit',
+                      permission: activePermission,
+                    })
+                  }}
+                  onDeletePermission={() => {
+                    if (!activePermission) {
+                      return
+                    }
+
+                    setDeleteDialogOpen(true)
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

@@ -450,6 +450,7 @@ export function EntityMemberAccessDialog({
                               )}
                             >
                               <Checkbox
+                                aria-label={role.display_name}
                                 checked={isChecked}
                                 disabled={isPending || !canManageMembershipAccess}
                                 onCheckedChange={(checked) => {

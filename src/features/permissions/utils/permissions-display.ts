@@ -130,37 +130,3 @@ export function sortPermissionsForCatalog(permissions: Permission[]) {
     return left.display_name.localeCompare(right.display_name)
   })
 }
-
-export function groupPermissionsByResource(permissions: Permission[]) {
-  const wildcardPermissions = permissions.filter(
-    (permission) => permission.resource === '*' || permission.name === '*:*'
-  )
-  const permissionsByResource = new Map<string, Permission[]>()
-
-  permissions
-    .filter((permission) => !wildcardPermissions.includes(permission))
-    .forEach((permission) => {
-      const key = permission.resource ?? 'general'
-      const group = permissionsByResource.get(key) ?? []
-      group.push(permission)
-      permissionsByResource.set(key, group)
-    })
-
-  const grouped = [...permissionsByResource.entries()]
-    .map(([resource, items]) => ({
-      key: resource,
-      label: formatPermissionToken(resource, 'General'),
-      permissions: sortPermissionsForCatalog(items),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label))
-
-  if (wildcardPermissions.length > 0) {
-    grouped.unshift({
-      key: 'wildcard',
-      label: 'Wildcard',
-      permissions: sortPermissionsForCatalog(wildcardPermissions),
-    })
-  }
-
-  return grouped
-}

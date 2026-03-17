@@ -434,6 +434,7 @@ export function InviteUserDialog({
                             <div className="flex items-start gap-3">
                               <Checkbox
                                 id={roleInputId}
+                                aria-label={role.display_name}
                                 checked={checked}
                                 onCheckedChange={(nextChecked) => {
                                   const nextRoleIds = nextChecked
