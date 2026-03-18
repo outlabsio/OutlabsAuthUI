@@ -3,9 +3,24 @@ export type LoginCredentials = {
   password: string
 }
 
+export type ForgotPasswordInput = {
+  email: string
+}
+
+export type ResetPasswordInput = {
+  token: string
+  new_password: string
+}
+
+export type AcceptInviteInput = {
+  token: string
+  new_password: string
+}
+
 export type AuthTokens = {
   access_token: string
   refresh_token: string
+  expires_in?: number
   token_type?: string
 }
 

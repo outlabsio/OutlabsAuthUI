@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
@@ -92,6 +93,16 @@ export function LoginPage({ className }: LoginPageProps) {
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="ml-auto h-auto px-0 text-sm"
+                    nativeButton={false}
+                    render={<Link to={routes.auth.forgotPassword} />}
+                  >
+                    Forgot password?
+                  </Button>
                 </div>
                 <Input
                   id="password"

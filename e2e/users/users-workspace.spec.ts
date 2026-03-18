@@ -156,7 +156,31 @@ test.describe('Users Workspace', () => {
     await accountStatusSection
       .getByRole('button', { name: 'Resend invite', exact: true })
       .click()
-    await expect(page.getByText('Invitation email re-sent successfully.')).toBeVisible()
+    await expect(page.getByText('Invitation email re-sent.')).toBeVisible()
+  })
+
+  test('admin sees an error toast when inviting an existing user', async ({
+    page,
+  }) => {
+    await gotoUsersWorkspace(page)
+
+    await page.getByRole('button', { name: 'Invite user' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Invite user' })
+    await expect(dialog).toBeVisible()
+
+    await dialog.locator('#invite-email').fill('invited@acme.com')
+    await dialog.getByRole('button', { name: 'Send invite' }).click()
+
+    await expect(dialog).toBeVisible()
+    await expect(
+      page
+        .getByLabel('Notifications alt+T')
+        .getByText('User with email invited@acme.com already exists')
+    ).toBeVisible()
+    await expect(
+      dialog.getByText('User with email invited@acme.com already exists')
+    ).toBeVisible()
   })
 
   test('admin can assign and remove a direct account role', async ({ page }) => {

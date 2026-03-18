@@ -823,11 +823,6 @@ export function UserDetailsPage({
                     {resendInviteError}
                   </div>
                 ) : null}
-                {resendInviteMutation.isSuccess ? (
-                  <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                    Invitation email re-sent successfully.
-                  </div>
-                ) : null}
               </form>
             </DetailSection>
           ) : null}

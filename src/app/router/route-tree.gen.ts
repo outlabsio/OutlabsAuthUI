@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as AuthAcceptInviteRouteImport } from './routes/auth/accept-invite'
 import { Route as AppUsersRouteImport } from './routes/app/users'
 import { Route as AppRolesRouteImport } from './routes/app/roles'
 import { Route as AppPermissionsRouteImport } from './routes/app/permissions'
@@ -42,9 +45,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAcceptInviteRoute = AuthAcceptInviteRouteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
   getParentRoute: () => AuthRoute,
 } as any)
 const AppUsersRoute = AppUsersRouteImport.update({
@@ -123,7 +141,10 @@ export interface FileRoutesByFullPath {
   '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
@@ -138,7 +159,10 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/app/dashboard': typeof AppDashboardRoute
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
@@ -158,7 +182,10 @@ export interface FileRoutesById {
   '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
   '/app/users': typeof AppUsersRouteWithChildren
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
@@ -179,7 +206,10 @@ export interface FileRouteTypes {
     | '/app/permissions'
     | '/app/roles'
     | '/app/users'
+    | '/auth/accept-invite'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
@@ -194,7 +224,10 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/app/dashboard'
+    | '/auth/accept-invite'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
@@ -213,7 +246,10 @@ export interface FileRouteTypes {
     | '/app/permissions'
     | '/app/roles'
     | '/app/users'
+    | '/auth/accept-invite'
+    | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
@@ -253,11 +289,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/auth/login': {
       id: '/auth/login'
       path: '/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/accept-invite': {
+      id: '/auth/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/auth/accept-invite'
+      preLoaderRoute: typeof AuthAcceptInviteRouteImport
       parentRoute: typeof AuthRoute
     }
     '/app/users': {
@@ -429,11 +486,17 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
+  AuthAcceptInviteRoute: typeof AuthAcceptInviteRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthAcceptInviteRoute: AuthAcceptInviteRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

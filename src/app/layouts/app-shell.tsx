@@ -55,7 +55,7 @@ export function AppShell({
 
   return (
     <AppShellActionProvider>
-      <SidebarProvider>
+      <SidebarProvider className="h-svh overflow-hidden">
         <AppSidebar
           user={{
             name,
@@ -63,8 +63,8 @@ export function AppShell({
           }}
           onLogout={onLogout}
         />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/60 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <SidebarInset className="min-h-0 overflow-hidden">
+          <header className="z-20 flex h-16 shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2 px-2">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -82,7 +82,7 @@ export function AppShell({
           </header>
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col gap-6 p-4 pt-4 md:p-6 md:pt-5',
+              'flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pt-4 md:p-6 md:pt-5',
               className
             )}
           >

@@ -52,8 +52,7 @@ export function UsersPage({
   const pageError =
     usersQuery.error ??
     authConfigQuery.error ??
-    entitiesQuery.error ??
-    resendInviteMutation.error
+    entitiesQuery.error
 
   const authConfig = authConfigQuery.data
   const canInviteUsers = authConfig?.features.invitations ?? false

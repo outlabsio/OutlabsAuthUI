@@ -5,7 +5,11 @@ import {
   setStoredAuthTokens,
 } from '@/lib/api/auth-token'
 import { buildApiUrl } from '@/lib/api/config'
-import { ApiError } from '@/lib/api/errors'
+import {
+  type ApiErrorPayload,
+  ApiError,
+  getApiErrorMessageFromPayload,
+} from '@/lib/api/errors'
 
 type RequestBody = BodyInit | Record<string, unknown> | null | undefined
 
@@ -20,19 +24,22 @@ type RefreshResponse = {
 }
 
 async function parseApiError(response: Response) {
-  let data: Record<string, unknown> | null = null
+  let data: ApiErrorPayload | null = null
 
   try {
-    data = (await response.json()) as Record<string, unknown>
+    const parsed = await response.json()
+    data =
+      parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as ApiErrorPayload)
+        : null
   } catch {
     data = null
   }
 
   throw new ApiError({
     message:
-      typeof data?.detail === 'string'
-        ? data.detail
-        : response.statusText || 'Request failed',
+      (getApiErrorMessageFromPayload(data) ?? response.statusText) ||
+      'Request failed',
     status: response.status,
     statusText: response.statusText,
     data,

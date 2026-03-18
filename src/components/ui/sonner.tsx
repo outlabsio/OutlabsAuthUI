@@ -1,0 +1,28 @@
+import { Toaster as Sonner, type ToasterProps } from 'sonner'
+
+import { useThemeStore } from '@/lib/store/theme.store'
+
+export function Toaster(props: ToasterProps) {
+  const theme = useThemeStore((state) => state.theme)
+
+  return (
+    <Sonner
+      theme={theme}
+      className="toaster group"
+      closeButton
+      richColors
+      toastOptions={{
+        classNames: {
+          toast:
+            'group toast group-[.toaster]:border-border group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:shadow-lg',
+          description: 'group-[.toast]:text-muted-foreground',
+          actionButton:
+            'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+          cancelButton:
+            'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+        },
+      }}
+      {...props}
+    />
+  )
+}
