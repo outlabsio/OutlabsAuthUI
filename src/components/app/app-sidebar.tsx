@@ -37,7 +37,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar'
 import { routes } from '@/lib/constants/routes'
@@ -263,7 +262,6 @@ export function AppSidebar({
           onLogout={onLogout}
         />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }

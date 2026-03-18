@@ -35,7 +35,7 @@ export function AppPageGuideDrawer({ pathname }: AppPageGuideDrawerProps) {
 
       <SheetContent
         side="right"
-        className="w-full gap-0 p-0 sm:max-w-xl"
+        className="w-full gap-0 p-0 sm:max-w-2xl"
       >
         <div className="flex min-h-0 flex-1 flex-col">
           <SheetHeader className="border-b px-6 py-5 pr-14">

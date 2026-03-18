@@ -128,7 +128,7 @@ export function UsersTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain">
         <Table className="table-fixed">
           <TableHeader className="bg-background">
             <TableRow className="hover:bg-background">

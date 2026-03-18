@@ -9,7 +9,6 @@ import {
   AppShellActionTarget,
 } from '@/components/app/app-shell-action'
 import { AppSidebar } from '@/components/app/app-sidebar'
-import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
   SidebarProvider,
@@ -67,10 +66,6 @@ export function AppShell({
           <header className="z-20 flex h-16 shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2 px-2">
               <SidebarTrigger className="-ml-1" />
-              <Separator
-                orientation="vertical"
-                className="mr-2 data-[orientation=vertical]:h-4"
-              />
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate text-sm font-medium text-foreground">
                   {currentPage}

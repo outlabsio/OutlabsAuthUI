@@ -445,7 +445,7 @@ export function UserDetailsPage({
     return (
       <AppPage
         title="Loading user"
-        action={
+        shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
             Back to users
@@ -463,7 +463,7 @@ export function UserDetailsPage({
     return (
       <AppPage
         title="User not available"
-        action={
+        shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
             Back to users
@@ -484,13 +484,11 @@ export function UserDetailsPage({
     <AppPage
       className="gap-5"
       title={getUserDisplayName(user)}
-      action={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={onBack}>
-            <ArrowLeft className="size-4" />
-            Back to users
-          </Button>
-        </div>
+      shellAction={
+        <Button type="button" variant="outline" onClick={onBack}>
+          <ArrowLeft className="size-4" />
+          Back to users
+        </Button>
       }
     >
       <Card className="overflow-hidden border py-0 ring-0">
