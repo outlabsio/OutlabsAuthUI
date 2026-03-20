@@ -1,7 +1,9 @@
+import { useEffect, useEffectEvent, useRef } from 'react'
+
 import { Sparkles } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -30,8 +32,12 @@ type RolesTableProps = {
   selectedRoleId?: string
   isLoading: boolean
   isRefreshing: boolean
+  hasNextPage?: boolean
+  isFetchingNextPage?: boolean
+  onLoadMore?: () => Promise<unknown> | void
   onRoleSelect: (roleId: string) => void
   embedded?: boolean
+  plain?: boolean
   showHeader?: boolean
   title?: string
   emptyTitle?: string
@@ -43,19 +49,68 @@ export function RolesTable({
   selectedRoleId,
   isLoading,
   isRefreshing,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
   onRoleSelect,
   embedded = false,
+  plain = false,
   showHeader = true,
   title = 'Role catalog',
   emptyTitle = 'No roles matched these filters.',
   emptyDescription = 'Adjust or clear the current filters.',
 }: RolesTableProps) {
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const handleScrollNearBottom = useEffectEvent(() => {
+    if (!hasNextPage || isFetchingNextPage || !onLoadMore) {
+      return
+    }
+
+    const scrollContainer = scrollAreaRef.current?.querySelector<HTMLElement>(
+      '[data-slot=table-container]'
+    )
+
+    if (!scrollContainer) {
+      return
+    }
+
+    const remainingDistance =
+      scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight
+
+    if (remainingDistance > 240) {
+      return
+    }
+
+    void onLoadMore()
+  })
+
+  useEffect(() => {
+    const scrollContainer = scrollAreaRef.current?.querySelector<HTMLElement>(
+      '[data-slot=table-container]'
+    )
+
+    if (!scrollContainer) {
+      return
+    }
+
+    const handleScroll = () => {
+      handleScrollNearBottom()
+    }
+
+    handleScroll()
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll)
+    }
+  }, [handleScrollNearBottom, roles.length])
+
   const content = (
     <>
       {showHeader ? (
-        <CardHeader className="border-b border-border/60">
+        <div className="border-b border-border/60 px-4 py-4">
           <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-base">{title}</CardTitle>
+            <div className="text-base font-medium">{title}</div>
             {isRefreshing ? (
               <Badge variant="outline" className="gap-1.5">
                 <Sparkles className="size-3.5" />
@@ -63,10 +118,10 @@ export function RolesTable({
               </Badge>
             ) : null}
           </div>
-        </CardHeader>
+        </div>
       ) : null}
 
-      <CardContent className="min-h-0 flex-1 p-0">
+      <div className="flex min-h-0 flex-1 flex-col p-0">
         {isLoading ? (
           <div className="flex min-h-[28rem] items-center justify-center text-sm text-muted-foreground">
             Loading roles…
@@ -78,7 +133,10 @@ export function RolesTable({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div
+              ref={scrollAreaRef}
+              className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain"
+            >
               <Table className="table-fixed">
                 <TableHeader className="bg-background">
                   <TableRow className="hover:bg-background">
@@ -200,16 +258,25 @@ export function RolesTable({
                   })}
                 </TableBody>
               </Table>
-            </div>
-            <div className="border-t px-4 py-4 text-sm text-muted-foreground">
-              {roles.length} visible role{roles.length === 1 ? '' : 's'}
-              {isRefreshing ? ' | Refreshing…' : ''}
+              {isFetchingNextPage ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  Loading more roles…
+                </div>
+              ) : null}
             </div>
           </div>
         )}
-      </CardContent>
+      </div>
     </>
   )
+
+  if (plain) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {content}
+      </div>
+    )
+  }
 
   if (embedded) {
     return (
@@ -220,7 +287,7 @@ export function RolesTable({
   }
 
   return (
-    <Card className="flex min-h-0 flex-col overflow-hidden border border-border/70 bg-card/90">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border border-border/70 bg-card/90 ring-0">
       {content}
     </Card>
   )

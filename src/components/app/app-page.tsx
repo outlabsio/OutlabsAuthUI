@@ -2,7 +2,10 @@ import type { ReactNode } from 'react'
 
 import { createPortal } from 'react-dom'
 
-import { useAppShellActionContainer } from '@/components/app/app-shell-action'
+import {
+  useAppShellActionContainer,
+  useAppShellMetaContainer,
+} from '@/components/app/app-shell-action'
 import { cn } from '@/lib/utils/cn'
 
 type AppPageProps = {
@@ -11,6 +14,7 @@ type AppPageProps = {
   description?: string
   hideTitle?: boolean
   shellAction?: ReactNode
+  shellMeta?: ReactNode
   action?: ReactNode
   toolbar?: ReactNode
   children: ReactNode
@@ -23,17 +27,22 @@ export function AppPage({
   description,
   hideTitle = false,
   shellAction,
+  shellMeta,
   action,
   toolbar,
   children,
   className,
 }: AppPageProps) {
   const shellActionContainer = useAppShellActionContainer()
+  const shellMetaContainer = useAppShellMetaContainer()
   const showIntro = !hideTitle && Boolean(eyebrow || title || description)
   const showHeader = showIntro || Boolean(action) || Boolean(toolbar)
 
   return (
     <>
+      {shellMeta && shellMetaContainer
+        ? createPortal(shellMeta, shellMetaContainer)
+        : null}
       {shellAction && shellActionContainer
         ? createPortal(shellAction, shellActionContainer)
         : null}

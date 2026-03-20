@@ -9,8 +9,10 @@ import {
 import { cn } from '@/lib/utils/cn'
 
 type AppShellActionContextValue = {
-  container: HTMLDivElement | null
-  setContainer: (container: HTMLDivElement | null) => void
+  actionContainer: HTMLDivElement | null
+  setActionContainer: (container: HTMLDivElement | null) => void
+  metaContainer: HTMLDivElement | null
+  setMetaContainer: (container: HTMLDivElement | null) => void
 }
 
 const AppShellActionContext = createContext<AppShellActionContextValue | null>(null)
@@ -22,13 +24,16 @@ type AppShellActionProviderProps = {
 export function AppShellActionProvider({
   children,
 }: AppShellActionProviderProps) {
-  const [container, setContainer] = useState<HTMLDivElement | null>(null)
+  const [actionContainer, setActionContainer] = useState<HTMLDivElement | null>(null)
+  const [metaContainer, setMetaContainer] = useState<HTMLDivElement | null>(null)
   const value = useMemo(
     () => ({
-      container,
-      setContainer,
+      actionContainer,
+      setActionContainer,
+      metaContainer,
+      setMetaContainer,
     }),
-    [container]
+    [actionContainer, metaContainer]
   )
 
   return (
@@ -53,8 +58,8 @@ export function AppShellActionTarget({
 
   return (
     <div
-      ref={context.setContainer}
-      className={cn('ml-auto flex items-center justify-end gap-2 px-2', className)}
+      ref={context.setActionContainer}
+      className={cn('flex min-w-0 items-center justify-end gap-2 px-2', className)}
     />
   )
 }
@@ -66,5 +71,32 @@ export function useAppShellActionContainer() {
     throw new Error('useAppShellActionContainer must be used within AppShellActionProvider.')
   }
 
-  return context.container
+  return context.actionContainer
+}
+
+export function AppShellMetaTarget({
+  className,
+}: AppShellActionTargetProps) {
+  const context = useContext(AppShellActionContext)
+
+  if (!context) {
+    throw new Error('AppShellMetaTarget must be used within AppShellActionProvider.')
+  }
+
+  return (
+    <div
+      ref={context.setMetaContainer}
+      className={cn('flex min-w-0 items-center justify-center px-2', className)}
+    />
+  )
+}
+
+export function useAppShellMetaContainer() {
+  const context = useContext(AppShellActionContext)
+
+  if (!context) {
+    throw new Error('useAppShellMetaContainer must be used within AppShellActionProvider.')
+  }
+
+  return context.metaContainer
 }

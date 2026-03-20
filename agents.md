@@ -322,6 +322,7 @@ shadcn is the primitive UI layer, not the final design system.
 
 - prefer existing wrappers before raw primitives
 - keep `components/ui` low-level
+- prefer Base UI-backed shadcn primitives when a component has multiple implementations
 - use design tokens and approved layout patterns
 
 ### Agents must not
@@ -329,6 +330,7 @@ shadcn is the primitive UI layer, not the final design system.
 - place API logic in shadcn components
 - add feature-specific state in shadcn components
 - create duplicate versions of the same app pattern
+- introduce new Radix-based component variants or new `@radix-ui/*` dependencies
 - use arbitrary raw colors, spacing, shadows, or radii without approval
 
 ### Patterns that should be reused, not reinvented

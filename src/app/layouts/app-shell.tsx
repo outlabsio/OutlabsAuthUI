@@ -6,6 +6,7 @@ import { getAppPageGuide } from '@/app/internal-docs/page-guides'
 import { AppPageGuideDrawer } from '@/components/app/app-page-guide-drawer'
 import {
   AppShellActionProvider,
+  AppShellMetaTarget,
   AppShellActionTarget,
 } from '@/components/app/app-shell-action'
 import { AppSidebar } from '@/components/app/app-sidebar'
@@ -63,7 +64,7 @@ export function AppShell({
           onLogout={onLogout}
         />
         <SidebarInset className="min-h-0 overflow-hidden">
-          <header className="z-20 flex h-16 shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+          <header className="z-20 grid h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2 px-2">
               <SidebarTrigger className="-ml-1" />
               <div className="flex min-w-0 items-center gap-2">
@@ -73,6 +74,7 @@ export function AppShell({
                 <AppPageGuideDrawer pathname={pathname} />
               </div>
             </div>
+            <AppShellMetaTarget />
             <AppShellActionTarget />
           </header>
           <div

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ShieldPlus } from 'lucide-react'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
@@ -13,7 +13,7 @@ import { RoleFormDialog } from '@/features/roles/components/role-form-dialog'
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { RolesFiltersBar } from '@/features/roles/components/roles-filters-bar'
 import { RolesTable } from '@/features/roles/components/roles-table'
-import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
+import { getInfiniteRolesQueryOptions } from '@/features/roles/api/roles.query-options'
 import type { RolesPageSearch } from '@/features/roles/types/roles.types'
 import {
   formatRoleToken,
@@ -46,10 +46,9 @@ export function RolesPage({
     ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
     enabled: Boolean(sessionUser?.id),
   })
-  const rolesQuery = useQuery(
-    getRolesQueryOptions({
-      page: 1,
-      limit: 100,
+  const rolesQuery = useInfiniteQuery(
+    getInfiniteRolesQueryOptions({
+      limit: 40,
       search: search.search,
       rootEntityId: search.scopeRootId,
     })
@@ -83,6 +82,10 @@ export function RolesPage({
     actorPermissionsQuery.error ??
     authConfigQuery.error ??
     rolesQuery.error
+  const allRoles = useMemo(
+    () => rolesQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [rolesQuery.data?.pages]
+  )
   const entities = entitiesQuery.data?.items ?? []
   const rootOptions = useMemo(() => {
     const rootsById = new Map<string, { id: string; display_name: string }>()
@@ -96,7 +99,7 @@ export function RolesPage({
         })
       })
 
-    ;(rolesQuery.data?.items ?? []).forEach((role) => {
+    allRoles.forEach((role) => {
       if (role.root_entity_id && role.root_entity_name) {
         rootsById.set(role.root_entity_id, {
           id: role.root_entity_id,
@@ -108,7 +111,7 @@ export function RolesPage({
     return [...rootsById.values()].sort((left, right) =>
       left.display_name.localeCompare(right.display_name)
     )
-  }, [entities, rolesQuery.data?.items])
+  }, [allRoles, entities])
   const entityTypes = useMemo(() => {
     const entityTypeValues = new Set<string>()
 
@@ -116,21 +119,21 @@ export function RolesPage({
       entityTypeValues.add(entity.entity_type)
     })
 
-    ;(rolesQuery.data?.items ?? []).forEach((role) => {
+    allRoles.forEach((role) => {
       role.assignable_at_types.forEach((assignableType) => {
         entityTypeValues.add(assignableType)
       })
     })
 
     return [...entityTypeValues].sort((left, right) => left.localeCompare(right))
-  }, [entities, rolesQuery.data?.items])
+  }, [allRoles, entities])
 
   const filteredRoles = useMemo(
     () =>
       sortRolesForCatalog(
-        (rolesQuery.data?.items ?? []).filter((role) => matchesRolesSearchFilters(role, search))
+        allRoles.filter((role) => matchesRolesSearchFilters(role, search))
       ),
-    [rolesQuery.data?.items, search]
+    [allRoles, search]
   )
 
   const permissionOptions = useMemo(() => {
@@ -150,6 +153,43 @@ export function RolesPage({
   }, [authConfigQuery.data?.available_permissions, permissionsCatalogQuery.data?.items])
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const rolesSummary = (
+    <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
+      <span>
+        <span className="font-medium text-foreground">{filteredRoles.length}</span> roles
+      </span>
+      <span>
+        <span className="font-medium text-foreground">
+          {filteredRoles.filter((role) => role.is_global && !role.scope_entity_id).length}
+        </span>{' '}
+        global
+      </span>
+      <span>
+        <span className="font-medium text-foreground">
+          {filteredRoles.filter((role) => !role.is_global && !role.scope_entity_id).length}
+        </span>{' '}
+        organization
+      </span>
+      <span>
+        <span className="font-medium text-foreground">
+          {filteredRoles.filter((role) => Boolean(role.scope_entity_id)).length}
+        </span>{' '}
+        entity-defined
+      </span>
+      <span>
+        <span className="font-medium text-foreground">
+          {filteredRoles.filter((role) => role.is_auto_assigned).length}
+        </span>{' '}
+        auto
+      </span>
+      <span>
+        <span className="font-medium text-foreground">
+          {filteredRoles.filter((role) => role.is_system_role).length}
+        </span>{' '}
+        system
+      </span>
+    </div>
+  )
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading roles workspace" />
@@ -171,8 +211,10 @@ export function RolesPage({
   return (
     <>
       <AppPage
+        className="flex-1 min-h-0 gap-4 overflow-hidden"
         title="Roles"
         hideTitle
+        shellMeta={canReadRoles ? rolesSummary : undefined}
         shellAction={
           canCreateRoles ? (
             <Button
@@ -185,36 +227,36 @@ export function RolesPage({
             </Button>
           ) : undefined
         }
+        action={
+          canReadRoles ? (
+            <div className="min-w-0 rounded-xl border bg-card/70 px-3 py-2.5">
+                <RolesFiltersBar
+                  search={search}
+                  rootOptions={rootOptions}
+                  entityTypes={entityTypes}
+                  onApply={onSearchChange}
+                  onReset={() => onSearchChange({})}
+                />
+            </div>
+          ) : undefined
+        }
       >
         {!canReadRoles ? (
           <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
             Your current session cannot read the role catalog.
           </div>
         ) : (
-          <div className="space-y-4">
-            <RolesFiltersBar
-              search={search}
-              rootOptions={rootOptions}
-              entityTypes={entityTypes}
-              stats={{
-                total: filteredRoles.length,
-                global: filteredRoles.filter((role) => role.is_global && !role.scope_entity_id).length,
-                root: filteredRoles.filter((role) => !role.is_global && !role.scope_entity_id).length,
-                entity: filteredRoles.filter((role) => Boolean(role.scope_entity_id)).length,
-                auto: filteredRoles.filter((role) => role.is_auto_assigned).length,
-                system: filteredRoles.filter((role) => role.is_system_role).length,
-              }}
-              onApply={onSearchChange}
-              onReset={() => onSearchChange({})}
-            />
-
-            <RolesTable
-              roles={filteredRoles}
-              isLoading={rolesQuery.isPending}
-              isRefreshing={rolesQuery.isFetching && !rolesQuery.isPending}
-              onRoleSelect={(roleId) => onRoleSelect(roleId)}
-            />
-          </div>
+          <RolesTable
+            roles={filteredRoles}
+            isLoading={rolesQuery.isPending}
+            isRefreshing={rolesQuery.isRefetching && !rolesQuery.isPending && !rolesQuery.isFetchingNextPage}
+            hasNextPage={rolesQuery.hasNextPage}
+            isFetchingNextPage={rolesQuery.isFetchingNextPage}
+            onLoadMore={() => rolesQuery.fetchNextPage()}
+            onRoleSelect={(roleId) => onRoleSelect(roleId)}
+            plain
+            showHeader={false}
+          />
         )}
       </AppPage>
 

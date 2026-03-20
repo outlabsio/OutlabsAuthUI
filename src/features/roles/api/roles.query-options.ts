@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 
 import { getRoleConditionGroups } from '@/features/roles/api/get-role-condition-groups'
 import { getRoleConditions } from '@/features/roles/api/get-role-conditions'
@@ -12,6 +12,20 @@ export function getRolesQueryOptions(params: GetRolesParams = {}) {
   return queryOptions({
     queryKey: rolesKeys.list(params),
     queryFn: () => getRoles(params),
+  })
+}
+
+export function getInfiniteRolesQueryOptions(params: Omit<GetRolesParams, 'page'> = {}) {
+  return infiniteQueryOptions({
+    queryKey: rolesKeys.infiniteList(params),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getRoles({
+        ...params,
+        page: pageParam,
+      }),
+    getNextPageParam: (lastPage) =>
+      lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
   })
 }
 
