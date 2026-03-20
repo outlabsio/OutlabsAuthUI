@@ -8,17 +8,26 @@ import {
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Input } from '@/components/ui/input'
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox'
 import { Label } from '@/components/ui/label'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarInput,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+} from '@/components/ui/sidebar'
 import type { Entity } from '@/features/entities/types/entities.types'
 import type { EntityTreeNode } from '@/features/entities/utils/build-entity-tree'
 import {
@@ -52,6 +61,7 @@ type EntityTreeRowProps = {
   expandedIds: Set<string>
   onEntitySelect: (entityId: string) => void
   onToggleExpanded: (entityId: string) => void
+  depth?: number
 }
 
 function collectExpandableIds(nodes: EntityTreeNode[]) {
@@ -77,6 +87,7 @@ function EntityTreeRow({
   expandedIds,
   onEntitySelect,
   onToggleExpanded,
+  depth = 0,
 }: EntityTreeRowProps) {
   const hasChildren = node.children.length > 0
   const isSelected = node.id === selectedEntityId
@@ -84,99 +95,136 @@ function EntityTreeRow({
   const isExpanded = searchActive
     ? hasChildren
     : hasChildren && expandedIds.has(node.id)
+  const isCompact = depth > 0
+  const RowWrapper = isCompact ? SidebarMenuSubItem : SidebarMenuItem
 
   return (
-    <Collapsible open={isExpanded}>
-      <div className="space-y-0.5">
-        <div
-          className={cn(
-            'flex items-start gap-2 rounded-xl border px-2.5 py-2 transition-colors',
-            isSelected
-              ? 'border-primary/25 bg-primary/6 shadow-sm'
-              : isInSelectedPath
-                ? 'border-border/70 bg-muted/20'
-                : 'border-transparent hover:border-border/70 hover:bg-muted/20'
-          )}
-        >
-          {hasChildren ? (
-            <CollapsibleTrigger
-              className={cn(
-                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-transform hover:bg-muted/60',
-                isExpanded ? 'text-foreground' : null,
-                searchActive ? 'cursor-default opacity-70' : null
-              )}
-              disabled={searchActive}
-              onClick={() => {
-                if (searchActive) {
-                  return
-                }
-
-                onToggleExpanded(node.id)
-              }}
-            >
-              <ChevronRight
-                className={cn('size-3.5 transition-transform', isExpanded ? 'rotate-90' : null)}
-              />
-            </CollapsibleTrigger>
-          ) : (
-            <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-muted-foreground">
-              <Building2 className="size-3.5" />
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
-            onClick={() => onEntitySelect(node.id)}
+    <RowWrapper>
+      <Collapsible open={isExpanded}>
+        <div className="space-y-0.5">
+          <div
+            className={cn(
+              'flex w-full min-w-0 items-start gap-1.5 rounded-lg px-1.5 py-1.5 text-sidebar-foreground transition-colors',
+              isSelected
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : isInSelectedPath
+                  ? 'bg-sidebar-accent/65'
+                  : 'hover:bg-sidebar-accent/55'
+            )}
           >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-medium text-foreground">{node.display_name}</span>
-                {isSelected ? <Badge variant="secondary">Current</Badge> : null}
+            {hasChildren ? (
+              <CollapsibleTrigger
+                className={cn(
+                  'mt-0.5 flex shrink-0 items-center justify-center rounded-md text-sidebar-foreground/60 outline-hidden transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                  isCompact ? 'size-4.5' : 'size-5',
+                  isExpanded ? 'text-sidebar-foreground' : null,
+                  searchActive ? 'cursor-default opacity-70' : null
+                )}
+                disabled={searchActive}
+                onClick={() => {
+                  if (searchActive) {
+                    return
+                  }
+
+                  onToggleExpanded(node.id)
+                }}
+              >
+                <ChevronRight
+                  className={cn('size-3.5 transition-transform', isExpanded ? 'rotate-90' : null)}
+                />
+              </CollapsibleTrigger>
+            ) : (
+              <div
+                className={cn(
+                  'mt-0.5 flex shrink-0 items-center justify-center rounded-md bg-sidebar-accent/65 text-sidebar-foreground/60',
+                  isCompact ? 'size-4.5' : 'size-5'
+                )}
+              >
+                <Building2 className={cn(isCompact ? 'size-2.75' : 'size-3')} />
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>{formatEntityToken(node.entity_type)}</span>
-                <span>&#8226;</span>
-                <span>{getEntityClassLabel(node.entity_class)}</span>
+            )}
+
+            <button
+              type="button"
+              className="grid w-full min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 text-left outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              onClick={() => onEntitySelect(node.id)}
+            >
+              <span
+                className={cn(
+                  'block min-w-0 truncate font-medium',
+                  isCompact ? 'text-[0.95rem]' : 'text-sm',
+                  isSelected
+                    ? 'text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground'
+                )}
+              >
+                {node.display_name}
+              </span>
+
+              <div className="col-start-2 row-span-2 flex shrink-0 flex-col items-end gap-1 self-start">
+                <Badge
+                  variant={getEntityStatusVariant(node.status)}
+                  className={cn(isCompact ? 'h-4 px-1.5 text-[10px]' : null)}
+                >
+                  {formatEntityToken(node.status)}
+                </Badge>
+                {isSelected ? (
+                  <Badge
+                    variant="secondary"
+                    className={cn(isCompact ? 'h-4 px-1.5 text-[10px]' : null)}
+                  >
+                    Current
+                  </Badge>
+                ) : null}
+              </div>
+
+              <div
+                className={cn(
+                  'col-start-1 row-start-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]',
+                  isSelected
+                    ? 'text-sidebar-accent-foreground/75'
+                    : 'text-sidebar-foreground/70'
+                )}
+              >
+                <span className="shrink-0">{formatEntityToken(node.entity_type)}</span>
+                <span className="shrink-0">&#8226;</span>
+                <span className={cn(isCompact ? 'truncate' : null)}>
+                  {getEntityClassLabel(node.entity_class)}
+                </span>
                 {hasChildren ? (
                   <>
-                    <span>&#8226;</span>
-                    <span>
+                    <span className="shrink-0">&#8226;</span>
+                    <span className="shrink-0">
                       {node.children.length} child{node.children.length === 1 ? '' : 'ren'}
                     </span>
                   </>
                 ) : null}
               </div>
-            </div>
+            </button>
+          </div>
 
-            <div className="flex shrink-0 items-center">
-              <Badge variant={getEntityStatusVariant(node.status)}>
-                {formatEntityToken(node.status)}
-              </Badge>
-            </div>
-          </button>
+          {hasChildren ? (
+            <CollapsibleContent>
+              <SidebarMenuSub className="mt-0.5 mx-1.5 border-sidebar-border/70 px-1 py-0">
+                {node.children.map((childNode) => (
+                  <EntityTreeRow
+                    key={childNode.id}
+                    node={childNode}
+                    selectedEntityId={selectedEntityId}
+                    selectedPathIds={selectedPathIds}
+                    searchActive={searchActive}
+                    expandedIds={expandedIds}
+                    onEntitySelect={onEntitySelect}
+                    onToggleExpanded={onToggleExpanded}
+                    depth={depth + 1}
+                  />
+                ))}
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          ) : null}
         </div>
-
-        {hasChildren ? (
-          <CollapsibleContent className="ml-3 border-l border-border/50 pl-2.5">
-            <div className="space-y-0.5 pt-0.5">
-              {node.children.map((childNode) => (
-                <EntityTreeRow
-                  key={childNode.id}
-                  node={childNode}
-                  selectedEntityId={selectedEntityId}
-                  selectedPathIds={selectedPathIds}
-                  searchActive={searchActive}
-                  expandedIds={expandedIds}
-                  onEntitySelect={onEntitySelect}
-                  onToggleExpanded={onToggleExpanded}
-                />
-              ))}
-            </div>
-          </CollapsibleContent>
-        ) : null}
-      </div>
-    </Collapsible>
+      </Collapsible>
+    </RowWrapper>
   )
 }
 
@@ -228,169 +276,217 @@ export function EntityTreePanel({
   const autoExpandedIds = useMemo(() => collectExpandableIds(tree), [tree])
   const resolvedExpandedIds = searchActive ? autoExpandedIds : expandedIds
   const selectedPathIdsSet = useMemo(() => new Set(selectedPathIds), [selectedPathIds])
-  const rootSelectItems = useMemo(
-    () =>
-      rootOptions.map((rootOption) => ({
-        label: rootOption.display_name,
-        value: rootOption.id,
-      })),
-    [rootOptions]
+  const selectedRootOption = useMemo(
+    () => rootOptions.find((rootOption) => rootOption.id === selectedRootId) ?? null,
+    [rootOptions, selectedRootId]
   )
 
   return (
-    <Card className="flex min-h-0 flex-col border border-border/70 bg-card/90">
-      <CardHeader className="border-b border-border/60 px-4 py-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Hierarchy navigator</CardTitle>
-              <AppInfoPopover
-                label="Explain hierarchy navigator"
-                title="Hierarchy navigator"
-              >
-                Use the tree to move through one root scope at a time. Search only filters
-                the visible branch, and the current path stays expanded so you do not lose
-                context.
-              </AppInfoPopover>
-            </div>
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="border-b border-sidebar-border px-4 py-4">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">Hierarchy navigator</h2>
+            <AppInfoPopover
+              label="Explain hierarchy navigator"
+              title="Hierarchy navigator"
+            >
+              Use the tree to move through one root scope at a time. Search only filters
+              the visible branch, and the current path stays expanded so you do not lose
+              context.
+            </AppInfoPopover>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Badge variant="outline">{visibleCount} visible</Badge>
-            <Badge variant="outline">{totalCount} in scope</Badge>
-            <Badge variant="outline">
-              {canSwitchRoot ? 'Scope switch enabled' : 'Scope locked'}
+          <div className="no-scrollbar flex flex-nowrap items-center gap-1.5 overflow-x-auto">
+            <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] sm:h-5 sm:px-2 sm:text-xs">
+              {visibleCount} visible
             </Badge>
+            <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] sm:h-5 sm:px-2 sm:text-xs">
+              {totalCount} in scope
+            </Badge>
+            {!canSwitchRoot ? (
+              <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] sm:h-5 sm:px-2 sm:text-xs">
+                Scope locked
+              </Badge>
+            ) : null}
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-4">
-        <section className="space-y-3 rounded-xl border bg-muted/15 p-3">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="entities-root-scope" className="text-xs tracking-wide text-muted-foreground uppercase">
-                Root scope
-              </Label>
-              <AppInfoPopover
-                label="Explain root scope"
-                title="Root scope"
-              >
-                The entity workspace operates inside one root scope at a time. Superusers can
-                switch roots here, while scoped admins stay locked to their allowed branch.
-              </AppInfoPopover>
-            </div>
-            {canSwitchRoot ? (
-              <Select
-                items={rootSelectItems}
-                value={selectedRootId}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return
-                  }
-
-                  onRootChange(value)
-                }}
-              >
-                <SelectTrigger id="entities-root-scope" size="sm" className="w-full">
-                  <SelectValue placeholder="Select a root entity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rootSelectItems.map((entityOption) => (
-                    <SelectItem key={entityOption.value} value={entityOption.value}>
-                      <div className="flex flex-col items-start">
-                        <span>{entityOption.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="rounded-lg border bg-background px-3 py-2 text-sm">
-                <div className="font-medium text-foreground">
-                  {rootEntity?.display_name ?? 'No root scope assigned'}
-                </div>
-                {rootEntity ? (
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {formatEntityToken(rootEntity.entity_type)}
-                  </div>
-                ) : null}
+      <div className="border-b border-sidebar-border px-3 py-3">
+        <SidebarGroup className="gap-3 p-0">
+          <SidebarGroupContent className="space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label
+                  htmlFor="entities-root-scope"
+                  className="text-[11px] font-medium tracking-[0.18em] text-sidebar-foreground/65 uppercase"
+                >
+                  Root scope
+                </Label>
+                <AppInfoPopover
+                  label="Explain root scope"
+                  title="Root scope"
+                >
+                  The entity workspace operates inside one root scope at a time. Superusers can
+                  switch roots here, while scoped admins stay locked to their allowed branch.
+                </AppInfoPopover>
               </div>
-            )}
-          </div>
+              {canSwitchRoot ? (
+                <Combobox
+                  items={rootOptions}
+                  value={selectedRootOption}
+                  itemToStringLabel={(item) => item?.display_name ?? ''}
+                  itemToStringValue={(item) => item?.id ?? ''}
+                  filter={(item, query) => {
+                    if (!item) {
+                      return false
+                    }
 
-          <div className="space-y-2">
-            <Label htmlFor="entities-tree-search" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Search this hierarchy
-            </Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="entities-tree-search"
-                value={searchValue}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Search names, types, or descriptions"
-                className="h-8 pl-9"
-              />
-            </div>
-          </div>
-        </section>
+                    const normalizedQuery = query.trim().toLowerCase()
 
-        <div className="min-h-0 flex-1 overflow-auto pr-1">
-          {rootEntity ? (
-            tree.length > 0 ? (
-              <div className="space-y-1">
-                {tree.map((rootNode) => (
-                  <EntityTreeRow
-                    key={rootNode.id}
-                    node={rootNode}
-                    selectedEntityId={selectedEntityId}
-                    selectedPathIds={selectedPathIdsSet}
-                    searchActive={searchActive}
-                    expandedIds={resolvedExpandedIds}
-                    onEntitySelect={onEntitySelect}
-                    onToggleExpanded={(entityId) => {
-                      setExpandedIds((currentIds) => {
-                        const nextIds = new Set(currentIds)
+                    if (!normalizedQuery) {
+                      return true
+                    }
 
-                        if (nextIds.has(entityId)) {
-                          nextIds.delete(entityId)
-                        } else {
-                          nextIds.add(entityId)
-                        }
+                    const searchableText = [
+                      item.display_name,
+                      item.name,
+                      item.slug,
+                      item.entity_type,
+                      item.status,
+                      item.description ?? '',
+                    ]
+                      .join(' ')
+                      .toLowerCase()
 
-                        return nextIds
-                      })
-                    }}
+                    return searchableText.includes(normalizedQuery)
+                  }}
+                  onValueChange={(value) => {
+                    if (!value?.id) {
+                      return
+                    }
+
+                    onRootChange(value.id)
+                  }}
+                >
+                  <ComboboxInput
+                    id="entities-root-scope"
+                    placeholder="Search root scope"
+                    aria-label="Root scope"
+                    className="w-full"
                   />
-                ))}
-              </div>
-            ) : (
-              <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed px-5 py-10 text-center">
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-foreground">
-                    No entities matched this filter.
+                  <ComboboxContent align="start">
+                    <ComboboxEmpty>No root scopes found.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(option) => (
+                        <ComboboxItem key={option.id} value={option} className="items-start py-2.5">
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium">{option.display_name}</span>
+                              <Badge variant="outline">{formatEntityToken(option.entity_type)}</Badge>
+                            </div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="truncate">{option.name}</span>
+                              <span>&#8226;</span>
+                              <span>{formatEntityToken(option.status)}</span>
+                            </div>
+                          </div>
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              ) : (
+                <div className="rounded-lg border border-sidebar-border bg-background/90 px-3 py-2 text-sm">
+                  <div className="font-medium text-foreground">
+                    {rootEntity?.display_name ?? 'No root scope assigned'}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Clear the hierarchy search to see the full scope again.
-                  </p>
+                  {rootEntity ? (
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {formatEntityToken(rootEntity.entity_type)}
+                    </div>
+                  ) : null}
                 </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="entities-tree-search"
+                className="text-[11px] font-medium tracking-[0.18em] text-sidebar-foreground/65 uppercase"
+              >
+                Search this hierarchy
+              </Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-sidebar-foreground/55" />
+                <SidebarInput
+                  id="entities-tree-search"
+                  value={searchValue}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder="Search names, types, or descriptions"
+                  className="pl-9"
+                />
               </div>
-            )
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </div>
+
+      <SidebarContent className="px-2 py-2">
+        {rootEntity ? (
+          tree.length > 0 ? (
+            <SidebarMenu className="gap-1">
+              {tree.map((rootNode) => (
+                <EntityTreeRow
+                  key={rootNode.id}
+                  node={rootNode}
+                  selectedEntityId={selectedEntityId}
+                  selectedPathIds={selectedPathIdsSet}
+                  searchActive={searchActive}
+                  expandedIds={resolvedExpandedIds}
+                  onEntitySelect={onEntitySelect}
+                  onToggleExpanded={(entityId) => {
+                    setExpandedIds((currentIds) => {
+                      const nextIds = new Set(currentIds)
+
+                      if (nextIds.has(entityId)) {
+                        nextIds.delete(entityId)
+                      } else {
+                        nextIds.add(entityId)
+                      }
+
+                      return nextIds
+                    })
+                  }}
+                />
+              ))}
+            </SidebarMenu>
           ) : (
-            <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed px-5 py-10 text-center">
+            <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed border-sidebar-border px-5 py-10 text-center">
               <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">
-                  No entity scope is available yet.
+                <div className="text-sm font-medium text-sidebar-foreground">
+                  No entities matched this filter.
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Pick or create a root entity to start building the hierarchy.
+                <p className="text-sm text-sidebar-foreground/70">
+                  Clear the hierarchy search to see the full scope again.
                 </p>
               </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          )
+        ) : (
+          <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed border-sidebar-border px-5 py-10 text-center">
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-sidebar-foreground">
+                No entity scope is available yet.
+              </div>
+              <p className="text-sm text-sidebar-foreground/70">
+                Pick or create a root entity to start building the hierarchy.
+              </p>
+            </div>
+          </div>
+        )}
+      </SidebarContent>
+    </div>
   )
 }
