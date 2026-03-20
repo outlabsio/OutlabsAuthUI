@@ -199,6 +199,7 @@ export function PermissionsPage({
       <AppPage
         title="Permissions"
         hideTitle
+        className="min-h-0 flex-1"
         shellAction={
           canCreatePermissions ? (
             <Button
@@ -223,86 +224,82 @@ export function PermissionsPage({
             Your current session cannot read the permission catalog.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             <PermissionsFiltersBar
               search={search}
               resources={resources}
               tags={tags}
-              stats={{
-                total: filteredPermissions.length,
-                system: filteredPermissions.filter((permission) => permission.is_system).length,
-                custom: filteredPermissions.filter((permission) => !permission.is_system).length,
-                active: filteredPermissions.filter((permission) => permission.is_active).length,
-              }}
               onApply={onSearchChange}
               onReset={() => onSearchChange({})}
             />
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-              <PermissionsTable
-                permissions={filteredPermissions}
-                selectedPermissionId={selectedPermissionId}
-                isLoading={permissionsQuery.isPending}
-                isRefreshing={permissionsQuery.isFetching && !permissionsQuery.isPending}
-                hasActiveFilters={hasActiveFilters}
-                canReadRoles={canReadRoles}
-                roleCountsByPermissionName={roleCountsByPermissionName}
-                onPermissionSelect={onPermissionSelect}
-              />
+            <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <div className="min-h-0 min-w-0">
+                <PermissionsTable
+                  permissions={filteredPermissions}
+                  selectedPermissionId={selectedPermissionId}
+                  isLoading={permissionsQuery.isPending}
+                  isRefreshing={permissionsQuery.isFetching && !permissionsQuery.isPending}
+                  hasActiveFilters={hasActiveFilters}
+                  canReadRoles={canReadRoles}
+                  roleCountsByPermissionName={roleCountsByPermissionName}
+                  onPermissionSelect={onPermissionSelect}
+                />
+              </div>
 
-              <div className="space-y-4">
+              <div className="min-h-0 min-w-0">
                 {permissionDetailErrorMessage ? (
                   <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
                     {permissionDetailErrorMessage}
                   </div>
-                ) : null}
-
-                <PermissionDetailsPanel
-                  permission={activePermission}
-                  linkedRoles={linkedRoles}
-                  canReadRoles={canReadRoles}
-                  conditionGroups={conditionGroupsQuery.data ?? []}
-                  conditions={conditionsQuery.data ?? []}
-                  conditionGroupsLoading={conditionGroupsQuery.isPending}
-                  conditionsLoading={conditionsQuery.isPending}
-                  conditionGroupsErrorMessage={
-                    conditionGroupsQuery.error
-                      ? getApiErrorMessage(
-                          conditionGroupsQuery.error,
-                          'The permission condition groups could not be loaded.'
-                        )
-                      : undefined
-                  }
-                  conditionsErrorMessage={
-                    conditionsQuery.error
-                      ? getApiErrorMessage(
-                          conditionsQuery.error,
-                          'The permission conditions could not be loaded.'
-                        )
-                      : undefined
-                  }
-                  abacEnabled={abacEnabled}
-                  canUpdatePermissions={canUpdatePermissions}
-                  canDeletePermissions={canDeletePermissions}
-                  onEditPermission={() => {
-                    if (!activePermission) {
-                      return
+                ) : (
+                  <PermissionDetailsPanel
+                    permission={activePermission}
+                    linkedRoles={linkedRoles}
+                    canReadRoles={canReadRoles}
+                    conditionGroups={conditionGroupsQuery.data ?? []}
+                    conditions={conditionsQuery.data ?? []}
+                    conditionGroupsLoading={conditionGroupsQuery.isPending}
+                    conditionsLoading={conditionsQuery.isPending}
+                    conditionGroupsErrorMessage={
+                      conditionGroupsQuery.error
+                        ? getApiErrorMessage(
+                            conditionGroupsQuery.error,
+                            'The permission condition groups could not be loaded.'
+                          )
+                        : undefined
                     }
-
-                    setPermissionDialogState({
-                      open: true,
-                      mode: 'edit',
-                      permission: activePermission,
-                    })
-                  }}
-                  onDeletePermission={() => {
-                    if (!activePermission) {
-                      return
+                    conditionsErrorMessage={
+                      conditionsQuery.error
+                        ? getApiErrorMessage(
+                            conditionsQuery.error,
+                            'The permission conditions could not be loaded.'
+                          )
+                        : undefined
                     }
+                    abacEnabled={abacEnabled}
+                    canUpdatePermissions={canUpdatePermissions}
+                    canDeletePermissions={canDeletePermissions}
+                    onEditPermission={() => {
+                      if (!activePermission) {
+                        return
+                      }
 
-                    setDeleteDialogOpen(true)
-                  }}
-                />
+                      setPermissionDialogState({
+                        open: true,
+                        mode: 'edit',
+                        permission: activePermission,
+                      })
+                    }}
+                    onDeletePermission={() => {
+                      if (!activePermission) {
+                        return
+                      }
+
+                      setDeleteDialogOpen(true)
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

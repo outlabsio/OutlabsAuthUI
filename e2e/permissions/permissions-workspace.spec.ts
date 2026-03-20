@@ -73,10 +73,12 @@ test.describe('Permissions Workspace', () => {
     await page.getByRole('button', { name: 'Close' }).click()
 
     await openPermission(page, 'Lead Escalate After Hours')
+    await page.getByRole('tab', { name: 'Policy' }).click()
     await expect(
       page.getByText('Only allow emergency escalation for urgent, on-call workflows.')
     ).toBeVisible()
     await expect(page.getByText('Require an on-call session context.')).toBeVisible()
+    await page.getByRole('tab', { name: 'Usage' }).click()
     await expect(page.getByText('West Coast After Hours Override')).toBeVisible()
 
     await openPermission(page, 'Permission Read')
@@ -162,6 +164,7 @@ test.describe('Permissions Workspace', () => {
 
     await gotoPermissionsWorkspace(page)
     await openPermission(page, 'Lead Escalate After Hours')
+    await page.getByRole('tab', { name: 'Policy' }).click()
 
     try {
       await page.getByRole('button', { name: 'Add group' }).click()

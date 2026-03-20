@@ -51,15 +51,15 @@ function PermissionCatalogRow({
     <button
       type="button"
       className={cn(
-        'w-full rounded-2xl border px-4 py-4 text-left transition-colors',
+        'w-full min-w-0 rounded-2xl border px-4 py-4 text-left transition-colors',
         isSelected
           ? 'border-primary/25 bg-primary/6 shadow-sm'
           : 'border-border/70 bg-background/80 hover:bg-muted/20'
       )}
       onClick={() => onPermissionSelect(permission.id)}
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_minmax(0,0.75fr)]">
-        <div className="space-y-1.5">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_minmax(0,0.75fr)]">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-medium">{permission.display_name}</div>
             {isSelected ? <Badge variant="secondary">Selected</Badge> : null}
@@ -69,7 +69,7 @@ function PermissionCatalogRow({
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <div className="text-sm font-medium">{getPermissionActionLabel(permission)}</div>
           <div className="text-sm text-muted-foreground">
             {getPermissionResourceLabel(permission)}
@@ -77,7 +77,7 @@ function PermissionCatalogRow({
           <div className="text-xs text-muted-foreground">{getPermissionScopeLabel(permission)}</div>
         </div>
 
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap gap-2">
             {permission.is_system ? (
               <Badge variant="secondary">System</Badge>
@@ -98,7 +98,7 @@ function PermissionCatalogRow({
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           {visibleTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {visibleTags.map((tag) => (
@@ -201,11 +201,11 @@ export function PermissionsTable({
   }, [permissions, selectedPermissionId])
 
   return (
-    <Card className="flex min-h-0 flex-col overflow-hidden border border-border/70 bg-card/90">
+    <Card className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col gap-0 overflow-hidden border border-border/70 bg-card/90 pb-0 pt-4 ring-0">
       <CardHeader className="border-b border-border/60">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
           <CardTitle className="text-base">Permission catalog</CardTitle>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
               <span className={cn(groupedView ? 'text-muted-foreground' : 'text-foreground')}>
                 Flat
@@ -230,21 +230,21 @@ export function PermissionsTable({
         </div>
       </CardHeader>
 
-      <CardContent className="min-h-0 flex-1 p-0">
+      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0">
         {isLoading ? (
-          <div className="flex min-h-[28rem] items-center justify-center text-sm text-muted-foreground">
+          <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
             Loading permissions…
           </div>
         ) : permissions.length === 0 ? (
-          <div className="flex min-h-[28rem] flex-col items-center justify-center gap-2 p-6 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
             <p className="font-medium">No permissions matched these filters.</p>
             <p className="text-sm text-muted-foreground">Adjust or clear the current filters.</p>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-auto p-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 pb-0">
               {groupedView ? (
-                <div className="space-y-3">
+                <div className="min-w-0 space-y-3 pt-4">
                   {groupedPermissions.map((group) => {
                     const isExpanded = expandedResources.has(group.resource)
                     const selectedPermissionInGroup = group.permissions.find(
@@ -256,9 +256,9 @@ export function PermissionsTable({
 
                     return (
                       <Collapsible key={group.resource} open={isExpanded}>
-                        <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+                        <div className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/70">
                           <CollapsibleTrigger
-                            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/20"
+                            className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/20"
                             aria-label={`Toggle ${group.label} permission group`}
                             onClick={() => {
                               setExpandedResources((currentResources) => {
@@ -330,7 +330,7 @@ export function PermissionsTable({
                   })}
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="min-w-0 space-y-3 pt-4">
                   {permissions.map((permission) => (
                     <PermissionCatalogRow
                       key={permission.id}
@@ -343,13 +343,6 @@ export function PermissionsTable({
                   ))}
                 </div>
               )}
-            </div>
-            <div className="border-t px-4 py-4 text-sm text-muted-foreground">
-              {permissions.length} visible permission{permissions.length === 1 ? '' : 's'}
-              {groupedView
-                ? ` · ${groupedPermissions.length} prefix group${groupedPermissions.length === 1 ? '' : 's'}`
-                : ' · Flat list'}
-              {isRefreshing ? ' · Refreshing…' : ''}
             </div>
           </div>
         )}
