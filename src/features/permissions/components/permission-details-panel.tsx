@@ -82,7 +82,7 @@ type CompactMetricProps = {
 
 function DetailSection({ title, description, info, children }: DetailSectionProps) {
   return (
-    <Card className="border border-border/70 bg-card/90">
+    <Card className="border border-border/70 bg-card/90 ring-0">
       <CardHeader className="border-b border-border/60">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -112,9 +112,9 @@ function DetailField({ label, value }: DetailFieldProps) {
 
 function CompactMetric({ label, value }: CompactMetricProps) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5">
-      <span className="text-sm font-semibold text-foreground">{value}</span>
-      <span className="text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="inline-flex items-center gap-1.5 rounded-full border bg-background/80 px-2.5 py-1">
+      <span className="text-xs font-semibold text-foreground">{value}</span>
+      <span className="text-[0.65rem] font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </span>
     </div>
@@ -155,7 +155,7 @@ export function PermissionDetailsPanel({
 
   if (!permission) {
     return (
-      <Card className="flex h-full min-h-[40svh] items-center justify-center border border-dashed border-border/80 bg-card/80">
+      <Card className="flex h-full min-h-[40svh] items-center justify-center border border-dashed border-border/80 bg-card/80 ring-0">
         <CardContent className="max-w-xl space-y-4 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-accent text-accent-foreground">
             <KeyRound className="size-7" />
@@ -171,10 +171,10 @@ export function PermissionDetailsPanel({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
-      <Card className="shrink-0 border border-border/70 bg-linear-to-br from-primary/5 via-card to-accent/12">
-        <CardContent className="space-y-4 p-4">
+      <Card className="shrink-0 border border-border/70 bg-card/90 ring-0">
+        <CardContent className="space-y-3 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               <Badge variant="outline" className="gap-1.5">
                 <Fingerprint className="size-3.5" />
                 {permission.name}
@@ -210,16 +210,16 @@ export function PermissionDetailsPanel({
           </div>
 
           <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h2 className="truncate text-2xl font-semibold tracking-tight">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h2 className="truncate text-xl font-semibold tracking-tight">
                 {permission.display_name}
               </h2>
-              <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
+              <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
                 {permission.description || getPermissionBehaviorSummary(permission)}
               </p>
             </div>
 
-            <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 xl:max-w-[22rem] xl:justify-end">
               <CompactMetric label="Tags" value={previewTags.length} />
               <CompactMetric label="Linked roles" value={linkedRoles.length} />
               <CompactMetric label="ABAC rules" value={conditionGroups.length + conditions.length} />
@@ -249,44 +249,48 @@ export function PermissionDetailsPanel({
 
         <TabsContent value="definition" className="min-h-0 flex-1 overflow-auto pr-1 pt-1">
           <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-2">
-              <DetailSection
-                title="Permission identity"
-                info={{
-                  label: 'Explain permission identity',
-                  title: 'Permission identity',
-                  content:
-                    'These fields describe the capability atom itself: which resource it targets, which action it represents, and whether the name includes a scope suffix.',
-                }}
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailField label="Resource" value={getPermissionResourceLabel(permission)} />
-                  <DetailField label="Action" value={getPermissionActionLabel(permission)} />
-                  <DetailField label="Scope suffix" value={getPermissionScopeLabel(permission)} />
-                  <DetailField label="Lifecycle" value={getPermissionLifecycleLabel(permission)} />
-                </div>
-              </DetailSection>
+            <DetailSection
+              title="Permission identity"
+              info={{
+                label: 'Explain permission identity',
+                title: 'Permission identity',
+                content:
+                  'These fields describe the capability atom itself: which resource it targets, which action it represents, and whether the name includes a scope suffix.',
+              }}
+            >
+              <div className="space-y-3">
+                <DetailField label="Resource" value={getPermissionResourceLabel(permission)} />
+                <DetailField label="Action" value={getPermissionActionLabel(permission)} />
+                <DetailField label="Scope suffix" value={getPermissionScopeLabel(permission)} />
+                <DetailField label="Lifecycle" value={getPermissionLifecycleLabel(permission)} />
+              </div>
+            </DetailSection>
 
-              <DetailSection
-                title="Operational model"
-                info={{
-                  label: 'Explain operational model',
-                  title: 'Operational model',
-                  content:
-                    'Permissions define capability only. Roles decide where they apply, and ABAC can narrow them further at runtime.',
-                }}
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailField label="Behavior" value={getPermissionBehaviorSummary(permission)} />
-                  <DetailField label="Operational note" value={getPermissionOperationalSummary(permission)} />
-                  <DetailField label="System status" value={permission.is_system ? 'Protected' : 'Mutable custom permission'} />
-                  <DetailField
-                    label="Scope owner"
-                    value="Roles decide where this permission applies and whether it cascades."
-                  />
-                </div>
-              </DetailSection>
-            </div>
+            <DetailSection
+              title="Operational model"
+              info={{
+                label: 'Explain operational model',
+                title: 'Operational model',
+                content:
+                  'Permissions define capability only. Roles decide where they apply, and ABAC can narrow them further at runtime.',
+              }}
+            >
+              <div className="space-y-3">
+                <DetailField label="Behavior" value={getPermissionBehaviorSummary(permission)} />
+                <DetailField
+                  label="Operational note"
+                  value={getPermissionOperationalSummary(permission)}
+                />
+                <DetailField
+                  label="System status"
+                  value={permission.is_system ? 'Protected' : 'Mutable custom permission'}
+                />
+                <DetailField
+                  label="Scope owner"
+                  value="Roles decide where this permission applies and whether it cascades."
+                />
+              </div>
+            </DetailSection>
 
             <DetailSection
               title="Tags and auditability"
@@ -297,7 +301,7 @@ export function PermissionDetailsPanel({
                   'Tags help operators find related permissions quickly and make custom entries easier to review later.',
               }}
             >
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
                 <DetailField
                   label="Tags"
                   value={

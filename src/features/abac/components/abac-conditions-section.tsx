@@ -110,7 +110,7 @@ function DetailSection({
   children,
 }: DetailSectionProps) {
   return (
-    <Card className="border border-border/70 bg-card/90">
+    <Card className="border border-border/70 bg-card/90 ring-0">
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
@@ -673,7 +673,7 @@ export function AbacConditionsSection({
                 {conditionGroupsLoading ? <Badge variant="outline">Loading</Badge> : null}
               </div>
               {conditionGroups.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-3">
                   {conditionGroups.map((group) => (
                     <div key={group.id} className="rounded-2xl border bg-background/80 p-4">
                       <div className="flex items-start justify-between gap-3">
