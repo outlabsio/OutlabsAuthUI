@@ -130,6 +130,27 @@ test.describe('Roles Workspace', () => {
     ).toBeVisible()
     await expect(page.getByText('Owned by ACME Realty', { exact: true }).first()).toBeVisible()
 
+    await page.getByRole('button', { name: 'Edit role' }).click()
+    await expect(
+      page.getByText('Update the permissions and operational behavior for this role.')
+    ).toBeVisible()
+    const editForm = page
+      .locator('form')
+      .filter({
+        has: page.getByRole('button', { name: 'Save changes' }),
+      })
+      .first()
+    await expect(editForm).toBeVisible()
+    await selectBaseUiOption({
+      page,
+      container: editForm,
+      fieldLabel: 'Lifecycle',
+      optionName: 'Inactive',
+    })
+    await page.getByRole('button', { name: 'Save changes' }).click()
+
+    await expect(page.getByText('Inactive', { exact: true }).first()).toBeVisible()
+
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
     const deleteDialog = page.getByRole('dialog', { name: 'Delete role' })

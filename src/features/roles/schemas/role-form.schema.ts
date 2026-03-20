@@ -29,6 +29,7 @@ export const roleFormSchema = z
       .trim()
       .optional()
       .transform((value) => value || ''),
+    status: z.enum(['active', 'inactive']).default('active'),
     scope: z.enum(['hierarchy', 'entity_only']).default('hierarchy'),
     isAutoAssigned: z.boolean().default(false),
     assignableAtTypes: z.array(z.string()).default([]),

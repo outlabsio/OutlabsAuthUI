@@ -103,8 +103,9 @@ export function EntityMemberInviteDialog({
                 label="Explain entity invite flow"
                 title="Entity invite"
               >
-                This flow creates an invited user and attaches the first entity membership at the
-                same time. Optional initial roles apply only inside this entity context.
+                A usable email address is required. This flow creates an invited user and attaches
+                the first entity membership at the same time. Optional initial roles apply only
+                inside this entity context.
               </AppInfoPopover>
             </div>
           </DialogHeader>

@@ -30,7 +30,25 @@ export function getPermissionScopeLabel(permission: Permission) {
 }
 
 export function getPermissionLifecycleLabel(permission: Permission) {
-  return permission.is_active ? 'Active in the catalog' : 'Inactive and should not be assigned'
+  switch (permission.status) {
+    case 'active':
+      return 'Active in the catalog'
+    case 'inactive':
+      return 'Inactive and should not be assigned'
+    case 'archived':
+      return 'Archived and hidden from normal reads'
+  }
+}
+
+export function getPermissionStatusVariant(permission: Permission) {
+  switch (permission.status) {
+    case 'active':
+      return 'secondary'
+    case 'inactive':
+      return 'outline'
+    case 'archived':
+      return 'destructive'
+  }
 }
 
 export function getPermissionBehaviorSummary(permission: Permission) {
@@ -54,7 +72,7 @@ export function getPermissionOperationalSummary(permission: Permission) {
     return 'Protected system permission. Inspectable, but not editable or deletable.'
   }
 
-  return permission.is_active
+  return permission.status === 'active'
     ? 'Custom permission available for role composition.'
     : 'Custom permission retained for auditability, but currently inactive.'
 }
@@ -72,7 +90,9 @@ function matchesStatusFilter(permission: Permission, status: PermissionsPageSear
     return true
   }
 
-  return status === 'active' ? permission.is_active : !permission.is_active
+  return status === 'active'
+    ? permission.status === 'active'
+    : permission.status === 'inactive'
 }
 
 export function matchesPermissionsSearchFilters(
@@ -123,8 +143,8 @@ export function sortPermissionsForCatalog(permissions: Permission[]) {
       return left.is_system ? -1 : 1
     }
 
-    if (left.is_active !== right.is_active) {
-      return left.is_active ? -1 : 1
+    if (left.status !== right.status) {
+      return left.status === 'active' ? -1 : 1
     }
 
     return left.display_name.localeCompare(right.display_name)

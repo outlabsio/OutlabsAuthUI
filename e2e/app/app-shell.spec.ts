@@ -7,7 +7,10 @@ async function gotoDashboard(page: Page) {
 
   await expect(page).toHaveURL(/\/app\/dashboard$/)
   await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open Account workspace' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Open Users workspace' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open API Keys workspace' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open Settings workspace' })).toBeVisible()
 }
 
 async function openUserMenu(page: Page, email: string) {
@@ -28,7 +31,10 @@ test.describe('App Shell', () => {
     await expect(page.getByText('OutlabsAuth Console')).toHaveCount(0)
     await expect(page.getByText('Dashboard').first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Account workspace' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'API Keys', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Users', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Permissions', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Roles', exact: true })).toBeVisible()
@@ -38,6 +44,14 @@ test.describe('App Shell', () => {
     await expect(page.getByRole('button', { name: 'Invites' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Sessions' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Branding' })).toHaveCount(0)
+
+    await page.getByRole('link', { name: 'API Keys', exact: true }).click()
+    await expect(page).toHaveURL(/\/app\/api-keys$/)
+    await expect(page.getByRole('button', { name: 'Open API Keys guide' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page).toHaveURL(/\/app\/settings$/)
+    await expect(page.getByRole('button', { name: 'Open Settings guide' })).toBeVisible()
 
     await page.getByRole('link', { name: 'Users', exact: true }).click()
     await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)

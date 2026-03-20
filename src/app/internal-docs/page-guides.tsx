@@ -32,18 +32,24 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
     quickFacts: [
       { label: 'Best for', value: 'Orientation and navigation' },
       { label: 'Primary focus', value: 'Current auth workspace state' },
-      { label: 'Next step', value: 'Move into Users, Permissions, Roles, or Entities' },
+      {
+        label: 'Next step',
+        value: 'Move into Account, API Keys, Users, Permissions, Roles, Entities, or Settings',
+      },
     ],
     sections: [
       {
         title: 'What this console manages',
         description:
-          'The app is organized around four linked objects: users, permissions, roles, and entities.',
+          'The app is organized around linked self-service and admin surfaces for accounts, users, permissions, roles, entities, machine credentials, and backend settings.',
         bullets: [
+          'Account handles your own profile, password, and session-facing lifecycle details.',
+          'API keys manage machine access for the current account.',
           'Permissions define capabilities.',
           'Roles bundle permissions and decide where they apply.',
           'Entities provide hierarchy and assignment context.',
           'Users receive access through direct roles or entity memberships.',
+          'Settings expose backend-managed entity type defaults.',
         ],
       },
       {
@@ -55,11 +61,81 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
           'Check Roles when you need to understand scope, inheritance, or blast radius.',
           'Check Entities when the question depends on hierarchy or local assignment context.',
           'Check Users when you need to audit a person’s effective access.',
+          'Check API Keys for machine credentials and rotation history.',
+          'Check Settings when entity type defaults or root constraints are involved.',
         ],
       },
     ],
     footerNote:
       'Use the page guide for deep context and the small info icons for quick definitions without leaving your current flow.',
+  },
+  {
+    pathPrefix: '/app/account',
+    label: 'Account',
+    title: 'Account guide',
+    description:
+      'The Account workspace is the self-service surface for the currently signed-in user. Use it when you need to update your own identity fields, password, or verify whether a lockout is still active.',
+    quickFacts: [
+      { label: 'Best for', value: 'Self-service profile and password updates' },
+      { label: 'Primary focus', value: 'Current `/users/me` contract' },
+      { label: 'Watch for', value: 'Active lockout windows and password timestamps' },
+    ],
+    sections: [
+      {
+        title: 'What changes here',
+        description:
+          'This page only affects the currently authenticated user. It does not replace the broader admin user-detail flow.',
+        bullets: [
+          'Profile edits map to `PATCH /users/me`.',
+          'Password changes map to `POST /users/me/change-password`.',
+          'Lifecycle and session metadata comes from `GET /users/me`.',
+        ],
+      },
+      {
+        title: 'Operational reminders',
+        description:
+          'Self-service flows still follow the same backend lifecycle rules used elsewhere in the system.',
+        bullets: [
+          'A temporary lockout window blocks fresh login issuance until it expires.',
+          'Password changes update the audit trail and last-password-change timestamp.',
+          'Email changes still require a usable unique address under the retained-user model.',
+        ],
+      },
+    ],
+  },
+  {
+    pathPrefix: '/app/api-keys',
+    label: 'API Keys',
+    title: 'API Keys guide',
+    description:
+      'The API Keys workspace is for current-user machine credentials. Use it to create secrets, rotate them safely, and narrow where integrations can operate.',
+    quickFacts: [
+      { label: 'Best for', value: 'Machine credential management' },
+      { label: 'Primary focus', value: 'Lifecycle, scopes, and rotation' },
+      { label: 'Watch for', value: 'One-time secret reveal on create/rotate' },
+    ],
+    sections: [
+      {
+        title: 'Secret handling',
+        description:
+          'The backend only returns the full secret at creation and rotation time, so operational hygiene matters here.',
+        bullets: [
+          'Store the secret immediately after create or rotate.',
+          'Subsequent reads only expose the prefix and metadata.',
+          'Rotation replaces the old secret rather than revealing it again.',
+        ],
+      },
+      {
+        title: 'Safe scoping',
+        description:
+          'API keys can be narrowed with explicit scopes, optional IP restrictions, and optional entity restrictions.',
+        bullets: [
+          'Use scopes to limit the capability surface.',
+          'Use IP restrictions for trusted integration origins.',
+          'Use entity restrictions when a machine integration should only operate in one branch.',
+        ],
+      },
+    ],
   },
   {
     pathPrefix: '/app/users',
@@ -234,6 +310,40 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
           'Check the active root scope first.',
           'Review descendants before changing structure.',
           'Use the role availability panels to confirm what is assignable at this entity type.',
+        ],
+      },
+    ],
+  },
+  {
+    pathPrefix: '/app/settings',
+    label: 'Settings',
+    title: 'Settings guide',
+    description:
+      'The Settings workspace exposes backend-managed configuration that affects entity creation defaults and root constraints.',
+    quickFacts: [
+      { label: 'Best for', value: 'Entity type defaults' },
+      { label: 'Primary focus', value: 'Allowed roots and child-type baselines' },
+      { label: 'Write access', value: 'Superuser only' },
+    ],
+    sections: [
+      {
+        title: 'What this controls',
+        description:
+          'These settings shape the entity types operators can create and the suggested child types for new branches.',
+        bullets: [
+          'Allowed root types constrain which entity types can exist at the top of the tree.',
+          'Structural defaults seed normal hierarchy creation.',
+          'Access-group defaults seed authorization-oriented child branches.',
+        ],
+      },
+      {
+        title: 'Operational safety',
+        description:
+          'Small configuration changes can affect future entity creation across the whole backend.',
+        bullets: [
+          'Treat this as backend configuration, not feature-local UI state.',
+          'Read-only sessions can inspect the current config, but only superusers can save.',
+          'Normalize the preview before saving so the backend receives clean arrays.',
         ],
       },
     ],

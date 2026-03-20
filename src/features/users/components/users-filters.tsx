@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -40,6 +40,7 @@ const statusOptions: Array<{
   { label: 'Invited', value: 'invited' },
   { label: 'Suspended', value: 'suspended' },
   { label: 'Banned', value: 'banned' },
+  { label: 'Deleted', value: 'deleted' },
 ]
 
 const statusSelectItems = [
@@ -58,12 +59,6 @@ export function UsersFilters({
   const [search, setSearch] = useState(filters.search ?? '')
   const [status, setStatus] = useState<string>(filters.status ?? 'all')
   const [rootEntityId, setRootEntityId] = useState(filters.rootEntityId)
-
-  useEffect(() => {
-    setSearch(filters.search ?? '')
-    setStatus(filters.status ?? 'all')
-    setRootEntityId(filters.rootEntityId)
-  }, [filters.rootEntityId, filters.search, filters.status])
 
   const selectedEntity =
     entityOptions.find((option) => option.id === rootEntityId) ?? null

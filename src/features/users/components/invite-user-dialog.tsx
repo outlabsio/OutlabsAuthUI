@@ -131,9 +131,13 @@ export function InviteUserDialog({
     }
   }, [roleIds.length, showSelectedRolesOnly])
 
-  const availableRoles = contextAwareRoles
-    ? entityRolesQuery.data?.items ?? []
-    : genericRolesQuery.data?.items ?? []
+  const availableRoles = useMemo(
+    () =>
+      contextAwareRoles
+        ? entityRolesQuery.data?.items ?? []
+        : genericRolesQuery.data?.items ?? [],
+    [contextAwareRoles, entityRolesQuery.data?.items, genericRolesQuery.data?.items]
+  )
   const rolesError = contextAwareRoles ? entityRolesQuery.error : genericRolesQuery.error
   const rolesPending = contextAwareRoles
     ? Boolean(selectedEntity) && entityRolesQuery.isPending
@@ -168,8 +172,8 @@ export function InviteUserDialog({
                 label="Explain invite user flow"
                 title="Invite user"
               >
-                This flow creates the account invitation and can optionally attach an initial
-                entity membership with scoped roles.
+                A usable email address is required. This flow creates the account invitation and
+                can optionally attach an initial entity membership with scoped roles.
               </AppInfoPopover>
             </div>
           </DialogHeader>
@@ -242,7 +246,8 @@ export function InviteUserDialog({
                       title="Entity scope"
                     >
                       Choose an entity when the invited user should start with a scoped membership.
-                      Leave it empty only if the account should be invited first and assigned later.
+                      Leave it empty only if the account should be invited first and assigned
+                      later.
                     </AppInfoPopover>
                   </div>
 

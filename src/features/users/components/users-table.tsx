@@ -46,6 +46,8 @@ function getStatusVariant(status: string) {
     case 'suspended':
     case 'banned':
       return 'destructive'
+    case 'deleted':
+      return 'secondary'
     default:
       return 'outline'
   }
@@ -85,6 +87,10 @@ function getActivityNote(user: User) {
 
   if (user.status === 'banned') {
     return 'Access is blocked'
+  }
+
+  if (user.status === 'deleted') {
+    return `Deleted on ${formatDateTime(user.deleted_at, 'Unknown')}`
   }
 
   if (user.status === 'invited') {
@@ -184,6 +190,7 @@ export function UsersTable({
                         {user.is_superuser ? <Badge variant="outline">Superuser</Badge> : null}
                         {user.email_verified ? <Badge variant="outline">Verified</Badge> : null}
                         {user.locked_until ? <Badge variant="destructive">Locked</Badge> : null}
+                        {user.deleted_at ? <Badge variant="outline">Retained</Badge> : null}
                       </div>
                       <div className="text-sm text-muted-foreground">{getScopeLabel(user)}</div>
                     </div>

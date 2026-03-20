@@ -1,13 +1,6 @@
 import { useMemo } from 'react'
 
-import {
-  Layers3,
-  Orbit,
-  PencilLine,
-  ShieldCheck,
-  Trash2,
-  TreePine,
-} from 'lucide-react'
+import { Layers3, Orbit, PencilLine, ShieldCheck, Trash2, TreePine } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
@@ -30,8 +23,11 @@ import {
   getRoleAssignmentRuleLabel,
   getRoleBlastRadiusLabel,
   getRoleDefinitionLabel,
+  getRoleLifecycleSummary,
   getRoleOperationalSummary,
   getRoleScopeModeLabel,
+  getRoleStatusLabel,
+  getRoleStatusVariant,
   getRoleScopeSummary,
   getRoleType,
   getRoleTypeLabel,
@@ -109,23 +105,10 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   )
 }
 
-function getTypeIcon(role?: Role | null) {
-  switch (role ? getRoleType(role) : 'root') {
-    case 'global':
-      return Orbit
-    case 'entity':
-      return TreePine
-    case 'root':
-    default:
-      return Layers3
-  }
-}
-
 export function RoleDetailsPanel({
   role,
   conditions,
   conditionGroups,
-  isRoleLoading: _isRoleLoading,
   conditionsLoading,
   conditionGroupsLoading,
   conditionsErrorMessage,
@@ -136,7 +119,6 @@ export function RoleDetailsPanel({
   onEditRole,
   onDeleteRole,
 }: RoleDetailsPanelProps) {
-  const TypeIcon = getTypeIcon(role)
   const groupedPermissions = useMemo(
     () => groupPermissions(role?.permissions ?? []),
     [role?.permissions]
@@ -176,11 +158,20 @@ export function RoleDetailsPanel({
             <div className="min-w-0 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="gap-1.5">
-                  <TypeIcon className="size-3.5" />
+                  {getRoleType(role) === 'global' ? (
+                    <Orbit className="size-3.5" />
+                  ) : getRoleType(role) === 'entity' ? (
+                    <TreePine className="size-3.5" />
+                  ) : (
+                    <Layers3 className="size-3.5" />
+                  )}
                   {getRoleTypeLabel(role)}
                 </Badge>
                 {role.is_system_role ? <Badge variant="secondary">System role</Badge> : null}
                 {role.is_auto_assigned ? <Badge variant="outline">Auto-assigned</Badge> : null}
+                <Badge variant={getRoleStatusVariant(role.status)}>
+                  {getRoleStatusLabel(role.status)}
+                </Badge>
                 <Badge variant="outline">{role.permissions.length} permissions</Badge>
               </div>
 
@@ -201,6 +192,7 @@ export function RoleDetailsPanel({
                   label="ABAC rules"
                   value={String(conditionGroups.length + conditions.length)}
                 />
+                <MetricCard label="Lifecycle" value={getRoleStatusLabel(role.status)} />
               </div>
             </div>
 
@@ -232,10 +224,7 @@ export function RoleDetailsPanel({
             <DetailField label="Type" value={getRoleTypeLabel(role)} />
             <DetailField label="Defined at" value={getRoleDefinitionLabel(role)} />
             <DetailField label="Blast radius" value={getRoleBlastRadiusLabel(role)} />
-            <DetailField
-              label="System status"
-              value={role.is_system_role ? 'Protected system role' : 'Custom role'}
-            />
+            <DetailField label="Lifecycle" value={getRoleStatusLabel(role.status)} />
           </div>
         </DetailSection>
 
@@ -256,6 +245,28 @@ export function RoleDetailsPanel({
           </div>
         </DetailSection>
       </div>
+
+      <DetailSection
+        title="Lifecycle and safety"
+        description="Lifecycle status controls whether the retained definition can still grant or be assigned."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DetailField label="Definition status" value={getRoleStatusLabel(role.status)} />
+          <DetailField
+            label="System status"
+            value={role.is_system_role ? 'Protected system role' : 'Custom role'}
+          />
+          <DetailField label="Operational summary" value={getRoleLifecycleSummary(role)} />
+          <DetailField
+            label="Assignment posture"
+            value={
+              role.status === 'active'
+                ? 'Can be assigned when permissions allow.'
+                : 'Cannot be newly assigned while inactive.'
+            }
+          />
+        </div>
+      </DetailSection>
 
       <DetailSection
         title="Assignment rules"

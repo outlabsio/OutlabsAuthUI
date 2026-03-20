@@ -18,6 +18,8 @@ import {
   getRoleDefinitionLabel,
   getRoleOperationalSummary,
   getRoleScopeSummary,
+  getRoleStatusLabel,
+  getRoleStatusVariant,
   getRoleTypeDescription,
   getRoleTypeLabel,
   groupPermissions,
@@ -130,6 +132,9 @@ export function RolesTable({
                               {role.is_auto_assigned ? (
                                 <Badge variant="outline">Auto</Badge>
                               ) : null}
+                              <Badge variant={getRoleStatusVariant(role.status)}>
+                                {getRoleStatusLabel(role.status)}
+                              </Badge>
                             </div>
                             <div className="break-all font-mono text-xs text-muted-foreground">
                               {role.name}

@@ -16,6 +16,7 @@ import {
   getPermissionLifecycleLabel,
   getPermissionResourceLabel,
   getPermissionScopeLabel,
+  getPermissionStatusVariant,
 } from '@/features/permissions/utils/permissions-display'
 
 type PermissionsTableProps = {
@@ -132,8 +133,8 @@ export function PermissionsTable({
                               ) : (
                                 <Badge variant="outline">Custom</Badge>
                               )}
-                              <Badge variant={permission.is_active ? 'outline' : 'secondary'}>
-                                {permission.is_active ? 'Active' : 'Inactive'}
+                              <Badge variant={getPermissionStatusVariant(permission)}>
+                                {permission.status === 'active' ? 'Active' : 'Inactive'}
                               </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground">

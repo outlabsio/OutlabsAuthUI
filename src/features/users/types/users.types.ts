@@ -30,7 +30,12 @@ export type User = {
 
 export type UsersListResponse = PaginatedResponse<User>
 
-export type UserListStatusFilter = 'active' | 'invited' | 'suspended' | 'banned'
+export type UserListStatusFilter =
+  | 'active'
+  | 'invited'
+  | 'suspended'
+  | 'banned'
+  | 'deleted'
 
 export type UsersPageSearch = {
   page: number
@@ -90,6 +95,10 @@ export type DeleteUserInput = {
   userId: string
 }
 
+export type RestoreUserInput = {
+  userId: string
+}
+
 export type UserRoleAssignment = {
   id: string
   user_id: string
@@ -119,6 +128,7 @@ export type UserPermission = {
   action?: string | null
   scope?: string | null
   is_system: boolean
+  status: 'active' | 'inactive' | 'archived'
   is_active: boolean
   tags: string[]
   metadata: Record<string, unknown>
@@ -129,4 +139,71 @@ export type UserPermissionSource = {
   source: string
   source_id?: string | null
   source_name?: string | null
+}
+
+export type UserAuditEvent = {
+  id: string
+  occurred_at: string
+  event_category: string
+  event_type: string
+  event_source: string
+  actor_user_id?: string | null
+  subject_user_id?: string | null
+  subject_email_snapshot: string
+  root_entity_id?: string | null
+  entity_id?: string | null
+  role_id?: string | null
+  request_id?: string | null
+  ip_address?: string | null
+  user_agent?: string | null
+  reason?: string | null
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+}
+
+export type UserAuditEventsResponse = PaginatedResponse<UserAuditEvent>
+
+export type GetUserAuditEventsParams = {
+  page?: number
+  limit?: number
+  category?: string
+  eventType?: string
+  entityId?: string
+}
+
+export type UserMembershipHistoryEvent = {
+  id: string
+  membership_id: string
+  user_id: string
+  entity_id: string
+  root_entity_id?: string | null
+  actor_user_id?: string | null
+  event_type: string
+  event_source: string
+  event_at: string
+  reason?: string | null
+  status: string
+  previous_status?: string | null
+  valid_from?: string | null
+  valid_until?: string | null
+  previous_valid_from?: string | null
+  previous_valid_until?: string | null
+  role_ids: string[]
+  previous_role_ids: string[]
+  role_names: string[]
+  previous_role_names: string[]
+  entity_display_name?: string | null
+  entity_path: string[]
+  root_entity_name?: string | null
+}
+
+export type UserMembershipHistoryResponse =
+  PaginatedResponse<UserMembershipHistoryEvent>
+
+export type GetUserMembershipHistoryParams = {
+  page?: number
+  limit?: number
+  entityId?: string
+  eventType?: string
 }

@@ -11,6 +11,7 @@ export type RoleUsageFilter = 'all' | 'auto' | 'manual'
 export type RoleSystemFilter = 'all' | 'system' | 'custom'
 export type RoleTypeFilter = 'all' | RoleType
 export type RoleScopeFilter = 'all' | RoleScopeMode
+export type RoleDefinitionStatus = 'active' | 'inactive' | 'archived'
 
 export type Role = {
   id: string
@@ -20,6 +21,7 @@ export type Role = {
   permissions: string[]
   is_system_role: boolean
   is_global: boolean
+  status: RoleDefinitionStatus
   root_entity_id?: string | null
   root_entity_name?: string | null
   assignable_at_types: string[]
@@ -55,6 +57,7 @@ export type CreateRoleInput = {
   description?: string
   permissions: string[]
   is_global: boolean
+  status?: Exclude<RoleDefinitionStatus, 'archived'>
   root_entity_id?: string
   scope_entity_id?: string
   scope: RoleScopeMode
@@ -68,6 +71,7 @@ export type UpdateRoleInput = {
   description?: string
   permissions?: string[]
   is_global?: boolean
+  status?: Exclude<RoleDefinitionStatus, 'archived'>
   scope?: RoleScopeMode
   is_auto_assigned?: boolean
   assignable_at_types?: string[]

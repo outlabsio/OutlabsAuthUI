@@ -52,6 +52,7 @@ function getRoleFormValues(role: Role): RoleFormValues {
     description: role.description ?? '',
     rootEntityId: role.root_entity_id ?? '',
     scopeEntityId: role.scope_entity_id ?? '',
+    status: role.status === 'inactive' ? 'inactive' : 'active',
     scope: role.scope,
     isAutoAssigned: role.is_auto_assigned,
     assignableAtTypes: role.assignable_at_types,
@@ -91,7 +92,7 @@ export function RoleEditForm({
     setShowSelectedPermissionsOnly(false)
     setVisiblePermissionCount(permissionOptions.length)
     updateRoleMutation.reset()
-  }, [form, permissionOptions.length, role, updateRoleMutation])
+  }, [form, permissionOptions.length, role.id])
 
   useEffect(() => {
     if (selectedPermissionNames.length > 0 || !showSelectedPermissionsOnly) {
@@ -114,6 +115,7 @@ export function RoleEditForm({
         description: values.description || undefined,
         permissions: values.permissionNames,
         is_global: roleType === 'global',
+        status: values.status,
         scope: roleType === 'entity' ? values.scope : undefined,
         is_auto_assigned: roleType === 'entity' ? values.isAutoAssigned : undefined,
         assignable_at_types: roleType === 'entity' ? values.assignableAtTypes : undefined,
@@ -166,34 +168,66 @@ export function RoleEditForm({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role-description">How should admins use this role?</Label>
-                  <Textarea
-                    id="role-description"
-                    rows={4}
-                    disabled={isPending}
-                    placeholder="Describe when this role should be assigned and what operational responsibility it carries."
-                    {...form.register('description')}
-                  />
-                  <FieldError errors={[form.formState.errors.description]} />
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="role-description">How should admins use this role?</Label>
+                    <Textarea
+                      id="role-description"
+                      rows={4}
+                      disabled={isPending}
+                      placeholder="Describe when this role should be assigned and what operational responsibility it carries."
+                      {...form.register('description')}
+                    />
+                    <FieldError errors={[form.formState.errors.description]} />
+                  </div>
 
-            <Card className="border border-border/70 bg-background/70">
-              <CardHeader className="border-b border-border/60">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm">Scope and ownership</CardTitle>
-                  <AppInfoPopover
-                    label="Explain immutable role fields"
-                    title="Scope and ownership"
-                  >
-                    Role type, owning root, and defining entity are fixed after creation. Only the
-                    editable operational settings remain here.
-                  </AppInfoPopover>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-3 p-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Lifecycle</Label>
+                    <Controller
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={(nextValue) => {
+                            form.setValue(
+                              'status',
+                              nextValue as RoleFormValues['status'],
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              }
+                            )
+                          }}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select lifecycle status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/70 bg-background/70">
+                <CardHeader className="border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm">Scope and ownership</CardTitle>
+                    <AppInfoPopover
+                      label="Explain immutable role fields"
+                      title="Scope and ownership"
+                    >
+                      Role type, owning root, and defining entity are fixed after creation. Only
+                      the editable operational settings remain here.
+                    </AppInfoPopover>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-3 p-4 sm:grid-cols-2">
                 <div className="rounded-2xl border bg-muted/20 px-4 py-3">
                   <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     Role type
@@ -314,7 +348,7 @@ export function RoleEditForm({
                                 checked={checked}
                                 disabled={isPending}
                                 onCheckedChange={(nextChecked) => {
-                                  const nextTypes = Boolean(nextChecked)
+                                  const nextTypes = nextChecked === true
                                     ? [...assignableAtTypes, entityType]
                                     : assignableAtTypes.filter((value) => value !== entityType)
 

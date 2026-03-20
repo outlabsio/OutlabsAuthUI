@@ -78,6 +78,7 @@ export function DeleteUserDialog({
               await deleteUserMutation.mutateAsync({
                 userId,
               });
+              onOpenChange(false)
               onDeleted();
             } catch {
               return;

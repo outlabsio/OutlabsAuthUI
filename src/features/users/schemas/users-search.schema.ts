@@ -7,6 +7,7 @@ export const userStatusFilterSchema = z.enum([
   'invited',
   'suspended',
   'banned',
+  'deleted',
 ])
 
 export const usersSearchSchema = z.object({

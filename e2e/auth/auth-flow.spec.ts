@@ -44,7 +44,9 @@ test.describe('Auth Flow', () => {
     await signIn(page, authPersonas.admin.email, 'Wrongpass1!')
 
     await expect(page).toHaveURL(/\/auth\/login$/)
-    await expect(page.getByText(/Unable to sign in|Invalid credentials/i)).toBeVisible()
+    await expect(
+      page.getByText(/Unable to sign in|Invalid credentials|Invalid email or password/i)
+    ).toBeVisible()
   })
 
   test('successful sign-in lands on the dashboard', async ({ page }) => {

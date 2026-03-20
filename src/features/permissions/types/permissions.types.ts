@@ -6,6 +6,7 @@ import type {
 
 export type PermissionSystemFilter = 'all' | 'system' | 'custom'
 export type PermissionStatusFilter = 'all' | 'active' | 'inactive'
+export type PermissionDefinitionStatus = 'active' | 'inactive' | 'archived'
 
 export type Permission = {
   id: string
@@ -16,8 +17,10 @@ export type Permission = {
   action?: string | null
   scope?: string | null
   is_system: boolean
+  status: PermissionDefinitionStatus
   is_active: boolean
   tags: string[]
+  metadata: Record<string, unknown>
 }
 
 export type GetPermissionsParams = {
@@ -41,7 +44,7 @@ export type CreatePermissionInput = {
   display_name: string
   description?: string
   is_system?: boolean
-  is_active?: boolean
+  status?: Exclude<PermissionDefinitionStatus, 'archived'>
   tags?: string[]
 }
 
@@ -49,7 +52,7 @@ export type UpdatePermissionInput = {
   permissionId: string
   display_name?: string
   description?: string
-  is_active?: boolean
+  status?: Exclude<PermissionDefinitionStatus, 'archived'>
   tags?: string[]
 }
 

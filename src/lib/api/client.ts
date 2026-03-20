@@ -190,6 +190,12 @@ export const apiClient = {
       method: 'POST',
     })
   },
+  put<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
+    return request<T>(path, {
+      ...options,
+      method: 'PUT',
+    })
+  },
   patch<T>(path: string, options?: Omit<ApiRequestOptions, 'method'>) {
     return request<T>(path, {
       ...options,

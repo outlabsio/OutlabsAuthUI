@@ -1,5 +1,6 @@
 import type {
   Role,
+  RoleDefinitionStatus,
   RoleScopeMode,
   RoleSystemFilter,
   RoleType,
@@ -144,6 +145,39 @@ export function getRoleScopeModeLabel(scope: RoleScopeMode) {
   return scope === 'entity_only' ? 'Entity only' : 'Hierarchy'
 }
 
+export function getRoleStatusLabel(status: RoleDefinitionStatus) {
+  switch (status) {
+    case 'active':
+      return 'Active'
+    case 'inactive':
+      return 'Inactive'
+    case 'archived':
+      return 'Archived'
+  }
+}
+
+export function getRoleStatusVariant(status: RoleDefinitionStatus) {
+  switch (status) {
+    case 'active':
+      return 'secondary'
+    case 'inactive':
+      return 'outline'
+    case 'archived':
+      return 'destructive'
+  }
+}
+
+export function getRoleLifecycleSummary(role: Role) {
+  switch (role.status) {
+    case 'active':
+      return 'This role can be assigned and can still grant permissions.'
+    case 'inactive':
+      return 'This retained role stays visible for admin review, but it cannot be assigned or grant permissions.'
+    case 'archived':
+      return 'This retained role is archived and hidden from normal reads.'
+  }
+}
+
 export function groupPermissions(permissionNames: string[]) {
   const groupedPermissions = new Map<string, string[]>()
 
@@ -237,6 +271,10 @@ export function sortRolesForCatalog(roles: Role[]) {
   return [...roles].sort((left, right) => {
     if (left.is_system_role !== right.is_system_role) {
       return left.is_system_role ? -1 : 1
+    }
+
+    if (left.status !== right.status) {
+      return left.status === 'active' ? -1 : 1
     }
 
     if (left.is_auto_assigned !== right.is_auto_assigned) {

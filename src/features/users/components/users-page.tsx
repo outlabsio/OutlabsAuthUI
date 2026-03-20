@@ -62,6 +62,7 @@ export function UsersPage({
   const invitedUsers = users.filter((user) => user.status === 'invited').length
   const adminUsers = users.filter((user) => user.is_superuser).length
   const verifiedUsers = users.filter((user) => user.email_verified).length
+  const filtersKey = `${filters.search ?? ''}:${filters.status ?? ''}:${filters.rootEntityId ?? ''}`
   const shellAction = canInviteUsers ? (
     <Button type="button" className="shrink-0" onClick={() => setIsInviteDialogOpen(true)}>
       <UserPlus className="size-4" />
@@ -95,6 +96,7 @@ export function UsersPage({
             </div>
             <div className="min-w-0 flex-1 rounded-xl border bg-card/70 px-3 py-2.5">
               <UsersFilters
+                key={filtersKey}
                 filters={filters}
                 entityOptions={entityOptions}
                 showStatusFilter={showStatusFilter}

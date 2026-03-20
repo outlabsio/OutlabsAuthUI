@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
 import { loginSchema } from '@/features/auth/schemas/login.schema'
 import type { LoginCredentials } from '@/features/auth/types/auth.types'
-import { getApiErrorMessage } from '@/lib/api/errors'
+import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { routes } from '@/lib/constants/routes'
 import { cn } from '@/lib/utils/cn'
 
@@ -37,7 +37,7 @@ export function LoginPage({ className }: LoginPageProps) {
   })
 
   const submitError = loginMutation.error
-    ? getApiErrorMessage(loginMutation.error, 'Unable to sign in.')
+    ? getAuthErrorMessage(loginMutation.error, 'Unable to sign in.')
     : null
 
   const emailField = form.register('email')
@@ -67,7 +67,7 @@ export function LoginPage({ className }: LoginPageProps) {
                 </p>
                 <h1 className="text-2xl font-bold">Welcome back</h1>
                 <p className="text-balance text-muted-foreground">
-                  Sign in against the local EnterpriseRBAC example to preview the auth console.
+                  Sign in against the local OutlabsAuth backend to access the admin console.
                 </p>
               </div>
               <Field>
@@ -132,7 +132,7 @@ export function LoginPage({ className }: LoginPageProps) {
                 Local preview
               </FieldSeparator>
               <FieldDescription className="text-center">
-                Use <code>admin@acme.com</code> / <code>Testpass1!</code> for the Enterprise preview API.
+                Use <code>admin@acme.com</code> / <code>Testpass1!</code> for the seeded local backend.
               </FieldDescription>
             </FieldGroup>
           </form>
@@ -141,13 +141,13 @@ export function LoginPage({ className }: LoginPageProps) {
               <div className="flex h-full flex-col justify-between rounded-xl border bg-background p-6 text-foreground shadow-sm">
                 <div className="space-y-3">
                   <p className="text-xs font-semibold tracking-[0.24em] uppercase text-muted-foreground">
-                    Preview build
+                    External admin UI
                   </p>
                   <h2 className="text-2xl font-semibold">
-                    Agnostic auth frontend for OutlabsAuth.
+                    External admin frontend for OutlabsAuth.
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    This screen now targets the live login and current-user endpoints from the local EnterpriseRBAC example API.
+                    This screen targets the live login and current-user endpoints from the sibling OutlabsAuth backend repository.
                   </p>
                 </div>
                 <div className="grid gap-3">

@@ -82,6 +82,17 @@ const roleTypeOptions: Array<{
   },
 ]
 
+const roleStatusOptions = [
+  {
+    label: 'Active',
+    value: 'active',
+  },
+  {
+    label: 'Inactive',
+    value: 'inactive',
+  },
+] as const
+
 function slugifyRoleName(value: string) {
   return value
     .trim()
@@ -115,6 +126,7 @@ function getDefaultCreateValues(
     description: '',
     rootEntityId: createContext?.rootEntityId ?? '',
     scopeEntityId: createContext?.scopeEntityId ?? '',
+    status: 'active',
     scope: 'hierarchy',
     isAutoAssigned: false,
     assignableAtTypes: [],
@@ -138,6 +150,7 @@ function getDefaultValues(
     description: role.description ?? '',
     rootEntityId: role.root_entity_id ?? '',
     scopeEntityId: role.scope_entity_id ?? '',
+    status: role.status === 'inactive' ? 'inactive' : 'active',
     scope: role.scope,
     isAutoAssigned: role.is_auto_assigned,
     assignableAtTypes: role.assignable_at_types,
@@ -283,6 +296,7 @@ export function RoleFormDialog({
               description: values.description || undefined,
               permissions: values.permissionNames,
               is_global: values.roleType === 'global',
+              status: values.status,
               root_entity_id:
                 values.roleType === 'root'
                   ? values.rootEntityId || undefined
@@ -303,6 +317,7 @@ export function RoleFormDialog({
               description: values.description || undefined,
               permissions: values.permissionNames,
               is_global: roleType === 'global',
+              status: values.status,
               scope: roleType === 'entity' ? values.scope : undefined,
               is_auto_assigned:
                 roleType === 'entity' ? values.isAutoAssigned : undefined,
@@ -446,6 +461,41 @@ export function RoleFormDialog({
                       {...form.register('description')}
                     />
                     <FieldError errors={[form.formState.errors.description]} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Lifecycle</Label>
+                    <Controller
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={(nextValue) => {
+                            form.setValue(
+                              'status',
+                              nextValue as RoleFormValues['status'],
+                              {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              }
+                            )
+                          }}
+                          disabled={isPending || isEditingSystemRole}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select lifecycle status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roleStatusOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
                 </div>
 
@@ -707,7 +757,7 @@ export function RoleFormDialog({
                                 checked={checked}
                                 disabled={isPending || isEditingSystemRole}
                                 onCheckedChange={(nextChecked) => {
-                                  const nextTypes = Boolean(nextChecked)
+                                  const nextTypes = nextChecked === true
                                     ? [...assignableAtTypes, entityType]
                                     : assignableAtTypes.filter((value) => value !== entityType)
 

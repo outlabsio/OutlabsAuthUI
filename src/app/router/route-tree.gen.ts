@@ -17,10 +17,13 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthAcceptInviteRouteImport } from './routes/auth/accept-invite'
 import { Route as AppUsersRouteImport } from './routes/app/users'
+import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppRolesRouteImport } from './routes/app/roles'
 import { Route as AppPermissionsRouteImport } from './routes/app/permissions'
 import { Route as AppEntitiesRouteImport } from './routes/app/entities'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
+import { Route as AppApiKeysRouteImport } from './routes/app/api-keys'
+import { Route as AppAccountRouteImport } from './routes/app/account'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
 import { Route as AppRolesIndexRouteImport } from './routes/app/roles.index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions.index'
@@ -70,6 +73,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRolesRoute = AppRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -88,6 +96,16 @@ const AppEntitiesRoute = AppEntitiesRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApiKeysRoute = AppApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
@@ -136,10 +154,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/app/account': typeof AppAccountRoute
+  '/app/api-keys': typeof AppApiKeysRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
+  '/app/settings': typeof AppSettingsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -158,7 +179,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/app/account': typeof AppAccountRoute
+  '/app/api-keys': typeof AppApiKeysRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/settings': typeof AppSettingsRoute
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -177,10 +201,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/app/account': typeof AppAccountRoute
+  '/app/api-keys': typeof AppApiKeysRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/permissions': typeof AppPermissionsRouteWithChildren
   '/app/roles': typeof AppRolesRouteWithChildren
+  '/app/settings': typeof AppSettingsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -201,10 +228,13 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/app/account'
+    | '/app/api-keys'
     | '/app/dashboard'
     | '/app/entities'
     | '/app/permissions'
     | '/app/roles'
+    | '/app/settings'
     | '/app/users'
     | '/auth/accept-invite'
     | '/auth/forgot-password'
@@ -223,7 +253,10 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/app/account'
+    | '/app/api-keys'
     | '/app/dashboard'
+    | '/app/settings'
     | '/auth/accept-invite'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -241,10 +274,13 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/app/account'
+    | '/app/api-keys'
     | '/app/dashboard'
     | '/app/entities'
     | '/app/permissions'
     | '/app/roles'
+    | '/app/settings'
     | '/app/users'
     | '/auth/accept-invite'
     | '/auth/forgot-password'
@@ -324,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/roles': {
       id: '/app/roles'
       path: '/roles'
@@ -350,6 +393,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/api-keys': {
+      id: '/app/api-keys'
+      path: '/api-keys'
+      fullPath: '/app/api-keys'
+      preLoaderRoute: typeof AppApiKeysRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/account': {
+      id: '/app/account'
+      path: '/account'
+      fullPath: '/app/account'
+      preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/users/': {
@@ -468,18 +525,24 @@ const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
+  AppApiKeysRoute: typeof AppApiKeysRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntitiesRoute: typeof AppEntitiesRouteWithChildren
   AppPermissionsRoute: typeof AppPermissionsRouteWithChildren
   AppRolesRoute: typeof AppRolesRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRoute
   AppUsersRoute: typeof AppUsersRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
+  AppApiKeysRoute: AppApiKeysRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEntitiesRoute: AppEntitiesRouteWithChildren,
   AppPermissionsRoute: AppPermissionsRouteWithChildren,
   AppRolesRoute: AppRolesRouteWithChildren,
+  AppSettingsRoute: AppSettingsRoute,
   AppUsersRoute: AppUsersRouteWithChildren,
 }
 

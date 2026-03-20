@@ -2,11 +2,20 @@ import type { Locator } from '@playwright/test'
 
 import { expect } from '@playwright/test'
 
-const selectAllShortcut = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+function escapeForRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
-function getTextboxByLabel(container: Locator, label: string | RegExp) {
-  if (typeof label === 'string') {
-    return container.getByRole('textbox', { name: label })
+async function getTextboxByLabel(container: Locator, label: string | RegExp) {
+  const labelPattern =
+    typeof label === 'string'
+      ? new RegExp(`^${escapeForRegex(label)}$`)
+      : label
+  const labelElement = container.locator('label').filter({ hasText: labelPattern }).first()
+  const htmlFor = await labelElement.getAttribute('for')
+
+  if (htmlFor) {
+    return container.page().locator(`#${htmlFor}`)
   }
 
   return container.getByRole('textbox', { name: label })
@@ -19,38 +28,7 @@ export async function typeIntoBaseUiTextbox(control: Locator, value: string) {
     try {
       await expect(control).toBeVisible()
       await control.click()
-      const currentValue = await control.inputValue()
-
-      if (currentValue.length > 0) {
-        await control.selectText()
-        await control.press('Backspace')
-
-        const clearedValue = await control.inputValue()
-        if (clearedValue.length > 0) {
-          await control.press(selectAllShortcut)
-          await control.press('Backspace')
-        }
-      }
-
-      await control.type(value)
-
-      const nextValue = await control.inputValue()
-
-      if (nextValue === value) {
-        return
-      }
-
-      const firstCharacterDropped =
-        value.length === 1 ? nextValue === '' : nextValue === value.slice(1)
-
-      if (firstCharacterDropped && value.length > 0) {
-        await control.selectText()
-        await control.press('Backspace')
-        await control.type(`${value[0]}${value}`)
-        await expect(control).toHaveValue(value, { timeout: 1_500 })
-        return
-      }
-
+      await control.fill(value)
       await expect(control).toHaveValue(value, { timeout: 1_500 })
       return
     } catch (error) {
@@ -66,7 +44,7 @@ export async function typeIntoBaseUiField(
   label: string | RegExp,
   value: string
 ) {
-  const control = getTextboxByLabel(container, label)
+  const control = await getTextboxByLabel(container, label)
 
   await typeIntoBaseUiTextbox(control, value)
 

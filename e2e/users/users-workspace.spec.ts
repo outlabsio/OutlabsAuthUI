@@ -31,6 +31,21 @@ async function openUserDetails(page: Page, email: string) {
   await expect(page.getByText(email, { exact: true }).first()).toBeVisible()
 }
 
+async function openUserAccessTab(page: Page) {
+  await page.getByRole('tab', { name: 'Memberships and access' }).click()
+  await expect(page.getByRole('heading', { name: 'Entity memberships' })).toBeVisible()
+}
+
+async function openUserHistoryTab(page: Page) {
+  await page.getByRole('tab', { name: 'History' }).click()
+  await expect(page.getByRole('heading', { name: 'Audit timeline' })).toBeVisible()
+}
+
+async function openUserMainDetailsTab(page: Page) {
+  await page.getByRole('tab', { name: 'Main details' }).click()
+  await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+}
+
 async function getAdminAccessToken() {
   const response = await fetch(`${e2eApiBaseURL}/v1/auth/login`, {
     method: 'POST',
@@ -77,6 +92,77 @@ async function createTemporaryDirectRole() {
   }
 
   return (await response.json()) as { display_name: string }
+}
+
+async function createTemporaryUserWithMembership() {
+  const accessToken = await getAdminAccessToken()
+  const timestamp = Date.now()
+  const email = `playwright-retained-user-${timestamp}@example.com`
+
+  const createUserResponse = await fetch(`${e2eApiBaseURL}/v1/users/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      email,
+      password: 'PlaywrightPass123!',
+      first_name: 'Playwright',
+      last_name: 'Retained',
+    }),
+  })
+
+  if (!createUserResponse.ok) {
+    throw new Error(`Unable to create temporary user fixture: ${createUserResponse.status}`)
+  }
+
+  const user = (await createUserResponse.json()) as { id: string; email: string }
+
+  const entitiesResponse = await fetch(
+    `${e2eApiBaseURL}/v1/entities/?page=1&limit=200&search=SF%20Residential%20Team`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  if (!entitiesResponse.ok) {
+    throw new Error(`Unable to load entity fixture data: ${entitiesResponse.status}`)
+  }
+
+  const entitiesPayload = (await entitiesResponse.json()) as {
+    items: Array<{ id: string; display_name: string }>
+  }
+  const teamEntity = entitiesPayload.items.find(
+    (entity) => entity.display_name === 'SF Residential Team'
+  )
+
+  if (!teamEntity) {
+    throw new Error('Unable to find the SF Residential Team fixture entity.')
+  }
+
+  const membershipResponse = await fetch(`${e2eApiBaseURL}/v1/memberships/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      entity_id: teamEntity.id,
+      user_id: user.id,
+      role_ids: [],
+    }),
+  })
+
+  if (!membershipResponse.ok) {
+    throw new Error(
+      `Unable to create temporary membership fixture: ${membershipResponse.status}`
+    )
+  }
+
+  return user
 }
 
 function getDirectRoleCardByStatus(page: Page, roleName: string, status: string) {
@@ -189,6 +275,7 @@ test.describe('Users Workspace', () => {
 
     await gotoUsersWorkspace(page)
     await openUserDetails(page, 'commercial@sf.acme.com')
+    await openUserAccessTab(page)
 
     await page.getByRole('button', { name: 'Assign direct role' }).click()
 
@@ -212,6 +299,105 @@ test.describe('Users Workspace', () => {
     await expect(getDirectRoleCardByStatus(page, roleName, 'Revoked')).toBeVisible()
   })
 
+  test('admin can retained-delete a user, review lifecycle history, and restore identity-only', async ({
+    page,
+  }) => {
+    const temporaryUser = await createTemporaryUserWithMembership()
+
+    await gotoUsersWorkspace(page)
+
+    await page.getByPlaceholder('Search people by name or email').fill(temporaryUser.email)
+    await page.getByRole('button', { name: 'Apply' }).click()
+    await openUserDetails(page, temporaryUser.email)
+
+    await page.getByRole('button', { name: 'Delete user' }).click()
+
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete user' })
+    await expect(deleteDialog).toBeVisible()
+    await deleteDialog.locator('#delete-user-confirm-email').fill(temporaryUser.email)
+    await deleteDialog.getByRole('button', { name: 'Delete user' }).click()
+    await expect(deleteDialog).toBeHidden()
+
+    await expect(page.getByText('Deleted', { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Restore user' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Update status' })).toHaveCount(0)
+
+    await openUserAccessTab(page)
+
+    const membershipsSection = page
+      .locator('div')
+      .filter({
+        has: page.getByRole('heading', { name: 'Entity memberships' }),
+      })
+      .first()
+    const revokedMembershipCard = membershipsSection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.getByText('SF Residential Team', { exact: true }),
+      })
+      .first()
+    await expect(revokedMembershipCard).toBeVisible()
+    await expect(
+      revokedMembershipCard.getByText('Revoked', { exact: true })
+    ).toBeVisible()
+    await expect(
+      revokedMembershipCard.getByRole('button', { name: 'Restore access' })
+    ).toBeVisible()
+
+    await openUserHistoryTab(page)
+
+    const auditSection = page
+      .locator('div')
+      .filter({
+        has: page.getByRole('heading', { name: 'Audit timeline' }),
+      })
+      .first()
+    const deletedAuditEvent = auditSection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.locator('div.font-medium').getByText('Deleted', {
+          exact: true,
+        }),
+      })
+      .first()
+    await expect(deletedAuditEvent).toBeVisible()
+
+    const membershipHistorySection = page
+      .locator('div')
+      .filter({
+        has: page.getByRole('heading', { name: 'Membership history' }),
+      })
+      .first()
+    const revokedHistoryEvent = membershipHistorySection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.getByText('SF Residential Team', { exact: true }),
+        hasText: 'Revoked',
+      })
+      .first()
+    await expect(revokedHistoryEvent).toBeVisible()
+
+    await openUserMainDetailsTab(page)
+    await page.getByRole('button', { name: 'Restore user' }).click()
+    await expect(page.getByText('Active', { exact: true }).first()).toBeVisible()
+
+    await openUserHistoryTab(page)
+    const restoredAuditEvent = auditSection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.locator('div.font-medium').getByText('Restored', {
+          exact: true,
+        }),
+      })
+      .first()
+    await expect(restoredAuditEvent).toBeVisible()
+
+    await openUserAccessTab(page)
+    await expect(
+      revokedMembershipCard.getByRole('button', { name: 'Restore access' })
+    ).toBeVisible()
+  })
+
   test.describe('Read-only UX', () => {
     test.use({ persona: 'auditor' })
 
@@ -225,6 +411,8 @@ test.describe('Users Workspace', () => {
       await expect(page.getByRole('button', { name: 'Update status' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Reset password' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Delete user' })).toBeDisabled()
+
+      await openUserAccessTab(page)
       await expect(page.getByRole('button', { name: 'Assign entity' })).toBeDisabled()
       await expect(
         page.getByRole('button', { name: 'Assign direct role' })

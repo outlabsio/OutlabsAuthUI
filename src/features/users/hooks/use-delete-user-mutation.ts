@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { deleteUser } from '@/features/users/api/delete-user'
 import { usersKeys } from '@/features/users/api/users.keys'
 import type { DeleteUserInput } from '@/features/users/types/users.types'
+import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
 import { withMutationToast } from '@/lib/query/mutation-toast'
 
 export function useDeleteUserMutation() {
@@ -16,21 +17,24 @@ export function useDeleteUserMutation() {
       success: 'User deleted.',
     }),
     onSuccess: async (_result, variables) => {
-      queryClient.removeQueries({
-        queryKey: usersKeys.detail(variables.userId),
-      })
+      const queryKeys = [
+        usersKeys.detail(variables.userId),
+        usersKeys.lists(),
+        usersKeys.roles(variables.userId),
+        usersKeys.permissions(variables.userId),
+        usersKeys.roleMemberships(variables.userId),
+        usersKeys.auditEventsRoot(variables.userId),
+        usersKeys.membershipHistoryRoot(variables.userId),
+        membershipsKeys.userList(variables.userId),
+        membershipsKeys.userList(variables.userId, true),
+      ] as const
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.lists(),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.roles(variables.userId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.permissions(variables.userId),
-        }),
-      ])
+      await Promise.all(
+        queryKeys.flatMap((queryKey) => [
+          queryClient.invalidateQueries({ queryKey }),
+          queryClient.refetchQueries({ queryKey }),
+        ])
+      )
     },
   })
 }

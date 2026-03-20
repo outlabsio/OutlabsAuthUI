@@ -18,7 +18,7 @@ import {
   type PasswordSetupFormValues,
   passwordSetupSchema,
 } from '@/features/auth/schemas/password-setup.schema'
-import { getApiErrorMessage } from '@/lib/api/errors'
+import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { routes } from '@/lib/constants/routes'
 
 export function AcceptInvitePage() {
@@ -36,7 +36,7 @@ export function AcceptInvitePage() {
   })
 
   const submitError = acceptInviteMutation.error
-    ? getApiErrorMessage(
+    ? getAuthErrorMessage(
         acceptInviteMutation.error,
         'Unable to accept this invitation.'
       )
@@ -83,7 +83,8 @@ export function AcceptInvitePage() {
                 </p>
                 <h1 className="text-2xl font-bold">Accept your invitation</h1>
                 <p className="text-sm text-muted-foreground">
-                  Set your password to activate the account. This will sign you in immediately.
+                  Set your password to activate the account. The backend will sign you in
+                  immediately unless the account is still blocked by a lockout window.
                 </p>
               </div>
               <Field>

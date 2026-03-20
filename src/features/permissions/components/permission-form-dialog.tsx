@@ -80,7 +80,7 @@ function getDefaultValues(permission?: Permission | null): PermissionFormValues 
     description: permission?.description ?? '',
     tagsText: permission?.tags.join(', ') ?? '',
     isSystem: permission?.is_system ?? false,
-    isActive: permission?.is_active ?? true,
+    isActive: permission?.status !== 'inactive',
   }
 }
 
@@ -129,8 +129,10 @@ export function PermissionFormDialog({
         ? action.split('_').at(-1) ?? null
         : null,
       is_system: isSystem,
+      status: isActive ? 'active' : 'inactive',
       is_active: isActive,
       tags: parseTags(tagsText || ''),
+      metadata: permission?.metadata ?? {},
     }),
     [
       action,
@@ -194,14 +196,14 @@ export function PermissionFormDialog({
               display_name: values.displayName,
               description: values.description || undefined,
               is_system: canCreateSystemPermissions ? values.isSystem : false,
-              is_active: values.isActive,
+              status: values.isActive ? 'active' : 'inactive',
               tags,
             })
           : await updatePermissionMutation.mutateAsync({
               permissionId: permission!.id,
               display_name: values.displayName,
               description: values.description || undefined,
-              is_active: values.isActive,
+              status: values.isActive ? 'active' : 'inactive',
               tags,
             })
 

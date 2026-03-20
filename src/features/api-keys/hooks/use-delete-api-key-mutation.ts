@@ -1,0 +1,23 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
+import { deleteApiKey } from '@/features/api-keys/api/delete-api-key'
+import { withMutationToast } from '@/lib/query/mutation-toast'
+
+export function useDeleteApiKeyMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: apiKeysKeys.all,
+    mutationFn: (keyId: string) => deleteApiKey(keyId),
+    meta: withMutationToast({
+      error: 'The API key could not be revoked.',
+      success: 'API key revoked.',
+    }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysKeys.lists(),
+      })
+    },
+  })
+}

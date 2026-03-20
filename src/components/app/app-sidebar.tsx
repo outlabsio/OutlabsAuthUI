@@ -1,10 +1,12 @@
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Building2,
   ChevronsUpDown,
+  Key,
   KeyRound,
   LayoutDashboard,
   LogOut,
+  Settings,
   Shield,
   ShieldCheck,
   UserRound,
@@ -55,6 +57,8 @@ type NavigationItem = {
   title: string
   to:
     | typeof routes.app.dashboard
+    | typeof routes.app.apiKeys
+    | typeof routes.app.settings
     | typeof routes.app.users
     | typeof routes.app.permissions
     | typeof routes.app.roles
@@ -74,11 +78,21 @@ const navigationGroups: Array<{
         to: routes.app.dashboard,
         icon: LayoutDashboard,
       },
+      {
+        title: 'Settings',
+        to: routes.app.settings,
+        icon: Settings,
+      },
     ],
   },
   {
     label: 'Auth',
     items: [
+      {
+        title: 'API Keys',
+        to: routes.app.apiKeys,
+        icon: Key,
+      },
       {
         title: 'Users',
         to: routes.app.users,
@@ -118,6 +132,7 @@ function SidebarUserMenu({
   onLogout,
 }: AppSidebarProps) {
   const { isMobile } = useSidebar()
+  const navigate = useNavigate()
 
   return (
     <SidebarMenu>
@@ -172,7 +187,13 @@ function SidebarUserMenu({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  void navigate({
+                    to: routes.app.account,
+                  })
+                }}
+              >
                 <UserRound />
                 Account
               </DropdownMenuItem>
@@ -219,7 +240,7 @@ export function AppSidebar({
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">OutlabsAuth UI</span>
                 <span className="truncate text-xs text-sidebar-foreground/70">
-                  Agnostic auth console
+                  External admin console
                 </span>
               </div>
             </SidebarMenuButton>

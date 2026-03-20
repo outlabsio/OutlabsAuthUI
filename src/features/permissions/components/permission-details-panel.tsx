@@ -33,6 +33,7 @@ import {
   getPermissionOperationalSummary,
   getPermissionResourceLabel,
   getPermissionScopeLabel,
+  getPermissionStatusVariant,
 } from '@/features/permissions/utils/permissions-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import {
@@ -172,8 +173,8 @@ export function PermissionDetailsPanel({
                   {permission.name}
                 </Badge>
                 {permission.is_system ? <Badge variant="secondary">System permission</Badge> : null}
-                <Badge variant={permission.is_active ? 'outline' : 'secondary'}>
-                  {permission.is_active ? 'Active' : 'Inactive'}
+                <Badge variant={getPermissionStatusVariant(permission)}>
+                  {permission.status === 'active' ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
 
@@ -188,7 +189,10 @@ export function PermissionDetailsPanel({
                 <MetricCard label="Tags" value={String(previewTags.length)} />
                 <MetricCard label="Linked roles" value={String(linkedRoles.length)} />
                 <MetricCard label="ABAC rules" value={String(conditionGroups.length + conditions.length)} />
-                <MetricCard label="Status" value={permission.is_active ? 'Live' : 'Paused'} />
+                <MetricCard
+                  label="Status"
+                  value={permission.status === 'active' ? 'Live' : 'Paused'}
+                />
               </div>
             </div>
 

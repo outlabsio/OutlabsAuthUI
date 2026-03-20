@@ -121,12 +121,14 @@ test.describe('Permissions Workspace', () => {
       updatedDescription
     )
     await typeIntoBaseUiField(editDialog, 'Tags', 'playwright, regression')
+    await editDialog.locator('[role="switch"]').first().click()
     await editDialog.getByRole('button', { name: 'Save changes' }).click()
 
     await expect(
       page.locator('p').filter({ hasText: updatedDescription }).first()
     ).toBeVisible()
     await expect(page.getByText('regression')).toBeVisible()
+    await expect(page.getByText('Inactive', { exact: true }).first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
 

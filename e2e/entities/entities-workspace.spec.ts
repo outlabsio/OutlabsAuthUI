@@ -435,7 +435,7 @@ test.describe('Entities Workspace', () => {
     const invitedRow = page.locator('tbody tr').filter({ hasText: invitedEmail }).first()
     await expect(invitedRow).toBeVisible()
     await expect(invitedRow.getByText(/^invited$/i)).toBeVisible()
-    await expect(invitedRow.getByText('Membership-based', { exact: true })).toBeVisible()
+    await expect(invitedRow.getByText('ACME Realty', { exact: true })).toBeVisible()
   })
 
   test.describe('Scoped admin UX', () => {
