@@ -279,7 +279,7 @@ export function EntityMembersTable({
                           size="sm"
                           onClick={() => onManageMember(member)}
                         >
-                          Manage
+                          Open user
                         </Button>
                       ) : (
                         <span className="text-sm text-muted-foreground">Read only</span>

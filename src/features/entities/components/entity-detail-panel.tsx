@@ -124,7 +124,7 @@ function DetailSection({
   className?: string
 }) {
   return (
-    <Card className={cn('border border-border/70 bg-card/90', className)}>
+    <Card className={cn('border border-border/70 bg-card/90 ring-0 shadow-none', className)}>
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
@@ -301,7 +301,7 @@ export function EntityDetailPanel({
         </div>
       ) : null}
 
-      <Card className="border border-border/70 bg-card/95">
+      <Card className="border border-border/70 bg-card/95 ring-0 shadow-none">
         <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
           <div className="min-w-0 space-y-1.5">
             <div className="min-w-0 text-xs text-muted-foreground">

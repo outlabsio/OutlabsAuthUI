@@ -44,6 +44,16 @@ export type UsersPageSearch = {
   rootEntityId?: string
 }
 
+export type UserDetailsTab = 'details' | 'access' | 'history'
+
+export type UserDetailsPageSearch = {
+  tab?: UserDetailsTab
+  source?: 'entities'
+  sourceEntityId?: string
+  sourceScopeRootId?: string
+  sourceSearch?: string
+}
+
 export type UsersListFilters = {
   page: number
   limit?: number

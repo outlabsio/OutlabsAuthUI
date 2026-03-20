@@ -34,6 +34,22 @@ function EntitiesIndexRouteComponent() {
           search,
         })
       }}
+      onMemberSelect={(userId, context) => {
+        void navigate({
+          to: routes.app.userDetail,
+          params: {
+            userId,
+          },
+          search: {
+            page: 1,
+            tab: 'access',
+            source: 'entities',
+            sourceEntityId: context.entityId,
+            sourceScopeRootId: context.search.scopeRootId,
+            sourceSearch: context.search.search,
+          },
+        })
+      }}
     />
   )
 }

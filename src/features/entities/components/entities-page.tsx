@@ -48,6 +48,7 @@ type EntitiesPageProps = {
   search: EntitiesPageSearch
   onSearchChange: (next: EntitiesPageSearch) => void
   onEntitySelect: (entityId?: string) => void
+  onMemberSelect: (userId: string, context: { entityId: string; search: EntitiesPageSearch }) => void
 }
 
 type EntityFormDialogState = {
@@ -108,6 +109,7 @@ export function EntitiesPage({
   search,
   onSearchChange,
   onEntitySelect,
+  onMemberSelect,
 }: EntitiesPageProps) {
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
@@ -134,25 +136,28 @@ export function EntitiesPage({
     () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
     [actorPermissionsQuery.data]
   )
-  const canCreateEntities = hasAnyPermission(actorPermissionNames, [
+  const hasActorPermission = (candidates: string[]) =>
+    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
+
+  const canCreateEntities = hasActorPermission([
     'entity:create',
     'entity:create_tree',
     'entity:create_all',
   ])
-  const canEditEntities = hasAnyPermission(actorPermissionNames, [
+  const canEditEntities = hasActorPermission([
     'entity:update',
     'entity:update_tree',
     'entity:update_all',
   ])
-  const canReadMembers = hasAnyPermission(actorPermissionNames, ['membership:read'])
-  const canCreateMemberships = hasAnyPermission(actorPermissionNames, ['membership:create'])
-  const canUpdateMemberships = hasAnyPermission(actorPermissionNames, ['membership:update'])
-  const canRemoveMemberships = hasAnyPermission(actorPermissionNames, ['membership:delete'])
+  const canReadMembers = hasActorPermission(['membership:read'])
+  const canCreateMemberships = hasActorPermission(['membership:create'])
+  const canUpdateMemberships = hasActorPermission(['membership:update'])
+  const canRemoveMemberships = hasActorPermission(['membership:delete'])
   const canManageExistingMemberships = canUpdateMemberships || canRemoveMemberships
-  const canInviteMembers = hasAnyPermission(actorPermissionNames, ['user:create'])
-  const canReadRoles = hasAnyPermission(actorPermissionNames, ['role:read'])
-  const canCreateRoles = hasAnyPermission(actorPermissionNames, ['role:create'])
-  const canUpdateRoles = hasAnyPermission(actorPermissionNames, ['role:update'])
+  const canInviteMembers = hasActorPermission(['user:create'])
+  const canReadRoles = hasActorPermission(['role:read'])
+  const canCreateRoles = hasActorPermission(['role:create'])
+  const canUpdateRoles = hasActorPermission(['role:update'])
   const canCreateRootEntities = Boolean(isSuperuser && canCreateEntities)
 
   const fetchedRootOptions = useMemo(
@@ -655,10 +660,13 @@ export function EntitiesPage({
                   })
                 }
                 onManageMember={(member) => {
-                  setMemberAccessDialogState({
-                    open: true,
-                    member,
-                    initialRoleIds: [],
+                  if (!activeEntity) {
+                    return
+                  }
+
+                  onMemberSelect(member.user_id, {
+                    entityId: activeEntity.id,
+                    search,
                   })
                 }}
               />

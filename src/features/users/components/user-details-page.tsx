@@ -75,6 +75,7 @@ import {
 import type {
   User,
   UserAuditEvent,
+  UserDetailsTab,
   UserMembershipHistoryEvent,
   UserPermissionSource,
   UserStatusUpdateValue,
@@ -85,6 +86,8 @@ import { cn } from '@/lib/utils/cn';
 
 type UserDetailsPageProps = {
   userId: string;
+  initialTab?: UserDetailsTab;
+  backLabel?: string;
   onBack: () => void;
   onDeleted: () => void;
 };
@@ -111,8 +114,6 @@ type SectionPaginationActionProps = {
   onPrevious: () => void;
   onNext: () => void;
 };
-
-type UserDetailsTab = 'details' | 'access' | 'history';
 
 const statusOptions = [
   { label: 'Active', value: 'active' },
@@ -386,11 +387,13 @@ function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
 
 export function UserDetailsPage({
   userId,
+  initialTab,
+  backLabel = 'Back to users',
   onBack,
   onDeleted,
 }: UserDetailsPageProps) {
   const [activeDetailsTab, setActiveDetailsTab] =
-    useState<UserDetailsTab>('details');
+    useState<UserDetailsTab>(initialTab ?? 'details');
   const [auditEventsPage, setAuditEventsPage] = useState(1);
   const [membershipHistoryPage, setMembershipHistoryPage] = useState(1);
   const sessionQuery = useSessionQuery();
@@ -586,10 +589,10 @@ export function UserDetailsPage({
     : null;
 
   useEffect(() => {
-    setActiveDetailsTab('details');
+    setActiveDetailsTab(initialTab ?? 'details');
     setAuditEventsPage(1);
     setMembershipHistoryPage(1);
-  }, [userId]);
+  }, [initialTab, userId]);
 
   useEffect(() => {
     if (!user) {
@@ -618,7 +621,7 @@ export function UserDetailsPage({
         shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
-            Back to users
+            {backLabel}
           </Button>
         }
       >
@@ -636,7 +639,7 @@ export function UserDetailsPage({
         shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
-            Back to users
+            {backLabel}
           </Button>
         }
       >
@@ -657,7 +660,7 @@ export function UserDetailsPage({
       shellAction={
         <Button type="button" variant="outline" onClick={onBack}>
           <ArrowLeft className="size-4" />
-          Back to users
+          {backLabel}
         </Button>
       }
     >

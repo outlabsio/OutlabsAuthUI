@@ -284,6 +284,12 @@ test.describe('Entities Workspace', () => {
     await selectEntityFromTree(page, 'San Francisco Office', 'San Francisco Office')
 
     await expect(page.getByText('Configuration snapshot')).toBeVisible()
+    await page.getByRole('tab', { name: 'Members and access' }).click()
+    await expect(
+      page.getByText('Your account cannot read memberships in this entity.')
+    ).toHaveCount(0)
+    await expect(page.getByRole('textbox', { name: 'Search loaded members' })).toBeVisible()
+    await page.getByRole('tab', { name: 'Configuration snapshot' }).click()
     await page.getByRole('button', { name: 'Hide hierarchy' }).click()
     await expect(page.getByText('Hierarchy navigator')).toHaveCount(0)
     await page.getByRole('button', { name: 'Show hierarchy' }).click()
@@ -313,6 +319,31 @@ test.describe('Entities Workspace', () => {
     const verifyDialog = page.getByRole('dialog', { name: 'Edit San Francisco Office' })
     await expect(verifyDialog.locator('#entity-description')).toHaveValue(originalDescription)
     await verifyDialog.getByRole('button', { name: 'Cancel' }).click()
+  })
+
+  test('entity members open the canonical user access workspace', async ({ page }) => {
+    await gotoEntitiesWorkspace(page)
+
+    await page.getByRole('tab', { name: 'Members and access' }).click()
+
+    const membersPanel = page.getByRole('tabpanel', { name: 'Members and access' })
+    const adminRow = membersPanel.locator('tbody tr').filter({
+      has: page.getByText('admin@acme.com', { exact: true }),
+    }).first()
+
+    await expect(adminRow).toBeVisible()
+    await adminRow.getByRole('button', { name: 'Open user' }).click()
+
+    await expect(page).toHaveURL(/\/app\/users\/.+tab=access/)
+    await expect(
+      page.getByRole('tab', { name: 'Memberships and access' })
+    ).toHaveAttribute('data-state', 'active')
+    await expect(page.getByText('Entity memberships')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Back to entity' }).click()
+
+    await expect(page).toHaveURL(/\/app\/entities(?:\/[^?]+)?(?:\?.*)?$/)
+    await expect(page.getByRole('heading', { name: 'ACME Realty' })).toBeVisible()
   })
 
   test('admin can switch root scope and inspect the second organization hierarchy', async ({
