@@ -90,9 +90,12 @@ export function RoleDetailsPage({
     () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
     [actorPermissionsQuery.data]
   )
-  const canReadRoles = hasAnyPermission(actorPermissionNames, ['role:read'])
-  const canUpdateRoles = hasAnyPermission(actorPermissionNames, ['role:update'])
-  const canDeleteRoles = hasAnyPermission(actorPermissionNames, ['role:delete'])
+  const isSuperuser = Boolean(sessionUser?.is_superuser)
+  const hasActorPermission = (candidates: string[]) =>
+    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
+  const canReadRoles = hasActorPermission(['role:read'])
+  const canUpdateRoles = hasActorPermission(['role:update'])
+  const canDeleteRoles = hasActorPermission(['role:delete'])
   const abacEnabled = authConfigQuery.data?.features.abac ?? false
 
   const pageError =

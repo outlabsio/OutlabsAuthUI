@@ -74,8 +74,10 @@ export function RolesPage({
     [actorPermissionsQuery.data]
   )
   const isSuperuser = Boolean(sessionUser?.is_superuser)
-  const canReadRoles = hasAnyPermission(actorPermissionNames, ['role:read'])
-  const canCreateRoles = hasAnyPermission(actorPermissionNames, ['role:create'])
+  const hasActorPermission = (candidates: string[]) =>
+    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
+  const canReadRoles = hasActorPermission(['role:read'])
+  const canCreateRoles = hasActorPermission(['role:create'])
 
   const pageError =
     sessionQuery.error ??
