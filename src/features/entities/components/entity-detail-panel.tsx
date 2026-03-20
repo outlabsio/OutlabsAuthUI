@@ -58,10 +58,12 @@ type EntityDetailPanelProps = {
   canInviteMembers: boolean
   canReadMembers: boolean
   canReadRoles: boolean
+  canEditRootGovernance: boolean
   onEntitySelect: (entityId: string) => void
   onCreateRoot: () => void
   onCreateChild: () => void
   onEditEntity: () => void
+  onEditRootGovernance: () => void
   onRoleSelect: (roleId: string) => void
   onCreateRole: () => void
   onEditRole: () => void
@@ -71,7 +73,12 @@ type EntityDetailPanelProps = {
   selectedRoleId?: string
 }
 
-type EntityContextTab = 'configuration' | 'children' | 'roles' | 'members'
+type EntityContextTab =
+  | 'configuration'
+  | 'governance'
+  | 'children'
+  | 'roles'
+  | 'members'
 
 type DetailSectionInfo = {
   label: string
@@ -192,10 +199,12 @@ export function EntityDetailPanel({
   canInviteMembers,
   canReadMembers,
   canReadRoles,
+  canEditRootGovernance,
   onEntitySelect,
   onCreateRoot,
   onCreateChild,
   onEditEntity,
+  onEditRootGovernance,
   onRoleSelect,
   onCreateRole,
   onEditRole,
@@ -237,6 +246,7 @@ export function EntityDetailPanel({
   const canShowMembersTable = canReadMembers
   const rolesCountLabel = rolesLoading ? '...' : String(roles.length)
   const membersCountLabel = membersLoading ? '...' : String(members.length)
+  const isRootEntity = entity.parent_entity_id == null
   const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null
   const canEditSelectedRole =
     canUpdateRoles &&
@@ -250,9 +260,14 @@ export function EntityDetailPanel({
 
   const entityContextAction = (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {canEditEntities ? (
+      {canEditEntities && !(activeContextTab === 'governance' && canEditRootGovernance) ? (
         <Button type="button" variant="outline" onClick={onEditEntity}>
           Edit entity
+        </Button>
+      ) : null}
+      {activeContextTab === 'governance' && canEditRootGovernance ? (
+        <Button type="button" onClick={onEditRootGovernance}>
+          Edit root governance
         </Button>
       ) : null}
       {activeContextTab === 'children' && canCreateChildEntities ? (
@@ -423,18 +438,22 @@ export function EntityDetailPanel({
           value={activeContextTab}
           onValueChange={(value) => {
             if (
-              value === 'configuration' ||
-              value === 'children' ||
-              value === 'roles' ||
-              value === 'members'
-            ) {
-              setActiveContextTab(value)
+                  value === 'configuration' ||
+                  value === 'governance' ||
+                  value === 'children' ||
+                  value === 'roles' ||
+                  value === 'members'
+                ) {
+                  setActiveContextTab(value)
             }
           }}
           className="space-y-4"
         >
           <TabsList>
             <TabsTrigger value="configuration">Configuration snapshot</TabsTrigger>
+            {isRootEntity ? (
+              <TabsTrigger value="governance">Root governance</TabsTrigger>
+            ) : null}
             <TabsTrigger value="children">Child entities</TabsTrigger>
             <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="members">Members and access</TabsTrigger>
@@ -462,29 +481,101 @@ export function EntityDetailPanel({
               />
 
               <CompactDetailList
-                title="Governance"
-                items={[
-                  {
-                    label: 'Allowed child classes',
-                    value: formatList(entity.allowed_child_classes),
-                  },
-                  {
-                    label: 'Allowed child types',
-                    value: formatList(entity.allowed_child_types),
-                  },
-                  {
-                    label: 'Member cap',
-                    value:
-                      entity.max_members != null ? `${entity.max_members} members` : 'Unlimited',
-                  },
-                  {
-                    label: 'Current path',
-                    value: path.map((pathEntity) => pathEntity.display_name).join(' / '),
-                  },
-                ]}
+                title={isRootEntity ? 'Operational context' : 'Governance'}
+                items={
+                  isRootEntity
+                    ? [
+                        {
+                          label: 'Current path',
+                          value: path.map((pathEntity) => pathEntity.display_name).join(' / '),
+                        },
+                        {
+                          label: 'Immediate children',
+                          value: `${directChildren.length} direct`,
+                        },
+                        {
+                          label: 'Descendant reach',
+                          value: `${descendantCount} downstream`,
+                        },
+                        {
+                          label: 'Scope view',
+                          value: `${scopeEntityCount} entities in scope`,
+                        },
+                      ]
+                    : [
+                        {
+                          label: 'Allowed child classes',
+                          value: formatList(entity.allowed_child_classes),
+                        },
+                        {
+                          label: 'Allowed child types',
+                          value: formatList(entity.allowed_child_types),
+                        },
+                        {
+                          label: 'Member cap',
+                          value:
+                            entity.max_members != null
+                              ? `${entity.max_members} members`
+                              : 'Unlimited',
+                        },
+                        {
+                          label: 'Current path',
+                          value: path.map((pathEntity) => pathEntity.display_name).join(' / '),
+                        },
+                      ]
+                }
               />
             </div>
           </TabsContent>
+
+          {isRootEntity ? (
+            <TabsContent value="governance" className="pt-1">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <CompactDetailList
+                  title="Branch vocabulary"
+                  items={[
+                    {
+                      label: 'Allowed child classes',
+                      value: formatList(entity.allowed_child_classes),
+                    },
+                    {
+                      label: 'Allowed child types',
+                      value: formatList(entity.allowed_child_types),
+                    },
+                    {
+                      label: 'Default member cap',
+                      value:
+                        entity.max_members != null ? `${entity.max_members} members` : 'Unlimited',
+                    },
+                  ]}
+                />
+
+                <CompactDetailList
+                  title="Naming rules"
+                  items={[
+                    {
+                      label: 'System-name pattern',
+                      value: entity.child_name_pattern ?? 'No rule configured',
+                    },
+                    {
+                      label: 'Display-name pattern',
+                      value: entity.child_display_name_pattern ?? 'No rule configured',
+                    },
+                    {
+                      label: 'Slug pattern',
+                      value: entity.child_slug_pattern ?? 'No rule configured',
+                    },
+                    {
+                      label: 'Operator guidance',
+                      value:
+                        entity.child_naming_guidance ??
+                        'No additional naming guidance configured.',
+                    },
+                  ]}
+                />
+              </div>
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="children" className="pt-1">
             {directChildren.length > 0 ? (

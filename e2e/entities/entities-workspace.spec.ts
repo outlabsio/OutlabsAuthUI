@@ -95,7 +95,9 @@ test.describe('Entities Workspace', () => {
 
     await typeIntoBaseUiField(rootDialog, 'System name', rootEntity.systemName)
     await typeIntoBaseUiField(rootDialog, 'Display name', rootEntity.displayName)
-    await typeIntoBaseUiField(rootDialog, 'Entity type', 'brokerage')
+    await expect(rootDialog.getByRole('combobox', { name: 'Entity type' })).toContainText(
+      /organization/i
+    )
     await selectBaseUiOption({
       page,
       container: rootDialog,
@@ -131,27 +133,25 @@ test.describe('Entities Workspace', () => {
     await expect(page.getByText(rootEntity.description)).toBeVisible()
     await expect(page.getByText('Inactive').first()).toBeVisible()
     await page.getByRole('tab', { name: 'Configuration snapshot' }).click()
+    await expect(page.getByText('0 direct', { exact: true })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Root governance' }).click()
     await expect(page.getByText('22 members', { exact: true })).toBeVisible()
     await expect(page.getByText('Region', { exact: true })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Edit entity' }).click()
-    const editRootDialog = page.getByRole('dialog', {
-      name: `Edit ${rootEntity.displayName}`,
+    await page.getByRole('button', { name: 'Edit root governance' }).click()
+    const rootGovernanceDialog = page.getByRole('dialog', {
+      name: `Edit root governance for ${rootEntity.displayName}`,
     })
-    await expect(editRootDialog.locator('#entity-description')).toHaveValue(
-      rootEntity.description
+    await expect(rootGovernanceDialog.locator('#root-governance-max-members')).toHaveValue(
+      '22'
     )
-    await expect(editRootDialog.locator('#entity-max-members')).toHaveValue('22')
-    await expect(editRootDialog.locator('#entity-allowed-child-types')).toHaveValue(
+    await expect(
+      rootGovernanceDialog.locator('#root-governance-allowed-child-types')
+    ).toHaveValue(
       'region'
     )
-    await expect(editRootDialog.locator('#entity-valid-from')).toContainText(
-      /March 21.*2026/
-    )
-    await expect(editRootDialog.locator('#entity-valid-until')).toContainText(
-      /March 28.*2026/
-    )
-    await editRootDialog.getByRole('button', { name: 'Cancel' }).click()
+    await rootGovernanceDialog.getByRole('button', { name: 'Cancel' }).click()
 
     await page.getByRole('tab', { name: 'Child entities' }).click()
     await page.getByRole('button', { name: 'Create child' }).click()
@@ -245,7 +245,9 @@ test.describe('Entities Workspace', () => {
 
     await typeIntoBaseUiField(dialog, 'System name', invalidEntity.systemName)
     await typeIntoBaseUiField(dialog, 'Display name', invalidEntity.displayName)
-    await typeIntoBaseUiField(dialog, 'Entity type', 'brokerage')
+    await expect(dialog.getByRole('combobox', { name: 'Entity type' })).toContainText(
+      /organization/i
+    )
     await typeIntoBaseUiField(dialog, 'Max members', '0')
     await setEntityDialogDateTime({
       dialog,
@@ -337,7 +339,7 @@ test.describe('Entities Workspace', () => {
     await expect(page).toHaveURL(/\/app\/users\/.+tab=access/)
     await expect(
       page.getByRole('tab', { name: 'Memberships and access' })
-    ).toHaveAttribute('data-state', 'active')
+    ).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByText('Entity memberships')).toBeVisible()
 
     await page.getByRole('button', { name: 'Back to entity' }).click()

@@ -4,11 +4,13 @@ import { getEntity } from '@/features/entities/api/get-entity'
 import { getEntityDescendants } from '@/features/entities/api/get-entity-descendants'
 import { getEntityMembers } from '@/features/entities/api/get-entity-members'
 import { getEntityPath } from '@/features/entities/api/get-entity-path'
+import { getEntityTypeSuggestions } from '@/features/entities/api/get-entity-type-suggestions'
 import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import { getEntities } from '@/features/entities/api/get-entities'
 import type {
   GetEntitiesParams,
   GetEntityMembersParams,
+  GetEntityTypeSuggestionsParams,
 } from '@/features/entities/types/entities.types'
 
 export function getEntitiesQueryOptions(params: GetEntitiesParams = {}) {
@@ -36,6 +38,15 @@ export function getEntityPathQueryOptions(entityId: string) {
   return queryOptions({
     queryKey: entitiesKeys.path(entityId),
     queryFn: () => getEntityPath(entityId),
+  })
+}
+
+export function getEntityTypeSuggestionsQueryOptions(
+  params: GetEntityTypeSuggestionsParams = {}
+) {
+  return queryOptions({
+    queryKey: entitiesKeys.typeSuggestions(params),
+    queryFn: () => getEntityTypeSuggestions(params),
   })
 }
 

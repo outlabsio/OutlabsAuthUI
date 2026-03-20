@@ -20,6 +20,7 @@ import { EntityDetailPanel } from '@/features/entities/components/entity-detail-
 import { EntityFormDialog } from '@/features/entities/components/entity-form-dialog'
 import { EntityMemberAccessDialog } from '@/features/entities/components/entity-member-access-dialog'
 import { EntityMemberInviteDialog } from '@/features/entities/components/entity-member-invite-dialog'
+import { EntityRootGovernanceDialog } from '@/features/entities/components/entity-root-governance-dialog'
 import { EntityTreePanel } from '@/features/entities/components/entity-tree-panel'
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
@@ -377,6 +378,7 @@ export function EntitiesPage({
     mode: 'create',
     role: null,
   })
+  const [rootGovernanceDialogOpen, setRootGovernanceDialogOpen] = useState(false)
   const [selectedRoleId, setSelectedRoleId] = useState<string>()
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false)
 
@@ -596,6 +598,9 @@ export function EntitiesPage({
                 canInviteMembers={canInviteMembers}
                 canReadMembers={canReadMembers}
                 canReadRoles={canReadRoles}
+                canEditRootGovernance={
+                  canEditEntities && Boolean(activeEntity?.parent_entity_id == null)
+                }
                 onEntitySelect={(entityId) => onEntitySelect(entityId)}
                 onCreateRoot={() => {
                   setEntityFormDialogState({
@@ -611,7 +616,7 @@ export function EntitiesPage({
                     mode: 'create',
                     entity: null,
                     parentEntity: activeEntity,
-                  })
+                    })
                 }}
                 onEditEntity={() => {
                   setEntityFormDialogState({
@@ -623,6 +628,9 @@ export function EntitiesPage({
                         ? activeEntityPath[activeEntityPath.length - 2]
                         : null,
                     })
+                }}
+                onEditRootGovernance={() => {
+                  setRootGovernanceDialogOpen(true)
                 }}
                 selectedRoleId={selectedRoleId}
                 onRoleSelect={(roleId) => setSelectedRoleId(roleId)}
@@ -686,7 +694,14 @@ export function EntitiesPage({
         mode={entityFormDialogState.mode}
         entity={entityFormDialogState.entity}
         parentEntity={entityFormDialogState.parentEntity}
+        scopeRootEntity={activeRootQuery.data ?? null}
         onSuccess={handleEntityFormSuccess}
+      />
+
+      <EntityRootGovernanceDialog
+        open={rootGovernanceDialogOpen}
+        onOpenChange={setRootGovernanceDialogOpen}
+        entity={activeEntity?.parent_entity_id == null ? activeEntity : null}
       />
 
       {activeEntity ? (

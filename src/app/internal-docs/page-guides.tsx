@@ -322,7 +322,7 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
       'The Settings workspace exposes backend-managed configuration that affects entity creation defaults and root constraints.',
     quickFacts: [
       { label: 'Best for', value: 'Entity type defaults' },
-      { label: 'Primary focus', value: 'Allowed roots and child-type baselines' },
+      { label: 'Primary focus', value: 'Per-class root rules and child-type baselines' },
       { label: 'Write access', value: 'Superuser only' },
     ],
     sections: [
@@ -331,7 +331,7 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
         description:
           'These settings shape the entity types operators can create and the suggested child types for new branches.',
         bullets: [
-          'Allowed root types constrain which entity types can exist at the top of the tree.',
+          'Structural and access-group roots are governed separately.',
           'Structural defaults seed normal hierarchy creation.',
           'Access-group defaults seed authorization-oriented child branches.',
         ],

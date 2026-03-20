@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { CalendarClock, Layers3 } from 'lucide-react'
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { getEntityTypeSuggestionsQueryOptions } from '@/features/entities/api/entities.query-options'
 import { useCreateEntityMutation } from '@/features/entities/hooks/use-create-entity-mutation'
 import { useUpdateEntityMutation } from '@/features/entities/hooks/use-update-entity-mutation'
 import {
@@ -36,6 +38,7 @@ import {
 } from '@/features/entities/schemas/entity-form.schema'
 import type { Entity, EntityClassValue } from '@/features/entities/types/entities.types'
 import { formatEntityToken } from '@/features/entities/utils/entity-display'
+import { getEntityTypeConfigQueryOptions } from '@/features/settings/api/settings.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 type EntityFormDialogProps = {
@@ -44,6 +47,7 @@ type EntityFormDialogProps = {
   mode: 'create' | 'edit'
   entity?: Entity | null
   parentEntity?: Entity | null
+  scopeRootEntity?: Entity | null
   onSuccess?: (entity: Entity) => void
 }
 
@@ -98,6 +102,26 @@ function parseMaxMembers(value?: string) {
   return Number(value)
 }
 
+function uniqueEntityTypeValues(values: Array<string | null | undefined>) {
+  const normalizedValues = new Map<string, string>()
+
+  values.forEach((value) => {
+    const trimmedValue = value?.trim()
+
+    if (!trimmedValue) {
+      return
+    }
+
+    const normalizedValue = trimmedValue.toLowerCase()
+
+    if (!normalizedValues.has(normalizedValue)) {
+      normalizedValues.set(normalizedValue, trimmedValue)
+    }
+  })
+
+  return [...normalizedValues.values()]
+}
+
 function getCreateDefaults(parentEntity?: Entity | null): EntityFormValues {
   const defaultChildClass =
     parentEntity?.allowed_child_classes?.length === 1
@@ -147,6 +171,7 @@ export function EntityFormDialog({
   mode,
   entity,
   parentEntity,
+  scopeRootEntity,
   onSuccess,
 }: EntityFormDialogProps) {
   const createEntityMutation = useCreateEntityMutation()
@@ -166,13 +191,41 @@ export function EntityFormDialog({
 
   const nameValue = form.watch('name')
   const displayNameValue = form.watch('displayName')
+  const entityClassValue = form.watch('entityClass')
+  const entityTypeConfigQuery = useQuery({
+    ...getEntityTypeConfigQueryOptions(),
+    enabled: mode === 'create' && open,
+  })
+  const entityTypeSuggestionsQuery = useQuery({
+    ...getEntityTypeSuggestionsQueryOptions({
+      parentId: parentEntity?.id,
+      entityClass: entityClassValue,
+    }),
+    enabled: mode === 'create' && open,
+  })
   const parentAllowedChildTypeOptions = useMemo(
     () =>
       mode === 'create'
-        ? (parentEntity?.allowed_child_types ?? []).filter(Boolean)
+        ? uniqueEntityTypeValues(parentEntity?.allowed_child_types ?? [])
         : [],
     [mode, parentEntity?.allowed_child_types]
   )
+  const rootAllowedChildTypeOptions = useMemo(() => {
+    if (
+      mode !== 'create' ||
+      !parentEntity ||
+      parentAllowedChildTypeOptions.length > 0
+    ) {
+      return []
+    }
+
+    return uniqueEntityTypeValues(scopeRootEntity?.allowed_child_types ?? [])
+  }, [
+    mode,
+    parentAllowedChildTypeOptions.length,
+    parentEntity,
+    scopeRootEntity?.allowed_child_types,
+  ])
   const parentAllowedChildClassOptions = useMemo(() => {
     if (mode !== 'create' || !parentEntity?.allowed_child_classes?.length) {
       return entityClassOptions
@@ -182,7 +235,141 @@ export function EntityFormDialog({
       parentEntity.allowed_child_classes?.includes(option.value)
     )
   }, [mode, parentEntity?.allowed_child_classes])
-  const hasConstrainedChildTypeOptions = parentAllowedChildTypeOptions.length > 0
+  const effectiveAllowedChildTypeOptions = useMemo(
+    () =>
+      parentAllowedChildTypeOptions.length > 0
+        ? parentAllowedChildTypeOptions
+        : rootAllowedChildTypeOptions,
+    [parentAllowedChildTypeOptions, rootAllowedChildTypeOptions]
+  )
+  const rootAllowedTypeOptions = useMemo(() => {
+    if (mode !== 'create' || parentEntity) {
+      return []
+    }
+
+    return uniqueEntityTypeValues(
+      entityTypeConfigQuery.data?.allowed_root_types?.[entityClassValue] ?? []
+    )
+  }, [
+    entityClassValue,
+    entityTypeConfigQuery.data?.allowed_root_types,
+    mode,
+    parentEntity,
+  ])
+  const defaultChildTypeOptions = useMemo(() => {
+    if (
+      mode !== 'create' ||
+      !parentEntity ||
+      effectiveAllowedChildTypeOptions.length > 0
+    ) {
+      return []
+    }
+
+    return uniqueEntityTypeValues(
+      entityTypeConfigQuery.data?.default_child_types?.[entityClassValue] ?? []
+    )
+  }, [
+    effectiveAllowedChildTypeOptions.length,
+    entityClassValue,
+    entityTypeConfigQuery.data?.default_child_types,
+    mode,
+    parentEntity,
+  ])
+  const siblingTypeSuggestions = useMemo(
+    () =>
+      entityTypeSuggestionsQuery.data?.suggestions?.filter(Boolean).map((item) => item) ?? [],
+    [entityTypeSuggestionsQuery.data?.suggestions]
+  )
+  const siblingSuggestionMap = useMemo(
+    () =>
+      new Map(
+        siblingTypeSuggestions.map((item) => [item.entity_type.toLowerCase(), item])
+      ),
+    [siblingTypeSuggestions]
+  )
+  const siblingSuggestedTypeOptions = useMemo(
+    () =>
+      uniqueEntityTypeValues(
+        siblingTypeSuggestions.map((item) => item.entity_type)
+      ),
+    [siblingTypeSuggestions]
+  )
+  const isPlatformConstrainedRootType = mode === 'create' && !parentEntity
+  const hasConstrainedChildTypeOptions =
+    effectiveAllowedChildTypeOptions.length > 0 || isPlatformConstrainedRootType
+  const constrainedEntityTypeOptions = useMemo(
+    () =>
+      effectiveAllowedChildTypeOptions.length > 0
+        ? effectiveAllowedChildTypeOptions
+        : rootAllowedTypeOptions,
+    [effectiveAllowedChildTypeOptions, rootAllowedTypeOptions]
+  )
+  const entityTypeGuidance = useMemo(() => {
+    if (mode !== 'create') {
+      return null
+    }
+
+    if (parentAllowedChildTypeOptions.length > 0) {
+      return `This parent scope only allows ${parentAllowedChildTypeOptions
+        .map((value) => formatEntityToken(value))
+        .join(', ')}.`
+    }
+
+    if (rootAllowedChildTypeOptions.length > 0) {
+      return `This hierarchy is configured for ${rootAllowedChildTypeOptions
+        .map((value) => formatEntityToken(value))
+        .join(', ')} at this branch.`
+    }
+
+    if (isPlatformConstrainedRootType) {
+      if (entityTypeConfigQuery.isPending) {
+        return 'Loading platform root entity types.'
+      }
+
+      if (rootAllowedTypeOptions.length > 0) {
+        return `Platform settings allow ${rootAllowedTypeOptions
+          .map((value) => formatEntityToken(value))
+          .join(', ')} at the root for ${formatEntityToken(entityClassValue)} entities.`
+      }
+
+      return `Platform settings currently do not allow ${formatEntityToken(entityClassValue)} roots.`
+    }
+
+    return null
+  }, [
+    entityClassValue,
+    entityTypeConfigQuery.isPending,
+    isPlatformConstrainedRootType,
+    mode,
+    parentAllowedChildTypeOptions,
+    rootAllowedChildTypeOptions,
+    rootAllowedTypeOptions,
+  ])
+  const rootNamingGuidance = useMemo(
+    () => ({
+      systemName: scopeRootEntity?.child_name_pattern?.trim() ?? '',
+      displayName: scopeRootEntity?.child_display_name_pattern?.trim() ?? '',
+      slug: scopeRootEntity?.child_slug_pattern?.trim() ?? '',
+      operatorNote: scopeRootEntity?.child_naming_guidance?.trim() ?? '',
+    }),
+    [
+      scopeRootEntity?.child_display_name_pattern,
+      scopeRootEntity?.child_name_pattern,
+      scopeRootEntity?.child_naming_guidance,
+      scopeRootEntity?.child_slug_pattern,
+    ]
+  )
+  const hasRootNamingGuidance =
+    mode === 'create' &&
+    Boolean(parentEntity) &&
+    Boolean(
+      rootNamingGuidance.systemName ||
+        rootNamingGuidance.displayName ||
+        rootNamingGuidance.slug ||
+        rootNamingGuidance.operatorNote
+    )
+  const showGovernanceControls =
+    mode === 'create' || entity?.parent_entity_id != null
   const isPending =
     createEntityMutation.isPending || updateEntityMutation.isPending
   const submitError =
@@ -251,31 +438,53 @@ export function EntityFormDialog({
     }
 
     if (hasConstrainedChildTypeOptions) {
-      const currentEntityType = form.getValues('entityType')
-      const currentTypeAllowed = parentAllowedChildTypeOptions.some(
+      const currentEntityType = form.getValues('entityType').trim()
+      const currentTypeAllowed = constrainedEntityTypeOptions.some(
         (option) => option.toLowerCase() === currentEntityType.toLowerCase()
       )
 
       if (!currentTypeAllowed) {
-        form.setValue(
-          'entityType',
-          parentAllowedChildTypeOptions.length === 1
-            ? parentAllowedChildTypeOptions[0]
-            : '',
-          {
-            shouldDirty: false,
-            shouldValidate: true,
-          }
-        )
+        const nextEntityType =
+          constrainedEntityTypeOptions.length === 1 || isPlatformConstrainedRootType
+            ? constrainedEntityTypeOptions[0] ?? ''
+            : ''
+
+        form.setValue('entityType', nextEntityType, {
+          shouldDirty: false,
+          shouldValidate: true,
+        })
       }
+
+      return
+    }
+
+    const currentEntityType = form.getValues('entityType').trim()
+
+    if (currentEntityType) {
+      return
+    }
+
+    const defaultEntityType = parentEntity
+      ? defaultChildTypeOptions[0] ?? siblingSuggestedTypeOptions[0] ?? ''
+      : siblingSuggestedTypeOptions[0] ?? ''
+
+    if (defaultEntityType) {
+      form.setValue('entityType', defaultEntityType, {
+        shouldDirty: false,
+        shouldValidate: true,
+      })
     }
   }, [
+    constrainedEntityTypeOptions,
+    defaultChildTypeOptions,
     form,
     hasConstrainedChildTypeOptions,
+    isPlatformConstrainedRootType,
     mode,
     open,
     parentAllowedChildClassOptions,
-    parentAllowedChildTypeOptions,
+    parentEntity,
+    siblingSuggestedTypeOptions,
   ])
 
   const dialogTitle =
@@ -296,6 +505,14 @@ export function EntityFormDialog({
       formatEntityToken(entity.status),
     ]
   }, [entity, mode])
+  const canShowEntityTypeSuggestions =
+    mode === 'create' && !hasConstrainedChildTypeOptions
+  const applySuggestedEntityType = (value: string) => {
+    form.setValue('entityType', value, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+  }
 
   async function handleSubmit(values: EntityFormValues) {
     try {
@@ -407,6 +624,64 @@ export function EntityFormDialog({
                   </section>
                 ) : null}
 
+                {hasRootNamingGuidance ? (
+                  <section className="rounded-xl border bg-muted/10 p-4">
+                    <div className="space-y-1">
+                      <div className="font-medium">Root naming guidance</div>
+                      <p className="text-sm text-muted-foreground">
+                        New descendants under {scopeRootEntity?.display_name ?? 'this root'} should
+                        follow the configured branch naming rules.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {rootNamingGuidance.systemName ? (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            System name
+                          </div>
+                          <code className="block rounded-md border bg-background px-3 py-2 text-xs">
+                            {rootNamingGuidance.systemName}
+                          </code>
+                        </div>
+                      ) : null}
+
+                      {rootNamingGuidance.displayName ? (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Display name
+                          </div>
+                          <code className="block rounded-md border bg-background px-3 py-2 text-xs">
+                            {rootNamingGuidance.displayName}
+                          </code>
+                        </div>
+                      ) : null}
+
+                      {rootNamingGuidance.slug ? (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Slug
+                          </div>
+                          <code className="block rounded-md border bg-background px-3 py-2 text-xs">
+                            {rootNamingGuidance.slug}
+                          </code>
+                        </div>
+                      ) : null}
+
+                      {rootNamingGuidance.operatorNote ? (
+                        <div className="space-y-1 sm:col-span-2">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Operator note
+                          </div>
+                          <div className="rounded-md border bg-background px-3 py-2 text-sm text-foreground">
+                            {rootNamingGuidance.operatorNote}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   {mode === 'create' ? (
                     <div className="space-y-2">
@@ -472,14 +747,26 @@ export function EntityFormDialog({
                                 })
                               }}
                               disabled={
-                                isPending || parentAllowedChildTypeOptions.length === 1
+                                isPending ||
+                                (isPlatformConstrainedRootType &&
+                                  entityTypeConfigQuery.isPending) ||
+                                constrainedEntityTypeOptions.length <= 1
                               }
                             >
                               <SelectTrigger aria-label="Entity type">
-                                <SelectValue placeholder="Choose an entity type" />
+                                <SelectValue
+                                  placeholder={
+                                    entityTypeConfigQuery.isPending &&
+                                    isPlatformConstrainedRootType
+                                      ? 'Loading root entity types'
+                                      : constrainedEntityTypeOptions.length === 0
+                                        ? 'No root entity types available'
+                                        : 'Choose an entity type'
+                                  }
+                                />
                               </SelectTrigger>
                               <SelectContent>
-                                {parentAllowedChildTypeOptions.map((option) => (
+                                {constrainedEntityTypeOptions.map((option) => (
                                   <SelectItem key={option} value={option}>
                                     {formatEntityToken(option)}
                                   </SelectItem>
@@ -496,13 +783,66 @@ export function EntityFormDialog({
                           {...form.register('entityType')}
                         />
                       )}
-                      {hasConstrainedChildTypeOptions ? (
+                      {entityTypeGuidance ? (
                         <p className="text-xs text-muted-foreground">
-                          This parent scope only allows {parentAllowedChildTypeOptions
-                            .map((value) => formatEntityToken(value))
-                            .join(', ')}
-                          .
+                          {entityTypeGuidance}
                         </p>
+                      ) : null}
+                      {canShowEntityTypeSuggestions &&
+                      (defaultChildTypeOptions.length > 0 ||
+                        siblingSuggestedTypeOptions.length > 0) ? (
+                        <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
+                          {defaultChildTypeOptions.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Platform defaults
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {defaultChildTypeOptions.map((option) => (
+                                  <Button
+                                    key={option}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7"
+                                    onClick={() => applySuggestedEntityType(option)}
+                                    disabled={isPending}
+                                  >
+                                    {formatEntityToken(option)}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          {siblingSuggestedTypeOptions.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Seen in this branch
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {siblingSuggestedTypeOptions.map((option) => {
+                                  const suggestion =
+                                    siblingSuggestionMap.get(option.toLowerCase())
+
+                                  return (
+                                    <Button
+                                      key={option}
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7"
+                                      onClick={() => applySuggestedEntityType(option)}
+                                      disabled={isPending}
+                                    >
+                                      {formatEntityToken(option)}
+                                      {suggestion ? ` · ${suggestion.count}` : ''}
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
                       <FieldError errors={[form.formState.errors.entityType]} />
                     </div>
@@ -651,85 +991,87 @@ export function EntityFormDialog({
                   </div>
                 </section>
 
-                <section className="rounded-xl border p-4">
-                  <div className="space-y-1">
-                    <div className="font-medium">Governance controls</div>
-                    <p className="text-sm text-muted-foreground">
-                      Set optional child restrictions and member limits for this entity.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                    <div className="space-y-3">
-                      <Label>Allowed child classes</Label>
-                      <Controller
-                        control={form.control}
-                        name="allowedChildClasses"
-                        render={({ field }) => (
-                          <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-                            {entityClassOptions.map((option) => {
-                              const isChecked = field.value?.includes(option.value) ?? false
-
-                              return (
-                                <label
-                                  key={option.value}
-                                  className="flex items-start gap-3 text-sm"
-                                >
-                                  <Checkbox
-                                    checked={isChecked}
-                                    disabled={isPending}
-                                    onCheckedChange={(checked) => {
-                                      const nextValue = checked
-                                        ? [...(field.value ?? []), option.value]
-                                        : (field.value ?? []).filter(
-                                            (value) => value !== option.value
-                                          )
-
-                                      field.onChange(nextValue)
-                                    }}
-                                    className="mt-0.5"
-                                  />
-                                  <span>{option.label}</span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        )}
-                      />
+                {showGovernanceControls ? (
+                  <section className="rounded-xl border p-4">
+                    <div className="space-y-1">
+                      <div className="font-medium">Governance controls</div>
+                      <p className="text-sm text-muted-foreground">
+                        Set optional child restrictions and member limits for this entity.
+                      </p>
                     </div>
 
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-allowed-child-types">
-                          Allowed child types
-                        </Label>
-                        <Textarea
-                          id="entity-allowed-child-types"
-                          rows={4}
-                          disabled={isPending}
-                          placeholder="department, team, territory"
-                          {...form.register('allowedChildTypes')}
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                      <div className="space-y-3">
+                        <Label>Allowed child classes</Label>
+                        <Controller
+                          control={form.control}
+                          name="allowedChildClasses"
+                          render={({ field }) => (
+                            <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+                              {entityClassOptions.map((option) => {
+                                const isChecked = field.value?.includes(option.value) ?? false
+
+                                return (
+                                  <label
+                                    key={option.value}
+                                    className="flex items-start gap-3 text-sm"
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      disabled={isPending}
+                                      onCheckedChange={(checked) => {
+                                        const nextValue = checked
+                                          ? [...(field.value ?? []), option.value]
+                                          : (field.value ?? []).filter(
+                                              (value) => value !== option.value
+                                            )
+
+                                        field.onChange(nextValue)
+                                      }}
+                                      className="mt-0.5"
+                                    />
+                                    <span>{option.label}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          )}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Separate values with commas or line breaks.
-                        </p>
-                        <FieldError errors={[form.formState.errors.allowedChildTypes]} />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-max-members">Max members</Label>
-                        <Input
-                          id="entity-max-members"
-                          inputMode="numeric"
-                          disabled={isPending}
-                          placeholder="Unlimited"
-                          {...form.register('maxMembers')}
-                        />
-                        <FieldError errors={[form.formState.errors.maxMembers]} />
+                      <div className="grid gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="entity-allowed-child-types">
+                            Allowed child types
+                          </Label>
+                          <Textarea
+                            id="entity-allowed-child-types"
+                            rows={4}
+                            disabled={isPending}
+                            placeholder="department, team, territory"
+                            {...form.register('allowedChildTypes')}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Separate values with commas or line breaks.
+                          </p>
+                          <FieldError errors={[form.formState.errors.allowedChildTypes]} />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="entity-max-members">Max members</Label>
+                          <Input
+                            id="entity-max-members"
+                            inputMode="numeric"
+                            disabled={isPending}
+                            placeholder="Unlimited"
+                            {...form.register('maxMembers')}
+                          />
+                          <FieldError errors={[form.formState.errors.maxMembers]} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+                ) : null}
 
                 {submitErrorMessage ? (
                   <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">

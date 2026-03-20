@@ -18,6 +18,10 @@ export type Entity = {
   allowed_child_classes?: EntityClassValue[]
   allowed_child_types?: string[]
   max_members?: number | null
+  child_name_pattern?: string | null
+  child_display_name_pattern?: string | null
+  child_slug_pattern?: string | null
+  child_naming_guidance?: string | null
 }
 
 export type GetEntitiesParams = {
@@ -51,6 +55,10 @@ export type CreateEntityInput = {
   allowed_child_classes?: EntityClassValue[]
   allowed_child_types?: string[]
   max_members?: number | null
+  child_name_pattern?: string | null
+  child_display_name_pattern?: string | null
+  child_slug_pattern?: string | null
+  child_naming_guidance?: string | null
 }
 
 export type UpdateEntityInput = {
@@ -63,12 +71,41 @@ export type UpdateEntityInput = {
   allowed_child_classes?: EntityClassValue[]
   allowed_child_types?: string[]
   max_members?: number | null
+  child_name_pattern?: string | null
+  child_display_name_pattern?: string | null
+  child_slug_pattern?: string | null
+  child_naming_guidance?: string | null
 }
 
 export type EntityRoleSummary = {
   id: string
   name: string
   display_name: string
+}
+
+export type EntityTypeSuggestion = {
+  entity_type: string
+  count: number
+  examples: string[]
+}
+
+export type EntityTypeSuggestionParent = {
+  id: string
+  name: string
+  display_name: string
+  entity_type: string
+  entity_class: EntityClassValue
+}
+
+export type EntityTypeSuggestionsResponse = {
+  suggestions: EntityTypeSuggestion[]
+  parent_entity?: EntityTypeSuggestionParent | null
+  total_children: number
+}
+
+export type GetEntityTypeSuggestionsParams = {
+  parentId?: string
+  entityClass?: EntityClassValue
 }
 
 export type EntityMember = {

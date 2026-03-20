@@ -1,6 +1,7 @@
 import type {
   GetEntitiesParams,
   GetEntityMembersParams,
+  GetEntityTypeSuggestionsParams,
 } from '@/features/entities/types/entities.types'
 
 export const entitiesKeys = {
@@ -12,6 +13,8 @@ export const entitiesKeys = {
   descendants: (entityId: string) =>
     [...entitiesKeys.all, 'descendants', entityId] as const,
   path: (entityId: string) => [...entitiesKeys.all, 'path', entityId] as const,
+  typeSuggestions: (params: GetEntityTypeSuggestionsParams) =>
+    [...entitiesKeys.all, 'type-suggestions', params] as const,
   memberLists: () => [...entitiesKeys.all, 'members'] as const,
   memberList: (entityId: string, params: GetEntityMembersParams) =>
     [...entitiesKeys.memberLists(), entityId, params] as const,

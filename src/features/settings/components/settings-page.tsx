@@ -61,7 +61,8 @@ export function SettingsPage() {
   const form = useForm<EntityTypeConfigFormValues>({
     resolver: zodResolver(entityTypeConfigFormSchema),
     defaultValues: {
-      allowedRootTypesText: '',
+      structuralRootTypesText: '',
+      accessGroupRootTypesText: '',
       structuralChildTypesText: '',
       accessGroupChildTypesText: '',
     },
@@ -73,8 +74,11 @@ export function SettingsPage() {
     }
 
     form.reset({
-      allowedRootTypesText: formatDelimitedValues(
-        entityTypeConfigQuery.data.allowed_root_types
+      structuralRootTypesText: formatDelimitedValues(
+        entityTypeConfigQuery.data.allowed_root_types.structural
+      ),
+      accessGroupRootTypesText: formatDelimitedValues(
+        entityTypeConfigQuery.data.allowed_root_types.access_group
       ),
       structuralChildTypesText: formatDelimitedValues(
         entityTypeConfigQuery.data.default_child_types.structural
@@ -87,27 +91,31 @@ export function SettingsPage() {
 
   const pageError = sessionQuery.error ?? entityTypeConfigQuery.error
   const [
-    allowedRootTypesText = '',
+    structuralRootTypesText = '',
+    accessGroupRootTypesText = '',
     structuralChildTypesText = '',
     accessGroupChildTypesText = '',
   ] = useWatch({
     control: form.control,
     name: [
-      'allowedRootTypesText',
+      'structuralRootTypesText',
+      'accessGroupRootTypesText',
       'structuralChildTypesText',
       'accessGroupChildTypesText',
     ],
   })
   const previewValues = useMemo(
     () => ({
-      allowedRootTypes: parseDelimitedValues(allowedRootTypesText),
+      structuralRootTypes: parseDelimitedValues(structuralRootTypesText),
+      accessGroupRootTypes: parseDelimitedValues(accessGroupRootTypesText),
       structuralChildTypes: parseDelimitedValues(structuralChildTypesText),
       accessGroupChildTypes: parseDelimitedValues(accessGroupChildTypesText),
     }),
     [
       accessGroupChildTypesText,
-      allowedRootTypesText,
+      accessGroupRootTypesText,
       structuralChildTypesText,
+      structuralRootTypesText,
     ]
   )
   const submitErrorMessage = updateMutation.error
@@ -164,7 +172,10 @@ export function SettingsPage() {
               onSubmit={form.handleSubmit(async (values) => {
                 try {
                   await updateMutation.mutateAsync({
-                    allowed_root_types: parseDelimitedValues(values.allowedRootTypesText),
+                    allowed_root_types: {
+                      structural: parseDelimitedValues(values.structuralRootTypesText),
+                      access_group: parseDelimitedValues(values.accessGroupRootTypesText),
+                    },
                     default_child_types: {
                       structural: parseDelimitedValues(values.structuralChildTypesText),
                       access_group: parseDelimitedValues(values.accessGroupChildTypesText),
@@ -176,18 +187,35 @@ export function SettingsPage() {
               })}
             >
               <div className="space-y-2">
-                <Label htmlFor="settings-allowed-root-types">Allowed root entity types</Label>
+                <Label htmlFor="settings-structural-root-types">
+                  Allowed structural root types
+                </Label>
                 <Textarea
-                  id="settings-allowed-root-types"
+                  id="settings-structural-root-types"
                   rows={4}
                   placeholder="organization, workspace"
                   disabled={!canUpdateConfig || updateMutation.isPending}
-                  {...form.register('allowedRootTypesText')}
+                  {...form.register('structuralRootTypesText')}
                 />
                 <div className="text-xs text-muted-foreground">
-                  Separate values with commas or new lines.
+                  Separate values with commas or new lines. Leave the access-group list empty if
+                  you want to disable access-group roots entirely.
                 </div>
-                <FieldError errors={[form.formState.errors.allowedRootTypesText]} />
+                <FieldError errors={[form.formState.errors.structuralRootTypesText]} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="settings-access-group-root-types">
+                  Allowed access-group root types
+                </Label>
+                <Textarea
+                  id="settings-access-group-root-types"
+                  rows={4}
+                  placeholder="permission_group, admin_group"
+                  disabled={!canUpdateConfig || updateMutation.isPending}
+                  {...form.register('accessGroupRootTypesText')}
+                />
+                <FieldError errors={[form.formState.errors.accessGroupRootTypesText]} />
               </div>
 
               <div className="space-y-2">
@@ -250,14 +278,31 @@ export function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Allowed root types
+                Structural root types
               </div>
               <div className="flex flex-wrap gap-2">
-                {previewValues.allowedRootTypes.map((value) => (
+                {previewValues.structuralRootTypes.map((value) => (
                   <Badge key={value} variant="secondary">
                     {value}
                   </Badge>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Access-group root types
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {previewValues.accessGroupRootTypes.length > 0 ? (
+                  previewValues.accessGroupRootTypes.map((value) => (
+                    <Badge key={value} variant="secondary">
+                      {value}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="outline">No access-group roots allowed</Badge>
+                )}
               </div>
             </div>
 
