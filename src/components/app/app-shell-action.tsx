@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils/cn'
 
 type AppShellActionContextValue = {
+  leadingContainer: HTMLDivElement | null
+  setLeadingContainer: (container: HTMLDivElement | null) => void
   actionContainer: HTMLDivElement | null
   setActionContainer: (container: HTMLDivElement | null) => void
   metaContainer: HTMLDivElement | null
@@ -24,16 +26,19 @@ type AppShellActionProviderProps = {
 export function AppShellActionProvider({
   children,
 }: AppShellActionProviderProps) {
+  const [leadingContainer, setLeadingContainer] = useState<HTMLDivElement | null>(null)
   const [actionContainer, setActionContainer] = useState<HTMLDivElement | null>(null)
   const [metaContainer, setMetaContainer] = useState<HTMLDivElement | null>(null)
   const value = useMemo(
     () => ({
+      leadingContainer,
+      setLeadingContainer,
       actionContainer,
       setActionContainer,
       metaContainer,
       setMetaContainer,
     }),
-    [actionContainer, metaContainer]
+    [actionContainer, leadingContainer, metaContainer]
   )
 
   return (
@@ -45,6 +50,33 @@ export function AppShellActionProvider({
 
 type AppShellActionTargetProps = {
   className?: string
+}
+
+export function AppShellLeadingTarget({
+  className,
+}: AppShellActionTargetProps) {
+  const context = useContext(AppShellActionContext)
+
+  if (!context) {
+    throw new Error('AppShellLeadingTarget must be used within AppShellActionProvider.')
+  }
+
+  return (
+    <div
+      ref={context.setLeadingContainer}
+      className={cn('flex min-w-0 items-center gap-2', className)}
+    />
+  )
+}
+
+export function useAppShellLeadingContainer() {
+  const context = useContext(AppShellActionContext)
+
+  if (!context) {
+    throw new Error('useAppShellLeadingContainer must be used within AppShellActionProvider.')
+  }
+
+  return context.leadingContainer
 }
 
 export function AppShellActionTarget({

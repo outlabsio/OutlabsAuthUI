@@ -6,6 +6,7 @@ import { getAppPageGuide } from '@/app/internal-docs/page-guides'
 import { AppPageGuideDrawer } from '@/components/app/app-page-guide-drawer'
 import {
   AppShellActionProvider,
+  AppShellLeadingTarget,
   AppShellMetaTarget,
   AppShellActionTarget,
 } from '@/components/app/app-shell-action'
@@ -72,6 +73,7 @@ export function AppShell({
                   {currentPage}
                 </span>
                 <AppPageGuideDrawer pathname={pathname} />
+                <AppShellLeadingTarget />
               </div>
             </div>
             <AppShellMetaTarget />

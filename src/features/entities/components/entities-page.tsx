@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { Building2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Building2, FolderTree } from 'lucide-react'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
@@ -445,17 +445,17 @@ export function EntitiesPage({
     onEntitySelect(nextEntity.id)
   }
 
-  const headerAction = (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setIsTreeCollapsed((currentValue) => !currentValue)}
-      >
-        {isTreeCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-        {isTreeCollapsed ? 'Show hierarchy' : 'Hide hierarchy'}
-      </Button>
-    </div>
+  const hierarchyToggle = (
+    <Button
+      type="button"
+      variant={isTreeCollapsed ? 'outline' : 'secondary'}
+      size="icon-sm"
+      aria-label={isTreeCollapsed ? 'Show hierarchy' : 'Hide hierarchy'}
+      title={isTreeCollapsed ? 'Show hierarchy' : 'Hide hierarchy'}
+      onClick={() => setIsTreeCollapsed((currentValue) => !currentValue)}
+    >
+      <FolderTree className="size-4" />
+    </Button>
   )
 
   const shellAction = canCreateRootEntities ? (
@@ -482,8 +482,8 @@ export function EntitiesPage({
         className="flex-1 min-h-0 gap-4 overflow-hidden"
         title="Entities"
         hideTitle
+        shellLeading={activeRootId ? hierarchyToggle : undefined}
         shellAction={shellAction}
-        action={headerAction}
       >
         {pageErrorMessage ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
