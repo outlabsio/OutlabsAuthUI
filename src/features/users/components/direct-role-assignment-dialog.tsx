@@ -6,7 +6,6 @@ import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -17,14 +16,10 @@ import {
 import { FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
 import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
-import {
-  formatAssignableTypes,
-  getRoleScopeSummary,
-} from '@/features/roles/utils/role-display'
+import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
 import { useAssignRoleToUserMutation } from '@/features/users/hooks/use-assign-role-to-user-mutation'
 import type { Role } from '@/features/roles/types/roles.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
-import { cn } from '@/lib/utils/cn'
 
 type DirectRoleAssignmentDialogProps = {
   open: boolean
@@ -65,7 +60,7 @@ export function DirectRoleAssignmentDialog({
   }, [assignRoleMutation, open])
 
   const assignedRoleIds = useMemo(
-    () => new Set(assignedRoles.map((role) => role.id)),
+    () => assignedRoles.map((role) => role.id),
     [assignedRoles]
   )
   const availableRoles = useMemo(
@@ -193,83 +188,31 @@ export function DirectRoleAssignmentDialog({
                     ) : null}
                   </div>
 
-                  <div className="overflow-hidden rounded-xl border bg-background">
-                    <div className="divide-y">
-                      {availableRoles.map((role) => {
-                        const isAssigned = assignedRoleIds.has(role.id)
-                        const checked = selectedRoleIds.includes(role.id)
-                        const inputId = `direct-role-${role.id}`
-                        const assignableTypes = formatAssignableTypes(role)
+                  <AssignableRolesTable
+                    roles={availableRoles}
+                    selectedRoleIds={selectedRoleIds}
+                    lockedRoleIds={assignedRoleIds}
+                    lockedRoleLabel="Assigned"
+                    onRoleToggle={(roleId, checked) => {
+                      const nextRoleIds = checked
+                        ? [...selectedRoleIds, roleId]
+                        : selectedRoleIds.filter(
+                            (selectedRoleId) => selectedRoleId !== roleId
+                          )
 
-                        return (
-                          <div
-                            key={role.id}
-                            className={cn(
-                              'px-5 py-4 transition-colors',
-                              checked ? 'bg-muted/30' : 'bg-background'
-                            )}
-                          >
-                            <div className="flex items-start gap-3">
-                              <Checkbox
-                                id={inputId}
-                                aria-label={role.display_name}
-                                checked={checked}
-                                disabled={isAssigned || assignRoleMutation.isPending}
-                                onCheckedChange={(nextChecked) => {
-                                  const nextRoleIds = nextChecked
-                                    ? [...selectedRoleIds, role.id]
-                                    : selectedRoleIds.filter(
-                                        (selectedRoleId) => selectedRoleId !== role.id
-                                      )
-
-                                  setSelectedRoleIds(nextRoleIds)
-                                }}
-                                className="mt-1"
-                              />
-
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Label
-                                    htmlFor={inputId}
-                                    className={cn(
-                                      'text-sm font-medium',
-                                      isAssigned
-                                        ? 'cursor-not-allowed opacity-70'
-                                        : 'cursor-pointer'
-                                    )}
-                                  >
-                                    {role.display_name}
-                                  </Label>
-                                  {role.is_global ? (
-                                    <Badge variant="outline">Global</Badge>
-                                  ) : null}
-                                  <Badge variant="outline">
-                                    {role.permissions.length} permissions
-                                  </Badge>
-                                  {isAssigned ? (
-                                    <Badge variant="secondary">Assigned</Badge>
-                                  ) : null}
-                                </div>
-
-                                {role.description ? (
-                                  <p className="text-sm leading-6 text-muted-foreground">
-                                    {role.description}
-                                  </p>
-                                ) : null}
-
-                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                  <span>{getRoleScopeSummary(role)}</span>
-                                  {assignableTypes ? (
-                                    <span>Assignable at: {assignableTypes}</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                      setSelectedRoleIds(nextRoleIds)
+                    }}
+                    disabled={assignRoleMutation.isPending}
+                    emptyMessage="No direct account roles are available for this backend."
+                    searchPlaceholder="Search direct roles"
+                    toolbarActions={
+                      assignedRoleIds.length > 0 ? (
+                        <Badge variant="secondary">
+                          {assignedRoleIds.length} already assigned
+                        </Badge>
+                      ) : null
+                    }
+                  />
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">

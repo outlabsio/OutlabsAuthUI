@@ -5,8 +5,9 @@ import type { FullConfig } from '@playwright/test'
 import {
   authPersonas,
   authStorageDir,
-  e2eApiBaseURL,
+  buildE2eAuthApiUrl,
   e2eBaseURL,
+  requestedAuthPersonas,
 } from './auth-personas'
 import { runBackendReset, shouldResetBackend } from './reset-backend'
 
@@ -54,17 +55,18 @@ export default async function globalSetup(config: FullConfig) {
   const baseOrigin = new URL(configuredBaseURL).origin
 
   await waitForOkResponse(`${configuredBaseURL}/auth/login`, 'Frontend dev server')
-  await waitForOkResponse(`${e2eApiBaseURL}/v1/auth/config`, 'Auth backend')
+  await waitForOkResponse(buildE2eAuthApiUrl('/auth/config'), 'Auth backend')
 
   if (shouldResetBackend()) {
     await runBackendReset()
-    await waitForOkResponse(`${e2eApiBaseURL}/v1/auth/config`, 'Auth backend after reset')
+    await waitForOkResponse(buildE2eAuthApiUrl('/auth/config'), 'Auth backend after reset')
   }
 
   await fs.mkdir(authStorageDir, { recursive: true })
 
-  for (const persona of Object.values(authPersonas)) {
-    const response = await fetch(`${e2eApiBaseURL}/v1/auth/login`, {
+  for (const personaKey of requestedAuthPersonas) {
+    const persona = authPersonas[personaKey]
+    const response = await fetch(buildE2eAuthApiUrl('/auth/login'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

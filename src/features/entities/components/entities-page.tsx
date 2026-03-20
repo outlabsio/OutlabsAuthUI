@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, FolderTree } from 'lucide-react'
@@ -115,6 +115,9 @@ export function EntitiesPage({
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const isSuperuser = Boolean(sessionUser?.is_superuser)
+  const [rootScopeSearchValue, setRootScopeSearchValue] = useState('')
+  const deferredRootScopeSearchValue = useDeferredValue(rootScopeSearchValue)
+  const normalizedRootScopeSearchValue = deferredRootScopeSearchValue.trim()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
@@ -123,10 +126,12 @@ export function EntitiesPage({
   const rootEntitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
       page: 1,
-      limit: 100,
+      limit: normalizedRootScopeSearchValue ? 25 : 100,
       rootOnly: true,
+      search: normalizedRootScopeSearchValue || undefined,
     }),
     enabled: isSuperuser,
+    placeholderData: (previousData) => previousData,
   })
   const selectedEntityPathQuery = useQuery({
     ...getEntityPathQueryOptions(selectedEntityId ?? ''),
@@ -176,7 +181,7 @@ export function EntitiesPage({
         return search.scopeRootId
       }
 
-      return selectedRootIdFromPath ?? firstRootId ?? null
+      return selectedRootIdFromPath ?? sessionUser?.root_entity_id ?? firstRootId ?? null
     }
 
     return sessionUser?.root_entity_id ?? selectedRootIdFromPath ?? null
@@ -558,6 +563,7 @@ export function EntitiesPage({
                       search: nextSearch || undefined,
                     })
                   }}
+                  onRootSearchChange={setRootScopeSearchValue}
                   onRootChange={handleScopeRootChange}
                   onEntitySelect={(entityId) => onEntitySelect(entityId)}
                 />

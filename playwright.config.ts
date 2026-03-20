@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const appPort = Number(process.env.E2E_PORT ?? 3000)
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${appPort}`
 const apiBaseURL = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
+const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 
 export default defineConfig({
   testDir: './e2e',
@@ -32,6 +33,13 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_API_BASE_URL: apiBaseURL,
+      VITE_AUTH_API_PREFIX: authApiPrefix,
+      ...(process.env.E2E_ADMIN_EMAIL
+        ? { VITE_LOCAL_ADMIN_EMAIL: process.env.E2E_ADMIN_EMAIL }
+        : {}),
+      ...(process.env.E2E_ADMIN_PASSWORD
+        ? { VITE_LOCAL_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD }
+        : {}),
     },
   },
   projects: [

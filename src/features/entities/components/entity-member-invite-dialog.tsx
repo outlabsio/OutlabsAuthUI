@@ -16,7 +16,6 @@ import {
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
 import { useInviteUserMutation } from '@/features/users/hooks/use-invite-user-mutation'
 import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import {
@@ -24,6 +23,7 @@ import {
   type EntityMemberInviteFormValues,
 } from '@/features/entities/schemas/entity-member-invite.schema'
 import type { Entity } from '@/features/entities/types/entities.types'
+import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
 import type { Role } from '@/features/roles/types/roles.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -195,7 +195,7 @@ export function EntityMemberInviteDialog({
                   </div>
 
                   <div className="mt-4">
-                    <EntityAssignableRolesTable
+                    <AssignableRolesTable
                       roles={availableRoles}
                       selectedRoleIds={selectedRoleIds}
                       onRoleToggle={handleRoleToggle}

@@ -2,10 +2,9 @@ import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { Controller, type Resolver, useForm } from 'react-hook-form'
-import { CalendarClock, ChevronRight, Search, UserRoundPlus } from 'lucide-react'
+import { type Resolver, useForm } from 'react-hook-form'
+import { ChevronRight, Search, UserRoundPlus } from 'lucide-react'
 
-import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,15 +18,8 @@ import {
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { EntityAssignableRolesTable } from '@/features/entities/components/entity-assignable-roles-table'
+import { Switch } from '@/components/ui/switch'
+import { MembershipLifecyclePanel } from '@/features/memberships/components/membership-lifecycle-panel'
 import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
 import type { User } from '@/features/users/types/users.types'
 import { useCreateMembershipMutation } from '@/features/memberships/hooks/use-create-membership-mutation'
@@ -39,6 +31,10 @@ import {
 } from '@/features/entities/schemas/entity-member-access.schema'
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
 import type { Role } from '@/features/roles/types/roles.types'
+import {
+  AssignableRolesTable,
+  filterAssignableRoles,
+} from '@/features/roles/components/assignable-roles-table'
 import {
   formatMembershipToken,
   getMembershipStatusVariant,
@@ -60,11 +56,6 @@ type EntityMemberAccessDialogProps = {
   canUpdateMemberships: boolean
   canRemoveMemberships: boolean
 }
-
-const membershipStatusOptions = [
-  { label: 'Active', value: 'active' },
-  { label: 'Suspended', value: 'suspended' },
-] as const
 
 function getMemberDisplayName(member?: EntityMember | null) {
   if (!member) {
@@ -116,6 +107,8 @@ export function EntityMemberAccessDialog({
   canRemoveMemberships,
 }: EntityMemberAccessDialogProps) {
   const [userSearch, setUserSearch] = useState('')
+  const [roleSearchValue, setRoleSearchValue] = useState('')
+  const [showSelectedRolesOnly, setShowSelectedRolesOnly] = useState(false)
   const [confirmRemoval, setConfirmRemoval] = useState(false)
   const createMembershipMutation = useCreateMembershipMutation()
   const updateMembershipMutation = useUpdateMembershipMutation()
@@ -145,6 +138,8 @@ export function EntityMemberAccessDialog({
       reason: '',
     })
     setUserSearch('')
+    setRoleSearchValue('')
+    setShowSelectedRolesOnly(false)
     setConfirmRemoval(false)
     createMembershipMutation.reset()
     updateMembershipMutation.reset()
@@ -199,6 +194,20 @@ export function EntityMemberAccessDialog({
   }, [availableUsers, existingMember, selectedUserId, usersQuery.data?.items])
 
   const selectedRoleIds = form.watch('roleIds')
+  const selectedStatus = form.watch('status')
+  const selectedValidFrom = form.watch('validFrom') ?? ''
+  const selectedValidUntil = form.watch('validUntil') ?? ''
+  const selectedReason = form.watch('reason') ?? ''
+  const visibleAssignableRoles = useMemo(
+    () =>
+      filterAssignableRoles({
+        roles: availableRoles,
+        searchValue: roleSearchValue,
+        selectedRoleIdSet: new Set(selectedRoleIds),
+        showSelectedOnly: showSelectedRolesOnly,
+      }),
+    [availableRoles, roleSearchValue, selectedRoleIds, showSelectedRolesOnly]
+  )
   const isPending =
     createMembershipMutation.isPending ||
     updateMembershipMutation.isPending ||
@@ -274,9 +283,12 @@ export function EntityMemberAccessDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-4xl">
-        <div className="flex max-h-[calc(100svh-2rem)] flex-col">
-          <DialogHeader className="border-b px-6 py-5">
+      <DialogContent
+        viewportClassName="items-stretch p-0 sm:p-4"
+        className="h-[100svh] max-h-[100svh] w-screen max-w-none overflow-hidden rounded-none p-0 ring-0 sm:h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-none sm:rounded-2xl sm:ring-1 xl:w-[min(112rem,calc(100vw-2rem))]"
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
+          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-16">
             <div className="flex items-center gap-2">
               <DialogTitle className="text-2xl">
                 {existingMember ? 'Manage member access' : `Add member to ${entity.display_name}`}
@@ -292,10 +304,11 @@ export function EntityMemberAccessDialog({
           </DialogHeader>
 
           <form
-            className="flex min-h-0 flex-1 flex-col"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
             onSubmit={form.handleSubmit(handleSubmit)}
           >
-            <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+              <div className="grid gap-6 xl:grid-cols-[minmax(22rem,0.84fr)_minmax(0,1.16fr)]">
               <div className="flex min-h-0 flex-col gap-4">
                 <section className="rounded-xl border bg-muted/20 p-4">
                   <div className="flex items-center gap-2">
@@ -360,7 +373,7 @@ export function EntityMemberAccessDialog({
                       </div>
                     </div>
 
-                    <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border bg-background">
+                    <div className="mt-4 h-[50svh] min-h-[18rem] max-h-[36rem] overflow-auto rounded-xl border bg-background">
                       {!canManageMembershipAccess ? (
                         <div className="px-4 py-6 text-sm text-muted-foreground">
                           Your account cannot create or edit entity memberships.
@@ -431,8 +444,8 @@ export function EntityMemberAccessDialog({
                 )}
               </div>
 
-              <div className="flex min-h-0 flex-col gap-4">
-                <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
+              <div className="flex flex-col gap-4">
+                <section className="overflow-hidden rounded-xl border p-4">
                   <div className="flex items-center gap-2">
                     <div className="font-medium">Role assignment</div>
                     <AppInfoPopover
@@ -444,9 +457,54 @@ export function EntityMemberAccessDialog({
                     </AppInfoPopover>
                   </div>
 
-                  <div className="mt-4 min-h-0 flex-1">
-                    <EntityAssignableRolesTable
+                  <div className="mt-4 flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="relative w-full lg:max-w-sm">
+                      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        aria-label="Search roles"
+                        value={roleSearchValue}
+                        onChange={(event) => setRoleSearchValue(event.target.value)}
+                        className="pl-9"
+                        placeholder="Search roles for this membership"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">
+                        {visibleAssignableRoles.length} visible role
+                        {visibleAssignableRoles.length === 1 ? '' : 's'}
+                      </Badge>
+                      <Badge variant="outline">
+                        {selectedRoleIds.length} selected
+                      </Badge>
+                      <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                        <span
+                          className={cn(
+                            showSelectedRolesOnly ? 'text-foreground' : 'text-muted-foreground'
+                          )}
+                        >
+                          Selected only
+                        </span>
+                        <Switch
+                          checked={showSelectedRolesOnly}
+                          disabled={selectedRoleIds.length === 0}
+                          aria-label="Show selected roles only"
+                          onCheckedChange={(checked) => {
+                            setShowSelectedRolesOnly(Boolean(checked))
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 h-[50svh] min-h-[20rem] max-h-[36rem] overflow-hidden">
+                    <AssignableRolesTable
                       roles={availableRoles}
+                      searchValue={roleSearchValue}
+                      onSearchValueChange={setRoleSearchValue}
+                      showSelectedOnly={showSelectedRolesOnly}
+                      onShowSelectedOnlyChange={setShowSelectedRolesOnly}
+                      showToolbar={false}
                       selectedRoleIds={selectedRoleIds}
                       onRoleToggle={handleRoleToggle}
                       disabled={isPending || !canManageMembershipAccess}
@@ -456,107 +514,38 @@ export function EntityMemberAccessDialog({
                   </div>
                 </section>
 
-                <section className="rounded-xl border p-4">
-                  <div className="flex items-start gap-3">
-                    <CalendarClock className="mt-0.5 size-4 text-muted-foreground" />
-                    <div className="min-w-0 flex-1 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium">Membership lifecycle</div>
-                        <AppInfoPopover
-                          label="Explain membership lifecycle"
-                          title="Membership lifecycle"
-                        >
-                          Use lifecycle settings to suspend access, schedule it, or let it remain
-                          active immediately inside this entity.
-                        </AppInfoPopover>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Status</Label>
-                          <Controller
-                            control={form.control}
-                            name="status"
-                            render={({ field }) => (
-                              <Select
-                                value={field.value}
-                                onValueChange={(nextValue) => {
-                                  form.setValue(
-                                    'status',
-                                    nextValue as EntityMemberAccessFormValues['status'],
-                                    {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    }
-                                  )
-                                }}
-                                disabled={isPending || !canManageMembershipAccess}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Choose a status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {membershipStatusOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-member-reason">Reason</Label>
-                          <Textarea
-                            id="entity-member-reason"
-                            rows={2}
-                            disabled={isPending || !canManageMembershipAccess}
-                            placeholder="Optional context for this lifecycle change"
-                            {...form.register('reason')}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-member-valid-from">Valid from</Label>
-                          <Controller
-                            control={form.control}
-                            name="validFrom"
-                            render={({ field }) => (
-                              <AppDateTimePicker
-                                id="entity-member-valid-from"
-                                value={field.value ?? ''}
-                                onChange={field.onChange}
-                                disabled={isPending || !canManageMembershipAccess}
-                                placeholder="Pick a start date"
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-member-valid-until">Valid until</Label>
-                          <Controller
-                            control={form.control}
-                            name="validUntil"
-                            render={({ field }) => (
-                              <AppDateTimePicker
-                                id="entity-member-valid-until"
-                                value={field.value ?? ''}
-                                onChange={field.onChange}
-                                disabled={isPending || !canManageMembershipAccess}
-                                placeholder="Pick an end date"
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <FieldError errors={[form.formState.errors.validUntil]} />
-                    </div>
-                  </div>
-                </section>
+                <MembershipLifecyclePanel
+                  status={selectedStatus}
+                  validFrom={selectedValidFrom}
+                  validUntil={selectedValidUntil}
+                  reason={selectedReason}
+                  disabled={isPending || !canManageMembershipAccess}
+                  validUntilError={form.formState.errors.validUntil?.message ?? null}
+                  onStatusChange={(nextStatus) => {
+                    form.setValue('status', nextStatus, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  onValidFromChange={(value) => {
+                    form.setValue('validFrom', value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  onValidUntilChange={(value) => {
+                    form.setValue('validUntil', value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  onReasonChange={(value) => {
+                    form.setValue('reason', value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                />
 
                 {submitErrorMessage ? (
                   <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
@@ -565,9 +554,10 @@ export function EntityMemberAccessDialog({
                 ) : null}
               </div>
             </div>
+            </div>
 
-            <DialogFooter className="flex items-center justify-between gap-3 border-t px-6 py-4">
-              <div className="flex items-center gap-2">
+            <DialogFooter className="mx-0 mb-0 mt-auto flex-col gap-4 rounded-none border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 {existingMember && canRemoveMemberships ? (
                   confirmRemoval ? (
                     <>
@@ -603,7 +593,7 @@ export function EntityMemberAccessDialog({
                 ) : null}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
                 <Button
                   type="button"
                   variant="ghost"

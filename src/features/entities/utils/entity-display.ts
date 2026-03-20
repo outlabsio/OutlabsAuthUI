@@ -3,9 +3,18 @@ import type {
   EntityClassValue,
 } from '@/features/entities/types/entities.types'
 
+const entityTokenLabels: Record<string, string> = {
+  agent_practice: 'Agent',
+}
+
 export function formatEntityToken(value?: string | null, fallback = 'Unknown') {
   if (!value) {
     return fallback
+  }
+
+  const alias = entityTokenLabels[value.toLowerCase()]
+  if (alias) {
+    return alias
   }
 
   return value

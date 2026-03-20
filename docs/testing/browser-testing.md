@@ -125,7 +125,11 @@ test.use({ persona: 'regionalAdmin' })
 ```bash
 E2E_BASE_URL=http://localhost:3001
 E2E_API_BASE_URL=http://localhost:8005
+E2E_AUTH_API_PREFIX=/iam
 E2E_RESET_BACKEND=0
+E2E_PERSONAS=admin
+E2E_ADMIN_EMAIL=admin@demo.com
+E2E_ADMIN_PASSWORD=DiverseDemo123
 E2E_BACKEND_REPO_DIR=/path/to/outlabsAuth
 E2E_BACKEND_RESET_SCRIPT=/path/to/reset_test_env.py
 ```
@@ -133,8 +137,28 @@ E2E_BACKEND_RESET_SCRIPT=/path/to/reset_test_env.py
 These can be used when the frontend or backend run on non-default ports.
 
 - `E2E_RESET_BACKEND=0` skips the automatic reseed step.
+- `E2E_AUTH_API_PREFIX` points Playwright login/bootstrap calls at a non-default
+  auth mount such as `/iam`.
+- `E2E_PERSONAS` limits storage-state bootstrap to a comma-delimited subset such
+  as `admin` when running against a live backend that does not have the full
+  seeded enterprise persona set.
+- `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` override the default admin persona
+  credentials used for login bootstrap and local login-page hints.
 - `E2E_BACKEND_REPO_DIR` overrides the backend repo root used for reseeding.
 - `E2E_BACKEND_RESET_SCRIPT` overrides the exact reset script path.
+
+Example: run the targeted Diverse local entity-discovery spec against the
+mounted `/iam` auth backend without resetting data:
+
+```bash
+E2E_RESET_BACKEND=0 \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@demo.com \
+E2E_ADMIN_PASSWORD=DiverseDemo123 \
+E2E_API_BASE_URL=http://localhost:8010 \
+E2E_AUTH_API_PREFIX=/iam \
+bunx playwright test e2e/entities/entities-diverse-discovery.spec.ts
+```
 
 ## Authoring Guidance
 

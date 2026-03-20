@@ -49,6 +49,7 @@ type EntityTreePanelProps = {
   selectedEntityId?: string
   tree: EntityTreeNode[]
   onSearchChange: (value: string) => void
+  onRootSearchChange: (value: string) => void
   onRootChange: (rootId: string) => void
   onEntitySelect: (entityId: string) => void
 }
@@ -240,6 +241,7 @@ export function EntityTreePanel({
   selectedEntityId,
   tree,
   onSearchChange,
+  onRootSearchChange,
   onRootChange,
   onEntitySelect,
 }: EntityTreePanelProps) {
@@ -330,6 +332,8 @@ export function EntityTreePanel({
                 >
                   The entity workspace operates inside one root scope at a time. Superusers can
                   switch roots here, while scoped admins stay locked to their allowed branch.
+                  Root search queries the auth API, so large datasets are not limited to the
+                  first page of loaded roots.
                 </AppInfoPopover>
               </div>
               {canSwitchRoot ? (
@@ -369,6 +373,7 @@ export function EntityTreePanel({
 
                     onRootChange(value.id)
                   }}
+                  onInputValueChange={onRootSearchChange}
                 >
                   <ComboboxInput
                     id="entities-root-scope"

@@ -1,16 +1,27 @@
 import path from 'node:path'
 
+function ensureLeadingSlash(value: string) {
+  return value.startsWith('/') ? value : `/${value}`
+}
+
+function normalizePath(value: string) {
+  return value.startsWith('/') ? value : `/${value}`
+}
+
 export const e2eBaseURL =
   process.env.E2E_BASE_URL ?? 'http://localhost:3000'
 export const e2eApiBaseURL =
   process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
+export const e2eAuthApiPrefix = ensureLeadingSlash(
+  process.env.E2E_AUTH_API_PREFIX ?? '/v1'
+)
 export const authStorageDir = path.join(process.cwd(), 'playwright', '.auth')
 
 export const authPersonas = {
   admin: {
     label: 'Superuser',
-    email: 'admin@acme.com',
-    password: 'Testpass1!',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'admin@acme.com',
+    password: process.env.E2E_ADMIN_PASSWORD ?? 'Testpass1!',
     storageState: path.join(authStorageDir, 'admin.json'),
   },
   orgAdmin: {
@@ -76,3 +87,34 @@ export const authPersonas = {
 } as const
 
 export type AuthPersona = keyof typeof authPersonas
+
+export function buildE2eAuthApiUrl(pathname: string) {
+  const normalizedPath = normalizePath(pathname)
+  const authPath = normalizedPath.startsWith(e2eAuthApiPrefix)
+    ? normalizedPath
+    : `${e2eAuthApiPrefix}${normalizedPath}`
+  return `${e2eApiBaseURL}${authPath}`
+}
+
+export const requestedAuthPersonas: AuthPersona[] = (() => {
+  const rawValue = process.env.E2E_PERSONAS?.trim()
+
+  if (!rawValue) {
+    return Object.keys(authPersonas) as AuthPersona[]
+  }
+
+  const selected = rawValue
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const personaKeys = Object.keys(authPersonas) as AuthPersona[]
+  const invalid = selected.filter(
+    (value) => !personaKeys.includes(value as AuthPersona)
+  )
+
+  if (invalid.length > 0) {
+    throw new Error(`Unknown E2E personas: ${invalid.join(', ')}`)
+  }
+
+  return selected as AuthPersona[]
+})()

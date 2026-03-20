@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { CalendarClock, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
-import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Combobox,
   ComboboxContent,
@@ -23,18 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import type { Entity } from '@/features/entities/types/entities.types'
+import { MembershipLifecyclePanel } from '@/features/memberships/components/membership-lifecycle-panel'
 import { useCreateMembershipMutation } from '@/features/memberships/hooks/use-create-membership-mutation'
 import { useRemoveMembershipMutation } from '@/features/memberships/hooks/use-remove-membership-mutation'
 import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation'
@@ -44,10 +33,7 @@ import {
   getMembershipStatusVariant,
 } from '@/features/memberships/utils/membership-display'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
-import {
-  formatAssignableTypes,
-  getRoleScopeSummary,
-} from '@/features/roles/utils/role-display'
+import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { cn } from '@/lib/utils/cn'
 
@@ -62,11 +48,6 @@ type MembershipAccessDialogProps = {
   canManageMembershipAccess: boolean
   canRemoveMemberships: boolean
 }
-
-const membershipStatusOptions = [
-  { label: 'Active', value: 'active' },
-  { label: 'Suspended', value: 'suspended' },
-] as const
 
 function areRoleIdsEqual(left: string[], right: string[]) {
   if (left.length !== right.length) {
@@ -434,109 +415,22 @@ export function MembershipAccessDialog({
                         </div>
                       </div>
 
-                      <div className="space-y-3 rounded-lg border bg-background/80 p-4">
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor="membership-access-status" className="text-base">
-                            Access state
-                          </Label>
-                          <AppInfoPopover
-                            label="Explain membership access state"
-                            title="Access state"
-                          >
-                            Active memberships can grant access now or within the configured window.
-                            Suspended memberships stay linked to the entity but stop granting
-                            access until restored.
-                          </AppInfoPopover>
-                        </div>
-
-                        <Select
-                          items={membershipStatusOptions}
-                          value={selectedStatus}
-                          onValueChange={(value) => {
-                            setSelectedStatus((value as 'active' | 'suspended') ?? 'active')
-                          }}
-                          disabled={!canManageMembershipAccess}
-                        >
-                          <SelectTrigger
-                            id="membership-access-status"
-                            className="h-10 w-full"
-                            aria-label="Select access state"
-                          >
-                            <SelectValue placeholder="Select an access state" />
-                          </SelectTrigger>
-                          <SelectContent align="start" alignItemWithTrigger={false}>
-                            <SelectGroup>
-                              {membershipStatusOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-4 rounded-lg border bg-background/80 p-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 font-medium text-foreground">
-                            <CalendarClock className="size-4 text-muted-foreground" />
-                            <span>Access window</span>
-                            <AppInfoPopover
-                              label="Explain membership access window"
-                              title="Access window"
-                            >
-                              Start and end dates are optional. Use them when the membership should
-                              activate later or expire automatically.
-                            </AppInfoPopover>
-                          </div>
-                          {accessWindowStateMessage ? (
-                            <p className="text-sm text-muted-foreground">
-                              {accessWindowStateMessage}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="membership-access-valid-from">Valid from</Label>
-                            <AppDateTimePicker
-                              id="membership-access-valid-from"
-                              value={validFrom}
-                              onChange={(nextValue) => {
-                                setValidFrom(nextValue)
-                              }}
-                              disabled={!canManageMembershipAccess}
-                              placeholder="Pick a start date"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="membership-access-valid-until">Valid until</Label>
-                            <AppDateTimePicker
-                              id="membership-access-valid-until"
-                              value={validUntil}
-                              onChange={(nextValue) => {
-                                setValidUntil(nextValue)
-                              }}
-                              disabled={!canManageMembershipAccess}
-                              placeholder="Pick an end date"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="membership-access-reason">Lifecycle note</Label>
-                          <Textarea
-                            id="membership-access-reason"
-                            value={reason}
-                            disabled={!canManageMembershipAccess}
-                            placeholder="Optional note for suspension, restoration, or timing context"
-                            onChange={(event) => {
-                              setReason(event.target.value)
-                            }}
-                          />
-                        </div>
-                      </div>
+                      <MembershipLifecyclePanel
+                        className="bg-background/80"
+                        status={selectedStatus}
+                        validFrom={validFrom}
+                        validUntil={validUntil}
+                        reason={reason}
+                        helperMessage={accessWindowStateMessage}
+                        disabled={!canManageMembershipAccess}
+                        validUntilError={null}
+                        reasonLabel="Lifecycle note"
+                        reasonPlaceholder="Optional note for suspension, restoration, or timing context"
+                        onStatusChange={setSelectedStatus}
+                        onValidFromChange={setValidFrom}
+                        onValidUntilChange={setValidUntil}
+                        onReasonChange={setReason}
+                      />
                     </div>
                   ) : (
                     <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
@@ -578,64 +472,24 @@ export function MembershipAccessDialog({
                       )}
                     </div>
                   ) : availableRoles.length > 0 ? (
-                    <div className="divide-y">
-                      {availableRoles.map((role) => {
-                        const checked = selectedRoleIds.includes(role.id)
+                    <AssignableRolesTable
+                      roles={availableRoles}
+                      selectedRoleIds={selectedRoleIds}
+                      onRoleToggle={(roleId, checked) => {
+                        setSelectedRoleIds((currentRoleIds) => {
+                          if (checked) {
+                            return [...currentRoleIds, roleId]
+                          }
 
-                        return (
-                          <label
-                            key={role.id}
-                            className={cn(
-                              'flex cursor-pointer items-start gap-3 px-4 py-4 transition-colors',
-                              checked ? 'bg-muted/30' : 'hover:bg-muted/20'
-                            )}
-                          >
-                            <Checkbox
-                              aria-label={role.display_name}
-                              checked={checked}
-                              onCheckedChange={(nextChecked) => {
-                                setSelectedRoleIds((currentRoleIds) => {
-                                  if (nextChecked) {
-                                    return [...currentRoleIds, role.id]
-                                  }
-
-                                  return currentRoleIds.filter(
-                                    (currentRoleId) => currentRoleId !== role.id
-                                  )
-                                })
-                              }}
-                              disabled={!canManageMembershipAccess}
-                              className="mt-1"
-                            />
-
-                            <div className="min-w-0 flex-1 space-y-3">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium">{role.display_name}</span>
-                                {role.is_global ? <Badge variant="outline">Global</Badge> : null}
-                                <Badge variant="outline">
-                                  {role.permissions.length} permissions
-                                </Badge>
-                              </div>
-
-                              {role.description ? (
-                                <p className="text-sm text-muted-foreground">{role.description}</p>
-                              ) : null}
-
-                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center rounded-full border px-2 py-1">
-                                  {getRoleScopeSummary(role)}
-                                </span>
-                                {role.assignable_at_types.length > 0 ? (
-                                <span className="inline-flex items-center rounded-full border px-2 py-1">
-                                    Assignable at {formatAssignableTypes(role)}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
+                          return currentRoleIds.filter(
+                            (currentRoleId) => currentRoleId !== roleId
+                          )
+                        })
+                      }}
+                      disabled={!canManageMembershipAccess}
+                      emptyMessage="No roles are currently available for this entity."
+                      searchPlaceholder="Search roles for this membership"
+                    />
                   ) : (
                     <div className="flex min-h-full items-center justify-center px-6 py-10 text-sm text-muted-foreground">
                       No roles are currently available for this entity.
