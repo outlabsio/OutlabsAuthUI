@@ -282,7 +282,7 @@ export function EntityTreePanel({
   )
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <div className="flex min-h-0 flex-col overflow-hidden text-foreground">
       <div className="border-b border-sidebar-border px-4 py-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2">

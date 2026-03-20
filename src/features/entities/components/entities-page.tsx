@@ -479,7 +479,11 @@ export function EntitiesPage({
   return (
     <>
       <AppPage
-        className="flex-1 min-h-0 gap-4 overflow-hidden"
+        className={
+          activeRootId
+            ? '-mx-4 -my-4 flex-1 min-h-0 gap-0 overflow-hidden md:-mx-6 md:-my-5'
+            : 'flex-1 min-h-0 gap-4 overflow-hidden'
+        }
         title="Entities"
         hideTitle
         shellLeading={activeRootId ? hierarchyToggle : undefined}
@@ -524,34 +528,42 @@ export function EntitiesPage({
           <div
             className={
               isTreeCollapsed
-                ? 'grid min-h-0 flex-1 gap-4'
-                : 'grid min-h-0 flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]'
+                ? 'flex min-h-0 flex-1 flex-col'
+                : 'grid min-h-0 flex-1 gap-0 xl:grid-cols-[340px_minmax(0,1fr)]'
             }
           >
             {!isTreeCollapsed ? (
-              <EntityTreePanel
-                rootEntity={activeRootQuery.data ?? null}
-                rootOptions={rootOptions}
-                canSwitchRoot={isSuperuser}
-                selectedRootId={activeRootId ?? undefined}
-                searchValue={search.search ?? ''}
-                totalCount={allScopeNodes.length}
-                visibleCount={visibleScopeNodes.length}
-                selectedPathIds={activeEntityPathIds}
-                selectedEntityId={activeEntity?.id}
-                tree={filteredEntityTree}
-                onSearchChange={(nextSearch) => {
-                  onSearchChange({
-                    ...search,
-                    search: nextSearch || undefined,
-                  })
-                }}
-                onRootChange={handleScopeRootChange}
-                onEntitySelect={(entityId) => onEntitySelect(entityId)}
-              />
+              <div className="min-h-0 border-b border-border/60 xl:border-r xl:border-b-0">
+                <EntityTreePanel
+                  rootEntity={activeRootQuery.data ?? null}
+                  rootOptions={rootOptions}
+                  canSwitchRoot={isSuperuser}
+                  selectedRootId={activeRootId ?? undefined}
+                  searchValue={search.search ?? ''}
+                  totalCount={allScopeNodes.length}
+                  visibleCount={visibleScopeNodes.length}
+                  selectedPathIds={activeEntityPathIds}
+                  selectedEntityId={activeEntity?.id}
+                  tree={filteredEntityTree}
+                  onSearchChange={(nextSearch) => {
+                    onSearchChange({
+                      ...search,
+                      search: nextSearch || undefined,
+                    })
+                  }}
+                  onRootChange={handleScopeRootChange}
+                  onEntitySelect={(entityId) => onEntitySelect(entityId)}
+                />
+              </div>
             ) : null}
 
-            <div className="min-h-0 overflow-auto pr-1">
+            <div
+              className={
+                isTreeCollapsed
+                  ? 'min-h-0 overflow-auto p-4 md:p-6'
+                  : 'min-h-0 overflow-auto px-4 py-4 md:px-6 md:py-5'
+              }
+            >
               <EntityDetailPanel
                 scopeRoot={activeRootQuery.data ?? null}
                 entity={activeEntity}

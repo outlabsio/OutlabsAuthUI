@@ -320,16 +320,11 @@ test.describe('Entities Workspace', () => {
   }) => {
     await gotoEntitiesWorkspace(page)
 
-    await selectBaseUiOption({
-      page,
-      container: page.locator('body'),
-      fieldLabel: 'Root scope',
-      optionName: /Summit Commercial/i,
-    })
+    const rootScopeField = page.locator('#entities-root-scope')
+    await rootScopeField.fill('Summit Commercial')
+    await page.getByRole('option', { name: /Summit Commercial/i }).click()
 
-    await expect(page.getByRole('combobox', { name: 'Root scope' })).toContainText(
-      'Summit Commercial'
-    )
+    await expect(rootScopeField).toHaveValue('Summit Commercial')
     await selectEntityFromTree(page, 'Austin Office', 'Austin Office')
     await expect(page.getByText('Austin commercial sales office.')).toBeVisible()
     await expect(
