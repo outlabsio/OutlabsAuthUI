@@ -138,18 +138,18 @@ export function RolesTable({
               className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain"
             >
               <Table className="table-fixed">
-                <TableHeader className="bg-background">
+                <TableHeader className="sticky top-0 z-10 bg-background [&_tr]:bg-background">
                   <TableRow className="hover:bg-background">
-                    <TableHead className="sticky top-0 z-10 w-[29%] bg-background px-4">
+                    <TableHead className="w-[29%] bg-background px-4">
                       Role
                     </TableHead>
-                    <TableHead className="sticky top-0 z-10 w-[25%] bg-background px-4">
+                    <TableHead className="w-[25%] bg-background px-4">
                       Applicability
                     </TableHead>
-                    <TableHead className="sticky top-0 z-10 w-[24%] bg-background px-4">
+                    <TableHead className="w-[24%] bg-background px-4">
                       Assignment
                     </TableHead>
-                    <TableHead className="sticky top-0 z-10 w-[22%] bg-background px-4">
+                    <TableHead className="w-[22%] bg-background px-4">
                       Permission footprint
                     </TableHead>
                   </TableRow>

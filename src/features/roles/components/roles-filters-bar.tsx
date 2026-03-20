@@ -119,7 +119,7 @@ export function RolesFiltersBar({
 
   return (
     <form
-      className="flex min-w-0 flex-wrap items-center gap-2"
+      className="flex min-w-0 flex-wrap items-center gap-2 bg-muted/20 px-3 py-2 md:px-4"
       onSubmit={(event) => {
         event.preventDefault()
         onApply({
@@ -133,7 +133,7 @@ export function RolesFiltersBar({
         })
       }}
     >
-      <div className="relative min-w-[220px] flex-[1_1_280px]">
+      <div className="relative min-w-[190px] flex-[0_1_220px] xl:flex-[0_1_240px]">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={searchValue}
@@ -144,7 +144,7 @@ export function RolesFiltersBar({
         />
       </div>
 
-      <div className="w-full shrink-0 sm:w-40">
+      <div className="w-full shrink-0 sm:w-[150px]">
         <Select
           value={roleType}
           onValueChange={(value) => setRoleType((value ?? 'all') as RoleTypeFilter | 'all')}
@@ -165,7 +165,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="w-full shrink-0 sm:w-40">
+      <div className="w-full shrink-0 sm:w-[150px]">
         <Select
           value={scopeMode}
           onValueChange={(value) => setScopeMode((value ?? 'all') as RoleScopeFilter | 'all')}
@@ -186,7 +186,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="w-full min-w-[220px] shrink-0 sm:w-[220px]">
+      <div className="w-full min-w-[190px] shrink-0 sm:w-[190px]">
         <Select value={scopeRootId} onValueChange={(value) => setScopeRootId(String(value ?? 'all'))}>
           <SelectTrigger className="w-full" aria-label="Filter by owning root">
             <SelectValue>{scopeRootLabel}</SelectValue>
@@ -204,7 +204,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="w-full shrink-0 sm:w-[180px]">
+      <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={assignableType}
           onValueChange={(value) => setAssignableType(String(value ?? 'all'))}
@@ -225,7 +225,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="w-full shrink-0 sm:w-[180px]">
+      <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={usage}
           onValueChange={(value) => setUsage((value ?? 'all') as RoleUsageFilter | 'all')}
@@ -246,7 +246,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="w-full shrink-0 sm:w-[180px]">
+      <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={system}
           onValueChange={(value) => setSystem((value ?? 'all') as RoleSystemFilter | 'all')}
@@ -267,7 +267,7 @@ export function RolesFiltersBar({
         </Select>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button type="submit" className="min-w-24">
           Apply
         </Button>

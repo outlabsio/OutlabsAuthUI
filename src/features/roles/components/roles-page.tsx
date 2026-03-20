@@ -211,7 +211,7 @@ export function RolesPage({
   return (
     <>
       <AppPage
-        className="flex-1 min-h-0 gap-4 overflow-hidden"
+        className="-mx-4 -mb-4 flex-1 min-h-0 gap-0 overflow-hidden md:-mx-6 md:-mb-6"
         title="Roles"
         hideTitle
         shellMeta={canReadRoles ? rolesSummary : undefined}
@@ -229,7 +229,7 @@ export function RolesPage({
         }
         action={
           canReadRoles ? (
-            <div className="min-w-0 rounded-xl border bg-card/70 px-3 py-2.5">
+            <div className="min-w-0">
                 <RolesFiltersBar
                   search={search}
                   rootOptions={rootOptions}
