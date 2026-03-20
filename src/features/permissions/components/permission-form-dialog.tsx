@@ -218,8 +218,8 @@ export function PermissionFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-4xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
-          <DialogHeader className="border-b px-6 py-5">
-            <div className="flex items-start justify-between gap-4">
+          <DialogHeader className="border-b px-6 py-5 pr-16">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <DialogTitle className="text-2xl">
                   {mode === 'create' ? 'Create permission' : `Edit ${permission?.display_name ?? 'permission'}`}
@@ -233,10 +233,12 @@ export function PermissionFormDialog({
                 </AppInfoPopover>
               </div>
               {mode === 'edit' ? (
-                <Badge variant="outline" className="gap-1.5">
-                  <KeyRound className="size-3.5" />
-                  {permission?.is_system ? 'System' : 'Custom'}
-                </Badge>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="gap-1.5">
+                    <KeyRound className="size-3.5" />
+                    {permission?.is_system ? 'System' : 'Custom'}
+                  </Badge>
+                </div>
               ) : null}
             </div>
           </DialogHeader>
@@ -244,7 +246,7 @@ export function PermissionFormDialog({
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={form.handleSubmit(handleSubmit)}>
             <div className="grid min-h-0 flex-1 gap-6 overflow-auto px-6 py-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
               <div className="space-y-5">
-                <div className="rounded-3xl border bg-linear-to-br from-primary/6 via-background to-accent/10 p-5">
+                <div className="rounded-3xl border bg-background/90 p-5">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Sparkles className="size-4 text-primary" />
                     Permission identity
@@ -443,7 +445,7 @@ export function PermissionFormDialog({
                   ) : null}
                 </div>
 
-                <div className="rounded-3xl border bg-linear-to-br from-card via-background to-accent/10 p-5">
+                <div className="rounded-3xl border bg-background/90 p-5">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <ShieldCheck className="size-4 text-primary" />
                     Permission preview
@@ -507,7 +509,7 @@ export function PermissionFormDialog({
               </div>
             </div>
 
-            <DialogFooter className="border-t px-6 py-4">
+            <DialogFooter className="mx-0 mb-0 rounded-none border-t bg-background px-6 py-5">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                 Cancel
               </Button>
