@@ -3,6 +3,23 @@ import type {
   PermissionsPageSearch,
 } from '@/features/permissions/types/permissions.types'
 
+const permissionStatusRank: Record<Permission['status'], number> = {
+  active: 0,
+  inactive: 1,
+  archived: 2,
+}
+
+const permissionActionRank = new Map<string, number>([
+  ['read', 0],
+  ['read_tree', 1],
+  ['create', 2],
+  ['write', 3],
+  ['update', 4],
+  ['delete', 5],
+  ['manage', 6],
+  ['*', 7],
+])
+
 export function formatPermissionToken(value: string, fallback?: string) {
   const formatted = value
     .split(/[_:-]/g)
@@ -13,12 +30,30 @@ export function formatPermissionToken(value: string, fallback?: string) {
   return formatted || fallback || value
 }
 
+function getPermissionResourceToken(permission: Permission) {
+  return permission.resource ?? permission.name.split(':')[0] ?? 'general'
+}
+
+function formatPermissionResourceToken(value?: string | null) {
+  if (!value) {
+    return 'General'
+  }
+
+  return value === '*' ? 'Wildcard' : formatPermissionToken(value, 'General')
+}
+
+function getPermissionActionToken(permission: Permission) {
+  return permission.action ?? permission.name.split(':')[1] ?? 'action'
+}
+
 export function getPermissionResourceLabel(permission: Permission) {
-  return formatPermissionToken(permission.resource ?? 'general', 'General')
+  return formatPermissionResourceToken(getPermissionResourceToken(permission))
 }
 
 export function getPermissionActionLabel(permission: Permission) {
-  return formatPermissionToken(permission.action ?? permission.name.split(':')[1] ?? 'action')
+  const action = getPermissionActionToken(permission)
+
+  return action === '*' ? 'All actions' : formatPermissionToken(action)
 }
 
 export function getPermissionScopeLabel(permission: Permission) {
@@ -137,16 +172,62 @@ export function matchesPermissionsSearchFilters(
   return true
 }
 
+function comparePermissionsForCatalog(left: Permission, right: Permission) {
+  const leftResource = formatPermissionResourceToken(getPermissionResourceToken(left))
+  const rightResource = formatPermissionResourceToken(getPermissionResourceToken(right))
+
+  if (leftResource !== rightResource) {
+    return leftResource.localeCompare(rightResource)
+  }
+
+  if (left.is_system !== right.is_system) {
+    return left.is_system ? -1 : 1
+  }
+
+  if (left.status !== right.status) {
+    return permissionStatusRank[left.status] - permissionStatusRank[right.status]
+  }
+
+  const leftAction = getPermissionActionToken(left)
+  const rightAction = getPermissionActionToken(right)
+  const leftActionRank = permissionActionRank.get(leftAction) ?? Number.POSITIVE_INFINITY
+  const rightActionRank = permissionActionRank.get(rightAction) ?? Number.POSITIVE_INFINITY
+
+  if (leftActionRank !== rightActionRank) {
+    return leftActionRank - rightActionRank
+  }
+
+  const actionComparison = getPermissionActionLabel(left).localeCompare(
+    getPermissionActionLabel(right)
+  )
+
+  if (actionComparison !== 0) {
+    return actionComparison
+  }
+
+  return left.display_name.localeCompare(right.display_name)
+}
+
 export function sortPermissionsForCatalog(permissions: Permission[]) {
-  return [...permissions].sort((left, right) => {
-    if (left.is_system !== right.is_system) {
-      return left.is_system ? -1 : 1
-    }
+  return [...permissions].sort(comparePermissionsForCatalog)
+}
 
-    if (left.status !== right.status) {
-      return left.status === 'active' ? -1 : 1
-    }
+export function groupPermissionsForCatalog(permissions: Permission[]) {
+  const groups = new Map<string, Permission[]>()
 
-    return left.display_name.localeCompare(right.display_name)
+  sortPermissionsForCatalog(permissions).forEach((permission) => {
+    const resource = getPermissionResourceToken(permission)
+    const group = groups.get(resource) ?? []
+
+    group.push(permission)
+    groups.set(resource, group)
   })
+
+  return [...groups.entries()]
+    .map(([resource, groupPermissions]) => ({
+      resource,
+      label: formatPermissionResourceToken(resource),
+      permissions: groupPermissions,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label))
 }

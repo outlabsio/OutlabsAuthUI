@@ -117,6 +117,13 @@ export function PermissionsPage({
       ),
     [permissionsQuery.data?.items, search]
   )
+  const hasActiveFilters = Boolean(
+    search.search?.trim() ||
+      search.resource ||
+      (search.status && search.status !== 'all') ||
+      (search.system && search.system !== 'all') ||
+      search.tag
+  )
   const resources = useMemo(
     () =>
       [...new Set((permissionsQuery.data?.items ?? []).map((permission) => permission.resource).filter(Boolean))]
@@ -237,6 +244,7 @@ export function PermissionsPage({
                 selectedPermissionId={selectedPermissionId}
                 isLoading={permissionsQuery.isPending}
                 isRefreshing={permissionsQuery.isFetching && !permissionsQuery.isPending}
+                hasActiveFilters={hasActiveFilters}
                 canReadRoles={canReadRoles}
                 roleCountsByPermissionName={roleCountsByPermissionName}
                 onPermissionSelect={onPermissionSelect}

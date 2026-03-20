@@ -11,12 +11,17 @@ async function gotoPermissionsWorkspace(page: Page) {
   await expect(page).toHaveURL(/\/app\/permissions(?:\?.*)?$/)
   await expect(page.getByRole('button', { name: 'Open Permissions guide' })).toBeVisible()
   await expect(page.getByText('Permission catalog')).toBeVisible()
-  await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Search permissions' })).toBeVisible()
 }
 
-function getPermissionRow(page: Page, permissionName: string) {
+async function searchPermissions(page: Page, searchValue: string) {
+  await page.getByRole('textbox', { name: 'Search permissions' }).fill(searchValue)
+  await page.getByRole('button', { name: 'Apply' }).click()
+}
+
+function getPermissionEntry(page: Page, permissionName: string) {
   return page
-    .locator('tbody tr')
+    .locator('button[type="button"]')
     .filter({
       has: page.getByText(permissionName, { exact: true }),
     })
@@ -24,10 +29,12 @@ function getPermissionRow(page: Page, permissionName: string) {
 }
 
 async function openPermission(page: Page, permissionName: string) {
-  const permissionRow = getPermissionRow(page, permissionName)
+  await searchPermissions(page, permissionName)
 
-  await expect(permissionRow).toBeVisible()
-  await permissionRow.click()
+  const permissionEntry = getPermissionEntry(page, permissionName)
+
+  await expect(permissionEntry).toBeVisible()
+  await permissionEntry.click()
   await expect(
     page.getByRole('heading', {
       name: permissionName,
@@ -141,9 +148,8 @@ test.describe('Permissions Workspace', () => {
         name: 'Select a permission',
       })
     ).toBeVisible()
-    await expect(
-      getPermissionRow(page, displayName)
-    ).toHaveCount(0)
+    await searchPermissions(page, displayName)
+    await expect(getPermissionEntry(page, displayName)).toHaveCount(0)
   })
 
   test('admin can create, edit, and delete permission ABAC artifacts', async ({ page }) => {
