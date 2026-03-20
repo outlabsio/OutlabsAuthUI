@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
+import { Check, Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
@@ -21,6 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -157,16 +159,43 @@ export function ApiKeysPage() {
     mode: 'create',
     apiKey: null,
   })
+  const [showRevokedKeys, setShowRevokedKeys] = useState(false)
+  const [rotateTarget, setRotateTarget] = useState<ApiKey | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null)
   const [revealedSecret, setRevealedSecret] = useState<CreateApiKeyResponse | null>(null)
+  const [secretCopied, setSecretCopied] = useState(false)
+
+  const visibleApiKeys = useMemo(
+    () =>
+      showRevokedKeys
+        ? apiKeys
+        : apiKeys.filter((apiKey) => apiKey.status !== 'revoked'),
+    [apiKeys, showRevokedKeys]
+  )
 
   const activeApiKey =
-    apiKeys.find((apiKey) => apiKey.id === selectedApiKeyId) ??
-    apiKeys[0] ??
+    visibleApiKeys.find((apiKey) => apiKey.id === selectedApiKeyId) ??
+    visibleApiKeys[0] ??
     null
 
   const deleteMutation = useDeleteApiKeyMutation()
   const rotateMutation = useRotateApiKeyMutation()
+
+  useEffect(() => {
+    setSecretCopied(false)
+  }, [revealedSecret])
+
+  useEffect(() => {
+    if (apiKeys.length === 0) {
+      return
+    }
+
+    const hasVisibleNonRevokedKey = apiKeys.some((apiKey) => apiKey.status !== 'revoked')
+
+    if (!hasVisibleNonRevokedKey) {
+      setShowRevokedKeys(true)
+    }
+  }, [apiKeys])
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading API keys workspace" />
@@ -216,16 +245,38 @@ export function ApiKeysPage() {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <Card className="border border-border/70">
               <CardHeader className="gap-2">
-                <CardTitle className="text-xl">Current user's keys</CardTitle>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="text-xl">Current user's keys</CardTitle>
+                  {apiKeys.length > 0 ? (
+                    <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                      <Switch
+                        id="api-keys-show-revoked"
+                        checked={showRevokedKeys}
+                        onCheckedChange={(checked) => {
+                          setShowRevokedKeys(Boolean(checked))
+                        }}
+                        aria-label="Show revoked keys"
+                      />
+                      <Label
+                        htmlFor="api-keys-show-revoked"
+                        className="cursor-pointer whitespace-nowrap text-sm font-medium"
+                      >
+                        Show revoked keys
+                      </Label>
+                    </div>
+                  ) : null}
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Secrets are only returned on create and rotate. Subsequent reads only expose the
                   prefix and metadata.
                 </p>
               </CardHeader>
               <CardContent>
-                {apiKeys.length === 0 ? (
+                {visibleApiKeys.length === 0 ? (
                   <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                    No API keys exist for this account yet.
+                    {apiKeys.length === 0
+                      ? 'No API keys exist for this account yet.'
+                      : 'No non-revoked API keys are currently visible. Enable revoked keys to inspect archived credentials.'}
                   </div>
                 ) : (
                   <Table>
@@ -239,7 +290,7 @@ export function ApiKeysPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {apiKeys.map((apiKey) => {
+                      {visibleApiKeys.map((apiKey) => {
                         const isSelected = activeApiKey?.id === apiKey.id
 
                         return (
@@ -413,16 +464,8 @@ export function ApiKeysPage() {
                           rotateMutation.isPending ||
                           activeApiKey.status === 'revoked'
                         }
-                        onClick={async () => {
-                          try {
-                            const rotatedKey = await rotateMutation.mutateAsync({
-                              keyId: activeApiKey.id,
-                            })
-                            setSelectedApiKeyId(rotatedKey.id)
-                            setRevealedSecret(rotatedKey)
-                          } catch {
-                            return
-                          }
+                        onClick={() => {
+                          setRotateTarget(activeApiKey)
                         }}
                       >
                         <RefreshCcw className="size-4" />
@@ -510,6 +553,11 @@ export function ApiKeysPage() {
             <Button
               type="button"
               variant="outline"
+              className={
+                secretCopied
+                  ? 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/15 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/20'
+                  : undefined
+              }
               disabled={!revealedSecret?.api_key}
               onClick={async () => {
                 if (!revealedSecret?.api_key) {
@@ -518,16 +566,73 @@ export function ApiKeysPage() {
 
                 try {
                   await navigator.clipboard.writeText(revealedSecret.api_key)
+                  setSecretCopied(true)
                 } catch {
                   return
                 }
               }}
             >
-              <Copy className="size-4" />
-              Copy secret
+              {secretCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {secretCopied ? 'Copied' : 'Copy secret'}
             </Button>
             <Button type="button" onClick={() => setRevealedSecret(null)}>
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(rotateTarget)} onOpenChange={(open) => !open && setRotateTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rotate API key</DialogTitle>
+            <DialogDescription>
+              Rotating this key creates a replacement secret and revokes the current secret
+              immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-xl border px-4 py-4 text-sm">
+              <div className="font-medium text-foreground">{rotateTarget?.name}</div>
+              <div className="mt-1 text-muted-foreground">
+                Prefix: <span className="font-mono">{rotateTarget?.prefix}</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+              Integrations using the current secret will stop working until they are updated with
+              the replacement value shown after rotation.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={rotateMutation.isPending}
+              onClick={() => setRotateTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!rotateTarget || rotateMutation.isPending}
+              onClick={async () => {
+                if (!rotateTarget) {
+                  return
+                }
+
+                try {
+                  const rotatedKey = await rotateMutation.mutateAsync({
+                    keyId: rotateTarget.id,
+                  })
+                  setRotateTarget(null)
+                  setSelectedApiKeyId(rotatedKey.id)
+                  setRevealedSecret(rotatedKey)
+                } catch {
+                  return
+                }
+              }}
+            >
+              {rotateMutation.isPending ? 'Rotating...' : 'Rotate key'}
             </Button>
           </DialogFooter>
         </DialogContent>

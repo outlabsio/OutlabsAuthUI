@@ -89,6 +89,14 @@ test.describe('API Keys Workspace', () => {
     await expect(page.getByText('Suspended', { exact: true }).first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Rotate key' }).click()
+    const rotateConfirmDialog = page.getByRole('dialog', { name: 'Rotate API key' })
+    await expect(rotateConfirmDialog).toBeVisible()
+    await expect(
+      rotateConfirmDialog.getByText(
+        'Rotating this key creates a replacement secret and revokes the current secret immediately.'
+      )
+    ).toBeVisible()
+    await rotateConfirmDialog.getByRole('button', { name: 'Rotate key' }).click()
 
     const rotateDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
     await expect(rotateDialog).toBeVisible()
