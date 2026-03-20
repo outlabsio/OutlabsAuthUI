@@ -370,7 +370,7 @@ export function RoleFormDialog({
           >
             <div className="grid min-h-0 flex-1 gap-6 overflow-auto px-6 py-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
               <div className="space-y-5">
-                <div className="rounded-3xl border bg-linear-to-br from-primary/6 via-background to-accent/10 p-5">
+                <div className="rounded-3xl border bg-background/90 p-5">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Sparkles className="size-4 text-primary" />
                     Role type

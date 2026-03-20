@@ -152,7 +152,7 @@ export function RoleDetailsPanel({
 
   return (
     <div className="space-y-4">
-      <Card className="border border-border/70 bg-linear-to-br from-primary/5 via-card to-accent/12">
+      <Card className="border border-border/70 bg-card/90 ring-0">
         <CardContent className="space-y-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-4">
