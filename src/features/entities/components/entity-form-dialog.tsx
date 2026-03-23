@@ -753,7 +753,7 @@ export function EntityFormDialog({
                                 constrainedEntityTypeOptions.length <= 1
                               }
                             >
-                              <SelectTrigger aria-label="Entity type">
+                              <SelectTrigger className="w-full" aria-label="Entity type">
                                 <SelectValue
                                   placeholder={
                                     entityTypeConfigQuery.isPending &&
@@ -765,7 +765,7 @@ export function EntityFormDialog({
                                   }
                                 />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent align="start" alignItemWithTrigger={false}>
                                 {constrainedEntityTypeOptions.map((option) => (
                                   <SelectItem key={option} value={option}>
                                     {formatEntityToken(option)}
@@ -871,10 +871,10 @@ export function EntityFormDialog({
                               isPending || parentAllowedChildClassOptions.length === 1
                             }
                           >
-                            <SelectTrigger aria-label="Entity class">
+                            <SelectTrigger className="w-full" aria-label="Entity class">
                               <SelectValue placeholder="Choose a class" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent align="start" alignItemWithTrigger={false}>
                               {parentAllowedChildClassOptions.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
@@ -913,10 +913,10 @@ export function EntityFormDialog({
                           }}
                           disabled={isPending}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full" aria-label="Entity status">
                             <SelectValue placeholder="Choose a status" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent align="start" alignItemWithTrigger={false}>
                             {entityStatusOptions.map((option) => (
                               <SelectItem key={option.value} value={option.value}>
                                 {option.label}

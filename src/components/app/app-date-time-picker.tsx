@@ -94,7 +94,7 @@ export function AppDateTimePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto p-0"
+          className="w-(--anchor-width) max-w-(--available-width) p-0 [&_[data-slot=calendar]]:w-full"
           sideOffset={8}
         >
           <Calendar
