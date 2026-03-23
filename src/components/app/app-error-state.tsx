@@ -20,7 +20,7 @@ export function AppErrorState({
   return (
     <AppStatusCallout
       role="alert"
-      tone="error"
+      color="error"
       appearance="soft"
       title={title}
       action={action}

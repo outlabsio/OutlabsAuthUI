@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { CalendarClock, Layers3 } from 'lucide-react'
 
+import { AppCheckboxCards, AppRadioCards } from '@/components/app/app-choice-cards'
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -37,8 +37,12 @@ import {
   updateEntityFormSchema,
   type UpdateEntityFormValues,
 } from '@/features/entities/schemas/entity-form.schema'
-import type { Entity, EntityClassValue } from '@/features/entities/types/entities.types'
+import type { Entity } from '@/features/entities/types/entities.types'
 import { formatEntityToken } from '@/features/entities/utils/entity-display'
+import {
+  entityClassCardOptions,
+  entityClassCompactCardOptions,
+} from '@/features/entities/utils/entity-class-card-options'
 import { getEntityTypeConfigQueryOptions } from '@/features/settings/api/settings.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -60,10 +64,10 @@ const entityStatusOptions = [
   { label: 'Archived', value: 'archived' },
 ] as const
 
-const entityClassOptions = [
-  { label: 'Structural', value: 'structural' },
-  { label: 'Access group', value: 'access_group' },
-] satisfies Array<{ label: string; value: EntityClassValue }>
+const entityStatusCardOptions = entityStatusOptions.map((option) => ({
+  label: option.label,
+  value: option.value,
+}))
 
 function slugifyValue(value: string) {
   return value
@@ -222,10 +226,10 @@ export function EntityFormDialog({
   ])
   const parentAllowedChildClassOptions = useMemo(() => {
     if (mode !== 'create' || !parentEntity?.allowed_child_classes?.length) {
-      return entityClassOptions
+      return entityClassCardOptions
     }
 
-    return entityClassOptions.filter((option) =>
+    return entityClassCardOptions.filter((option) =>
       parentEntity.allowed_child_classes?.includes(option.value)
     )
   }, [mode, parentEntity?.allowed_child_classes])
@@ -571,7 +575,7 @@ export function EntityFormDialog({
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-3xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
-            <DialogTitle className="text-2xl">{dialogTitle}</DialogTitle>
+            <DialogTitle className="text-xl">{dialogTitle}</DialogTitle>
           </DialogHeader>
 
           <form
@@ -692,149 +696,116 @@ export function EntityFormDialog({
                   </section>
                 ) : null}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {mode === 'create' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="entity-name">System name</Label>
-                      <Input
-                        id="entity-name"
-                        disabled={isPending}
-                        placeholder="acme-west"
-                        {...form.register('name')}
-                      />
-                      <FieldError errors={[form.formState.errors.name]} />
-                    </div>
-                  ) : null}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="entity-display-name">Display name</Label>
-                    <Input
-                      id="entity-display-name"
-                      disabled={isPending}
-                      placeholder="Acme West"
-                      {...form.register('displayName')}
-                    />
-                    <FieldError errors={[form.formState.errors.displayName]} />
-                  </div>
-
-                  {mode === 'create' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="entity-slug">Slug</Label>
-                      <Input
-                        id="entity-slug"
-                        disabled={isPending}
-                        placeholder="acme-west"
-                        {...form.register('slug', {
-                          onChange: () => {
-                            setSlugTouched(true)
-                          },
-                        })}
-                      />
-                      <FieldError errors={[form.formState.errors.slug]} />
-                    </div>
-                  ) : null}
-
-                  {mode === 'create' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor={hasConstrainedChildTypeOptions ? undefined : 'entity-type'}>
-                        Entity type
-                      </Label>
-                      {hasConstrainedChildTypeOptions ? (
+                {mode === 'create' ? (
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <Label>Entity class</Label>
                         <Controller
                           control={form.control}
-                          name="entityType"
+                          name="entityClass"
                           render={({ field }) => (
-                            <Select
+                            <AppRadioCards
+                              aria-label="Entity class"
                               value={field.value}
                               onValueChange={(nextValue) => {
-                                if (!nextValue) {
-                                  return
-                                }
-
-                                form.setValue('entityType', nextValue, {
+                                form.setValue('entityClass', nextValue, {
                                   shouldDirty: true,
                                   shouldValidate: true,
                                 })
                               }}
+                              options={parentAllowedChildClassOptions}
                               disabled={
-                                isPending ||
-                                (isPlatformConstrainedRootType &&
-                                  entityTypeConfigQuery.isPending) ||
-                                constrainedEntityTypeOptions.length <= 1
+                                isPending || parentAllowedChildClassOptions.length === 1
                               }
-                            >
-                              <SelectTrigger className="w-full" aria-label="Entity type">
-                                <SelectValue
-                                  placeholder={
-                                    entityTypeConfigQuery.isPending &&
-                                    isPlatformConstrainedRootType
-                                      ? 'Loading root entity types'
-                                      : constrainedEntityTypeOptions.length === 0
-                                        ? 'No root entity types available'
-                                        : 'Choose an entity type'
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent align="start" alignItemWithTrigger={false}>
-                                {constrainedEntityTypeOptions.map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {formatEntityToken(option)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           )}
                         />
-                      ) : (
-                        <Input
-                          id="entity-type"
-                          disabled={isPending}
-                          placeholder="department"
-                          {...form.register('entityType')}
-                        />
-                      )}
-                      {entityTypeGuidance ? (
-                        <p className="text-xs text-muted-foreground">
-                          {entityTypeGuidance}
-                        </p>
-                      ) : null}
-                      {canShowEntityTypeSuggestions &&
-                      (defaultChildTypeOptions.length > 0 ||
-                        siblingSuggestedTypeOptions.length > 0) ? (
-                        <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
-                          {defaultChildTypeOptions.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                Platform defaults
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {defaultChildTypeOptions.map((option) => (
-                                  <Button
-                                    key={option}
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7"
-                                    onClick={() => applySuggestedEntityType(option)}
-                                    disabled={isPending}
-                                  >
-                                    {formatEntityToken(option)}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                          {siblingSuggestedTypeOptions.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                Seen in this branch
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {siblingSuggestedTypeOptions.map((option) => {
-                                  const suggestion =
-                                    siblingSuggestionMap.get(option.toLowerCase())
+                        {parentEntity?.allowed_child_classes?.length ? (
+                          <p className="text-xs text-muted-foreground">
+                            This parent scope allows {parentAllowedChildClassOptions
+                              .map((option) => option.label.toLowerCase())
+                              .join(', ')}
+                            .
+                          </p>
+                        ) : null}
+                        <FieldError errors={[form.formState.errors.entityClass]} />
+                      </div>
 
-                                  return (
+                      <div className="space-y-2">
+                        <Label htmlFor={hasConstrainedChildTypeOptions ? undefined : 'entity-type'}>
+                          Entity type
+                        </Label>
+                        {hasConstrainedChildTypeOptions ? (
+                          <Controller
+                            control={form.control}
+                            name="entityType"
+                            render={({ field }) => (
+                              <Select
+                                value={field.value}
+                                onValueChange={(nextValue) => {
+                                  if (!nextValue) {
+                                    return
+                                  }
+
+                                  form.setValue('entityType', nextValue, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }}
+                                disabled={
+                                  isPending ||
+                                  (isPlatformConstrainedRootType &&
+                                    entityTypeConfigQuery.isPending) ||
+                                  constrainedEntityTypeOptions.length <= 1
+                                }
+                              >
+                                <SelectTrigger className="w-full" aria-label="Entity type">
+                                  <SelectValue
+                                    placeholder={
+                                      entityTypeConfigQuery.isPending &&
+                                      isPlatformConstrainedRootType
+                                        ? 'Loading root entity types'
+                                        : constrainedEntityTypeOptions.length === 0
+                                          ? 'No root entity types available'
+                                          : 'Choose an entity type'
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent align="start" alignItemWithTrigger={false}>
+                                  {constrainedEntityTypeOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {formatEntityToken(option)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <Input
+                            id="entity-type"
+                            disabled={isPending}
+                            placeholder="department"
+                            {...form.register('entityType')}
+                          />
+                        )}
+                        {entityTypeGuidance ? (
+                          <p className="text-xs text-muted-foreground">
+                            {entityTypeGuidance}
+                          </p>
+                        ) : null}
+                        {canShowEntityTypeSuggestions &&
+                        (defaultChildTypeOptions.length > 0 ||
+                          siblingSuggestedTypeOptions.length > 0) ? (
+                          <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
+                            {defaultChildTypeOptions.length > 0 ? (
+                              <div className="space-y-2">
+                                <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                  Platform defaults
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {defaultChildTypeOptions.map((option) => (
                                     <Button
                                       key={option}
                                       type="button"
@@ -845,157 +816,222 @@ export function EntityFormDialog({
                                       disabled={isPending}
                                     >
                                       {formatEntityToken(option)}
-                                      {suggestion ? ` · ${suggestion.count}` : ''}
                                     </Button>
-                                  )
-                                })}
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      <FieldError errors={[form.formState.errors.entityType]} />
-                    </div>
-                  ) : null}
+                            ) : null}
+                            {siblingSuggestedTypeOptions.length > 0 ? (
+                              <div className="space-y-2">
+                                <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                  Seen in this branch
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {siblingSuggestedTypeOptions.map((option) => {
+                                    const suggestion =
+                                      siblingSuggestionMap.get(option.toLowerCase())
 
-                  {mode === 'create' ? (
-                    <div className="space-y-2">
-                      <Label>Entity class</Label>
-                      <Controller
-                        control={form.control}
-                        name="entityClass"
-                        render={({ field }) => (
-                          <Select
-                            value={field.value}
-                            onValueChange={(nextValue) => {
-                              form.setValue(
-                                'entityClass',
-                                nextValue as EntityFormValues['entityClass'],
-                                {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                }
-                              )
-                            }}
-                            disabled={
-                              isPending || parentAllowedChildClassOptions.length === 1
-                            }
-                          >
-                            <SelectTrigger className="w-full" aria-label="Entity class">
-                              <SelectValue placeholder="Choose a class" />
-                            </SelectTrigger>
-                            <SelectContent align="start" alignItemWithTrigger={false}>
-                              {parentAllowedChildClassOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {mode === 'create' &&
-                      parentEntity?.allowed_child_classes?.length ? (
-                        <p className="text-xs text-muted-foreground">
-                          This parent scope allows {parentAllowedChildClassOptions
-                            .map((option) => option.label.toLowerCase())
-                            .join(', ')}
-                          .
-                        </p>
-                      ) : null}
-                      <FieldError errors={[form.formState.errors.entityClass]} />
-                    </div>
-                  ) : null}
-
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Controller
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value}
-                          onValueChange={(nextValue) => {
-                            form.setValue('status', nextValue as EntityFormValues['status'], {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            })
-                          }}
-                          disabled={isPending}
-                        >
-                          <SelectTrigger className="w-full" aria-label="Entity status">
-                            <SelectValue placeholder="Choose a status" />
-                          </SelectTrigger>
-                          <SelectContent align="start" alignItemWithTrigger={false}>
-                            {entityStatusOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError errors={[form.formState.errors.status]} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="entity-description">Description</Label>
-                  <Textarea
-                    id="entity-description"
-                    rows={4}
-                    disabled={isPending}
-                    placeholder="What this entity governs, owns, or represents."
-                    {...form.register('description')}
-                  />
-                  <FieldError errors={[form.formState.errors.description]} />
-                </div>
-
-                <section className="rounded-xl border p-4">
-                  <div className="flex items-start gap-3">
-                    <CalendarClock className="mt-0.5 size-4 text-muted-foreground" />
-                    <div className="min-w-0 flex-1 space-y-4">
-                      <div className="space-y-1">
-                        <div className="font-medium">Lifecycle window</div>
-                        <p className="text-sm text-muted-foreground">
-                          Optional validity dates for activating or sunsetting this entity.
-                        </p>
+                                    return (
+                                      <Button
+                                        key={option}
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7"
+                                        onClick={() => applySuggestedEntityType(option)}
+                                        disabled={isPending}
+                                      >
+                                        {formatEntityToken(option)}
+                                        {suggestion ? ` · ${suggestion.count}` : ''}
+                                      </Button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <FieldError errors={[form.formState.errors.entityType]} />
                       </div>
+
+                    </div>
+
+                    <div className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                          <Label htmlFor="entity-valid-from">Valid from</Label>
-                          <Controller
-                            control={form.control}
-                            name="validFrom"
-                            render={({ field }) => (
-                              <AppDateTimePicker
-                                id="entity-valid-from"
-                                value={field.value ?? ''}
-                                onChange={field.onChange}
-                                disabled={isPending}
-                                placeholder="Pick a start date"
-                              />
-                            )}
+                          <Label htmlFor="entity-name">System name</Label>
+                          <Input
+                            id="entity-name"
+                            disabled={isPending}
+                            placeholder="acme-west"
+                            {...form.register('name')}
                           />
+                          <FieldError errors={[form.formState.errors.name]} />
                         </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="entity-valid-until">Valid until</Label>
-                          <Controller
-                            control={form.control}
-                            name="validUntil"
-                            render={({ field }) => (
-                              <AppDateTimePicker
-                                id="entity-valid-until"
-                                value={field.value ?? ''}
-                                onChange={field.onChange}
-                                disabled={isPending}
-                                placeholder="Pick an end date"
-                              />
-                            )}
+                          <Label htmlFor="entity-slug">Slug</Label>
+                          <Input
+                            id="entity-slug"
+                            disabled={isPending}
+                            placeholder="acme-west"
+                            {...form.register('slug', {
+                              onChange: () => {
+                                setSlugTouched(true)
+                              },
+                            })}
                           />
-                          <FieldError errors={[form.formState.errors.validUntil]} />
+                          <FieldError errors={[form.formState.errors.slug]} />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="entity-display-name">Display name</Label>
+                        <Input
+                          id="entity-display-name"
+                          disabled={isPending}
+                          placeholder="Acme West"
+                          {...form.register('displayName')}
+                        />
+                        <FieldError errors={[form.formState.errors.displayName]} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Controller
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <AppRadioCards
+                              aria-label="Status"
+                              appearance="compact"
+                              grouping="joined"
+                              value={field.value}
+                              onValueChange={(nextValue) => {
+                                form.setValue('status', nextValue as EntityFormValues['status'], {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                              }}
+                              options={entityStatusCardOptions}
+                              disabled={isPending}
+                            />
+                          )}
+                        />
+                        <FieldError errors={[form.formState.errors.status]} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="entity-description">Description</Label>
+                        <Textarea
+                          id="entity-description"
+                          rows={4}
+                          disabled={isPending}
+                          placeholder="What this entity governs, owns, or represents."
+                          {...form.register('description')}
+                        />
+                        <FieldError errors={[form.formState.errors.description]} />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="entity-display-name">Display name</Label>
+                      <Input
+                        id="entity-display-name"
+                        disabled={isPending}
+                        placeholder="Acme West"
+                        {...form.register('displayName')}
+                      />
+                      <FieldError errors={[form.formState.errors.displayName]} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Controller
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <AppRadioCards
+                            aria-label="Status"
+                            appearance="compact"
+                            grouping="joined"
+                            value={field.value}
+                            onValueChange={(nextValue) => {
+                              form.setValue('status', nextValue as EntityFormValues['status'], {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }}
+                            options={entityStatusCardOptions}
+                            disabled={isPending}
+                          />
+                        )}
+                      />
+                      <FieldError errors={[form.formState.errors.status]} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="entity-description">Description</Label>
+                      <Textarea
+                        id="entity-description"
+                        rows={4}
+                        disabled={isPending}
+                        placeholder="What this entity governs, owns, or represents."
+                        {...form.register('description')}
+                      />
+                      <FieldError errors={[form.formState.errors.description]} />
+                    </div>
+                  </div>
+                )}
+
+                <section className="rounded-xl border p-4">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <CalendarClock className="size-4 text-muted-foreground" />
+                        <span>Lifecycle window</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Optional validity dates for activating or sunsetting this entity.
+                      </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="entity-valid-from">Valid from</Label>
+                        <Controller
+                          control={form.control}
+                          name="validFrom"
+                          render={({ field }) => (
+                            <AppDateTimePicker
+                              id="entity-valid-from"
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              disabled={isPending}
+                              placeholder="Choose"
+                              layout="inline"
+                            />
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="entity-valid-until">Valid until</Label>
+                        <Controller
+                          control={form.control}
+                          name="validUntil"
+                          render={({ field }) => (
+                            <AppDateTimePicker
+                              id="entity-valid-until"
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              disabled={isPending}
+                              placeholder="Choose"
+                              layout="inline"
+                            />
+                          )}
+                        />
+                        <FieldError errors={[form.formState.errors.validUntil]} />
                       </div>
                     </div>
                   </div>
@@ -1017,34 +1053,14 @@ export function EntityFormDialog({
                           control={form.control}
                           name="allowedChildClasses"
                           render={({ field }) => (
-                            <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-                              {entityClassOptions.map((option) => {
-                                const isChecked = field.value?.includes(option.value) ?? false
-
-                                return (
-                                  <label
-                                    key={option.value}
-                                    className="flex items-start gap-3 text-sm"
-                                  >
-                                    <Checkbox
-                                      checked={isChecked}
-                                      disabled={isPending}
-                                      onCheckedChange={(checked) => {
-                                        const nextValue = checked
-                                          ? [...(field.value ?? []), option.value]
-                                          : (field.value ?? []).filter(
-                                              (value) => value !== option.value
-                                            )
-
-                                        field.onChange(nextValue)
-                                      }}
-                                      className="mt-0.5"
-                                    />
-                                    <span>{option.label}</span>
-                                  </label>
-                                )
-                              })}
-                            </div>
+                            <AppCheckboxCards
+                              aria-label="Allowed child classes"
+                              appearance="compact"
+                              values={field.value ?? []}
+                              onValuesChange={field.onChange}
+                              options={entityClassCompactCardOptions}
+                              disabled={isPending}
+                            />
                           )}
                         />
                       </div>

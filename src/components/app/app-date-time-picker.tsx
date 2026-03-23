@@ -27,6 +27,7 @@ type AppDateTimePickerProps = {
   disabled?: boolean
   placeholder?: string
   className?: string
+  layout?: 'stacked' | 'inline'
 }
 
 function toLocalDateTimeValue(date: Date) {
@@ -61,6 +62,7 @@ export function AppDateTimePicker({
   disabled = false,
   placeholder = 'Pick a date',
   className,
+  layout = 'stacked',
 }: AppDateTimePickerProps) {
   const [draftTime, setDraftTime] = useState('09:00')
   const timeZone = useMemo(
@@ -73,92 +75,127 @@ export function AppDateTimePicker({
     setDraftTime(value ? value.slice(11, 16) : '09:00')
   }, [value])
 
-  return (
-    <div className={cn('grid gap-2', className)}>
-      <Popover>
-        <PopoverTrigger
-          render={
-            <Button
-              id={id}
-              type="button"
-              variant="outline"
-              className="h-10 w-full justify-start text-left font-normal"
-            />
-          }
-          disabled={disabled}
-        >
-          <CalendarIcon className="size-4 text-muted-foreground" />
-          <span className={cn(!selectedDate && 'text-muted-foreground')}>
-            {selectedDate ? format(selectedDate, 'PPP') : placeholder}
-          </span>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="w-(--anchor-width) max-w-(--available-width) p-0 [&_[data-slot=calendar]]:w-full"
-          sideOffset={8}
-        >
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => {
-              if (!date) {
-                onChange('')
-                return
-              }
-
-              onChange(combineDateAndTime(date, draftTime))
-            }}
-            captionLayout="dropdown"
-            timeZone={timeZone}
+  const datePicker = (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            className="h-10 w-full min-w-0 justify-start overflow-hidden rounded-lg bg-background px-3 text-left font-normal"
           />
-        </PopoverContent>
-      </Popover>
-
-      <div className="flex items-center gap-2">
-        <Select
-          value={draftTime}
-          onValueChange={(nextTime) => {
-            if (!nextTime) {
+        }
+        disabled={disabled}
+      >
+        <CalendarIcon className="size-4 text-muted-foreground" />
+        <span className={cn('truncate', !selectedDate && 'text-muted-foreground')}>
+          {selectedDate ? format(selectedDate, 'PPP') : placeholder}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className={cn(
+          'p-0 [&_[data-slot=calendar]]:w-full [&_.rdp-months]:w-full [&_.rdp-month]:w-full',
+          layout === 'inline'
+            ? 'w-fit max-w-[calc(100vw-2rem)]'
+            : 'w-(--anchor-width) max-w-(--available-width) [&_[data-slot=calendar]]:w-full'
+        )}
+        sideOffset={8}
+      >
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => {
+            if (!date) {
+              onChange('')
               return
             }
 
-            setDraftTime(nextTime)
-
-            if (selectedDate) {
-              onChange(combineDateAndTime(selectedDate, nextTime))
-            }
+            onChange(combineDateAndTime(date, draftTime))
           }}
-          disabled={disabled || !selectedDate}
-        >
-          <SelectTrigger className="h-10 w-full" aria-label="Select time">
-            <Clock3Icon className="size-4 text-muted-foreground" />
-            <SelectValue placeholder="Select a time" />
-          </SelectTrigger>
-          <SelectContent align="start" alignItemWithTrigger={false}>
-            <SelectGroup>
-              {timeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          captionLayout="dropdown"
+          timeZone={timeZone}
+        />
+      </PopoverContent>
+    </Popover>
+  )
 
-        {value ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => {
-              onChange('')
-            }}
-            disabled={disabled}
-            aria-label="Clear date"
-          >
-            <XIcon className="size-4" />
-          </Button>
-        ) : null}
+  const timePicker = (
+    <Select
+      value={draftTime}
+      onValueChange={(nextTime) => {
+        if (!nextTime) {
+          return
+        }
+
+        setDraftTime(nextTime)
+
+        if (selectedDate) {
+          onChange(combineDateAndTime(selectedDate, nextTime))
+        }
+      }}
+      disabled={disabled || !selectedDate}
+    >
+      <SelectTrigger
+        className="h-10 w-full min-w-0 rounded-lg bg-background px-3 py-0 text-left font-normal data-[size=default]:h-10 data-[size=default]:py-0"
+        aria-label="Select time"
+      >
+        <Clock3Icon className="size-4 text-muted-foreground" />
+        <SelectValue placeholder="Select a time" />
+      </SelectTrigger>
+      <SelectContent align="start" alignItemWithTrigger={false}>
+        <SelectGroup>
+          {timeOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+
+  const clearButton = value ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      onClick={() => {
+        onChange('')
+      }}
+      disabled={disabled}
+      aria-label="Clear date"
+    >
+      <XIcon className="size-4" />
+    </Button>
+  ) : (
+    <span className="size-8" aria-hidden="true" />
+  )
+
+  if (layout === 'inline') {
+    return (
+      <div
+        className={cn(
+          'grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center',
+          className
+        )}
+      >
+        {datePicker}
+        {timePicker}
+        <div className="flex justify-end">
+          {value ? clearButton : <span className="hidden size-8 sm:block" aria-hidden="true" />}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('grid gap-2', className)}>
+      {datePicker}
+      <div className="flex items-center gap-2">
+        {timePicker}
+        {value ? clearButton : null}
       </div>
     </div>
   )

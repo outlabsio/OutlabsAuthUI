@@ -98,12 +98,10 @@ test.describe('Entities Workspace', () => {
     await expect(rootDialog.getByRole('combobox', { name: 'Entity type' })).toContainText(
       /organization/i
     )
-    await selectBaseUiOption({
-      page,
-      container: rootDialog,
-      fieldLabel: 'Status',
-      optionName: 'Inactive',
-    })
+    await rootDialog
+      .getByRole('radiogroup', { name: 'Status' })
+      .getByRole('radio', { name: 'Inactive' })
+      .click()
     await typeIntoBaseUiField(rootDialog, 'Description', rootEntity.description)
     await setEntityDialogDateTime({
       dialog: rootDialog,
@@ -123,7 +121,11 @@ test.describe('Entities Workspace', () => {
       day: 28,
       timeLabel: '12:00 PM',
     })
-    await rootDialog.getByRole('checkbox', { name: 'Structural' }).click()
+    await rootDialog
+      .getByRole('group', { name: 'Allowed child classes' })
+      .locator('label')
+      .filter({ hasText: /^Structural/ })
+      .click()
     await typeIntoBaseUiTagField(rootDialog, 'Allowed child types', ['region'])
     await typeIntoBaseUiField(rootDialog, 'Max members', '22')
     await rootDialog.getByRole('button', { name: 'Create entity' }).click()
@@ -166,7 +168,11 @@ test.describe('Entities Workspace', () => {
     await typeIntoBaseUiField(regionDialog, 'System name', regionEntity.systemName)
     await typeIntoBaseUiField(regionDialog, 'Display name', regionEntity.displayName)
     await typeIntoBaseUiField(regionDialog, 'Description', regionEntity.description)
-    await regionDialog.getByRole('checkbox', { name: 'Access group' }).click()
+    await regionDialog
+      .getByRole('group', { name: 'Allowed child classes' })
+      .locator('label')
+      .filter({ hasText: /^Access group/ })
+      .click()
     await typeIntoBaseUiTagField(regionDialog, 'Allowed child types', ['team'])
     await typeIntoBaseUiField(regionDialog, 'Max members', '8')
     await regionDialog.getByRole('button', { name: 'Create entity' }).click()

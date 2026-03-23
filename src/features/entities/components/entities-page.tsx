@@ -543,7 +543,7 @@ export function EntitiesPage({
             }
           >
             {!isTreeCollapsed ? (
-              <div className="min-h-0 border-b border-border/60 xl:border-r xl:border-b-0">
+              <div className="flex min-h-0 overflow-hidden border-b border-border/60 xl:border-r xl:border-b-0">
                 <EntityTreePanel
                   rootEntity={activeRootQuery.data ?? null}
                   rootOptions={rootOptions}

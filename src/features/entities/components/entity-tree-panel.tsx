@@ -310,7 +310,7 @@ export function EntityTreePanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden text-foreground">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden text-foreground">
       <div className="border-b border-sidebar-border px-4 py-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -464,7 +464,7 @@ export function EntityTreePanel({
         </SidebarGroup>
       </div>
 
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2">
         {rootEntity ? (
           tree.length > 0 ? (
             <SidebarMenu className="gap-1">

@@ -96,7 +96,7 @@ export function EntityMemberInviteDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-center gap-2">
-              <DialogTitle className="text-2xl">
+              <DialogTitle className="text-xl">
                 Invite new member to {entity.display_name}
               </DialogTitle>
               <AppInfoPopover

@@ -263,7 +263,7 @@ export function EntityDetailPanel({
         </div>
       ) : null}
 
-      <Card className="border border-border/70 bg-card/95 ring-0 shadow-none">
+      <Card className="bg-card/95 shadow-none">
         <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
           <div className="min-w-0 space-y-1.5">
             <div className="min-w-0 text-xs text-muted-foreground">
@@ -572,17 +572,19 @@ export function EntityDetailPanel({
                 Loading roles…
               </div>
             ) : (
-              <RolesTable
-                roles={roles}
-                selectedRoleId={selectedRoleId}
-                isLoading={false}
-                isRefreshing={false}
-                onRoleSelect={onRoleSelect}
-                embedded
-                showHeader={false}
-                emptyTitle="No roles are available in this entity context."
-                emptyDescription="Create a role here or adjust the current entity scope."
-              />
+              <div className="h-[28rem] min-h-[24rem] max-h-[60svh] min-w-0">
+                <RolesTable
+                  roles={roles}
+                  selectedRoleId={selectedRoleId}
+                  isLoading={false}
+                  isRefreshing={false}
+                  onRoleSelect={onRoleSelect}
+                  embedded
+                  showHeader={false}
+                  emptyTitle="No roles are available in this entity context."
+                  emptyDescription="Create a role here or adjust the current entity scope."
+                />
+              </div>
             )}
           </TabsContent>
 

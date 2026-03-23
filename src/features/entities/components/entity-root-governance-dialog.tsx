@@ -3,10 +3,10 @@ import { useEffect, useEffectEvent } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 
+import { AppCheckboxCards } from '@/components/app/app-choice-cards'
 import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -23,8 +23,9 @@ import {
   rootGovernanceFormSchema,
   type RootGovernanceFormValues,
 } from '@/features/entities/schemas/root-governance-form.schema'
-import type { Entity, EntityClassValue } from '@/features/entities/types/entities.types'
+import type { Entity } from '@/features/entities/types/entities.types'
 import { formatEntityToken } from '@/features/entities/utils/entity-display'
+import { entityClassCompactCardOptions } from '@/features/entities/utils/entity-class-card-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 type EntityRootGovernanceDialogProps = {
@@ -33,11 +34,6 @@ type EntityRootGovernanceDialogProps = {
   entity: Entity | null
   onSuccess?: (entity: Entity) => void
 }
-
-const entityClassOptions = [
-  { label: 'Structural', value: 'structural' },
-  { label: 'Access group', value: 'access_group' },
-] satisfies Array<{ label: string; value: EntityClassValue }>
 
 function parseMaxMembers(value?: string) {
   if (!value || !value.trim()) {
@@ -98,7 +94,7 @@ export function EntityRootGovernanceDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="space-y-3">
-              <DialogTitle className="text-2xl">
+              <DialogTitle className="text-xl">
                 Edit root governance for {entity.display_name}
               </DialogTitle>
               <div className="flex flex-wrap gap-2">
@@ -150,34 +146,14 @@ export function EntityRootGovernanceDialog({
                         control={form.control}
                         name="allowedChildClasses"
                         render={({ field }) => (
-                          <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
-                            {entityClassOptions.map((option) => {
-                              const isChecked = field.value?.includes(option.value) ?? false
-
-                              return (
-                                <label
-                                  key={option.value}
-                                  className="flex items-start gap-3 text-sm"
-                                >
-                                  <Checkbox
-                                    checked={isChecked}
-                                    disabled={updateEntityMutation.isPending}
-                                    onCheckedChange={(checked) => {
-                                      const nextValue = checked
-                                        ? [...(field.value ?? []), option.value]
-                                        : (field.value ?? []).filter(
-                                            (value) => value !== option.value
-                                          )
-
-                                      field.onChange(nextValue)
-                                    }}
-                                    className="mt-0.5"
-                                  />
-                                  <span>{option.label}</span>
-                                </label>
-                              )
-                            })}
-                          </div>
+                          <AppCheckboxCards
+                            aria-label="Allowed child classes"
+                            appearance="compact"
+                            values={field.value ?? []}
+                            onValuesChange={field.onChange}
+                            options={entityClassCompactCardOptions}
+                            disabled={updateEntityMutation.isPending}
+                          />
                         )}
                       />
                     </div>

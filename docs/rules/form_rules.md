@@ -338,6 +338,7 @@ Recommended base wrapper:
 
 - `app-form-field.tsx`
 - `app-tags-input.tsx` for list-of-string fields that would otherwise become CSV textareas
+- `app-choice-cards.tsx` for small enum fields that read better as selectable cards than selects or plain checkbox stacks
 
 ### Feature layer
 

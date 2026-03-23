@@ -17,7 +17,7 @@ export function AppToolbar({
     <div
       className={cn(
         'min-w-0',
-        variant === 'surface' ? 'rounded-xl border bg-card/70 px-3 py-2.5' : null,
+        variant === 'surface' ? 'rounded-xl border bg-muted/40 px-3 py-2.5' : null,
         className
       )}
     >

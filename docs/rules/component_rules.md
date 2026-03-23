@@ -415,6 +415,7 @@ Examples:
 - standard detail drawer shell
 - standard action menu composition if reused widely
 - standard tag/chip input for list-of-string fields
+- standard choice-card controls for small radio/checkbox option sets
 
 ### Feature ownership
 

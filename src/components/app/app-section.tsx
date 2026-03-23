@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils/cn'
 
 type AppSectionProps = {
   title: string
@@ -28,7 +27,7 @@ export function AppSection({
   contentClassName,
 }: AppSectionProps) {
   return (
-    <Card className={cn('border border-border/70 bg-card/90 ring-0', className)}>
+    <Card className={className}>
       <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">

@@ -184,7 +184,7 @@ Do not invent a different color treatment for every screen.
 
 Semantic meaning and visual treatment are different concerns.
 
-Approved semantic tones:
+Approved semantic colors:
 
 - neutral
 - info
@@ -200,18 +200,30 @@ Approved status appearances:
 
 Rules:
 
-1. Status meaning must be expressed through semantic tones, not primitive-specific variant names.
+1. Status meaning must be expressed through semantic colors, not primitive-specific variant names.
 2. Visual treatment must be chosen separately from meaning.
 3. Product status UI should use app-level wrappers like `AppStatusBadge` and `AppStatusCallout`.
 4. Primitive variants such as `outline`, `ghost`, `link`, or legacy `destructive` are not the app's semantic status API.
 5. `destructive` may remain as a primitive compatibility alias, but app-level status meaning should use `error`.
+6. Legacy `tone` props may remain as compatibility aliases, but shared code should prefer `color`.
 
 Examples:
 
-- good: `tone="success"` with `appearance="soft"`
-- good: `tone="error"` with `appearance="outline"`
+- good: `color="success"` with `appearance="soft"`
+- good: `color="error"` with `appearance="outline"`
 - bad: using `Badge variant="destructive"` to express all error, warning, and archived states
 - bad: encoding semantic meaning through `secondary` or `outline`
+
+### Primitive API rule
+
+Prefer staying close to stock shadcn/Base UI primitive APIs unless there is a strong reason to diverge.
+
+Rules:
+
+- keep `Button` and `Badge` on normal primitive `variant` APIs
+- keep `Card` close to the stock shadcn structure and default chrome
+- put product-specific semantic meaning in app-level wrappers such as `AppStatusBadge` and `AppStatusCallout`
+- do not build a second custom design-system prop layer unless it is clearly paying for itself
 
 ---
 
