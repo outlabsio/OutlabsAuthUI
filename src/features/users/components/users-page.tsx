@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { UserPlus } from 'lucide-react'
 
 import { AppErrorState } from '@/components/app/app-error-state'
+import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
@@ -99,77 +99,79 @@ export function UsersPage({
       Invite user
     </Button>
   ) : undefined
+  const usersSummary = (
+    <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
+      <span>
+        <span className="font-medium text-foreground">{usersQuery.data?.total ?? 0}</span> users
+      </span>
+      <span>
+        <span className="font-medium text-foreground">{invitedUsers}</span> pending
+      </span>
+      <span>
+        <span className="font-medium text-foreground">{adminUsers}</span> admins
+      </span>
+      <span>
+        <span className="font-medium text-foreground">{verifiedUsers}</span> verified
+      </span>
+    </div>
+  )
+
+  if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
+    return <AppLoadingState title="Loading users workspace" />
+  }
+
+  if (pageError) {
+    return (
+      <AppPage title="Users" hideTitle padded>
+        <AppErrorState>
+          {getApiErrorMessage(
+            pageError,
+            'The users management screen could not load data from the auth API.'
+          )}
+        </AppErrorState>
+      </AppPage>
+    )
+  }
 
   return (
     <>
       <AppPage
-        className="flex-1 min-h-0 gap-4 overflow-hidden"
+        className="flex-1 min-h-0 gap-0 overflow-hidden"
         title="Users"
         hideTitle
+        shellMeta={usersSummary}
         shellAction={shellAction}
         action={
-          <div className="p-4">
-            <div className="flex w-full flex-wrap items-center gap-2 xl:flex-nowrap">
-              <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                <span>
-                  <span className="font-medium text-foreground">{usersQuery.data?.total ?? 0}</span>{' '}
-                  users
-                </span>
-                <span>
-                  <span className="font-medium text-foreground">{invitedUsers}</span> pending
-                </span>
-                <span>
-                  <span className="font-medium text-foreground">{adminUsers}</span> admins
-                </span>
-                <span>
-                  <span className="font-medium text-foreground">{verifiedUsers}</span> verified
-                </span>
-              </div>
-              <AppToolbar className="min-w-0 flex-1">
-                <UsersFilters
-                  key={filtersKey}
-                  filters={filters}
-                  entityOptions={entityOptions}
-                  showStatusFilter={showStatusFilter}
-                  showEntityFilter={showEntityFilter}
-                  onApply={onFiltersChange}
-                  onReset={() => {
-                    onFiltersChange({})
-                  }}
-                />
-              </AppToolbar>
-            </div>
-          </div>
+          <AppToolbar variant="plain" className="min-w-0 p-4">
+            <UsersFilters
+              key={filtersKey}
+              filters={filters}
+              entityOptions={entityOptions}
+              showStatusFilter={showStatusFilter}
+              showEntityFilter={showEntityFilter}
+              onApply={onFiltersChange}
+              onReset={() => {
+                onFiltersChange({})
+              }}
+            />
+          </AppToolbar>
         }
       >
-        <Card className="flex-1 min-h-0 overflow-hidden border py-0 ring-0">
-          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-            {pageError ? (
-              <AppErrorState className="m-4">
-                {getApiErrorMessage(
-                  pageError,
-                  'The users management screen could not load data from the auth API.'
-                )}
-              </AppErrorState>
-            ) : (
-              <UsersTable
-                users={usersQuery.data?.items ?? []}
-                page={usersQuery.data?.page ?? filters.page}
-                pages={usersQuery.data?.pages ?? 1}
-                total={usersQuery.data?.total ?? 0}
-                isLoading={usersQuery.isPending}
-                isRefreshing={usersQuery.isFetching && !usersQuery.isPending}
-                canResendInvites={canInviteUsers}
-                resendInvitePendingUserId={resendInviteMutation.variables}
-                onPageChange={onPageChange}
-                onResendInvite={(userId) => {
-                  void resendInviteMutation.mutateAsync(userId)
-                }}
-                onSelectUser={onUserSelect}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <UsersTable
+          users={usersQuery.data?.items ?? []}
+          page={usersQuery.data?.page ?? filters.page}
+          pages={usersQuery.data?.pages ?? 1}
+          total={usersQuery.data?.total ?? 0}
+          isLoading={usersQuery.isPending}
+          isRefreshing={usersQuery.isFetching && !usersQuery.isPending}
+          canResendInvites={canInviteUsers}
+          resendInvitePendingUserId={resendInviteMutation.variables}
+          onPageChange={onPageChange}
+          onResendInvite={(userId) => {
+            void resendInviteMutation.mutateAsync(userId)
+          }}
+          onSelectUser={onUserSelect}
+        />
       </AppPage>
       <InviteUserDialog
         open={isInviteDialogOpen}
