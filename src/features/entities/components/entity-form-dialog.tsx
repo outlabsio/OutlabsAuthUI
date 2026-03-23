@@ -1081,7 +1081,7 @@ export function EntityFormDialog({
               </div>
             </div>
 
-            <DialogFooter className="border-t px-6 py-4">
+            <DialogFooter className="mx-0 mb-0 mt-auto rounded-none border-t bg-background px-6 py-4 sm:items-center sm:justify-end">
               <Button
                 type="button"
                 variant="ghost"

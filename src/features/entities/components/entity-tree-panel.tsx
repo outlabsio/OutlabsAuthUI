@@ -101,14 +101,14 @@ function EntityTreeRow({
   const RowWrapper = isCompact ? SidebarMenuSubItem : SidebarMenuItem
 
   return (
-    <RowWrapper>
-      <Collapsible open={isExpanded}>
-        <div className="space-y-0.5">
+    <RowWrapper className="w-full min-w-0">
+      <Collapsible open={isExpanded} className="w-full min-w-0">
+        <div className="w-full min-w-0 space-y-0.5">
           <div
             className={cn(
-              'flex w-full min-w-0 items-start gap-1.5 rounded-lg px-1.5 py-1.5 text-sidebar-foreground transition-colors',
+              'flex w-full min-w-0 items-start gap-1.5 rounded-lg border border-transparent px-1.5 py-1.5 text-sidebar-foreground transition-colors',
               isSelected
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                ? 'border-sidebar-ring/45 bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
                 : isInSelectedPath
                   ? 'bg-sidebar-accent/65'
                   : 'hover:bg-sidebar-accent/55'
@@ -119,6 +119,9 @@ function EntityTreeRow({
                 className={cn(
                   'mt-0.5 flex shrink-0 items-center justify-center rounded-md text-sidebar-foreground/60 outline-hidden transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
                   isCompact ? 'size-4.5' : 'size-5',
+                  isSelected
+                    ? 'text-sidebar-accent-foreground/75 hover:bg-sidebar-accent-foreground/10 hover:text-sidebar-accent-foreground'
+                    : null,
                   isExpanded ? 'text-sidebar-foreground' : null,
                   searchActive ? 'cursor-default opacity-70' : null
                 )}
@@ -138,7 +141,10 @@ function EntityTreeRow({
             ) : (
               <div
                 className={cn(
-                  'mt-0.5 flex shrink-0 items-center justify-center rounded-md bg-sidebar-accent/65 text-sidebar-foreground/60',
+                  'mt-0.5 flex shrink-0 items-center justify-center rounded-md',
+                  isSelected
+                    ? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground/75'
+                    : 'bg-sidebar-accent/65 text-sidebar-foreground/60',
                   isCompact ? 'size-4.5' : 'size-5'
                 )}
               >
@@ -170,14 +176,6 @@ function EntityTreeRow({
                 >
                   {formatEntityToken(node.status)}
                 </AppStatusBadge>
-                {isSelected ? (
-                  <Badge
-                    variant="secondary"
-                    className={cn(isCompact ? 'h-4 px-1.5 text-[10px]' : null)}
-                  >
-                    Current
-                  </Badge>
-                ) : null}
               </div>
 
               <div
@@ -207,7 +205,7 @@ function EntityTreeRow({
 
           {hasChildren ? (
             <CollapsibleContent>
-              <SidebarMenuSub className="mt-0.5 mx-1.5 border-sidebar-border/70 px-1 py-0">
+              <SidebarMenuSub className="mt-0.5 ml-4 mr-0 border-sidebar-border/70 pl-3 pr-0 py-0">
                 {node.children.map((childNode) => (
                   <EntityTreeRow
                     key={childNode.id}
