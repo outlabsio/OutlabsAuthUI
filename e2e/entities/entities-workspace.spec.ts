@@ -279,6 +279,118 @@ test.describe('Entities Workspace', () => {
     await dialog.getByRole('button', { name: 'Cancel' }).click()
   })
 
+  test('admin can add a user to a newly created child entity and manage that access from the user workspace', async ({
+    page,
+  }) => {
+    const officeEntity = buildEntitySeed('playwright-membership-office')
+    const initialReason = `Playwright membership note ${Date.now()}`
+    const updatedReason = `${initialReason} restored`
+
+    await gotoEntitiesWorkspace(page)
+    await selectEntityFromTree(page, 'East Coast Region', 'East Coast Region')
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page.getByRole('button', { name: 'Create child' }).click()
+
+    const officeDialog = page.getByRole('dialog', {
+      name: 'Create child entity under East Coast Region',
+    })
+    await expect(officeDialog).toBeVisible()
+    await expect(
+      officeDialog.getByText('This parent scope only allows office.')
+    ).toBeVisible()
+    await typeIntoBaseUiField(officeDialog, 'System name', officeEntity.systemName)
+    await typeIntoBaseUiField(officeDialog, 'Display name', officeEntity.displayName)
+    await typeIntoBaseUiField(officeDialog, 'Description', officeEntity.description)
+    await officeDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(officeDialog).toBeHidden()
+
+    const regionChildrenPanel = page.getByRole('tabpanel', { name: 'Child entities' })
+    const officeChildButton = regionChildrenPanel.getByRole('button', {
+      name: new RegExp(officeEntity.displayName, 'i'),
+    })
+    await expect(officeChildButton).toBeVisible()
+    await officeChildButton.click()
+
+    await expect(page.getByRole('heading', { name: officeEntity.displayName })).toBeVisible()
+    await page.getByRole('tab', { name: 'Members and access' }).click()
+    await page.getByRole('button', { name: 'Add member' }).click()
+
+    const addMemberDialog = page.getByRole('dialog', {
+      name: `Add member to ${officeEntity.displayName}`,
+    })
+    await expect(addMemberDialog).toBeVisible()
+
+    await addMemberDialog.locator('#entity-member-search').fill('commercial@sf.acme.com')
+    const commercialUserButton = addMemberDialog.getByRole('button').filter({
+      hasText: 'commercial@sf.acme.com',
+    }).first()
+    await expect(commercialUserButton).toBeVisible()
+    await commercialUserButton.click()
+    await addMemberDialog.getByRole('checkbox', { name: 'Agent' }).click()
+    await selectBaseUiOption({
+      page,
+      container: addMemberDialog,
+      fieldLabel: 'Status',
+      optionName: 'Suspended',
+    })
+    await typeIntoBaseUiField(addMemberDialog, 'Lifecycle note', initialReason)
+    await addMemberDialog.getByRole('button', { name: 'Add member' }).click()
+    await expect(addMemberDialog).toBeHidden()
+
+    const membersPanel = page.getByRole('tabpanel', { name: 'Members and access' })
+    const memberRow = membersPanel.locator('tbody tr').filter({
+      hasText: 'commercial@sf.acme.com',
+    }).first()
+    await expect(memberRow).toBeVisible()
+    await expect(memberRow.getByText('Suspended', { exact: true })).toBeVisible()
+    await expect(memberRow.getByText('Agent', { exact: true })).toBeVisible()
+
+    await memberRow.getByRole('button', { name: 'Open user' }).click()
+    await expect(page).toHaveURL(/\/app\/users\/.+tab=access/)
+    await expect(
+      page.getByRole('tab', { name: 'Memberships and access' })
+    ).toHaveAttribute('aria-selected', 'true')
+
+    const membershipsSection = page
+      .locator('div')
+      .filter({
+        has: page.getByRole('heading', { name: 'Entity memberships' }),
+      })
+      .first()
+    const membershipCard = membershipsSection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.getByText(officeEntity.displayName, { exact: true }),
+      })
+      .first()
+
+    await expect(membershipCard).toBeVisible()
+    await expect(membershipCard.getByText('Suspended', { exact: true })).toBeVisible()
+    await membershipCard.getByRole('button', { name: 'Manage access' }).click()
+
+    const manageDialog = page.getByRole('dialog', { name: 'Manage entity access' })
+    await expect(manageDialog).toBeVisible()
+    await selectBaseUiOption({
+      page,
+      container: manageDialog,
+      fieldLabel: 'Status',
+      optionName: 'Active',
+    })
+    await typeIntoBaseUiField(manageDialog, 'Lifecycle note', updatedReason)
+    await manageDialog.getByRole('button', { name: 'Save access' }).click()
+    await expect(manageDialog).toBeHidden()
+
+    await expect(membershipCard.getByText('Active', { exact: true }).first()).toBeVisible()
+    await expect(membershipCard.getByText(updatedReason, { exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Back to entity' }).click()
+    await expect(page).toHaveURL(/\/app\/entities(?:\/[^?]+)?(?:\?.*)?$/)
+    await expect(page.getByRole('heading', { name: officeEntity.displayName })).toBeVisible()
+    await page.getByRole('tab', { name: 'Members and access' }).click()
+    await expect(memberRow.getByText('Active', { exact: true }).first()).toBeVisible()
+  })
+
   test('admin can inspect the hierarchy and edit an entity description before restoring it', async ({
     page,
   }) => {
@@ -485,6 +597,61 @@ test.describe('Entities Workspace', () => {
       await page.getByRole('tab', { name: 'Members and access' }).click()
       await expect(page.getByRole('button', { name: 'Invite member' })).toBeVisible()
       await expect(page.getByText('Root scope')).toBeVisible()
+    })
+  })
+
+  test.describe('Branch isolation UX', () => {
+    test.use({ persona: 'eastAdmin' })
+
+    test('east coast admin stays locked to ACME, can inspect sibling branches, and cannot manage entity structure or memberships', async ({
+      page,
+    }) => {
+      await gotoEntitiesWorkspace(page)
+
+      await expect(page.getByText('Scope locked')).toBeVisible()
+      await expect(page.getByRole('combobox', { name: 'Root scope' })).toHaveCount(0)
+
+      await selectEntityFromTree(page, 'East Coast Region', 'East Coast Region')
+
+      const searchField = page.getByRole('textbox', { name: 'Search this hierarchy' })
+      await searchField.fill('West Coast Region')
+      await expect(page.getByRole('button', { name: /West Coast Region/i })).toBeVisible()
+
+      await searchField.fill('Summit Commercial')
+      await expect(page.getByRole('button', { name: /Summit Commercial/i })).toHaveCount(0)
+
+      await searchField.fill('')
+      await expect(searchField).toHaveValue('')
+
+      await expect(page.getByRole('button', { name: 'Edit entity' })).toHaveCount(0)
+      await page.getByRole('tab', { name: 'Child entities' }).click()
+      await expect(page.getByRole('button', { name: 'Create child' })).toHaveCount(0)
+      await page.getByRole('tab', { name: 'Members and access' }).click()
+      await expect(page.getByRole('button', { name: 'Add member' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Invite member' })).toHaveCount(0)
+      await page.getByRole('tab', { name: 'Roles' }).click()
+      await expect(page.getByRole('button', { name: 'Create role here' })).toBeVisible()
+    })
+  })
+
+  test.describe('Second root UX', () => {
+    test.use({ persona: 'summitAdmin' })
+
+    test('summit admin stays locked to the second root and cannot discover ACME entities', async ({
+      page,
+    }) => {
+      await gotoEntitiesWorkspace(page)
+
+      await expect(page.getByText('Scope locked')).toBeVisible()
+      await expect(page.getByRole('combobox', { name: 'Root scope' })).toHaveCount(0)
+
+      await selectEntityFromTree(page, 'Austin Growth Team', 'Austin Growth Team')
+
+      const searchField = page.getByRole('textbox', { name: 'Search this hierarchy' })
+      await searchField.fill('ACME Realty')
+      await expect(
+        page.getByRole('button', { name: /ACME Realty/i })
+      ).toHaveCount(0)
     })
   })
 })

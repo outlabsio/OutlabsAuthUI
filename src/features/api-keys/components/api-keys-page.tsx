@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
@@ -164,13 +164,15 @@ export function ApiKeysPage() {
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null)
   const [revealedSecret, setRevealedSecret] = useState<CreateApiKeyResponse | null>(null)
   const [secretCopied, setSecretCopied] = useState(false)
+  const hasVisibleNonRevokedKey = apiKeys.some((apiKey) => apiKey.status !== 'revoked')
+  const showRevokedKeysState = showRevokedKeys || !hasVisibleNonRevokedKey
 
   const visibleApiKeys = useMemo(
     () =>
-      showRevokedKeys
+      showRevokedKeysState
         ? apiKeys
         : apiKeys.filter((apiKey) => apiKey.status !== 'revoked'),
-    [apiKeys, showRevokedKeys]
+    [apiKeys, showRevokedKeysState]
   )
 
   const activeApiKey =
@@ -181,21 +183,15 @@ export function ApiKeysPage() {
   const deleteMutation = useDeleteApiKeyMutation()
   const rotateMutation = useRotateApiKeyMutation()
 
-  useEffect(() => {
+  function openSecretDialog(apiKey: CreateApiKeyResponse) {
     setSecretCopied(false)
-  }, [revealedSecret])
+    setRevealedSecret(apiKey)
+  }
 
-  useEffect(() => {
-    if (apiKeys.length === 0) {
-      return
-    }
-
-    const hasVisibleNonRevokedKey = apiKeys.some((apiKey) => apiKey.status !== 'revoked')
-
-    if (!hasVisibleNonRevokedKey) {
-      setShowRevokedKeys(true)
-    }
-  }, [apiKeys])
+  function closeSecretDialog() {
+    setSecretCopied(false)
+    setRevealedSecret(null)
+  }
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading API keys workspace" />
@@ -203,7 +199,7 @@ export function ApiKeysPage() {
 
   if (pageError) {
     return (
-      <AppPage title="API Keys">
+      <AppPage title="API Keys" hideTitle padded>
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -218,8 +214,9 @@ export function ApiKeysPage() {
     <>
       <AppPage
         title="API Keys"
-        description="Manage the current account's machine credentials, lifecycle, rotation, and scope restrictions."
-        action={
+        hideTitle
+        padded
+        shellAction={
           apiKeysEnabled ? (
             <Button
               type="button"
@@ -243,7 +240,7 @@ export function ApiKeysPage() {
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-            <Card className="border border-border/70">
+            <Card>
               <CardHeader className="gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle className="text-xl">Current user's keys</CardTitle>
@@ -251,7 +248,7 @@ export function ApiKeysPage() {
                     <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
                       <Switch
                         id="api-keys-show-revoked"
-                        checked={showRevokedKeys}
+                        checked={showRevokedKeysState}
                         onCheckedChange={(checked) => {
                           setShowRevokedKeys(Boolean(checked))
                         }}
@@ -325,7 +322,7 @@ export function ApiKeysPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70">
+            <Card>
               <CardHeader className="gap-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-2">
@@ -510,7 +507,7 @@ export function ApiKeysPage() {
         }
         onCreated={(apiKey) => {
           setSelectedApiKeyId(apiKey.id)
-          setRevealedSecret(apiKey)
+          openSecretDialog(apiKey)
           setFormState({
             open: false,
             mode: 'create',
@@ -527,7 +524,7 @@ export function ApiKeysPage() {
         }}
       />
 
-      <Dialog open={Boolean(revealedSecret)} onOpenChange={(open) => !open && setRevealedSecret(null)}>
+      <Dialog open={Boolean(revealedSecret)} onOpenChange={(open) => !open && closeSecretDialog()}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Store the new API key now</DialogTitle>
@@ -575,7 +572,7 @@ export function ApiKeysPage() {
               {secretCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
               {secretCopied ? 'Copied' : 'Copy secret'}
             </Button>
-            <Button type="button" onClick={() => setRevealedSecret(null)}>
+            <Button type="button" onClick={closeSecretDialog}>
               Done
             </Button>
           </DialogFooter>
@@ -626,7 +623,7 @@ export function ApiKeysPage() {
                   })
                   setRotateTarget(null)
                   setSelectedApiKeyId(rotatedKey.id)
-                  setRevealedSecret(rotatedKey)
+                  openSecretDialog(rotatedKey)
                 } catch {
                   return
                 }

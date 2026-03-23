@@ -122,7 +122,7 @@ export function AccountPage() {
 
   if (sessionQuery.isError || !sessionUser) {
     return (
-      <AppPage title="Account">
+      <AppPage title="Account" padded>
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             sessionQuery.error,
@@ -143,6 +143,7 @@ export function AccountPage() {
   return (
     <AppPage
       title="Account"
+      padded
       description="Manage your own profile, session-facing lifecycle state, and password using the current self-service backend endpoints."
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

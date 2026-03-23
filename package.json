@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e:account": "playwright test e2e/account/account-workspace.spec.ts",
-    "test:e2e:app": "playwright test e2e/app/app-shell.spec.ts",
+    "test:e2e:app": "playwright test e2e/app",
     "test:e2e:api-keys": "playwright test e2e/api-keys/api-keys-workspace.spec.ts",
     "test:e2e:auth": "playwright test e2e/auth/auth-flow.spec.ts",
     "test:e2e": "playwright test",

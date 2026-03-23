@@ -345,15 +345,22 @@ export function RoleFormDialog({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-2xl">{dialogTitle}</DialogTitle>
-                <AppInfoPopover
-                  label="Explain role editor"
-                  title="Role editor"
-                >
-                  Roles bundle permissions and decide where they apply. Use this form to define
-                  ownership, reach, and assignment rules before saving.
-                </AppInfoPopover>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-2xl">{dialogTitle}</DialogTitle>
+                  <AppInfoPopover
+                    label="Explain role editor"
+                    title="Role editor"
+                  >
+                    Roles bundle permissions and decide where they apply. Use this form to define
+                    ownership, reach, and assignment rules before saving.
+                  </AppInfoPopover>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {mode === 'create'
+                    ? 'Define the permissions and operational behavior for this role before creating it.'
+                    : 'Update the permissions and operational behavior for this role.'}
+                </p>
               </div>
               {mode === 'edit' ? (
                 <Badge variant="outline" className="gap-1.5">
@@ -702,11 +709,11 @@ export function RoleFormDialog({
                   </div>
 
                   <RolePermissionsPicker
+                    key={`${mode}:${role?.id ?? 'create'}:${open ? 'open' : 'closed'}`}
                     permissionOptions={permissionOptions}
                     selectedPermissionNames={selectedPermissionNames}
                     showSelectedOnly={showSelectedPermissionsOnly}
                     disabled={isPending || isEditingSystemRole}
-                    resetKey={`${mode}:${role?.id ?? 'create'}:${open ? 'open' : 'closed'}`}
                     onShowSelectedOnlyChange={setShowSelectedPermissionsOnly}
                     onVisiblePermissionCountChange={setVisiblePermissionCount}
                     onChange={(nextPermissions) => {

@@ -14,6 +14,7 @@ type AppPageProps = {
   title: string
   description?: string
   hideTitle?: boolean
+  padded?: boolean
   shellLeading?: ReactNode
   shellAction?: ReactNode
   shellMeta?: ReactNode
@@ -28,6 +29,7 @@ export function AppPage({
   title,
   description,
   hideTitle = false,
+  padded = false,
   shellLeading,
   shellAction,
   shellMeta,
@@ -53,7 +55,13 @@ export function AppPage({
       {shellAction && shellActionContainer
         ? createPortal(shellAction, shellActionContainer)
         : null}
-      <section className={cn('flex flex-col gap-6', className)}>
+      <section
+        className={cn(
+          'flex flex-col gap-6',
+          padded ? 'px-4 py-4 md:px-6 md:py-5' : null,
+          className
+        )}
+      >
         {hideTitle ? <h1 className="sr-only">{title}</h1> : null}
         {showHeader ? (
           <header className="flex flex-col gap-4">

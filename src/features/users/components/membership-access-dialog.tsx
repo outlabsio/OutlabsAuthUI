@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
@@ -96,12 +96,23 @@ export function MembershipAccessDialog({
   canManageMembershipAccess,
   canRemoveMemberships,
 }: MembershipAccessDialogProps) {
-  const [selectedEntityId, setSelectedEntityId] = useState(initialEntityId ?? '')
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
-  const [selectedStatus, setSelectedStatus] = useState<'active' | 'suspended'>('active')
-  const [validFrom, setValidFrom] = useState('')
-  const [validUntil, setValidUntil] = useState('')
-  const [reason, setReason] = useState('')
+  const initialDialogEntityId = initialEntityId ?? ''
+  const initialMembership =
+    memberships.find((membership) => membership.entity_id === initialDialogEntityId) ?? null
+  const [selectedEntityId, setSelectedEntityId] = useState(initialDialogEntityId)
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>(
+    () => initialMembership?.role_ids ?? []
+  )
+  const [selectedStatus, setSelectedStatus] = useState<'active' | 'suspended'>(
+    initialMembership?.status === 'suspended' ? 'suspended' : 'active'
+  )
+  const [validFrom, setValidFrom] = useState(
+    toDateTimeLocalValue(initialMembership?.valid_from)
+  )
+  const [validUntil, setValidUntil] = useState(
+    toDateTimeLocalValue(initialMembership?.valid_until)
+  )
+  const [reason, setReason] = useState(initialMembership?.revocation_reason ?? '')
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
 
   const createMembershipMutation = useCreateMembershipMutation()
@@ -118,37 +129,6 @@ export function MembershipAccessDialog({
     ...getRolesForEntityQueryOptions(selectedEntityId, { limit: 100 }),
     enabled: open && canManageMembershipAccess && Boolean(selectedEntityId),
   })
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    setSelectedEntityId(initialEntityId ?? '')
-    setShowRemoveConfirm(false)
-  }, [initialEntityId, open])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    setSelectedRoleIds(existingMembership?.role_ids ?? [])
-    setSelectedStatus(existingMembership?.status === 'suspended' ? 'suspended' : 'active')
-    setValidFrom(toDateTimeLocalValue(existingMembership?.valid_from))
-    setValidUntil(toDateTimeLocalValue(existingMembership?.valid_until))
-    setReason(existingMembership?.revocation_reason ?? '')
-    setShowRemoveConfirm(false)
-  }, [
-    existingMembership?.entity_id,
-    existingMembership?.revocation_reason,
-    existingMembership?.role_ids,
-    existingMembership?.status,
-    existingMembership?.valid_from,
-    existingMembership?.valid_until,
-    open,
-    selectedEntityId,
-  ])
 
   const availableRoles = useMemo(
     () =>
@@ -187,12 +167,37 @@ export function MembershipAccessDialog({
       )
     : null
 
+  function applyMembershipState(membership?: UserMembership | null) {
+    setSelectedRoleIds(membership?.role_ids ?? [])
+    setSelectedStatus(membership?.status === 'suspended' ? 'suspended' : 'active')
+    setValidFrom(toDateTimeLocalValue(membership?.valid_from))
+    setValidUntil(toDateTimeLocalValue(membership?.valid_until))
+    setReason(membership?.revocation_reason ?? '')
+    setShowRemoveConfirm(false)
+  }
+
+  function handleEntitySelection(nextEntityId: string) {
+    setSelectedEntityId(nextEntityId)
+    applyMembershipState(
+      memberships.find((membership) => membership.entity_id === nextEntityId) ?? null
+    )
+  }
+
+  function resetDialogState() {
+    const nextEntityId = initialEntityId ?? ''
+
+    setSelectedEntityId(nextEntityId)
+    applyMembershipState(
+      memberships.find((membership) => membership.entity_id === nextEntityId) ?? null
+    )
+    createMembershipMutation.reset()
+    updateMembershipMutation.reset()
+    removeMembershipMutation.reset()
+  }
+
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      setShowRemoveConfirm(false)
-      createMembershipMutation.reset()
-      updateMembershipMutation.reset()
-      removeMembershipMutation.reset()
+      resetDialogState()
     }
 
     onOpenChange(nextOpen)
@@ -314,7 +319,7 @@ export function MembershipAccessDialog({
                       }
                       value={selectedEntity}
                       onValueChange={(value) => {
-                        setSelectedEntityId(value?.id ?? '')
+                        handleEntitySelection(value?.id ?? '')
                       }}
                       disabled={lockEntity || !canManageMembershipAccess}
                     >

@@ -19,5 +19,25 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'react-refresh/only-export-components': [
+        'error',
+        {
+          allowConstantExport: true,
+          allowExportNames: [
+            'Route',
+            'useAppShellLeadingContainer',
+            'useAppShellActionContainer',
+            'useAppShellMetaContainer',
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/app/router/routes/**/*.tsx', 'src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
   },
 ])

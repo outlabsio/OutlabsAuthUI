@@ -3,8 +3,11 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
@@ -176,6 +179,13 @@ export function PermissionsPage({
     permission: null,
   })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const searchKey = [
+    search.search ?? '',
+    search.resource ?? '',
+    search.status ?? '',
+    search.system ?? '',
+    search.tag ?? '',
+  ].join(':')
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading permissions workspace" />
@@ -183,13 +193,13 @@ export function PermissionsPage({
 
   if (pageError) {
     return (
-      <AppPage title="Permissions" hideTitle>
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+      <AppPage title="Permissions" hideTitle padded>
+        <AppErrorState>
           {getApiErrorMessage(
             pageError,
             'The permissions workspace could not load data from the auth API.'
           )}
-        </div>
+        </AppErrorState>
       </AppPage>
     )
   }
@@ -199,6 +209,7 @@ export function PermissionsPage({
       <AppPage
         title="Permissions"
         hideTitle
+        padded={!canReadPermissions}
         className="min-h-0 flex-1"
         shellAction={
           canCreatePermissions ? (
@@ -220,18 +231,25 @@ export function PermissionsPage({
         }
       >
         {!canReadPermissions ? (
-          <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-            Your current session cannot read the permission catalog.
-          </div>
+          <AppEmptyState
+            title="Permission catalog unavailable"
+            description="Your current session cannot read the permission catalog."
+            compact
+          />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-            <PermissionsFiltersBar
-              search={search}
-              resources={resources}
-              tags={tags}
-              onApply={onSearchChange}
-              onReset={() => onSearchChange({})}
-            />
+            <div className="p-4">
+              <AppToolbar>
+                <PermissionsFiltersBar
+                  key={searchKey}
+                  search={search}
+                  resources={resources}
+                  tags={tags}
+                  onApply={onSearchChange}
+                  onReset={() => onSearchChange({})}
+                />
+              </AppToolbar>
+            </div>
 
             <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
               <div className="min-h-0 min-w-0">
@@ -249,11 +267,10 @@ export function PermissionsPage({
 
               <div className="min-h-0 min-w-0">
                 {permissionDetailErrorMessage ? (
-                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
-                    {permissionDetailErrorMessage}
-                  </div>
+                  <AppErrorState>{permissionDetailErrorMessage}</AppErrorState>
                 ) : (
                   <PermissionDetailsPanel
+                    key={activePermission?.id ?? 'empty-permission'}
                     permission={activePermission}
                     linkedRoles={linkedRoles}
                     canReadRoles={canReadRoles}

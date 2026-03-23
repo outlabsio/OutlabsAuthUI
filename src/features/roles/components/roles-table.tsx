@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useRef } from 'react'
 
 import { Sparkles } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -103,7 +104,7 @@ export function RolesTable({
     return () => {
       scrollContainer.removeEventListener('scroll', handleScroll)
     }
-  }, [handleScrollNearBottom, roles.length])
+  }, [roles.length])
 
   const content = (
     <>
@@ -127,10 +128,12 @@ export function RolesTable({
             Loading roles…
           </div>
         ) : roles.length === 0 ? (
-          <div className="flex min-h-[28rem] flex-col items-center justify-center gap-2 p-6 text-center">
-            <p className="font-medium">{emptyTitle}</p>
-            <p className="text-sm text-muted-foreground">{emptyDescription}</p>
-          </div>
+          <AppEmptyState
+            title={emptyTitle}
+            description={emptyDescription}
+            className="min-h-[28rem] border-none"
+            compact
+          />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <div
@@ -138,18 +141,18 @@ export function RolesTable({
               className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain"
             >
               <Table className="table-fixed">
-                <TableHeader className="sticky top-0 z-10 bg-background [&_tr]:bg-background">
-                  <TableRow className="hover:bg-background">
-                    <TableHead className="w-[29%] bg-background px-4">
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[29%] px-4">
                       Role
                     </TableHead>
-                    <TableHead className="w-[25%] bg-background px-4">
+                    <TableHead className="w-[25%] px-4">
                       Applicability
                     </TableHead>
-                    <TableHead className="w-[24%] bg-background px-4">
+                    <TableHead className="w-[24%] px-4">
                       Assignment
                     </TableHead>
-                    <TableHead className="w-[22%] bg-background px-4">
+                    <TableHead className="w-[22%] px-4">
                       Permission footprint
                     </TableHead>
                   </TableRow>

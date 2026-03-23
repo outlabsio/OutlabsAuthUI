@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import {
   Building2,
@@ -245,43 +245,70 @@ export function EntityTreePanel({
   onRootChange,
   onEntitySelect,
 }: EntityTreePanelProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (!rootEntity?.id) {
-      setExpandedIds(new Set())
-      return
-    }
-
-    setExpandedIds(new Set([rootEntity.id, ...selectedPathIds.slice(0, -1)]))
-  }, [rootEntity?.id])
-
-  useEffect(() => {
-    if (selectedPathIds.length === 0) {
-      return
-    }
-
-    setExpandedIds((currentIds) => {
-      const nextIds = new Set(currentIds)
-
-      if (rootEntity?.id) {
-        nextIds.add(rootEntity.id)
-      }
-
-      selectedPathIds.slice(0, -1).forEach((entityId) => nextIds.add(entityId))
-
-      return nextIds
-    })
-  }, [rootEntity?.id, selectedPathIds])
-
+  const [expansionState, setExpansionState] = useState<{
+    rootId: string | null
+    overrides: Record<string, boolean>
+  }>({
+    rootId: null,
+    overrides: {},
+  })
   const searchActive = searchValue.trim().length > 0
   const autoExpandedIds = useMemo(() => collectExpandableIds(tree), [tree])
-  const resolvedExpandedIds = searchActive ? autoExpandedIds : expandedIds
+  const rootEntityId = rootEntity?.id ?? null
+  const baseExpandedIds = useMemo(() => {
+    if (!rootEntityId) {
+      return new Set<string>()
+    }
+
+    return new Set([rootEntityId, ...selectedPathIds.slice(0, -1)])
+  }, [rootEntityId, selectedPathIds])
+  const expansionOverrides = useMemo(
+    () => (expansionState.rootId === rootEntityId ? expansionState.overrides : {}),
+    [expansionState.overrides, expansionState.rootId, rootEntityId]
+  )
+  const resolvedExpandedIds = useMemo(() => {
+    if (searchActive) {
+      return autoExpandedIds
+    }
+
+    const nextIds = new Set(baseExpandedIds)
+
+    Object.entries(expansionOverrides).forEach(([entityId, isExpanded]) => {
+      if (isExpanded) {
+        nextIds.add(entityId)
+      } else {
+        nextIds.delete(entityId)
+      }
+    })
+
+    return nextIds
+  }, [autoExpandedIds, baseExpandedIds, expansionOverrides, searchActive])
   const selectedPathIdsSet = useMemo(() => new Set(selectedPathIds), [selectedPathIds])
   const selectedRootOption = useMemo(
     () => rootOptions.find((rootOption) => rootOption.id === selectedRootId) ?? null,
     [rootOptions, selectedRootId]
   )
+
+  function handleToggleExpanded(entityId: string) {
+    setExpansionState((currentState) => {
+      const currentOverrides = currentState.rootId === rootEntityId ? currentState.overrides : {}
+      const defaultExpanded = baseExpandedIds.has(entityId)
+      const currentExpanded = currentOverrides[entityId] ?? defaultExpanded
+      const nextExpanded = !currentExpanded
+      const nextOverrides = { ...currentOverrides }
+
+      if (nextExpanded === defaultExpanded) {
+        delete nextOverrides[entityId]
+      } else {
+        nextOverrides[entityId] = nextExpanded
+      }
+
+      return {
+        rootId: rootEntityId,
+        overrides: nextOverrides,
+      }
+    })
+  }
 
   return (
     <div className="flex min-h-0 flex-col overflow-hidden text-foreground">
@@ -451,19 +478,7 @@ export function EntityTreePanel({
                   searchActive={searchActive}
                   expandedIds={resolvedExpandedIds}
                   onEntitySelect={onEntitySelect}
-                  onToggleExpanded={(entityId) => {
-                    setExpandedIds((currentIds) => {
-                      const nextIds = new Set(currentIds)
-
-                      if (nextIds.has(entityId)) {
-                        nextIds.delete(entityId)
-                      } else {
-                        nextIds.add(entityId)
-                      }
-
-                      return nextIds
-                    })
-                  }}
+                  onToggleExpanded={handleToggleExpanded}
                 />
               ))}
             </SidebarMenu>

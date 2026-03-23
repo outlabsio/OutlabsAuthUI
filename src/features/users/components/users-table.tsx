@@ -1,3 +1,4 @@
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -123,12 +124,12 @@ export function UsersTable({
 
   if (users.length === 0) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="font-medium">No users matched these filters.</p>
-        <p className="text-sm text-muted-foreground">
-          Try clearing the current search or filter values.
-        </p>
-      </div>
+      <AppEmptyState
+        title="No users matched these filters."
+        description="Try clearing the current search or filter values."
+        className="min-h-0 flex-1 border-none"
+        compact
+      />
     )
   }
 
@@ -136,18 +137,18 @@ export function UsersTable({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain">
         <Table className="table-fixed">
-          <TableHeader className="bg-background">
-            <TableRow className="hover:bg-background">
-              <TableHead className="sticky top-0 z-10 w-1/3 bg-background px-4">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="sticky top-0 z-10 w-1/3 px-4">
                 User
               </TableHead>
-              <TableHead className="sticky top-0 z-10 w-1/4 bg-background px-4">
+              <TableHead className="sticky top-0 z-10 w-1/4 px-4">
                 Access
               </TableHead>
-              <TableHead className="sticky top-0 z-10 w-1/4 bg-background px-4">
+              <TableHead className="sticky top-0 z-10 w-1/4 px-4">
                 Activity
               </TableHead>
-              <TableHead className="sticky top-0 z-10 w-40 bg-background px-4 text-right">
+              <TableHead className="sticky top-0 z-10 w-40 px-4 text-right">
                 Actions
               </TableHead>
             </TableRow>

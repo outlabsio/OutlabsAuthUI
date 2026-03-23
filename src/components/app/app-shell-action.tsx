@@ -1,7 +1,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -56,14 +58,23 @@ export function AppShellLeadingTarget({
   className,
 }: AppShellActionTargetProps) {
   const context = useContext(AppShellActionContext)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   if (!context) {
     throw new Error('AppShellLeadingTarget must be used within AppShellActionProvider.')
   }
 
+  useEffect(() => {
+    context.setLeadingContainer(containerRef.current)
+
+    return () => {
+      context.setLeadingContainer(null)
+    }
+  }, [context])
+
   return (
     <div
-      ref={context.setLeadingContainer}
+      ref={containerRef}
       className={cn('flex min-w-0 items-center gap-2', className)}
     />
   )
@@ -83,14 +94,23 @@ export function AppShellActionTarget({
   className,
 }: AppShellActionTargetProps) {
   const context = useContext(AppShellActionContext)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   if (!context) {
     throw new Error('AppShellActionTarget must be used within AppShellActionProvider.')
   }
 
+  useEffect(() => {
+    context.setActionContainer(containerRef.current)
+
+    return () => {
+      context.setActionContainer(null)
+    }
+  }, [context])
+
   return (
     <div
-      ref={context.setActionContainer}
+      ref={containerRef}
       className={cn('flex min-w-0 items-center justify-end gap-2 px-2', className)}
     />
   )
@@ -110,14 +130,23 @@ export function AppShellMetaTarget({
   className,
 }: AppShellActionTargetProps) {
   const context = useContext(AppShellActionContext)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   if (!context) {
     throw new Error('AppShellMetaTarget must be used within AppShellActionProvider.')
   }
 
+  useEffect(() => {
+    context.setMetaContainer(containerRef.current)
+
+    return () => {
+      context.setMetaContainer(null)
+    }
+  }, [context])
+
   return (
     <div
-      ref={context.setMetaContainer}
+      ref={containerRef}
       className={cn('flex min-w-0 items-center justify-center px-2', className)}
     />
   )

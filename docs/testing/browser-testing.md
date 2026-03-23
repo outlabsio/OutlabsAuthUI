@@ -10,6 +10,7 @@ Core pieces:
 - `e2e/support/reset-backend.ts`: reusable backend reseed entrypoint for deterministic runs
 - `e2e/support/base-ui-select.ts`: reusable helper for Base UI `Select` controls
 - `e2e/support/base-ui-text.ts`: reusable helper for Base UI text inputs and textareas
+- `docs/testing/e2e-coverage.md`: current coverage matrix for enterprise and diverse fixtures
 
 ## Commands
 
@@ -31,7 +32,7 @@ Run the auth flow suite only:
 bun run test:e2e:auth
 ```
 
-Run the app shell suite only:
+Run the app-shell and app access-control suites:
 
 ```bash
 bun run test:e2e:app

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { ChevronRight, Sparkles } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -134,71 +135,65 @@ export function PermissionsTable({
     [permissions]
   )
   const [groupedView, setGroupedView] = useState(true)
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set())
+  const [resourceExpansionOverrides, setResourceExpansionOverrides] = useState<
+    Record<string, boolean>
+  >({})
+  const defaultExpandedResources = useMemo(() => {
+    const nextResources = new Set<string>()
 
-  useEffect(() => {
-    const validResources = new Set(groupedPermissions.map((group) => group.resource))
+    if (hasActiveFilters || groupedPermissions.length === 1) {
+      groupedPermissions.forEach((group) => {
+        nextResources.add(group.resource)
+      })
+    }
 
-    setExpandedResources((currentResources) => {
-      const nextResources = new Set(
-        [...currentResources].filter((resource) => validResources.has(resource))
+    if (selectedPermissionId) {
+      const selectedPermission = permissions.find(
+        (permission) => permission.id === selectedPermissionId
       )
 
-      if (nextResources.size === currentResources.size) {
-        return currentResources
+      if (selectedPermission) {
+        nextResources.add(getPermissionResourceKey(selectedPermission))
+      }
+    }
+
+    return nextResources
+  }, [groupedPermissions, hasActiveFilters, permissions, selectedPermissionId])
+  const expandedResources = useMemo(() => {
+    const validResources = new Set(groupedPermissions.map((group) => group.resource))
+    const nextResources = new Set(defaultExpandedResources)
+
+    Object.entries(resourceExpansionOverrides).forEach(([resource, isExpanded]) => {
+      if (!validResources.has(resource)) {
+        return
       }
 
-      return nextResources
+      if (isExpanded) {
+        nextResources.add(resource)
+      } else {
+        nextResources.delete(resource)
+      }
     })
-  }, [groupedPermissions])
 
-  useEffect(() => {
-    if (!hasActiveFilters && groupedPermissions.length !== 1) {
-      return
-    }
+    return nextResources
+  }, [defaultExpandedResources, groupedPermissions, resourceExpansionOverrides])
 
-    setExpandedResources((currentResources) => {
-      const nextResources = new Set(currentResources)
-      let changed = false
+  function handleResourceToggle(resource: string) {
+    setResourceExpansionOverrides((currentOverrides) => {
+      const defaultExpanded = defaultExpandedResources.has(resource)
+      const currentExpanded = currentOverrides[resource] ?? defaultExpanded
+      const nextExpanded = !currentExpanded
+      const nextOverrides = { ...currentOverrides }
 
-      groupedPermissions.forEach((group) => {
-        if (nextResources.has(group.resource)) {
-          return
-        }
-
-        nextResources.add(group.resource)
-        changed = true
-      })
-
-      return changed ? nextResources : currentResources
-    })
-  }, [groupedPermissions, hasActiveFilters])
-
-  useEffect(() => {
-    if (!selectedPermissionId) {
-      return
-    }
-
-    const selectedPermission = permissions.find(
-      (permission) => permission.id === selectedPermissionId
-    )
-
-    if (!selectedPermission) {
-      return
-    }
-
-    const resource = getPermissionResourceKey(selectedPermission)
-
-    setExpandedResources((currentResources) => {
-      if (currentResources.has(resource)) {
-        return currentResources
+      if (nextExpanded === defaultExpanded) {
+        delete nextOverrides[resource]
+      } else {
+        nextOverrides[resource] = nextExpanded
       }
 
-      const nextResources = new Set(currentResources)
-      nextResources.add(resource)
-      return nextResources
+      return nextOverrides
     })
-  }, [permissions, selectedPermissionId])
+  }
 
   return (
     <Card className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col gap-0 overflow-hidden border border-border/70 bg-card/90 pb-0 pt-4 ring-0">
@@ -236,10 +231,12 @@ export function PermissionsTable({
             Loading permissions…
           </div>
         ) : permissions.length === 0 ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-            <p className="font-medium">No permissions matched these filters.</p>
-            <p className="text-sm text-muted-foreground">Adjust or clear the current filters.</p>
-          </div>
+          <AppEmptyState
+            title="No permissions matched these filters."
+            description="Adjust or clear the current filters."
+            className="min-h-0 flex-1 border-none"
+            compact
+          />
         ) : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 pb-0">
@@ -260,19 +257,7 @@ export function PermissionsTable({
                           <CollapsibleTrigger
                             className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/20"
                             aria-label={`Toggle ${group.label} permission group`}
-                            onClick={() => {
-                              setExpandedResources((currentResources) => {
-                                const nextResources = new Set(currentResources)
-
-                                if (nextResources.has(group.resource)) {
-                                  nextResources.delete(group.resource)
-                                } else {
-                                  nextResources.add(group.resource)
-                                }
-
-                                return nextResources
-                              })
-                            }}
+                            onClick={() => handleResourceToggle(group.resource)}
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background text-muted-foreground">

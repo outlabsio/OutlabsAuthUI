@@ -29,5 +29,18 @@ test.describe('Diverse Roles Access', () => {
       page.getByText('Your current session cannot read the role catalog.')
     ).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Back to roles' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Permissions' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Policies and conditions' })).toBeVisible()
+    await expect(page.getByText('Role type', { exact: true })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Permissions' }).click()
+    await expect(page.getByRole('tabpanel', { name: 'Permissions' })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Policies and conditions' }).click()
+    const policiesPanel = page.getByRole('tabpanel', { name: 'Policies and conditions' })
+    await expect(policiesPanel).toBeVisible()
+    await expect(policiesPanel.getByText('Lifecycle and safety', { exact: true })).toBeVisible()
+    await expect(policiesPanel.getByText('ABAC conditions', { exact: true })).toBeVisible()
   })
 })

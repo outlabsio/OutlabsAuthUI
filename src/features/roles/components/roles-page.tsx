@@ -3,8 +3,11 @@ import { useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ShieldPlus } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
@@ -88,7 +91,10 @@ export function RolesPage({
     () => rolesQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [rolesQuery.data?.pages]
   )
-  const entities = entitiesQuery.data?.items ?? []
+  const entities = useMemo(
+    () => entitiesQuery.data?.items ?? [],
+    [entitiesQuery.data?.items]
+  )
   const rootOptions = useMemo(() => {
     const rootsById = new Map<string, { id: string; display_name: string }>()
 
@@ -138,23 +144,32 @@ export function RolesPage({
     [allRoles, search]
   )
 
-  const permissionOptions = useMemo(() => {
+  const permissionOptions = (() => {
     if (permissionsCatalogQuery.data?.items?.length) {
       return buildRolePermissionOptions(permissionsCatalogQuery.data.items)
     }
 
     const fallbackPermissionNames = authConfigQuery.data?.available_permissions ?? []
-      return buildRolePermissionOptions(
-        fallbackPermissionNames.map((permissionName) => ({
-          name: permissionName,
-          display_name: formatRoleToken(permissionName),
+    return buildRolePermissionOptions(
+      fallbackPermissionNames.map((permissionName) => ({
+        name: permissionName,
+        display_name: formatRoleToken(permissionName),
         description: null,
         resource: permissionName.split(':')[0] || 'general',
       }))
     )
-  }, [authConfigQuery.data?.available_permissions, permissionsCatalogQuery.data?.items])
+  })()
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const searchKey = [
+    search.search ?? '',
+    search.roleType ?? '',
+    search.scopeMode ?? '',
+    search.scopeRootId ?? '',
+    search.assignableType ?? '',
+    search.usage ?? '',
+    search.system ?? '',
+  ].join(':')
   const rolesSummary = (
     <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
       <span>
@@ -199,13 +214,13 @@ export function RolesPage({
 
   if (pageError) {
     return (
-      <AppPage title="Roles" hideTitle>
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+      <AppPage title="Roles" hideTitle padded>
+        <AppErrorState>
           {getApiErrorMessage(
             pageError,
             'The roles workspace could not load data from the auth API.'
           )}
-        </div>
+        </AppErrorState>
       </AppPage>
     )
   }
@@ -213,9 +228,10 @@ export function RolesPage({
   return (
     <>
       <AppPage
-        className="-mx-4 -mb-4 flex-1 min-h-0 gap-0 overflow-hidden md:-mx-6 md:-mb-6"
+        className="flex-1 min-h-0 gap-0 overflow-hidden"
         title="Roles"
         hideTitle
+        padded={!canReadRoles}
         shellMeta={canReadRoles ? rolesSummary : undefined}
         shellAction={
           canCreateRoles ? (
@@ -231,22 +247,25 @@ export function RolesPage({
         }
         action={
           canReadRoles ? (
-            <div className="min-w-0">
-                <RolesFiltersBar
-                  search={search}
-                  rootOptions={rootOptions}
-                  entityTypes={entityTypes}
-                  onApply={onSearchChange}
-                  onReset={() => onSearchChange({})}
-                />
-            </div>
+            <AppToolbar variant="plain" className="min-w-0 p-4">
+              <RolesFiltersBar
+                key={searchKey}
+                search={search}
+                rootOptions={rootOptions}
+                entityTypes={entityTypes}
+                onApply={onSearchChange}
+                onReset={() => onSearchChange({})}
+              />
+            </AppToolbar>
           ) : undefined
         }
       >
         {!canReadRoles ? (
-          <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-            Your current session cannot read the role catalog.
-          </div>
+          <AppEmptyState
+            title="Role catalog unavailable"
+            description="Your current session cannot read the role catalog."
+            compact
+          />
         ) : (
           <RolesTable
             roles={filteredRoles}

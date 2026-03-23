@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { Fingerprint, KeyRound, PencilLine, Trash2 } from 'lucide-react'
 
-import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
+import { AppSection } from '@/components/app/app-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { PermissionCondition, PermissionConditionGroup, Permission } from '@/features/permissions/types/permissions.types'
 import {
@@ -59,17 +60,6 @@ type PermissionDetailsPanelProps = {
   onDeletePermission: () => void
 }
 
-type DetailSectionProps = {
-  title: string
-  description?: string
-  info?: {
-    label: string
-    title: string
-    content: React.ReactNode
-  }
-  children: React.ReactNode
-}
-
 type DetailFieldProps = {
   label: string
   value: React.ReactNode
@@ -78,27 +68,6 @@ type DetailFieldProps = {
 type CompactMetricProps = {
   label: string
   value: React.ReactNode
-}
-
-function DetailSection({ title, description, info, children }: DetailSectionProps) {
-  return (
-    <Card className="border border-border/70 bg-card/90 ring-0">
-      <CardHeader className="border-b border-border/60">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base">{title}</CardTitle>
-            {info ? (
-              <AppInfoPopover label={info.label} title={info.title}>
-                {info.content}
-              </AppInfoPopover>
-            ) : null}
-          </div>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-        </div>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  )
 }
 
 function DetailField({ label, value }: DetailFieldProps) {
@@ -149,23 +118,14 @@ export function PermissionDetailsPanel({
   const canDeletePermission = Boolean(permission && canDeletePermissions && !permission.is_system)
   const canManageAbac = Boolean(permission && abacEnabled && canUpdatePermissions && !permission.is_system)
 
-  useEffect(() => {
-    setActiveTab('definition')
-  }, [permission?.id])
-
   if (!permission) {
     return (
-      <Card className="flex h-full min-h-[40svh] items-center justify-center border border-dashed border-border/80 bg-card/80 ring-0">
-        <CardContent className="max-w-xl space-y-4 text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-accent text-accent-foreground">
-            <KeyRound className="size-7" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">Select a permission</h2>
-            <p className="text-sm text-muted-foreground">Select a permission to inspect it.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <AppEmptyState
+        title="Select a permission"
+        description="Select a permission to inspect it."
+        icon={<KeyRound className="size-7" />}
+        className="min-h-[40svh] border-border/80 bg-card/80"
+      />
     )
   }
 
@@ -249,7 +209,7 @@ export function PermissionDetailsPanel({
 
         <TabsContent value="definition" className="min-h-0 flex-1 overflow-auto pr-1 pt-1">
           <div className="space-y-4">
-            <DetailSection
+            <AppSection
               title="Permission identity"
               info={{
                 label: 'Explain permission identity',
@@ -264,9 +224,9 @@ export function PermissionDetailsPanel({
                 <DetailField label="Scope suffix" value={getPermissionScopeLabel(permission)} />
                 <DetailField label="Lifecycle" value={getPermissionLifecycleLabel(permission)} />
               </div>
-            </DetailSection>
+            </AppSection>
 
-            <DetailSection
+            <AppSection
               title="Operational model"
               info={{
                 label: 'Explain operational model',
@@ -290,9 +250,9 @@ export function PermissionDetailsPanel({
                   value="Roles decide where this permission applies and whether it cascades."
                 />
               </div>
-            </DetailSection>
+            </AppSection>
 
-            <DetailSection
+            <AppSection
               title="Tags and auditability"
               info={{
                 label: 'Explain tags and auditability',
@@ -323,13 +283,13 @@ export function PermissionDetailsPanel({
                   value={permission.description || 'No description provided.'}
                 />
               </div>
-            </DetailSection>
+            </AppSection>
           </div>
         </TabsContent>
 
         <TabsContent value="usage" className="min-h-0 flex-1 overflow-auto pr-1 pt-1">
           <div className="space-y-4">
-            <DetailSection
+            <AppSection
               title="Roles using this permission"
               info={{
                 label: 'Explain roles using this permission',
@@ -362,7 +322,7 @@ export function PermissionDetailsPanel({
                   No visible roles currently grant this permission.
                 </div>
               )}
-            </DetailSection>
+            </AppSection>
           </div>
         </TabsContent>
 

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, FolderTree } from 'lucide-react'
@@ -292,8 +292,19 @@ export function EntitiesPage({
   const descendantCount = activeEntity
     ? countDescendants(activeEntity.id, entitiesByParentId)
     : 0
+  const activeEntityId = activeEntity?.id ?? null
 
-  const [memberPagesLoaded, setMemberPagesLoaded] = useState(1)
+  const [memberPaginationState, setMemberPaginationState] = useState<{
+    entityId: string | null
+    pagesLoaded: number
+  }>({
+    entityId: null,
+    pagesLoaded: 1,
+  })
+  const memberPagesLoaded =
+    memberPaginationState.entityId === activeEntityId
+      ? memberPaginationState.pagesLoaded
+      : 1
   const memberQueries = useQueries({
     queries:
       activeEntity && canReadMembers
@@ -307,10 +318,6 @@ export function EntitiesPage({
           }))
         : [],
   })
-
-  useEffect(() => {
-    setMemberPagesLoaded(1)
-  }, [activeEntity?.id])
 
   const entityRolesQuery = useQuery({
     ...getRolesForEntityQueryOptions(activeEntity?.id ?? '', {
@@ -334,21 +341,16 @@ export function EntitiesPage({
   )
   const membersError = memberQueries.find((memberQuery) => memberQuery.error)?.error
   const roles = entityRolesQuery.data?.items ?? []
-  const permissionOptions = useMemo(() => {
-    if (permissionsCatalogQuery.data?.items?.length) {
-      return buildRolePermissionOptions(permissionsCatalogQuery.data.items)
-    }
-
-    const fallbackPermissionNames = authConfigQuery.data?.available_permissions ?? []
-    return buildRolePermissionOptions(
-      fallbackPermissionNames.map((permissionName) => ({
-        name: permissionName,
-        display_name: formatRoleToken(permissionName),
-        description: null,
-        resource: permissionName.split(':')[0] || 'general',
-      }))
-    )
-  }, [authConfigQuery.data?.available_permissions, permissionsCatalogQuery.data?.items])
+  const permissionOptions = permissionsCatalogQuery.data?.items?.length
+    ? buildRolePermissionOptions(permissionsCatalogQuery.data.items)
+    : buildRolePermissionOptions(
+        (authConfigQuery.data?.available_permissions ?? []).map((permissionName) => ({
+          name: permissionName,
+          display_name: formatRoleToken(permissionName),
+          description: null,
+          resource: permissionName.split(':')[0] || 'general',
+        }))
+      )
   const rolesError = entityRolesQuery.error
   const membersLoading =
     Boolean(activeEntity) &&
@@ -384,22 +386,17 @@ export function EntitiesPage({
     role: null,
   })
   const [rootGovernanceDialogOpen, setRootGovernanceDialogOpen] = useState(false)
-  const [selectedRoleId, setSelectedRoleId] = useState<string>()
+  const [selectedRoleState, setSelectedRoleState] = useState<{
+    entityId: string | null
+    roleId?: string
+  }>({
+    entityId: null,
+  })
+  const selectedRoleId =
+    selectedRoleState.entityId === activeEntityId
+      ? selectedRoleState.roleId
+      : undefined
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false)
-
-  useEffect(() => {
-    setSelectedRoleId(undefined)
-  }, [activeEntity?.id])
-
-  useEffect(() => {
-    if (!selectedRoleId) {
-      return
-    }
-
-    if (!roles.some((role) => role.id === selectedRoleId)) {
-      setSelectedRoleId(undefined)
-    }
-  }, [roles, selectedRoleId])
 
   const pageError =
     sessionQuery.error ??
@@ -492,12 +489,13 @@ export function EntitiesPage({
     <>
       <AppPage
         className={
-          activeRootId
-            ? '-mx-4 -my-4 flex-1 min-h-0 gap-0 overflow-hidden md:-mx-6 md:-my-5'
+          activeRootId && !pageErrorMessage
+            ? 'flex-1 min-h-0 gap-0 overflow-hidden'
             : 'flex-1 min-h-0 gap-4 overflow-hidden'
         }
         title="Entities"
         hideTitle
+        padded={!activeRootId || Boolean(pageErrorMessage)}
         shellLeading={activeRootId ? hierarchyToggle : undefined}
         shellAction={shellAction}
       >
@@ -590,7 +588,19 @@ export function EntitiesPage({
                 membersRefreshing={membersRefreshing}
                 membersErrorMessage={membersErrorMessage}
                 canLoadMoreMembers={canLoadMoreMembers}
-                onLoadMoreMembers={() => setMemberPagesLoaded((currentValue) => currentValue + 1)}
+                onLoadMoreMembers={() => {
+                  if (!activeEntityId) {
+                    return
+                  }
+
+                  setMemberPaginationState((currentState) => ({
+                    entityId: activeEntityId,
+                    pagesLoaded:
+                      currentState.entityId === activeEntityId
+                        ? currentState.pagesLoaded + 1
+                        : 2,
+                  }))
+                }}
                 roles={roles}
                 rolesLoading={entityRolesQuery.isPending}
                 rolesErrorMessage={rolesErrorMessage}
@@ -639,7 +649,12 @@ export function EntitiesPage({
                   setRootGovernanceDialogOpen(true)
                 }}
                 selectedRoleId={selectedRoleId}
-                onRoleSelect={(roleId) => setSelectedRoleId(roleId)}
+                onRoleSelect={(roleId) => {
+                  setSelectedRoleState({
+                    entityId: activeEntityId,
+                    roleId,
+                  })
+                }}
                 onCreateRole={() => {
                   setRoleDialogState({
                     open: true,
@@ -733,7 +748,10 @@ export function EntitiesPage({
           permissionOptions={permissionOptions}
           canCreateGlobalRoles={isSuperuser}
           onSuccess={(role) => {
-            setSelectedRoleId(role.id)
+            setSelectedRoleState({
+              entityId: activeEntityId,
+              roleId: role.id,
+            })
           }}
         />
       ) : null}

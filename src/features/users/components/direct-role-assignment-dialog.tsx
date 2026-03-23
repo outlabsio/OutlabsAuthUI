@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,7 +38,6 @@ export function DirectRoleAssignmentDialog({
   assignedRoles,
   canAssignDirectRoles,
 }: DirectRoleAssignmentDialogProps) {
-  const previousOpenRef = useRef(open)
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
   const [validFrom, setValidFrom] = useState('')
   const [validUntil, setValidUntil] = useState('')
@@ -45,19 +46,6 @@ export function DirectRoleAssignmentDialog({
     ...getRolesQueryOptions({ limit: 100 }),
     enabled: open && canAssignDirectRoles,
   })
-
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current
-
-    if (wasOpen && !open) {
-      setSelectedRoleIds([])
-      setValidFrom('')
-      setValidUntil('')
-      assignRoleMutation.reset()
-    }
-
-    previousOpenRef.current = open
-  }, [assignRoleMutation, open])
 
   const assignedRoleIds = useMemo(
     () => assignedRoles.map((role) => role.id),
@@ -81,8 +69,23 @@ export function DirectRoleAssignmentDialog({
       ? 'Valid until must be after valid from.'
       : null
 
+  function resetDialogState() {
+    setSelectedRoleIds([])
+    setValidFrom('')
+    setValidUntil('')
+    assignRoleMutation.reset()
+  }
+
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      resetDialogState()
+    }
+
+    onOpenChange(nextOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-3xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
@@ -124,7 +127,7 @@ export function DirectRoleAssignmentDialog({
                   })
                 }
 
-                onOpenChange(false)
+                handleDialogOpenChange(false)
               } catch {
                 return
               }
@@ -132,20 +135,23 @@ export function DirectRoleAssignmentDialog({
           >
             <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
               {!canAssignDirectRoles ? (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                  Your account cannot assign direct roles from this workspace.
-                </div>
+                <AppEmptyState
+                  title="Direct role assignment unavailable"
+                  description="Your account cannot assign direct roles from this workspace."
+                  compact
+                />
               ) : rolesQuery.isPending ? (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                  Loading direct account roles…
-                </div>
+                <AppEmptyState
+                  title="Loading direct account roles..."
+                  compact
+                />
               ) : rolesQuery.error ? (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-destructive">
+                <AppErrorState>
                   {getApiErrorMessage(
                     rolesQuery.error,
                     'The direct role catalog could not be loaded.'
                   )}
-                </div>
+                </AppErrorState>
               ) : availableRoles.length > 0 ? (
                 <div className="space-y-4">
                   <div className="rounded-xl border bg-muted/20 p-4">
@@ -215,9 +221,10 @@ export function DirectRoleAssignmentDialog({
                   />
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                  No direct account roles are available for this backend.
-                </div>
+                <AppEmptyState
+                  title="No direct account roles are available for this backend."
+                  compact
+                />
               )}
 
               {submitError ? (
@@ -231,7 +238,7 @@ export function DirectRoleAssignmentDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => handleDialogOpenChange(false)}
                 >
                   Cancel
                 </Button>

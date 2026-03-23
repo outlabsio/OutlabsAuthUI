@@ -7,6 +7,7 @@ import { AbacConditionsSection } from '@/features/abac/components/abac-condition
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCreateRoleConditionGroupMutation } from '@/features/roles/hooks/use-create-role-condition-group-mutation'
 import { useCreateRoleConditionMutation } from '@/features/roles/hooks/use-create-role-condition-mutation'
 import { useDeleteRoleConditionGroupMutation } from '@/features/roles/hooks/use-delete-role-condition-group-mutation'
@@ -172,6 +173,7 @@ export function RoleDetailsPanel({
                 <Badge variant={getRoleStatusVariant(role.status)}>
                   {getRoleStatusLabel(role.status)}
                 </Badge>
+                <Badge variant="outline">{getRoleDefinitionLabel(role)}</Badge>
                 <Badge variant="outline">{role.permissions.length} permissions</Badge>
               </div>
 
@@ -210,198 +212,212 @@ export function RoleDetailsPanel({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <DetailSection
-          title="Role type"
-          info={{
-            label: 'Explain role type',
-            title: 'Role type',
-            content:
-              'Role type tells you who owns the role and where it belongs in the model: system-wide, root-owned, or defined at one entity.',
-          }}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DetailField label="Type" value={getRoleTypeLabel(role)} />
-            <DetailField label="Defined at" value={getRoleDefinitionLabel(role)} />
-            <DetailField label="Blast radius" value={getRoleBlastRadiusLabel(role)} />
-            <DetailField label="Lifecycle" value={getRoleStatusLabel(role.status)} />
-          </div>
-        </DetailSection>
+      <Tabs key={role.id} defaultValue="policies" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          <TabsTrigger value="policies">Policies and conditions</TabsTrigger>
+        </TabsList>
 
-        <DetailSection
-          title="Ownership and reach"
-          info={{
-            label: 'Explain ownership and reach',
-            title: 'Ownership and reach',
-            content:
-              'These fields show where the role is anchored and whether it stays local or can flow down the hierarchy.',
-          }}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DetailField label="Root organization" value={role.root_entity_name ?? 'System-wide'} />
-            <DetailField label="Defining entity" value={role.scope_entity_name ?? 'No defining entity'} />
-            <DetailField label="Scope mode" value={getRoleScopeModeLabel(role.scope)} />
-            <DetailField label="Summary" value={getRoleScopeSummary(role)} />
-          </div>
-        </DetailSection>
-      </div>
-
-      <DetailSection
-        title="Lifecycle and safety"
-        description="Lifecycle status controls whether the retained definition can still grant or be assigned."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <DetailField label="Definition status" value={getRoleStatusLabel(role.status)} />
-          <DetailField
-            label="System status"
-            value={role.is_system_role ? 'Protected system role' : 'Custom role'}
-          />
-          <DetailField label="Operational summary" value={getRoleLifecycleSummary(role)} />
-          <DetailField
-            label="Assignment posture"
-            value={
-              role.status === 'active'
-                ? 'Can be assigned when permissions allow.'
-                : 'Cannot be newly assigned while inactive.'
-            }
-          />
-        </div>
-      </DetailSection>
-
-      <DetailSection
-        title="Assignment rules"
-        info={{
-          label: 'Explain assignment rules',
-          title: 'Assignment rules',
-          content:
-            'Use this section to confirm whether the role is manual or auto-assigned, and whether entity type restrictions limit where it can be granted.',
-        }}
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <DetailField label="Assignable at" value={getRoleAssignmentRuleLabel(role)} />
-          <DetailField label="Auto-assignment" value={role.is_auto_assigned ? 'Enabled' : 'Manual only'} />
-          <DetailField label="Operational behavior" value={getRoleOperationalSummary(role)} />
-          <DetailField
-            label="Assignable entity types"
-            value={formatAssignableTypes(role) ?? 'Any entity type'}
-          />
-        </div>
-      </DetailSection>
-
-      <DetailSection
-        title="Permissions"
-        info={{
-          label: 'Explain grouped permissions',
-          title: 'Grouped permissions',
-          content:
-            'Permissions are grouped by resource only to make scanning easier. The role still grants the full permission set together.',
-        }}
-      >
-        {groupedPermissions.length > 0 ? (
-          <div className="space-y-4">
-            {groupedPermissions.map((group) => (
-              <div key={group.resource} className="rounded-2xl border bg-background/80 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="font-medium">{group.label}</div>
-                  <Badge variant="outline">{group.permissions.length}</Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {group.permissions.map((permissionName) => (
-                    <Badge key={permissionName} variant="outline">
-                      {permissionName}
-                    </Badge>
-                  ))}
-                </div>
+        <TabsContent value="overview" className="space-y-4 pt-1">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <DetailSection
+              title="Role type"
+              info={{
+                label: 'Explain role type',
+                title: 'Role type',
+                content:
+                  'Role type tells you who owns the role and where it belongs in the model: system-wide, root-owned, or defined at one entity.',
+              }}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailField label="Type" value={getRoleTypeLabel(role)} />
+                <DetailField label="Defined at" value={getRoleDefinitionLabel(role)} />
+                <DetailField label="Blast radius" value={getRoleBlastRadiusLabel(role)} />
+                <DetailField label="Lifecycle" value={getRoleStatusLabel(role.status)} />
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed px-4 py-4 text-sm text-muted-foreground">
-            This role does not currently grant any permissions.
-          </div>
-        )}
-      </DetailSection>
+            </DetailSection>
 
-      <DetailSection
-        title="Operational behavior"
-        info={{
-          label: 'Explain operational behavior',
-          title: 'Operational behavior',
-          content:
-            'These fields make the biggest safety questions obvious: can the role be edited, is it granted automatically, and can it affect descendants?',
-        }}
-      >
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailField
-            label="Audit posture"
-            value={role.is_system_role ? 'Protected from mutation' : 'Mutable by authorized admins'}
-          />
-          <DetailField
-            label="Assignment mode"
-            value={role.is_auto_assigned ? 'Automatic baseline access' : 'Intentional admin grant'}
-          />
-          <DetailField
-            label="Hierarchy impact"
-            value={
-              role.scope === 'entity_only'
-                ? 'Stops at the defining entity'
-                : 'Can cascade to descendant entities'
+            <DetailSection
+              title="Ownership and reach"
+              info={{
+                label: 'Explain ownership and reach',
+                title: 'Ownership and reach',
+                content:
+                  'These fields show where the role is anchored and whether it stays local or can flow down the hierarchy.',
+              }}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailField label="Root organization" value={role.root_entity_name ?? 'System-wide'} />
+                <DetailField label="Defining entity" value={role.scope_entity_name ?? 'No defining entity'} />
+                <DetailField label="Scope mode" value={getRoleScopeModeLabel(role.scope)} />
+                <DetailField label="Summary" value={getRoleScopeSummary(role)} />
+              </div>
+            </DetailSection>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="pt-1">
+          <DetailSection
+            title="Permissions"
+            info={{
+              label: 'Explain grouped permissions',
+              title: 'Grouped permissions',
+              content:
+                'Permissions are grouped by resource only to make scanning easier. The role still grants the full permission set together.',
+            }}
+          >
+            {groupedPermissions.length > 0 ? (
+              <div className="space-y-4">
+                {groupedPermissions.map((group) => (
+                  <div key={group.resource} className="rounded-2xl border bg-background/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium">{group.label}</div>
+                      <Badge variant="outline">{group.permissions.length}</Badge>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {group.permissions.map((permissionName) => (
+                        <Badge key={permissionName} variant="outline">
+                          {permissionName}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed px-4 py-4 text-sm text-muted-foreground">
+                This role does not currently grant any permissions.
+              </div>
+            )}
+          </DetailSection>
+        </TabsContent>
+
+        <TabsContent value="policies" className="space-y-4 pt-1">
+          <DetailSection
+            title="Lifecycle and safety"
+            description="Lifecycle status controls whether the retained definition can still grant or be assigned."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Definition status" value={getRoleStatusLabel(role.status)} />
+              <DetailField
+                label="System status"
+                value={role.is_system_role ? 'Protected system role' : 'Custom role'}
+              />
+              <DetailField label="Operational summary" value={getRoleLifecycleSummary(role)} />
+              <DetailField
+                label="Assignment posture"
+                value={
+                  role.status === 'active'
+                    ? 'Can be assigned when permissions allow.'
+                    : 'Cannot be newly assigned while inactive.'
+                }
+              />
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            title="Assignment rules"
+            info={{
+              label: 'Explain assignment rules',
+              title: 'Assignment rules',
+              content:
+                'Use this section to confirm whether the role is manual or auto-assigned, and whether entity type restrictions limit where it can be granted.',
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Assignable at" value={getRoleAssignmentRuleLabel(role)} />
+              <DetailField label="Auto-assignment" value={role.is_auto_assigned ? 'Enabled' : 'Manual only'} />
+              <DetailField label="Operational behavior" value={getRoleOperationalSummary(role)} />
+              <DetailField
+                label="Assignable entity types"
+                value={formatAssignableTypes(role) ?? 'Any entity type'}
+              />
+            </div>
+          </DetailSection>
+
+          <DetailSection
+            title="Operational behavior"
+            info={{
+              label: 'Explain operational behavior',
+              title: 'Operational behavior',
+              content:
+                'These fields make the biggest safety questions obvious: can the role be edited, is it granted automatically, and can it affect descendants?',
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-3">
+              <DetailField
+                label="Audit posture"
+                value={role.is_system_role ? 'Protected from mutation' : 'Mutable by authorized admins'}
+              />
+              <DetailField
+                label="Assignment mode"
+                value={role.is_auto_assigned ? 'Automatic baseline access' : 'Intentional admin grant'}
+              />
+              <DetailField
+                label="Hierarchy impact"
+                value={
+                  role.scope === 'entity_only'
+                    ? 'Stops at the defining entity'
+                    : 'Can cascade to descendant entities'
+                }
+              />
+            </div>
+          </DetailSection>
+
+          <AbacConditionsSection
+            subjectLabel="role"
+            subjectId={role.id}
+            subjectIsProtected={role.is_system_role}
+            abacEnabled={abacEnabled}
+            canManage={canManageAbac}
+            conditionGroups={conditionGroups}
+            conditions={conditions}
+            conditionGroupsLoading={conditionGroupsLoading}
+            conditionsLoading={conditionsLoading}
+            conditionGroupsErrorMessage={conditionGroupsErrorMessage}
+            conditionsErrorMessage={conditionsErrorMessage}
+            onCreateConditionGroup={(payload) =>
+              createConditionGroupMutation.mutateAsync({
+                roleId: role.id,
+                ...payload,
+              })
+            }
+            onUpdateConditionGroup={(groupId, payload) =>
+              updateConditionGroupMutation.mutateAsync({
+                roleId: role.id,
+                groupId,
+                ...payload,
+              })
+            }
+            onDeleteConditionGroup={(groupId) =>
+              deleteConditionGroupMutation.mutateAsync({
+                roleId: role.id,
+                groupId,
+              })
+            }
+            onCreateCondition={(payload) =>
+              createConditionMutation.mutateAsync({
+                roleId: role.id,
+                ...payload,
+              })
+            }
+            onUpdateCondition={(conditionId, payload) =>
+              updateConditionMutation.mutateAsync({
+                roleId: role.id,
+                conditionId,
+                ...payload,
+              })
+            }
+            onDeleteCondition={(conditionId) =>
+              deleteConditionMutation.mutateAsync({
+                roleId: role.id,
+                conditionId,
+              })
             }
           />
-        </div>
-      </DetailSection>
-
-      <AbacConditionsSection
-        subjectLabel="role"
-        subjectId={role.id}
-        subjectIsProtected={role.is_system_role}
-        abacEnabled={abacEnabled}
-        canManage={canManageAbac}
-        conditionGroups={conditionGroups}
-        conditions={conditions}
-        conditionGroupsLoading={conditionGroupsLoading}
-        conditionsLoading={conditionsLoading}
-        conditionGroupsErrorMessage={conditionGroupsErrorMessage}
-        conditionsErrorMessage={conditionsErrorMessage}
-        onCreateConditionGroup={(payload) =>
-          createConditionGroupMutation.mutateAsync({
-            roleId: role.id,
-            ...payload,
-          })
-        }
-        onUpdateConditionGroup={(groupId, payload) =>
-          updateConditionGroupMutation.mutateAsync({
-            roleId: role.id,
-            groupId,
-            ...payload,
-          })
-        }
-        onDeleteConditionGroup={(groupId) =>
-          deleteConditionGroupMutation.mutateAsync({
-            roleId: role.id,
-            groupId,
-          })
-        }
-        onCreateCondition={(payload) =>
-          createConditionMutation.mutateAsync({
-            roleId: role.id,
-            ...payload,
-          })
-        }
-        onUpdateCondition={(conditionId, payload) =>
-          updateConditionMutation.mutateAsync({
-            roleId: role.id,
-            conditionId,
-            ...payload,
-          })
-        }
-        onDeleteCondition={(conditionId) =>
-          deleteConditionMutation.mutateAsync({
-            roleId: role.id,
-            conditionId,
-          })
-        }
-      />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -618,6 +618,7 @@ export function UserDetailsPage({
     return (
       <AppPage
         title="Loading user"
+        padded
         shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
@@ -636,6 +637,7 @@ export function UserDetailsPage({
     return (
       <AppPage
         title="User not available"
+        padded
         shellAction={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
@@ -657,6 +659,7 @@ export function UserDetailsPage({
     <AppPage
       className="gap-5"
       title={getUserDisplayName(user)}
+      padded
       shellAction={
         <Button type="button" variant="outline" onClick={onBack}>
           <ArrowLeft className="size-4" />
@@ -1867,6 +1870,7 @@ export function UserDetailsPage({
       />
 
       <MembershipAccessDialog
+        key={`${membershipAccessDialogState.entityId ?? 'none'}:${membershipAccessDialogState.lockEntity ? 'locked' : 'free'}`}
         open={membershipAccessDialogState.open}
         onOpenChange={(nextOpen) => {
           setMembershipAccessDialogState((currentState) => ({

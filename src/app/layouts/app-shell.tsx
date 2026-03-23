@@ -81,7 +81,7 @@ export function AppShell({
           </header>
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pt-4 md:p-6 md:pt-5',
+              'flex min-h-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto overscroll-contain',
               className
             )}
           >

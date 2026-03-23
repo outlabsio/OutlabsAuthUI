@@ -53,7 +53,6 @@ type RolePermissionsPickerProps = {
   selectedPermissionNames: string[]
   showSelectedOnly: boolean
   disabled?: boolean
-  resetKey: string
   onShowSelectedOnlyChange: (showSelectedOnly: boolean) => void
   onVisiblePermissionCountChange?: (visiblePermissionCount: number) => void
   onChange: (permissionNames: string[]) => void
@@ -64,7 +63,6 @@ export function RolePermissionsPicker({
   selectedPermissionNames,
   showSelectedOnly,
   disabled = false,
-  resetKey,
   onShowSelectedOnlyChange,
   onVisiblePermissionCountChange,
   onChange,
@@ -72,11 +70,6 @@ export function RolePermissionsPicker({
   const [searchValue, setSearchValue] = useState('')
   const [resourceFilter, setResourceFilter] = useState('all')
   const deferredSearchValue = useDeferredValue(searchValue)
-
-  useEffect(() => {
-    setSearchValue('')
-    setResourceFilter('all')
-  }, [resetKey])
 
   const resourceOptions = useMemo(
     () =>

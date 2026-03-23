@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,7 @@ import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { DeleteRoleDialog } from '@/features/roles/components/delete-role-dialog'
 import { RoleDetailsPanel } from '@/features/roles/components/role-details-panel'
-import { RoleEditForm } from '@/features/roles/components/role-edit-form'
+import { RoleFormDialog } from '@/features/roles/components/role-form-dialog'
 import {
   getRoleConditionGroupsQueryOptions,
   getRoleConditionsQueryOptions,
@@ -83,7 +84,7 @@ export function RoleDetailsPage({
   const conditionGroupsQuery = useQuery(getRoleConditionGroupsQueryOptions(roleId))
   const conditionsQuery = useQuery(getRoleConditionsQueryOptions(roleId))
 
-  const [isEditing, setIsEditing] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const actorPermissionNames = useMemo(
@@ -126,6 +127,7 @@ export function RoleDetailsPage({
     return (
       <AppPage
         title="Role not available"
+        padded
         action={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
@@ -133,11 +135,11 @@ export function RoleDetailsPage({
           </Button>
         }
       >
-        <div className="max-w-xl rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <AppErrorState className="max-w-xl">
           {canReadRoles
             ? getApiErrorMessage(pageError, 'The selected role could not be loaded.')
             : 'Your current session cannot read the role catalog.'}
-        </div>
+        </AppErrorState>
       </AppPage>
     )
   }
@@ -148,6 +150,7 @@ export function RoleDetailsPage({
     return (
       <AppPage
         title="Loading role"
+        padded
         action={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
@@ -166,8 +169,8 @@ export function RoleDetailsPage({
     <>
       <AppPage
         className="gap-5"
-        title={isEditing ? 'Edit role' : 'Role details'}
-        description={isEditing ? `Updating ${role.display_name}` : undefined}
+        title="Role details"
+        padded
         action={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="size-4" />
@@ -175,46 +178,49 @@ export function RoleDetailsPage({
           </Button>
         }
       >
-        {isEditing ? (
-          <RoleEditForm
-            role={role}
-            entities={entities}
-            permissionOptions={permissionOptions}
-            onCancel={() => setIsEditing(false)}
-            onSuccess={() => setIsEditing(false)}
-          />
-        ) : (
-          <RoleDetailsPanel
-            role={role}
-            conditions={conditionsQuery.data ?? []}
-            conditionGroups={conditionGroupsQuery.data ?? []}
-            isRoleLoading={roleQuery.isPending}
-            conditionsLoading={conditionsQuery.isPending}
-            conditionGroupsLoading={conditionGroupsQuery.isPending}
-            conditionsErrorMessage={
-              conditionsQuery.error
-                ? getApiErrorMessage(
-                    conditionsQuery.error,
-                    'The role conditions could not be loaded.'
-                  )
-                : undefined
-            }
-            conditionGroupsErrorMessage={
-              conditionGroupsQuery.error
-                ? getApiErrorMessage(
-                    conditionGroupsQuery.error,
-                    'The role condition groups could not be loaded.'
-                  )
-                : undefined
-            }
-            abacEnabled={abacEnabled}
-            canUpdateRoles={canUpdateRoles}
-            canDeleteRoles={canDeleteRoles}
-            onEditRole={() => setIsEditing(true)}
-            onDeleteRole={() => setDeleteDialogOpen(true)}
-          />
-        )}
+        <RoleDetailsPanel
+          role={role}
+          conditions={conditionsQuery.data ?? []}
+          conditionGroups={conditionGroupsQuery.data ?? []}
+          isRoleLoading={roleQuery.isPending}
+          conditionsLoading={conditionsQuery.isPending}
+          conditionGroupsLoading={conditionGroupsQuery.isPending}
+          conditionsErrorMessage={
+            conditionsQuery.error
+              ? getApiErrorMessage(
+                  conditionsQuery.error,
+                  'The role conditions could not be loaded.'
+                )
+              : undefined
+          }
+          conditionGroupsErrorMessage={
+            conditionGroupsQuery.error
+              ? getApiErrorMessage(
+                  conditionGroupsQuery.error,
+                  'The role condition groups could not be loaded.'
+                )
+              : undefined
+          }
+          abacEnabled={abacEnabled}
+          canUpdateRoles={canUpdateRoles}
+          canDeleteRoles={canDeleteRoles}
+          onEditRole={() => setEditDialogOpen(true)}
+          onDeleteRole={() => setDeleteDialogOpen(true)}
+        />
       </AppPage>
+
+      <RoleFormDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        mode="edit"
+        role={role}
+        entities={entities}
+        permissionOptions={permissionOptions}
+        canCreateGlobalRoles={isSuperuser && canUpdateRoles}
+        onSuccess={() => {
+          setEditDialogOpen(false)
+        }}
+      />
 
       <DeleteRoleDialog
         open={deleteDialogOpen}

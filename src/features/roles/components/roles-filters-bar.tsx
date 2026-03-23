@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -77,24 +77,6 @@ export function RolesFiltersBar({
   const [usage, setUsage] = useState<RoleUsageFilter | 'all'>(search.usage ?? 'all')
   const [system, setSystem] = useState<RoleSystemFilter | 'all'>(search.system ?? 'all')
 
-  useEffect(() => {
-    setSearchValue(search.search ?? '')
-    setRoleType(search.roleType ?? 'all')
-    setScopeMode(search.scopeMode ?? 'all')
-    setScopeRootId(search.scopeRootId ?? 'all')
-    setAssignableType(search.assignableType ?? 'all')
-    setUsage(search.usage ?? 'all')
-    setSystem(search.system ?? 'all')
-  }, [
-    search.assignableType,
-    search.roleType,
-    search.scopeMode,
-    search.scopeRootId,
-    search.search,
-    search.system,
-    search.usage,
-  ])
-
   const hasDraftFilters = Boolean(
     searchValue.trim() ||
       roleType !== 'all' ||
@@ -119,7 +101,7 @@ export function RolesFiltersBar({
 
   return (
     <form
-      className="flex min-w-0 flex-wrap items-center gap-2 bg-muted/20 px-3 py-2 md:px-4"
+      className="flex min-w-0 flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault()
         onApply({

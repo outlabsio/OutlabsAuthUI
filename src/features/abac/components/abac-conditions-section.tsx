@@ -559,7 +559,6 @@ function ConditionDialog({
 
 export function AbacConditionsSection({
   subjectLabel,
-  subjectId: _subjectId,
   subjectIsProtected = false,
   abacEnabled,
   canManage,

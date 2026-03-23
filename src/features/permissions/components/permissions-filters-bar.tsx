@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -49,14 +49,6 @@ export function PermissionsFiltersBar({
   const [status, setStatus] = useState<PermissionStatusFilter | 'all'>(search.status ?? 'all')
   const [system, setSystem] = useState<PermissionSystemFilter | 'all'>(search.system ?? 'all')
   const [tag, setTag] = useState(search.tag ?? 'all')
-
-  useEffect(() => {
-    setSearchValue(search.search ?? '')
-    setResource(search.resource ?? 'all')
-    setStatus(search.status ?? 'all')
-    setSystem(search.system ?? 'all')
-    setTag(search.tag ?? 'all')
-  }, [search.resource, search.search, search.status, search.system, search.tag])
 
   const hasDraftFilters = Boolean(
     searchValue.trim() || resource !== 'all' || status !== 'all' || system !== 'all' || tag !== 'all'

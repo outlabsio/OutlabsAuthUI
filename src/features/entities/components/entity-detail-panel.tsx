@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react'
 
 import { ArrowRight, FolderTree, ShieldPlus, UserPlus, Users } from 'lucide-react'
 
-import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppSection } from '@/components/app/app-section'
 import { Badge } from '@/components/ui/badge'
 import {
   Breadcrumb,
@@ -15,9 +16,6 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EntityMembersTable } from '@/features/entities/components/entity-members-table'
@@ -29,7 +27,6 @@ import {
 } from '@/features/entities/utils/entity-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import { RolesTable } from '@/features/roles/components/roles-table'
-import { cn } from '@/lib/utils/cn'
 
 type EntityDetailPanelProps = {
   scopeRoot: Entity | null
@@ -80,12 +77,6 @@ type EntityContextTab =
   | 'roles'
   | 'members'
 
-type DetailSectionInfo = {
-  label: string
-  title: string
-  content: ReactNode
-}
-
 function CompactDetailList({
   title,
   items,
@@ -112,44 +103,6 @@ function CompactDetailList({
         ))}
       </dl>
     </div>
-  )
-}
-
-function DetailSection({
-  title,
-  description,
-  action,
-  info,
-  children,
-  className,
-}: {
-  title: string
-  description?: string
-  action?: ReactNode
-  info?: DetailSectionInfo
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <Card className={cn('border border-border/70 bg-card/90 ring-0 shadow-none', className)}>
-      <CardHeader className="border-b border-border/60">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <CardTitle>{title}</CardTitle>
-              {info ? (
-                <AppInfoPopover label={info.label} title={info.title}>
-                  {info.content}
-                </AppInfoPopover>
-              ) : null}
-            </div>
-            {description ? <CardDescription>{description}</CardDescription> : null}
-          </div>
-          {action}
-        </div>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
   )
 }
 
@@ -218,26 +171,19 @@ export function EntityDetailPanel({
 
   if (!entity) {
     return (
-      <Card className="flex min-h-[40svh] items-center justify-center border border-dashed border-border/80 bg-card/80">
-        <CardContent className="max-w-lg space-y-4 text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-accent text-accent-foreground">
-            <FolderTree className="size-7" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">No entity selected</h2>
-            <p className="text-sm text-muted-foreground">
-              Pick a scope from the hierarchy to start working.
-            </p>
-          </div>
-          {canCreateRootEntities ? (
-            <div className="flex justify-center">
-              <Button type="button" onClick={onCreateRoot}>
-                Create first root entity
-              </Button>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <AppEmptyState
+        title="No entity selected"
+        description="Pick a scope from the hierarchy to start working."
+        icon={<FolderTree className="size-7" />}
+        className="min-h-[40svh] border-border/80 bg-card/80"
+        action={
+          canCreateRootEntities ? (
+            <Button type="button" onClick={onCreateRoot}>
+              Create first root entity
+            </Button>
+          ) : null
+        }
+      />
     )
   }
 
@@ -424,7 +370,7 @@ export function EntityDetailPanel({
         </CardContent>
       </Card>
 
-      <DetailSection
+      <AppSection
         title="Entity context"
         info={{
           label: 'Explain entity context tabs',
@@ -652,7 +598,7 @@ export function EntityDetailPanel({
             />
           </TabsContent>
         </Tabs>
-      </DetailSection>
+      </AppSection>
     </div>
   )
 }

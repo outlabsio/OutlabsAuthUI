@@ -131,7 +131,7 @@ export function SettingsPage() {
 
   if (pageError) {
     return (
-      <AppPage title="Settings">
+      <AppPage title="Settings" padded>
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
           {getApiErrorMessage(
             pageError,
@@ -145,6 +145,7 @@ export function SettingsPage() {
   return (
     <AppPage
       title="Settings"
+      padded
       description="Review and update backend-managed entity type defaults without falling back to the old in-repo admin assumptions."
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">

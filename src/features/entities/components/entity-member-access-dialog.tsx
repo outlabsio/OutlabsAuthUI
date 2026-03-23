@@ -33,8 +33,8 @@ import type { Entity, EntityMember } from '@/features/entities/types/entities.ty
 import type { Role } from '@/features/roles/types/roles.types'
 import {
   AssignableRolesTable,
-  filterAssignableRoles,
 } from '@/features/roles/components/assignable-roles-table'
+import { filterAssignableRoles } from '@/features/roles/utils/filter-assignable-roles'
 import {
   formatMembershipToken,
   getMembershipStatusVariant,
@@ -519,6 +519,7 @@ export function EntityMemberAccessDialog({
                   validFrom={selectedValidFrom}
                   validUntil={selectedValidUntil}
                   reason={selectedReason}
+                  reasonLabel="Lifecycle note"
                   disabled={isPending || !canManageMembershipAccess}
                   validUntilError={form.formState.errors.validUntil?.message ?? null}
                   onStatusChange={(nextStatus) => {

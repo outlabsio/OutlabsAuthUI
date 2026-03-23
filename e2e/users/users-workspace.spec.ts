@@ -11,11 +11,6 @@ async function gotoUsersWorkspace(page: Page) {
 
   await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)
   await expect(page.getByRole('button', { name: 'Open Users guide' })).toBeVisible()
-  await expect(
-    page.getByRole('button', {
-      name: 'Invite user',
-    })
-  ).toBeVisible()
 }
 
 async function openUserDetails(page: Page, email: string) {
@@ -165,6 +160,33 @@ async function createTemporaryUserWithMembership() {
   return user
 }
 
+async function restoreUserProfile({
+  userId,
+  firstName,
+  lastName,
+}: {
+  userId: string
+  firstName: string
+  lastName?: string
+}) {
+  const accessToken = await getAdminAccessToken()
+  const response = await fetch(`${e2eApiBaseURL}/v1/users/${userId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      first_name: firstName,
+      last_name: lastName,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to restore user profile fixture: ${response.status}`)
+  }
+}
+
 function getDirectRoleCardByStatus(page: Page, roleName: string, status: string) {
   return page
     .locator('div.rounded-lg')
@@ -194,6 +216,7 @@ test.describe('Users Workspace', () => {
     page,
   }) => {
     await gotoUsersWorkspace(page)
+    await expect(page.getByRole('button', { name: 'Invite user' })).toBeVisible()
 
     await expect(page.getByText('lead@sf.acme.com', { exact: true })).toBeVisible()
     await expect(page.getByText('auditor@acme.com', { exact: true })).toBeVisible()
@@ -202,19 +225,32 @@ test.describe('Users Workspace', () => {
 
     const profileForm = page.locator('#user-profile-form')
     const firstNameField = profileForm.locator('#user-detail-first-name')
+    const lastNameField = profileForm.locator('#user-detail-last-name')
     const saveButton = page.getByRole('button', { name: 'Save profile' })
     const originalFirstName = await firstNameField.inputValue()
+    const originalLastName = await lastNameField.inputValue()
     const updatedFirstName = `${originalFirstName || 'Lead'} QA`
+    const userId = page.url().split('/app/users/')[1]?.split('?')[0]
 
-    await typeIntoBaseUiField(profileForm, 'First name', updatedFirstName)
-    await saveButton.click()
+    if (!userId) {
+      throw new Error('Unable to resolve the selected user id from the URL.')
+    }
 
-    await expect(firstNameField).toHaveValue(updatedFirstName)
-    await expect(saveButton).toBeDisabled()
+    try {
+      await typeIntoBaseUiField(profileForm, 'First name', updatedFirstName)
+      await saveButton.click()
 
-    await typeIntoBaseUiField(profileForm, 'First name', originalFirstName)
-    await saveButton.click()
+      await expect(firstNameField).toHaveValue(updatedFirstName)
+      await expect(saveButton).toBeDisabled()
+    } finally {
+      await restoreUserProfile({
+        userId,
+        firstName: originalFirstName,
+        lastName: originalLastName,
+      })
+    }
 
+    await page.reload()
     await expect(firstNameField).toHaveValue(originalFirstName)
     await expect(saveButton).toBeDisabled()
   })
@@ -405,6 +441,31 @@ test.describe('Users Workspace', () => {
       page,
     }) => {
       await gotoUsersWorkspace(page)
+      await openUserDetails(page, 'agent@sf.acme.com')
+
+      await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Update status' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Reset password' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Delete user' })).toBeDisabled()
+
+      await openUserAccessTab(page)
+      await expect(page.getByRole('button', { name: 'Assign entity' })).toBeDisabled()
+      await expect(
+        page.getByRole('button', { name: 'Assign direct role' })
+      ).toBeDisabled()
+    })
+  })
+
+  test.describe('Operational UX', () => {
+    test.use({ persona: 'teamLead' })
+
+    test('team lead can inspect users but cannot invite or mutate them', async ({
+      page,
+    }) => {
+      await gotoUsersWorkspace(page)
+
+      await expect(page.getByRole('button', { name: 'Invite user' })).toHaveCount(0)
+
       await openUserDetails(page, 'agent@sf.acme.com')
 
       await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()

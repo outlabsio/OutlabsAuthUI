@@ -11,8 +11,8 @@ type PersonaOptions = {
 
 export const test = base.extend<PersonaOptions>({
   persona: ['admin', { option: true }],
-  storageState: async ({ persona }, use) => {
-    await use(authPersonas[persona].storageState)
+  storageState: async ({ persona }, applyStorageState) => {
+    await applyStorageState(authPersonas[persona].storageState)
   },
 })
 
