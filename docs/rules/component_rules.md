@@ -97,6 +97,7 @@ Examples:
 - `app-table.tsx`
 - `app-form-field.tsx`
 - `app-status-badge.tsx`
+- `app-status-callout.tsx`
 
 ### What it is for
 
@@ -294,6 +295,7 @@ They solve the most common repetition problems early:
 - inconsistent destructive action handling
 - inconsistent form field composition
 - inconsistent status badge styling
+- inconsistent status/error/info callout styling
 
 ---
 
@@ -586,4 +588,3 @@ Do not abstract out of fear.
 Do not let features freestyle product patterns from raw primitives forever.
 
 That is how the UI stays consistent without becoming rigid.
-

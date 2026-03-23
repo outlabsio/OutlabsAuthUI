@@ -15,6 +15,7 @@ import {
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
 import { AppInfoPopover } from '@/components/app/app-info-popover';
 import { AppPage } from '@/components/app/app-page';
+import { AppStatusBadge } from '@/components/app/app-status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ import { getUserMembershipsQueryOptions } from '@/features/memberships/api/membe
 import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation';
 import {
   formatMembershipToken,
-  getMembershipStatusVariant,
+  getMembershipStatusTone,
 } from '@/features/memberships/utils/membership-display';
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options';
 import {
@@ -81,6 +82,7 @@ import type {
   UserStatusUpdateValue,
   UserStatusValue,
 } from '@/features/users/types/users.types';
+import type { AppStatusTone } from '@/components/app/app-status';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { cn } from '@/lib/utils/cn';
 
@@ -250,17 +252,19 @@ function formatToken(value?: string | null, fallback = 'General') {
     .join(' ');
 }
 
-function getStatusVariant(status: UserStatusValue) {
+function getStatusTone(status: UserStatusValue): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary';
+      return 'success';
     case 'suspended':
+      return 'warning';
     case 'banned':
-      return 'destructive';
+      return 'error';
     case 'invited':
+      return 'info';
     case 'deleted':
     default:
-      return 'outline';
+      return status === 'deleted' ? 'error' : 'neutral';
   }
 }
 
@@ -327,19 +331,20 @@ function getAuditEventSummary(event: UserAuditEvent) {
   return formatToken(event.event_type.split('.').at(-1) ?? event.event_type);
 }
 
-function getAuditEventBadgeVariant(event: UserAuditEvent) {
+function getAuditEventTone(event: UserAuditEvent): AppStatusTone {
   const afterStatus = getStringValue(event.after, 'status');
 
   switch (afterStatus) {
     case 'active':
-      return 'secondary';
+      return 'success';
     case 'suspended':
+      return 'warning';
     case 'banned':
     case 'deleted':
     case 'revoked':
-      return 'destructive';
+      return 'error';
     default:
-      return 'outline';
+      return 'neutral';
   }
 }
 
@@ -681,9 +686,9 @@ export function UserDetailsPage({
             </Avatar>
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={getStatusVariant(user.status)}>
+                <AppStatusBadge tone={getStatusTone(user.status)}>
                   {formatToken(user.status)}
-                </Badge>
+                </AppStatusBadge>
                 {user.email_verified ? (
                   <Badge variant="outline">Verified</Badge>
                 ) : null}
@@ -1264,13 +1269,13 @@ export function UserDetailsPage({
                                   <div className="font-medium">
                                     {entity?.title ?? membership.entity_id}
                                   </div>
-                                  <Badge
-                                    variant={getMembershipStatusVariant(
+                                  <AppStatusBadge
+                                    tone={getMembershipStatusTone(
                                       membershipStatus,
                                     )}
                                   >
                                     {formatMembershipToken(membershipStatus)}
-                                  </Badge>
+                                  </AppStatusBadge>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   {entity?.pathLabel ?? 'Entity path unavailable'}
@@ -1726,9 +1731,9 @@ export function UserDetailsPage({
                                 {formatToken(event.event_category)}
                               </Badge>
                               {afterStatus ? (
-                                <Badge variant={getAuditEventBadgeVariant(event)}>
+                                <AppStatusBadge tone={getAuditEventTone(event)}>
                                   {formatToken(afterStatus)}
-                                </Badge>
+                                </AppStatusBadge>
                               ) : null}
                             </div>
                           </div>
@@ -1801,11 +1806,11 @@ export function UserDetailsPage({
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <Badge
-                              variant={getMembershipStatusVariant(event.status)}
+                            <AppStatusBadge
+                              tone={getMembershipStatusTone(event.status)}
                             >
                               {formatMembershipToken(event.status)}
-                            </Badge>
+                            </AppStatusBadge>
                             <Badge variant="outline">
                               {formatToken(event.event_type)}
                             </Badge>

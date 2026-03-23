@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ChevronRight, Sparkles } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -13,7 +14,7 @@ import {
   getPermissionLifecycleLabel,
   getPermissionResourceLabel,
   getPermissionScopeLabel,
-  getPermissionStatusVariant,
+  getPermissionStatusTone,
   groupPermissionsForCatalog,
 } from '@/features/permissions/utils/permissions-display'
 import { cn } from '@/lib/utils/cn'
@@ -85,9 +86,13 @@ function PermissionCatalogRow({
             ) : (
               <Badge variant="outline">Custom</Badge>
             )}
-            <Badge variant={getPermissionStatusVariant(permission)}>
-              {permission.status === 'active' ? 'Active' : 'Inactive'}
-            </Badge>
+            <AppStatusBadge tone={getPermissionStatusTone(permission)}>
+              {permission.status === 'active'
+                ? 'Active'
+                : permission.status === 'archived'
+                  ? 'Archived'
+                  : 'Inactive'}
+            </AppStatusBadge>
           </div>
           <div className="text-xs text-muted-foreground">
             {getPermissionLifecycleLabel(permission)}

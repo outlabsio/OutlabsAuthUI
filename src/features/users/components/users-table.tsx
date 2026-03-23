@@ -1,4 +1,5 @@
 import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { User } from '@/features/users/types/users.types'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 type UsersTableProps = {
   users: User[]
@@ -38,19 +40,19 @@ function getUserDisplayName(user: User) {
   return user.email.split('@')[0] || 'Unknown user'
 }
 
-function getStatusVariant(status: string) {
+function getStatusTone(status: string): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary'
+      return 'success'
     case 'invited':
-      return 'outline'
+      return 'info'
     case 'suspended':
+      return 'warning'
     case 'banned':
-      return 'destructive'
     case 'deleted':
-      return 'secondary'
+      return 'error'
     default:
-      return 'outline'
+      return 'neutral'
   }
 }
 
@@ -187,10 +189,14 @@ export function UsersTable({
                   <TableCell className="px-4 py-4 align-top whitespace-normal">
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant={getStatusVariant(user.status)}>{user.status}</Badge>
+                        <AppStatusBadge tone={getStatusTone(user.status)}>
+                          {user.status}
+                        </AppStatusBadge>
                         {user.is_superuser ? <Badge variant="outline">Superuser</Badge> : null}
                         {user.email_verified ? <Badge variant="outline">Verified</Badge> : null}
-                        {user.locked_until ? <Badge variant="destructive">Locked</Badge> : null}
+                        {user.locked_until ? (
+                          <AppStatusBadge tone="warning">Locked</AppStatusBadge>
+                        ) : null}
                         {user.deleted_at ? <Badge variant="outline">Retained</Badge> : null}
                       </div>
                       <div className="text-sm text-muted-foreground">{getScopeLabel(user)}</div>

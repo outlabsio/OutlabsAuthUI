@@ -3,6 +3,7 @@ import { useEffect, useEffectEvent, useRef } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -22,7 +23,7 @@ import {
   getRoleOperationalSummary,
   getRoleScopeSummary,
   getRoleStatusLabel,
-  getRoleStatusVariant,
+  getRoleStatusTone,
   getRoleTypeDescription,
   getRoleTypeLabel,
   groupPermissions,
@@ -193,9 +194,9 @@ export function RolesTable({
                               {role.is_auto_assigned ? (
                                 <Badge variant="outline">Auto</Badge>
                               ) : null}
-                              <Badge variant={getRoleStatusVariant(role.status)}>
+                              <AppStatusBadge tone={getRoleStatusTone(role.status)}>
                                 {getRoleStatusLabel(role.status)}
-                              </Badge>
+                              </AppStatusBadge>
                             </div>
                             <div className="break-all font-mono text-xs text-muted-foreground">
                               {role.name}

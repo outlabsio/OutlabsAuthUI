@@ -2,6 +2,7 @@ import type {
   Entity,
   EntityClassValue,
 } from '@/features/entities/types/entities.types'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 const entityTokenLabels: Record<string, string> = {
   agent_practice: 'Agent',
@@ -24,15 +25,16 @@ export function formatEntityToken(value?: string | null, fallback = 'Unknown') {
     .join(' ')
 }
 
-export function getEntityStatusVariant(status?: Entity['status'] | null) {
+export function getEntityStatusTone(status?: Entity['status'] | null): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary' as const
-    case 'archived':
-      return 'destructive' as const
+      return 'success'
     case 'inactive':
+      return 'warning'
+    case 'archived':
+      return 'error'
     default:
-      return 'outline' as const
+      return 'neutral'
   }
 }
 

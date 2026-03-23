@@ -1,3 +1,5 @@
+import type { AppStatusTone } from '@/components/app/app-status'
+
 export function formatMembershipToken(value?: string | null, fallback = 'Unknown') {
   if (!value) {
     return fallback
@@ -10,17 +12,19 @@ export function formatMembershipToken(value?: string | null, fallback = 'Unknown
     .join(' ')
 }
 
-export function getMembershipStatusVariant(status?: string | null) {
+export function getMembershipStatusTone(status?: string | null): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary' as const
+      return 'success'
+    case 'pending':
+      return 'info'
+    case 'expired':
+      return 'warning'
     case 'suspended':
     case 'revoked':
-      return 'destructive' as const
-    case 'expired':
-    case 'pending':
     case 'rejected':
+      return 'error'
     default:
-      return 'outline' as const
+      return 'neutral'
   }
 }

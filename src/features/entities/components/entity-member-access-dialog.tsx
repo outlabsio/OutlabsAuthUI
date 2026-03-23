@@ -6,6 +6,7 @@ import { type Resolver, useForm } from 'react-hook-form'
 import { ChevronRight, Search, UserRoundPlus } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,6 +31,7 @@ import {
   type EntityMemberAccessFormValues,
 } from '@/features/entities/schemas/entity-member-access.schema'
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
+import { getEntityStatusTone } from '@/features/entities/utils/entity-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import {
   AssignableRolesTable,
@@ -37,7 +39,7 @@ import {
 import { filterAssignableRoles } from '@/features/roles/utils/filter-assignable-roles'
 import {
   formatMembershipToken,
-  getMembershipStatusVariant,
+  getMembershipStatusTone,
 } from '@/features/memberships/utils/membership-display'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
@@ -324,7 +326,9 @@ export function EntityMemberAccessDialog({
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <Badge variant="outline">{formatRoleToken(entity.entity_type)}</Badge>
                     <Badge variant="outline">{formatRoleToken(entity.entity_class)}</Badge>
-                    <Badge variant="outline">{formatRoleToken(entity.status)}</Badge>
+                    <AppStatusBadge tone={getEntityStatusTone(entity.status)}>
+                      {formatRoleToken(entity.status)}
+                    </AppStatusBadge>
                   </div>
                 </section>
 
@@ -340,9 +344,11 @@ export function EntityMemberAccessDialog({
                       <Badge variant="outline">
                         User status: {formatMembershipToken(existingMember.user_status)}
                       </Badge>
-                      <Badge variant={getMembershipStatusVariant(existingMember.effective_status)}>
+                      <AppStatusBadge
+                        tone={getMembershipStatusTone(existingMember.effective_status)}
+                      >
                         Membership: {formatMembershipToken(existingMember.effective_status)}
-                      </Badge>
+                      </AppStatusBadge>
                     </div>
                   </section>
                 ) : (

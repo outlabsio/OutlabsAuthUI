@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { cn } from '@/lib/utils/cn'
+import { AppStatusCallout } from '@/components/app/app-status-callout'
 
 type AppErrorStateProps = {
   title?: string
@@ -18,19 +18,16 @@ export function AppErrorState({
   compact = false,
 }: AppErrorStateProps) {
   return (
-    <div
+    <AppStatusCallout
       role="alert"
-      className={cn(
-        'rounded-xl border border-destructive/20 bg-destructive/5 text-sm text-destructive',
-        compact ? 'px-4 py-3' : 'px-4 py-4',
-        className
-      )}
+      tone="error"
+      appearance="soft"
+      title={title}
+      action={action}
+      className={className}
+      compact={compact}
     >
-      <div className="space-y-1">
-        {title ? <div className="font-medium">{title}</div> : null}
-        <div>{children}</div>
-      </div>
-      {action ? <div className="mt-3">{action}</div> : null}
-    </div>
+      {children}
+    </AppStatusCallout>
   )
 }

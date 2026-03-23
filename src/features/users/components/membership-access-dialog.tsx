@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,7 +31,7 @@ import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-up
 import type { UserMembership } from '@/features/memberships/types/memberships.types'
 import {
   formatMembershipToken,
-  getMembershipStatusVariant,
+  getMembershipStatusTone,
 } from '@/features/memberships/utils/membership-display'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
 import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
@@ -258,9 +259,9 @@ export function MembershipAccessDialog({
   const currentStatusLabel = existingMembership
     ? formatMembershipToken(existingMembership.effective_status)
     : null
-  const currentStatusVariant = existingMembership
-    ? getMembershipStatusVariant(existingMembership.effective_status)
-    : 'outline'
+  const currentStatusTone = existingMembership
+    ? getMembershipStatusTone(existingMembership.effective_status)
+    : 'neutral'
   const accessWindowStateMessage =
     existingMembership?.effective_status === 'expired'
       ? 'Window ended.'
@@ -361,7 +362,9 @@ export function MembershipAccessDialog({
                         <Badge variant="outline">{selectedEntity.entityTypeLabel}</Badge>
                         <Badge variant="outline">{selectedEntity.entityClassLabel}</Badge>
                         {existingMembership ? (
-                          <Badge variant={currentStatusVariant}>{currentStatusLabel}</Badge>
+                          <AppStatusBadge tone={currentStatusTone}>
+                            {currentStatusLabel}
+                          </AppStatusBadge>
                         ) : null}
                       </div>
 

@@ -5,6 +5,7 @@ import { Fingerprint, KeyRound, PencilLine, Trash2 } from 'lucide-react'
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
 import { AppSection } from '@/components/app/app-section'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -35,7 +36,7 @@ import {
   getPermissionOperationalSummary,
   getPermissionResourceLabel,
   getPermissionScopeLabel,
-  getPermissionStatusVariant,
+  getPermissionStatusTone,
 } from '@/features/permissions/utils/permissions-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import {
@@ -140,9 +141,13 @@ export function PermissionDetailsPanel({
                 {permission.name}
               </Badge>
               {permission.is_system ? <Badge variant="secondary">System permission</Badge> : null}
-              <Badge variant={getPermissionStatusVariant(permission)}>
-                {permission.status === 'active' ? 'Active' : 'Inactive'}
-              </Badge>
+              <AppStatusBadge tone={getPermissionStatusTone(permission)}>
+                {permission.status === 'active'
+                  ? 'Active'
+                  : permission.status === 'archived'
+                    ? 'Archived'
+                    : 'Inactive'}
+              </AppStatusBadge>
             </div>
 
             <div className="flex shrink-0 flex-wrap gap-2">

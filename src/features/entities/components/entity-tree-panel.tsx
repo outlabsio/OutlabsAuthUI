@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -33,7 +34,7 @@ import type { EntityTreeNode } from '@/features/entities/utils/build-entity-tree
 import {
   formatEntityToken,
   getEntityClassLabel,
-  getEntityStatusVariant,
+  getEntityStatusTone,
 } from '@/features/entities/utils/entity-display'
 import { cn } from '@/lib/utils/cn'
 
@@ -163,12 +164,12 @@ function EntityTreeRow({
               </span>
 
               <div className="col-start-2 row-span-2 flex shrink-0 flex-col items-end gap-1 self-start">
-                <Badge
-                  variant={getEntityStatusVariant(node.status)}
+                <AppStatusBadge
+                  tone={getEntityStatusTone(node.status)}
                   className={cn(isCompact ? 'h-4 px-1.5 text-[10px]' : null)}
                 >
                   {formatEntityToken(node.status)}
-                </Badge>
+                </AppStatusBadge>
                 {isSelected ? (
                   <Badge
                     variant="secondary"

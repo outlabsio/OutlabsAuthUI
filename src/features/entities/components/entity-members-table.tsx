@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,7 @@ import {
 import type { EntityMember } from '@/features/entities/types/entities.types'
 import {
   formatMembershipToken,
-  getMembershipStatusVariant,
+  getMembershipStatusTone,
 } from '@/features/memberships/utils/membership-display'
 
 type EntityMembersTableProps = {
@@ -246,9 +247,9 @@ export function EntityMembersTable({
                     <TableCell className="align-top whitespace-normal">
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={getMembershipStatusVariant(member.effective_status)}>
+                          <AppStatusBadge tone={getMembershipStatusTone(member.effective_status)}>
                             {formatMembershipToken(member.effective_status)}
-                          </Badge>
+                          </AppStatusBadge>
                           <span className="text-xs text-muted-foreground">
                             Assignment {formatMembershipToken(member.status)}
                           </span>

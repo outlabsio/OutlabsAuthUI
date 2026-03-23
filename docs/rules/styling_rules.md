@@ -180,6 +180,39 @@ Do not manually tint the brand color differently in every feature.
 Success, warning, destructive, info, and neutral state styling should each have one approved visual approach.
 Do not invent a different color treatment for every screen.
 
+### Semantic status rule
+
+Semantic meaning and visual treatment are different concerns.
+
+Approved semantic tones:
+
+- neutral
+- info
+- success
+- warning
+- error
+
+Approved status appearances:
+
+- soft
+- solid
+- outline
+
+Rules:
+
+1. Status meaning must be expressed through semantic tones, not primitive-specific variant names.
+2. Visual treatment must be chosen separately from meaning.
+3. Product status UI should use app-level wrappers like `AppStatusBadge` and `AppStatusCallout`.
+4. Primitive variants such as `outline`, `ghost`, `link`, or legacy `destructive` are not the app's semantic status API.
+5. `destructive` may remain as a primitive compatibility alias, but app-level status meaning should use `error`.
+
+Examples:
+
+- good: `tone="success"` with `appearance="soft"`
+- good: `tone="error"` with `appearance="outline"`
+- bad: using `Badge variant="destructive"` to express all error, warning, and archived states
+- bad: encoding semantic meaning through `secondary` or `outline`
+
 ---
 
 ## Spacing Rules
@@ -704,4 +737,3 @@ That means:
 - same interaction language
 
 If styling decisions are happening independently in every feature, the system is already breaking.
-

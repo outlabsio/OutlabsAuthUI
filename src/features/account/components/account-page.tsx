@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
+import { AppStatusCallout } from '@/components/app/app-status-callout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,6 +37,7 @@ import {
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import type { SessionUser } from '@/features/auth/types/auth.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 function formatDateTime(value?: string | null, fallback = 'Not yet recorded') {
   if (!value) {
@@ -55,16 +58,17 @@ function formatStatusLabel(status: SessionUser['status']) {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-function getStatusVariant(status: SessionUser['status']) {
+function getStatusTone(status: SessionUser['status']): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary' as const
+      return 'success'
     case 'invited':
-      return 'outline' as const
+      return 'info'
     case 'suspended':
+      return 'warning'
     case 'banned':
     case 'deleted':
-      return 'destructive' as const
+      return 'error'
   }
 }
 
@@ -123,12 +127,12 @@ export function AccountPage() {
   if (sessionQuery.isError || !sessionUser) {
     return (
       <AppPage title="Account" padded>
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+        <AppStatusCallout tone="error" role="alert">
           {getApiErrorMessage(
             sessionQuery.error,
             'The current account session could not be loaded.'
           )}
-        </div>
+        </AppStatusCallout>
       </AppPage>
     )
   }
@@ -157,9 +161,9 @@ export function AccountPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant={getStatusVariant(sessionUser.status)}>
+              <AppStatusBadge tone={getStatusTone(sessionUser.status)}>
                 {formatStatusLabel(sessionUser.status)}
-              </Badge>
+              </AppStatusBadge>
               <Badge variant={sessionUser.email_verified ? 'secondary' : 'outline'}>
                 {sessionUser.email_verified ? 'Email verified' : 'Email unverified'}
               </Badge>
@@ -170,13 +174,13 @@ export function AccountPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             {sessionUser.locked_until ? (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <AppStatusCallout tone="warning">
                 A temporary lockout is active until{' '}
                 <span className="font-medium">
                   {formatDateTime(sessionUser.locked_until)}
                 </span>
                 . OAuth login and invite auto-login remain blocked during this window.
-              </div>
+              </AppStatusCallout>
             ) : (
               <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                 No active lockout is recorded for this account.

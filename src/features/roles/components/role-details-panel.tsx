@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Layers3, Orbit, PencilLine, ShieldCheck, Trash2, TreePine } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,7 +29,7 @@ import {
   getRoleOperationalSummary,
   getRoleScopeModeLabel,
   getRoleStatusLabel,
-  getRoleStatusVariant,
+  getRoleStatusTone,
   getRoleScopeSummary,
   getRoleType,
   getRoleTypeLabel,
@@ -170,9 +171,9 @@ export function RoleDetailsPanel({
                 </Badge>
                 {role.is_system_role ? <Badge variant="secondary">System role</Badge> : null}
                 {role.is_auto_assigned ? <Badge variant="outline">Auto-assigned</Badge> : null}
-                <Badge variant={getRoleStatusVariant(role.status)}>
+                <AppStatusBadge tone={getRoleStatusTone(role.status)}>
                   {getRoleStatusLabel(role.status)}
-                </Badge>
+                </AppStatusBadge>
                 <Badge variant="outline">{getRoleDefinitionLabel(role)}</Badge>
                 <Badge variant="outline">{role.permissions.length} permissions</Badge>
               </div>

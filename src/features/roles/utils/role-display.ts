@@ -8,6 +8,7 @@ import type {
   RoleUsageFilter,
   RolesPageSearch,
 } from '@/features/roles/types/roles.types'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 export function formatRoleToken(value: string, fallback?: string) {
   const formatted = value
@@ -156,14 +157,14 @@ export function getRoleStatusLabel(status: RoleDefinitionStatus) {
   }
 }
 
-export function getRoleStatusVariant(status: RoleDefinitionStatus) {
+export function getRoleStatusTone(status: RoleDefinitionStatus): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'secondary'
+      return 'success'
     case 'inactive':
-      return 'outline'
+      return 'warning'
     case 'archived':
-      return 'destructive'
+      return 'error'
   }
 }
 

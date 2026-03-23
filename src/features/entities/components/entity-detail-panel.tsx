@@ -4,6 +4,7 @@ import { ArrowRight, FolderTree, ShieldPlus, UserPlus, Users } from 'lucide-reac
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppSection } from '@/components/app/app-section'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import {
   Breadcrumb,
@@ -23,7 +24,7 @@ import type { Entity, EntityMember } from '@/features/entities/types/entities.ty
 import {
   formatEntityToken,
   getEntityClassLabel,
-  getEntityStatusVariant,
+  getEntityStatusTone,
 } from '@/features/entities/utils/entity-display'
 import type { Role } from '@/features/roles/types/roles.types'
 import { RolesTable } from '@/features/roles/components/roles-table'
@@ -298,9 +299,9 @@ export function EntityDetailPanel({
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 {entity.display_name}
               </h2>
-              <Badge variant={getEntityStatusVariant(entity.status)}>
+              <AppStatusBadge tone={getEntityStatusTone(entity.status)}>
                 {formatEntityToken(entity.status)}
-              </Badge>
+              </AppStatusBadge>
             </div>
 
             {entity.description ? (
@@ -542,9 +543,9 @@ export function EntityDetailPanel({
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={getEntityStatusVariant(childEntity.status)}>
+                      <AppStatusBadge tone={getEntityStatusTone(childEntity.status)}>
                         {formatEntityToken(childEntity.status)}
-                      </Badge>
+                      </AppStatusBadge>
                       <ArrowRight className="size-4 text-muted-foreground" />
                     </div>
                   </button>

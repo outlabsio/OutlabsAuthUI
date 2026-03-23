@@ -3,8 +3,10 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
 
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,6 +50,7 @@ import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 function formatDateTime(value?: string | null, fallback = 'Never') {
   if (!value) {
@@ -72,17 +75,18 @@ function formatToken(value: string) {
     .join(' ')
 }
 
-function getStatusVariant(status: ApiKeyStatus) {
+function getStatusTone(status: ApiKeyStatus): AppStatusTone {
   switch (status) {
     case 'active':
-      return 'outline' as const
+      return 'success'
     case 'suspended':
-      return 'secondary' as const
+      return 'warning'
     case 'expired':
+      return 'warning'
     case 'revoked':
-      return 'destructive' as const
+      return 'error'
     default:
-      return 'outline' as const
+      return 'neutral'
   }
 }
 
@@ -200,12 +204,12 @@ export function ApiKeysPage() {
   if (pageError) {
     return (
       <AppPage title="API Keys" hideTitle padded>
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+        <AppErrorState>
           {getApiErrorMessage(
             pageError,
             'The API keys workspace could not load data from the auth API.'
           )}
-        </div>
+        </AppErrorState>
       </AppPage>
     )
   }
@@ -306,9 +310,9 @@ export function ApiKeysPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={getStatusVariant(apiKey.status)}>
+                              <AppStatusBadge tone={getStatusTone(apiKey.status)}>
                                 {formatToken(apiKey.status)}
-                              </Badge>
+                              </AppStatusBadge>
                             </TableCell>
                             <TableCell className="font-mono">{apiKey.prefix}</TableCell>
                             <TableCell>{apiKey.usage_count}</TableCell>
@@ -336,9 +340,9 @@ export function ApiKeysPage() {
                     </div>
                   </div>
                   {activeApiKey ? (
-                    <Badge variant={getStatusVariant(activeApiKey.status)}>
+                    <AppStatusBadge tone={getStatusTone(activeApiKey.status)}>
                       {formatToken(activeApiKey.status)}
-                    </Badge>
+                    </AppStatusBadge>
                   ) : null}
                 </div>
               </CardHeader>

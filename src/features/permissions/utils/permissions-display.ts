@@ -2,6 +2,7 @@ import type {
   Permission,
   PermissionsPageSearch,
 } from '@/features/permissions/types/permissions.types'
+import type { AppStatusTone } from '@/components/app/app-status'
 
 const permissionStatusRank: Record<Permission['status'], number> = {
   active: 0,
@@ -75,14 +76,14 @@ export function getPermissionLifecycleLabel(permission: Permission) {
   }
 }
 
-export function getPermissionStatusVariant(permission: Permission) {
+export function getPermissionStatusTone(permission: Permission): AppStatusTone {
   switch (permission.status) {
     case 'active':
-      return 'secondary'
+      return 'success'
     case 'inactive':
-      return 'outline'
+      return 'warning'
     case 'archived':
-      return 'destructive'
+      return 'error'
   }
 }
 
