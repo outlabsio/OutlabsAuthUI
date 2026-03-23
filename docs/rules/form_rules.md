@@ -337,6 +337,7 @@ Examples:
 Recommended base wrapper:
 
 - `app-form-field.tsx`
+- `app-tags-input.tsx` for list-of-string fields that would otherwise become CSV textareas
 
 ### Feature layer
 
@@ -350,6 +351,14 @@ Feature forms own:
 ### Rule
 
 Do not let each feature invent its own field spacing, label layout, and error rendering pattern. That is exactly what `components/app` should stabilize.
+
+### List-of-string field rule
+
+If a form field represents an array of strings, model it as `string[]` in the schema and form state.
+
+Use `AppTagsInput` for the interaction.
+
+Do not model array fields as comma-separated `string` textareas unless the backend or UX explicitly requires raw freeform text.
 
 ---
 

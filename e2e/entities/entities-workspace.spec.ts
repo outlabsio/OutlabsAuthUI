@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
 import { selectBaseUiOption } from '../support/base-ui-select'
-import { typeIntoBaseUiField } from '../support/base-ui-text'
+import { typeIntoBaseUiField, typeIntoBaseUiTagField } from '../support/base-ui-text'
 
 const entitiesPath = '/app/entities'
 async function gotoEntitiesWorkspace(page: Page) {
@@ -124,7 +124,7 @@ test.describe('Entities Workspace', () => {
       timeLabel: '12:00 PM',
     })
     await rootDialog.getByRole('checkbox', { name: 'Structural' }).click()
-    await typeIntoBaseUiField(rootDialog, 'Allowed child types', 'region')
+    await typeIntoBaseUiTagField(rootDialog, 'Allowed child types', ['region'])
     await typeIntoBaseUiField(rootDialog, 'Max members', '22')
     await rootDialog.getByRole('button', { name: 'Create entity' }).click()
 
@@ -143,14 +143,11 @@ test.describe('Entities Workspace', () => {
     const rootGovernanceDialog = page.getByRole('dialog', {
       name: `Edit root governance for ${rootEntity.displayName}`,
     })
+    await expect(rootGovernanceDialog).toBeVisible()
     await expect(rootGovernanceDialog.locator('#root-governance-max-members')).toHaveValue(
       '22'
     )
-    await expect(
-      rootGovernanceDialog.locator('#root-governance-allowed-child-types')
-    ).toHaveValue(
-      'region'
-    )
+    await expect(rootGovernanceDialog.getByText('region', { exact: true })).toBeVisible()
     await rootGovernanceDialog.getByRole('button', { name: 'Cancel' }).click()
 
     await page.getByRole('tab', { name: 'Child entities' }).click()
@@ -170,7 +167,7 @@ test.describe('Entities Workspace', () => {
     await typeIntoBaseUiField(regionDialog, 'Display name', regionEntity.displayName)
     await typeIntoBaseUiField(regionDialog, 'Description', regionEntity.description)
     await regionDialog.getByRole('checkbox', { name: 'Access group' }).click()
-    await typeIntoBaseUiField(regionDialog, 'Allowed child types', 'team')
+    await typeIntoBaseUiTagField(regionDialog, 'Allowed child types', ['team'])
     await typeIntoBaseUiField(regionDialog, 'Max members', '8')
     await regionDialog.getByRole('button', { name: 'Create entity' }).click()
 
@@ -310,7 +307,8 @@ test.describe('Entities Workspace', () => {
       name: new RegExp(officeEntity.displayName, 'i'),
     })
     await expect(officeChildButton).toBeVisible()
-    await officeChildButton.click()
+    await officeChildButton.focus()
+    await officeChildButton.press('Enter')
 
     await expect(page.getByRole('heading', { name: officeEntity.displayName })).toBeVisible()
     await page.getByRole('tab', { name: 'Members and access' }).click()
@@ -570,7 +568,9 @@ test.describe('Entities Workspace', () => {
     await searchField.fill(invitedEmail)
     await page.getByRole('combobox', { name: 'Filter by status' }).click()
     await page.getByRole('option', { name: 'Invited' }).click()
-    await page.getByRole('button', { name: 'Apply' }).click()
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('status'))
+      .toBe('invited')
 
     const invitedRow = page.locator('tbody tr').filter({ hasText: invitedEmail }).first()
     await expect(invitedRow).toBeVisible()

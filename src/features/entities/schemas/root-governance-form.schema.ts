@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
+import { normalizeTagValues } from '@/lib/utils/tag-values'
+
 const entityClassSchema = z.enum(['structural', 'access_group'])
+const entityTypeValueSchema = z
+  .string()
+  .trim()
+  .min(1, 'Child types cannot be empty.')
+  .max(50, 'Child types must be 50 characters or fewer.')
 const maxMembersFieldSchema = z
   .string()
   .optional()
@@ -28,7 +35,10 @@ function isValidRegexPattern(value?: string) {
 
 export const rootGovernanceFormSchema = z.object({
   allowedChildClasses: z.array(entityClassSchema).default([]),
-  allowedChildTypes: z.string().optional(),
+  allowedChildTypes: z
+    .array(entityTypeValueSchema)
+    .default([])
+    .transform((values) => normalizeTagValues(values)),
   maxMembers: maxMembersFieldSchema,
   childNamePattern: z
     .string()

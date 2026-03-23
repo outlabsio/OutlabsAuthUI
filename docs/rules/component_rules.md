@@ -96,6 +96,7 @@ Examples:
 - `app-confirm-dialog.tsx`
 - `app-table.tsx`
 - `app-form-field.tsx`
+- `app-tags-input.tsx`
 - `app-status-badge.tsx`
 - `app-status-callout.tsx`
 
@@ -413,6 +414,7 @@ Examples:
 - destructive action dialog
 - standard detail drawer shell
 - standard action menu composition if reused widely
+- standard tag/chip input for list-of-string fields
 
 ### Feature ownership
 

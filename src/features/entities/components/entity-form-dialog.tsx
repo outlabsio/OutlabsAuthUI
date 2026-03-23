@@ -6,6 +6,7 @@ import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { CalendarClock, Layers3 } from 'lucide-react'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -87,13 +88,6 @@ function toIsoValue(value?: string) {
   return value ? new Date(value).toISOString() : null
 }
 
-function parseAllowedChildTypes(value?: string) {
-  return (value ?? '')
-    .split(/[\n,]/g)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 function parseMaxMembers(value?: string) {
   if (!value || !value.trim()) {
     return null
@@ -143,7 +137,7 @@ function getCreateDefaults(parentEntity?: Entity | null): EntityFormValues {
     validFrom: '',
     validUntil: '',
     allowedChildClasses: [],
-    allowedChildTypes: '',
+    allowedChildTypes: [],
     maxMembers: '',
   }
 }
@@ -160,7 +154,7 @@ function getUpdateDefaults(entity?: Entity | null): EntityFormValues {
     validFrom: toDateTimeLocalValue(entity?.valid_from),
     validUntil: toDateTimeLocalValue(entity?.valid_until),
     allowedChildClasses: entity?.allowed_child_classes ?? [],
-    allowedChildTypes: entity?.allowed_child_types?.join(', ') ?? '',
+    allowedChildTypes: entity?.allowed_child_types ?? [],
     maxMembers: entity?.max_members != null ? String(entity.max_members) : '',
   }
 }
@@ -507,6 +501,22 @@ export function EntityFormDialog({
   }, [entity, mode])
   const canShowEntityTypeSuggestions =
     mode === 'create' && !hasConstrainedChildTypeOptions
+  const governanceChildTypeSuggestions = useMemo(
+    () =>
+      uniqueEntityTypeValues([
+        ...(entity?.allowed_child_types ?? []),
+        ...(parentEntity?.allowed_child_types ?? []),
+        ...(scopeRootEntity?.allowed_child_types ?? []),
+        ...(entityTypeConfigQuery.data?.default_child_types.structural ?? []),
+        ...(entityTypeConfigQuery.data?.default_child_types.access_group ?? []),
+      ]),
+    [
+      entity?.allowed_child_types,
+      entityTypeConfigQuery.data?.default_child_types,
+      parentEntity?.allowed_child_types,
+      scopeRootEntity?.allowed_child_types,
+    ]
+  )
   const applySuggestedEntityType = (value: string) => {
     form.setValue('entityType', value, {
       shouldDirty: true,
@@ -517,7 +527,7 @@ export function EntityFormDialog({
   async function handleSubmit(values: EntityFormValues) {
     try {
       const description = values.description?.trim() || undefined
-      const allowedChildTypes = parseAllowedChildTypes(values.allowedChildTypes)
+      const allowedChildTypes = values.allowedChildTypes
       const maxMembers = parseMaxMembers(values.maxMembers)
 
       const nextEntity =
@@ -1044,15 +1054,24 @@ export function EntityFormDialog({
                           <Label htmlFor="entity-allowed-child-types">
                             Allowed child types
                           </Label>
-                          <Textarea
-                            id="entity-allowed-child-types"
-                            rows={4}
-                            disabled={isPending}
-                            placeholder="department, team, territory"
-                            {...form.register('allowedChildTypes')}
+                          <Controller
+                            control={form.control}
+                            name="allowedChildTypes"
+                            render={({ field }) => (
+                              <AppTagsInput
+                                id="entity-allowed-child-types"
+                                values={field.value ?? []}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                disabled={isPending}
+                                suggestions={governanceChildTypeSuggestions}
+                                invalid={Boolean(form.formState.errors.allowedChildTypes)}
+                              />
+                            )}
                           />
                           <p className="text-xs text-muted-foreground">
-                            Separate values with commas or line breaks.
+                            Add one type at a time. Commas and line breaks also work when
+                            pasting.
                           </p>
                           <FieldError errors={[form.formState.errors.allowedChildTypes]} />
                         </div>

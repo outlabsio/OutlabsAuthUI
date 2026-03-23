@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
-import { typeIntoBaseUiField } from '../support/base-ui-text'
+import { typeIntoBaseUiTagField } from '../support/base-ui-text'
 
 const settingsPath = '/app/settings'
 
@@ -21,19 +21,19 @@ test.describe('Settings Workspace', () => {
   test('admin can update entity type defaults', async ({ page }) => {
     await gotoSettingsWorkspace(page)
 
-    await typeIntoBaseUiField(
+    await typeIntoBaseUiTagField(
       page.locator('main').first(),
       'Default structural child types',
-      'department, team, division'
+      ['department', 'team', 'division']
     )
-    await typeIntoBaseUiField(
+    await typeIntoBaseUiTagField(
       page.locator('main').first(),
       'Default access-group child types',
-      'permission_group, admin_group'
+      ['permission_group', 'admin_group']
     )
     await page.getByRole('button', { name: 'Save configuration' }).click()
 
-    await expect(page.getByText('division', { exact: true })).toBeVisible()
+    await expect(page.getByText('division', { exact: true }).last()).toBeVisible()
   })
 
   test.describe('Read-only UX', () => {

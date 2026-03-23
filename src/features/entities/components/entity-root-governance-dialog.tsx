@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 
+import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -38,13 +39,6 @@ const entityClassOptions = [
   { label: 'Access group', value: 'access_group' },
 ] satisfies Array<{ label: string; value: EntityClassValue }>
 
-function parseAllowedChildTypes(value?: string) {
-  return (value ?? '')
-    .split(/[\n,]/g)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 function parseMaxMembers(value?: string) {
   if (!value || !value.trim()) {
     return null
@@ -56,7 +50,7 @@ function parseMaxMembers(value?: string) {
 function getDefaultValues(entity: Entity | null): RootGovernanceFormValues {
   return {
     allowedChildClasses: entity?.allowed_child_classes ?? [],
-    allowedChildTypes: entity?.allowed_child_types?.join(', ') ?? '',
+    allowedChildTypes: entity?.allowed_child_types ?? [],
     maxMembers: entity?.max_members != null ? String(entity.max_members) : '',
     childNamePattern: entity?.child_name_pattern ?? '',
     childDisplayNamePattern: entity?.child_display_name_pattern ?? '',
@@ -77,15 +71,18 @@ export function EntityRootGovernanceDialog({
     resolver,
     defaultValues: getDefaultValues(entity),
   })
+  const resetDialogState = useEffectEvent(() => {
+    form.reset(getDefaultValues(entity))
+    updateEntityMutation.reset()
+  })
 
   useEffect(() => {
     if (!open) {
       return
     }
 
-    form.reset(getDefaultValues(entity))
-    updateEntityMutation.reset()
-  }, [entity, form, open, updateEntityMutation])
+    resetDialogState()
+  }, [entity, open])
 
   if (!entity || entity.parent_entity_id != null) {
     return null
@@ -119,7 +116,7 @@ export function EntityRootGovernanceDialog({
                 const nextEntity = await updateEntityMutation.mutateAsync({
                   entityId: entity.id,
                   allowed_child_classes: values.allowedChildClasses,
-                  allowed_child_types: parseAllowedChildTypes(values.allowedChildTypes),
+                  allowed_child_types: values.allowedChildTypes,
                   max_members: parseMaxMembers(values.maxMembers),
                   child_name_pattern: values.childNamePattern?.trim() || null,
                   child_display_name_pattern:
@@ -190,16 +187,24 @@ export function EntityRootGovernanceDialog({
                         <Label htmlFor="root-governance-allowed-child-types">
                           Allowed child types
                         </Label>
-                        <Textarea
-                          id="root-governance-allowed-child-types"
-                          rows={4}
-                          disabled={updateEntityMutation.isPending}
-                          placeholder="department, team, territory"
-                          {...form.register('allowedChildTypes')}
+                        <Controller
+                          control={form.control}
+                          name="allowedChildTypes"
+                          render={({ field }) => (
+                            <AppTagsInput
+                              id="root-governance-allowed-child-types"
+                              values={field.value ?? []}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              disabled={updateEntityMutation.isPending}
+                              showSuggestions={false}
+                              invalid={Boolean(form.formState.errors.allowedChildTypes)}
+                            />
+                          )}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Separate values with commas or line breaks. Leave empty to fall back to
-                          the platform child-type defaults.
+                          Add one type at a time. Commas and line breaks also work when pasting.
+                          Leave empty to fall back to the platform child-type defaults.
                         </p>
                         <FieldError errors={[form.formState.errors.allowedChildTypes]} />
                       </div>

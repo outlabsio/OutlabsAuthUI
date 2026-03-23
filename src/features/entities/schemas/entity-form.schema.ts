@@ -1,7 +1,14 @@
 import { z } from 'zod'
 
+import { normalizeTagValues } from '@/lib/utils/tag-values'
+
 const entityClassSchema = z.enum(['structural', 'access_group'])
 const entityStatusSchema = z.enum(['active', 'inactive', 'archived'])
+const entityTypeValueSchema = z
+  .string()
+  .trim()
+  .min(1, 'Child types cannot be empty.')
+  .max(50, 'Child types must be 50 characters or fewer.')
 const maxMembersFieldSchema = z
   .string()
   .optional()
@@ -54,7 +61,10 @@ export const createEntityFormSchema = z
     validFrom: z.string().optional(),
     validUntil: z.string().optional(),
     allowedChildClasses: z.array(entityClassSchema).default([]),
-    allowedChildTypes: z.string().optional(),
+    allowedChildTypes: z
+      .array(entityTypeValueSchema)
+      .default([])
+      .transform((values) => normalizeTagValues(values)),
     maxMembers: maxMembersFieldSchema,
   })
   .refine(
@@ -83,7 +93,10 @@ export const updateEntityFormSchema = z
     validFrom: z.string().optional(),
     validUntil: z.string().optional(),
     allowedChildClasses: z.array(entityClassSchema).default([]),
-    allowedChildTypes: z.string().optional(),
+    allowedChildTypes: z
+      .array(entityTypeValueSchema)
+      .default([])
+      .transform((values) => normalizeTagValues(values)),
     maxMembers: maxMembersFieldSchema,
   })
   .refine(

@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +17,6 @@ import {
 } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { getEntityTypeConfigQueryOptions } from '@/features/settings/api/settings.query-options'
 import { useUpdateEntityTypeConfigMutation } from '@/features/settings/hooks/use-update-entity-type-config-mutation'
 import {
@@ -41,30 +41,21 @@ function formatDateTime(value?: string | null) {
   }
 }
 
-function parseDelimitedValues(value: string) {
-  return value
-    .split(/[\n,]/g)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function formatDelimitedValues(values: string[]) {
-  return values.join(', ')
-}
-
 export function SettingsPage() {
   const sessionQuery = useSessionQuery()
   const entityTypeConfigQuery = useQuery(getEntityTypeConfigQueryOptions())
   const updateMutation = useUpdateEntityTypeConfigMutation()
   const sessionUser = sessionQuery.data ?? null
   const canUpdateConfig = Boolean(sessionUser?.is_superuser)
+  const resolver =
+    zodResolver(entityTypeConfigFormSchema) as Resolver<EntityTypeConfigFormValues>
   const form = useForm<EntityTypeConfigFormValues>({
-    resolver: zodResolver(entityTypeConfigFormSchema),
+    resolver,
     defaultValues: {
-      structuralRootTypesText: '',
-      accessGroupRootTypesText: '',
-      structuralChildTypesText: '',
-      accessGroupChildTypesText: '',
+      structuralRootTypes: [],
+      accessGroupRootTypes: [],
+      structuralChildTypes: [],
+      accessGroupChildTypes: [],
     },
   })
 
@@ -74,50 +65,28 @@ export function SettingsPage() {
     }
 
     form.reset({
-      structuralRootTypesText: formatDelimitedValues(
-        entityTypeConfigQuery.data.allowed_root_types.structural
-      ),
-      accessGroupRootTypesText: formatDelimitedValues(
-        entityTypeConfigQuery.data.allowed_root_types.access_group
-      ),
-      structuralChildTypesText: formatDelimitedValues(
-        entityTypeConfigQuery.data.default_child_types.structural
-      ),
-      accessGroupChildTypesText: formatDelimitedValues(
-        entityTypeConfigQuery.data.default_child_types.access_group
-      ),
+      structuralRootTypes: entityTypeConfigQuery.data.allowed_root_types.structural,
+      accessGroupRootTypes: entityTypeConfigQuery.data.allowed_root_types.access_group,
+      structuralChildTypes: entityTypeConfigQuery.data.default_child_types.structural,
+      accessGroupChildTypes: entityTypeConfigQuery.data.default_child_types.access_group,
     })
   }, [entityTypeConfigQuery.data, form])
 
   const pageError = sessionQuery.error ?? entityTypeConfigQuery.error
   const [
-    structuralRootTypesText = '',
-    accessGroupRootTypesText = '',
-    structuralChildTypesText = '',
-    accessGroupChildTypesText = '',
+    structuralRootTypes = [],
+    accessGroupRootTypes = [],
+    structuralChildTypes = [],
+    accessGroupChildTypes = [],
   ] = useWatch({
     control: form.control,
     name: [
-      'structuralRootTypesText',
-      'accessGroupRootTypesText',
-      'structuralChildTypesText',
-      'accessGroupChildTypesText',
+      'structuralRootTypes',
+      'accessGroupRootTypes',
+      'structuralChildTypes',
+      'accessGroupChildTypes',
     ],
   })
-  const previewValues = useMemo(
-    () => ({
-      structuralRootTypes: parseDelimitedValues(structuralRootTypesText),
-      accessGroupRootTypes: parseDelimitedValues(accessGroupRootTypesText),
-      structuralChildTypes: parseDelimitedValues(structuralChildTypesText),
-      accessGroupChildTypes: parseDelimitedValues(accessGroupChildTypesText),
-    }),
-    [
-      accessGroupChildTypesText,
-      accessGroupRootTypesText,
-      structuralChildTypesText,
-      structuralRootTypesText,
-    ]
-  )
   const submitErrorMessage = updateMutation.error
     ? getApiErrorMessage(
         updateMutation.error,
@@ -174,12 +143,12 @@ export function SettingsPage() {
                 try {
                   await updateMutation.mutateAsync({
                     allowed_root_types: {
-                      structural: parseDelimitedValues(values.structuralRootTypesText),
-                      access_group: parseDelimitedValues(values.accessGroupRootTypesText),
+                      structural: values.structuralRootTypes,
+                      access_group: values.accessGroupRootTypes,
                     },
                     default_child_types: {
-                      structural: parseDelimitedValues(values.structuralChildTypesText),
-                      access_group: parseDelimitedValues(values.accessGroupChildTypesText),
+                      structural: values.structuralChildTypes,
+                      access_group: values.accessGroupChildTypes,
                     },
                   })
                 } catch {
@@ -191,60 +160,100 @@ export function SettingsPage() {
                 <Label htmlFor="settings-structural-root-types">
                   Allowed structural root types
                 </Label>
-                <Textarea
-                  id="settings-structural-root-types"
-                  rows={4}
-                  placeholder="organization, workspace"
-                  disabled={!canUpdateConfig || updateMutation.isPending}
-                  {...form.register('structuralRootTypesText')}
+                <Controller
+                  control={form.control}
+                  name="structuralRootTypes"
+                  render={({ field }) => (
+                    <AppTagsInput
+                      id="settings-structural-root-types"
+                      values={field.value ?? []}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={!canUpdateConfig || updateMutation.isPending}
+                      suggestions={
+                        entityTypeConfigQuery.data?.allowed_root_types.structural ?? []
+                      }
+                      invalid={Boolean(form.formState.errors.structuralRootTypes)}
+                    />
+                  )}
                 />
                 <div className="text-xs text-muted-foreground">
-                  Separate values with commas or new lines. Leave the access-group list empty if
-                  you want to disable access-group roots entirely.
+                  Add one type at a time. Commas and line breaks also work when pasting. Leave the
+                  access-group list empty if you want to disable access-group roots entirely.
                 </div>
-                <FieldError errors={[form.formState.errors.structuralRootTypesText]} />
+                <FieldError errors={[form.formState.errors.structuralRootTypes]} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="settings-access-group-root-types">
                   Allowed access-group root types
                 </Label>
-                <Textarea
-                  id="settings-access-group-root-types"
-                  rows={4}
-                  placeholder="permission_group, admin_group"
-                  disabled={!canUpdateConfig || updateMutation.isPending}
-                  {...form.register('accessGroupRootTypesText')}
+                <Controller
+                  control={form.control}
+                  name="accessGroupRootTypes"
+                  render={({ field }) => (
+                    <AppTagsInput
+                      id="settings-access-group-root-types"
+                      values={field.value ?? []}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={!canUpdateConfig || updateMutation.isPending}
+                      suggestions={
+                        entityTypeConfigQuery.data?.allowed_root_types.access_group ?? []
+                      }
+                      invalid={Boolean(form.formState.errors.accessGroupRootTypes)}
+                    />
+                  )}
                 />
-                <FieldError errors={[form.formState.errors.accessGroupRootTypesText]} />
+                <FieldError errors={[form.formState.errors.accessGroupRootTypes]} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="settings-structural-child-types">
                   Default structural child types
                 </Label>
-                <Textarea
-                  id="settings-structural-child-types"
-                  rows={4}
-                  placeholder="department, team, branch"
-                  disabled={!canUpdateConfig || updateMutation.isPending}
-                  {...form.register('structuralChildTypesText')}
+                <Controller
+                  control={form.control}
+                  name="structuralChildTypes"
+                  render={({ field }) => (
+                    <AppTagsInput
+                      id="settings-structural-child-types"
+                      values={field.value ?? []}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={!canUpdateConfig || updateMutation.isPending}
+                      suggestions={
+                        entityTypeConfigQuery.data?.default_child_types.structural ?? []
+                      }
+                      invalid={Boolean(form.formState.errors.structuralChildTypes)}
+                    />
+                  )}
                 />
-                <FieldError errors={[form.formState.errors.structuralChildTypesText]} />
+                <FieldError errors={[form.formState.errors.structuralChildTypes]} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="settings-access-group-child-types">
                   Default access-group child types
                 </Label>
-                <Textarea
-                  id="settings-access-group-child-types"
-                  rows={4}
-                  placeholder="permission_group, admin_group"
-                  disabled={!canUpdateConfig || updateMutation.isPending}
-                  {...form.register('accessGroupChildTypesText')}
+                <Controller
+                  control={form.control}
+                  name="accessGroupChildTypes"
+                  render={({ field }) => (
+                    <AppTagsInput
+                      id="settings-access-group-child-types"
+                      values={field.value ?? []}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={!canUpdateConfig || updateMutation.isPending}
+                      suggestions={
+                        entityTypeConfigQuery.data?.default_child_types.access_group ?? []
+                      }
+                      invalid={Boolean(form.formState.errors.accessGroupChildTypes)}
+                    />
+                  )}
                 />
-                <FieldError errors={[form.formState.errors.accessGroupChildTypesText]} />
+                <FieldError errors={[form.formState.errors.accessGroupChildTypes]} />
               </div>
 
               {!canUpdateConfig ? (
@@ -282,7 +291,7 @@ export function SettingsPage() {
                 Structural root types
               </div>
               <div className="flex flex-wrap gap-2">
-                {previewValues.structuralRootTypes.map((value) => (
+                {structuralRootTypes.map((value) => (
                   <Badge key={value} variant="secondary">
                     {value}
                   </Badge>
@@ -295,8 +304,8 @@ export function SettingsPage() {
                 Access-group root types
               </div>
               <div className="flex flex-wrap gap-2">
-                {previewValues.accessGroupRootTypes.length > 0 ? (
-                  previewValues.accessGroupRootTypes.map((value) => (
+                {accessGroupRootTypes.length > 0 ? (
+                  accessGroupRootTypes.map((value) => (
                     <Badge key={value} variant="secondary">
                       {value}
                     </Badge>
@@ -312,7 +321,7 @@ export function SettingsPage() {
                 Structural defaults
               </div>
               <div className="flex flex-wrap gap-2">
-                {previewValues.structuralChildTypes.map((value) => (
+                {structuralChildTypes.map((value) => (
                   <Badge key={value} variant="outline">
                     {value}
                   </Badge>
@@ -325,7 +334,7 @@ export function SettingsPage() {
                 Access-group defaults
               </div>
               <div className="flex flex-wrap gap-2">
-                {previewValues.accessGroupChildTypes.map((value) => (
+                {accessGroupChildTypes.map((value) => (
                   <Badge key={value} variant="outline">
                     {value}
                   </Badge>

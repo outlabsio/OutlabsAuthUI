@@ -50,3 +50,22 @@ export async function typeIntoBaseUiField(
 
   return control
 }
+
+export async function typeIntoBaseUiTagField(
+  container: Locator,
+  label: string | RegExp,
+  values: string[]
+) {
+  const control = await getTextboxByLabel(container, label)
+
+  await expect(control).toBeVisible()
+  await control.click()
+
+  for (const value of values) {
+    await control.fill(value)
+    await control.press(',')
+    await expect(container.getByText(value, { exact: true }).first()).toBeVisible()
+  }
+
+  return control
+}
