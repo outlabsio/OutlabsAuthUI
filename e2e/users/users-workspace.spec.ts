@@ -26,6 +26,14 @@ async function openUserDetails(page: Page, email: string) {
   await expect(page.getByText(email, { exact: true }).first()).toBeVisible()
 }
 
+async function expectUsersSearchParam(page: Page, searchValue: string) {
+  await expect.poll(() => new URL(page.url()).searchParams.get('search')).toBe(searchValue)
+}
+
+async function expectUsersStatusParam(page: Page, statusValue: string) {
+  await expect.poll(() => new URL(page.url()).searchParams.get('status')).toBe(statusValue)
+}
+
 async function openUserAccessTab(page: Page) {
   await page.getByRole('tab', { name: 'Memberships and access' }).click()
   await expect(page.getByRole('heading', { name: 'Entity memberships' })).toBeVisible()
@@ -262,7 +270,7 @@ test.describe('Users Workspace', () => {
 
     await page.getByRole('combobox', { name: 'Filter by status' }).click()
     await page.getByRole('option', { name: 'Invited' }).click()
-    await page.getByRole('button', { name: 'Apply' }).click()
+    await expectUsersStatusParam(page, 'invited')
 
     await expect(page.getByText('invited@acme.com', { exact: true })).toBeVisible()
     await expect(page.getByText('lead@sf.acme.com', { exact: true })).toHaveCount(0)
@@ -343,7 +351,7 @@ test.describe('Users Workspace', () => {
     await gotoUsersWorkspace(page)
 
     await page.getByPlaceholder('Search people by name or email').fill(temporaryUser.email)
-    await page.getByRole('button', { name: 'Apply' }).click()
+    await expectUsersSearchParam(page, temporaryUser.email)
     await openUserDetails(page, temporaryUser.email)
 
     await page.getByRole('button', { name: 'Delete user' }).click()

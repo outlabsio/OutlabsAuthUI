@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -20,6 +20,7 @@ import type {
   RolesPageSearch,
 } from '@/features/roles/types/roles.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value'
 
 type RolesFiltersBarProps = {
   search: RolesPageSearch
@@ -76,6 +77,8 @@ export function RolesFiltersBar({
   const [assignableType, setAssignableType] = useState(search.assignableType ?? 'all')
   const [usage, setUsage] = useState<RoleUsageFilter | 'all'>(search.usage ?? 'all')
   const [system, setSystem] = useState<RoleSystemFilter | 'all'>(search.system ?? 'all')
+  const debouncedSearchValue = useDebouncedValue(searchValue)
+  const hasMountedRef = useRef(false)
 
   const hasDraftFilters = Boolean(
     searchValue.trim() ||
@@ -99,20 +102,55 @@ export function RolesFiltersBar({
   const assignableTypeLabel =
     assignableType === 'all' ? 'Any entity type' : formatRoleToken(assignableType)
 
+  function buildFilters(next?: {
+    searchValue?: string
+    roleType?: RoleTypeFilter | 'all'
+    scopeMode?: RoleScopeFilter | 'all'
+    scopeRootId?: string
+    assignableType?: string
+    usage?: RoleUsageFilter | 'all'
+    system?: RoleSystemFilter | 'all'
+  }) {
+    const nextSearchValue = next?.searchValue ?? searchValue
+    const nextRoleType = next?.roleType ?? roleType
+    const nextScopeMode = next?.scopeMode ?? scopeMode
+    const nextScopeRootId = next?.scopeRootId ?? scopeRootId
+    const nextAssignableType = next?.assignableType ?? assignableType
+    const nextUsage = next?.usage ?? usage
+    const nextSystem = next?.system ?? system
+
+    return {
+      search: nextSearchValue.trim() || undefined,
+      roleType: nextRoleType !== 'all' ? nextRoleType : undefined,
+      scopeMode: nextScopeMode !== 'all' ? nextScopeMode : undefined,
+      scopeRootId: nextScopeRootId !== 'all' ? nextScopeRootId : undefined,
+      assignableType: nextAssignableType !== 'all' ? nextAssignableType : undefined,
+      usage: nextUsage !== 'all' ? nextUsage : undefined,
+      system: nextSystem !== 'all' ? nextSystem : undefined,
+    }
+  }
+
+  const applyDebouncedSearch = useEffectEvent((nextSearchValue: string) => {
+    onApply(buildFilters({
+      searchValue: nextSearchValue,
+    }))
+  })
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+
+    applyDebouncedSearch(debouncedSearchValue)
+  }, [debouncedSearchValue])
+
   return (
     <form
       className="flex min-w-0 flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault()
-        onApply({
-          search: searchValue.trim() || undefined,
-          roleType: roleType !== 'all' ? roleType : undefined,
-          scopeMode: scopeMode !== 'all' ? scopeMode : undefined,
-          scopeRootId: scopeRootId !== 'all' ? scopeRootId : undefined,
-          assignableType: assignableType !== 'all' ? assignableType : undefined,
-          usage: usage !== 'all' ? usage : undefined,
-          system: system !== 'all' ? system : undefined,
-        })
+        onApply(buildFilters())
       }}
     >
       <div className="relative min-w-[190px] flex-[0_1_220px] xl:flex-[0_1_240px]">
@@ -129,7 +167,13 @@ export function RolesFiltersBar({
       <div className="w-full shrink-0 sm:w-[150px]">
         <Select
           value={roleType}
-          onValueChange={(value) => setRoleType((value ?? 'all') as RoleTypeFilter | 'all')}
+          onValueChange={(value) => {
+            const nextRoleType = (value ?? 'all') as RoleTypeFilter | 'all'
+            setRoleType(nextRoleType)
+            onApply(buildFilters({
+              roleType: nextRoleType,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by role type">
             <SelectValue>{roleTypeLabel}</SelectValue>
@@ -150,7 +194,13 @@ export function RolesFiltersBar({
       <div className="w-full shrink-0 sm:w-[150px]">
         <Select
           value={scopeMode}
-          onValueChange={(value) => setScopeMode((value ?? 'all') as RoleScopeFilter | 'all')}
+          onValueChange={(value) => {
+            const nextScopeMode = (value ?? 'all') as RoleScopeFilter | 'all'
+            setScopeMode(nextScopeMode)
+            onApply(buildFilters({
+              scopeMode: nextScopeMode,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by scope mode">
             <SelectValue>{scopeModeLabel}</SelectValue>
@@ -169,7 +219,16 @@ export function RolesFiltersBar({
       </div>
 
       <div className="w-full min-w-[190px] shrink-0 sm:w-[190px]">
-        <Select value={scopeRootId} onValueChange={(value) => setScopeRootId(String(value ?? 'all'))}>
+        <Select
+          value={scopeRootId}
+          onValueChange={(value) => {
+            const nextScopeRootId = String(value ?? 'all')
+            setScopeRootId(nextScopeRootId)
+            onApply(buildFilters({
+              scopeRootId: nextScopeRootId,
+            }))
+          }}
+        >
           <SelectTrigger className="w-full" aria-label="Filter by owning root">
             <SelectValue>{scopeRootLabel}</SelectValue>
           </SelectTrigger>
@@ -189,7 +248,13 @@ export function RolesFiltersBar({
       <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={assignableType}
-          onValueChange={(value) => setAssignableType(String(value ?? 'all'))}
+          onValueChange={(value) => {
+            const nextAssignableType = String(value ?? 'all')
+            setAssignableType(nextAssignableType)
+            onApply(buildFilters({
+              assignableType: nextAssignableType,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by assignable entity type">
             <SelectValue>{assignableTypeLabel}</SelectValue>
@@ -210,7 +275,13 @@ export function RolesFiltersBar({
       <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={usage}
-          onValueChange={(value) => setUsage((value ?? 'all') as RoleUsageFilter | 'all')}
+          onValueChange={(value) => {
+            const nextUsage = (value ?? 'all') as RoleUsageFilter | 'all'
+            setUsage(nextUsage)
+            onApply(buildFilters({
+              usage: nextUsage,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by assignment mode">
             <SelectValue>{usageLabel}</SelectValue>
@@ -231,7 +302,13 @@ export function RolesFiltersBar({
       <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={system}
-          onValueChange={(value) => setSystem((value ?? 'all') as RoleSystemFilter | 'all')}
+          onValueChange={(value) => {
+            const nextSystem = (value ?? 'all') as RoleSystemFilter | 'all'
+            setSystem(nextSystem)
+            onApply(buildFilters({
+              system: nextSystem,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by system status">
             <SelectValue>{systemLabel}</SelectValue>
@@ -250,9 +327,6 @@ export function RolesFiltersBar({
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <Button type="submit" className="min-w-24">
-          Apply
-        </Button>
         {hasDraftFilters ? (
           <Button
             type="button"

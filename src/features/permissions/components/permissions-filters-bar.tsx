@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -18,6 +18,7 @@ import type {
   PermissionsPageSearch,
 } from '@/features/permissions/types/permissions.types'
 import { formatPermissionToken } from '@/features/permissions/utils/permissions-display'
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value'
 
 type PermissionsFiltersBarProps = {
   search: PermissionsPageSearch
@@ -49,23 +50,56 @@ export function PermissionsFiltersBar({
   const [status, setStatus] = useState<PermissionStatusFilter | 'all'>(search.status ?? 'all')
   const [system, setSystem] = useState<PermissionSystemFilter | 'all'>(search.system ?? 'all')
   const [tag, setTag] = useState(search.tag ?? 'all')
+  const debouncedSearchValue = useDebouncedValue(searchValue)
+  const hasMountedRef = useRef(false)
 
   const hasDraftFilters = Boolean(
     searchValue.trim() || resource !== 'all' || status !== 'all' || system !== 'all' || tag !== 'all'
   )
+
+  function buildFilters(next?: {
+    searchValue?: string
+    resource?: string
+    status?: PermissionStatusFilter | 'all'
+    system?: PermissionSystemFilter | 'all'
+    tag?: string
+  }) {
+    const nextSearchValue = next?.searchValue ?? searchValue
+    const nextResource = next?.resource ?? resource
+    const nextStatus = next?.status ?? status
+    const nextSystem = next?.system ?? system
+    const nextTag = next?.tag ?? tag
+
+    return {
+      search: nextSearchValue.trim() || undefined,
+      resource: nextResource !== 'all' ? nextResource : undefined,
+      status: nextStatus !== 'all' ? nextStatus : undefined,
+      system: nextSystem !== 'all' ? nextSystem : undefined,
+      tag: nextTag !== 'all' ? nextTag : undefined,
+    }
+  }
+
+  const applyDebouncedSearch = useEffectEvent((nextSearchValue: string) => {
+    onApply(buildFilters({
+      searchValue: nextSearchValue,
+    }))
+  })
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+
+    applyDebouncedSearch(debouncedSearchValue)
+  }, [debouncedSearchValue])
 
   return (
     <form
       className="flex min-w-0 flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault()
-        onApply({
-          search: searchValue.trim() || undefined,
-          resource: resource !== 'all' ? resource : undefined,
-          status: status !== 'all' ? status : undefined,
-          system: system !== 'all' ? system : undefined,
-          tag: tag !== 'all' ? tag : undefined,
-        })
+        onApply(buildFilters())
       }}
     >
       <div className="relative min-w-[240px] flex-[1_1_320px]">
@@ -80,7 +114,16 @@ export function PermissionsFiltersBar({
       </div>
 
       <div className="w-full shrink-0 sm:w-[170px]">
-        <Select value={resource} onValueChange={(value) => setResource(String(value ?? 'all'))}>
+        <Select
+          value={resource}
+          onValueChange={(value) => {
+            const nextResource = String(value ?? 'all')
+            setResource(nextResource)
+            onApply(buildFilters({
+              resource: nextResource,
+            }))
+          }}
+        >
           <SelectTrigger className="w-full" aria-label="Filter by resource">
             <SelectValue placeholder="All resources" />
           </SelectTrigger>
@@ -102,9 +145,13 @@ export function PermissionsFiltersBar({
       <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={status}
-          onValueChange={(value) =>
-            setStatus((value ?? 'all') as PermissionStatusFilter | 'all')
-          }
+          onValueChange={(value) => {
+            const nextStatus = (value ?? 'all') as PermissionStatusFilter | 'all'
+            setStatus(nextStatus)
+            onApply(buildFilters({
+              status: nextStatus,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by catalog status">
             <SelectValue placeholder="Catalog status" />
@@ -125,9 +172,13 @@ export function PermissionsFiltersBar({
       <div className="w-full shrink-0 sm:w-[160px]">
         <Select
           value={system}
-          onValueChange={(value) =>
-            setSystem((value ?? 'all') as PermissionSystemFilter | 'all')
-          }
+          onValueChange={(value) => {
+            const nextSystem = (value ?? 'all') as PermissionSystemFilter | 'all'
+            setSystem(nextSystem)
+            onApply(buildFilters({
+              system: nextSystem,
+            }))
+          }}
         >
           <SelectTrigger className="w-full" aria-label="Filter by system status">
             <SelectValue placeholder="System status" />
@@ -146,7 +197,16 @@ export function PermissionsFiltersBar({
       </div>
 
       <div className="w-full min-w-[180px] shrink-0 sm:w-[180px]">
-        <Select value={tag} onValueChange={(value) => setTag(String(value ?? 'all'))}>
+        <Select
+          value={tag}
+          onValueChange={(value) => {
+            const nextTag = String(value ?? 'all')
+            setTag(nextTag)
+            onApply(buildFilters({
+              tag: nextTag,
+            }))
+          }}
+        >
           <SelectTrigger className="w-full" aria-label="Filter by tag">
             <SelectValue placeholder="Any tag" />
           </SelectTrigger>
@@ -164,7 +224,6 @@ export function PermissionsFiltersBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <Button type="submit">Apply</Button>
         {hasDraftFilters ? (
           <Button
             type="button"

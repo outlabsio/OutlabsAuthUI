@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
@@ -22,6 +22,7 @@ import {
 import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import { Input } from '@/components/ui/input'
 import type { UserListStatusFilter, UsersPageSearch } from '@/features/users/types/users.types'
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value'
 
 type UsersFiltersProps = {
   filters: UsersPageSearch
@@ -59,21 +60,51 @@ export function UsersFilters({
   const [search, setSearch] = useState(filters.search ?? '')
   const [status, setStatus] = useState<string>(filters.status ?? 'all')
   const [rootEntityId, setRootEntityId] = useState(filters.rootEntityId)
+  const debouncedSearch = useDebouncedValue(search)
+  const hasMountedRef = useRef(false)
 
   const selectedEntity =
     entityOptions.find((option) => option.id === rootEntityId) ?? null
   const hasDraftFilters = Boolean(search.trim() || status !== 'all' || rootEntityId)
+
+  function buildFilters(next?: {
+    search?: string
+    status?: string
+    rootEntityId?: string
+  }) {
+    const nextSearch = next?.search ?? search
+    const nextStatus = next?.status ?? status
+    const nextRootEntityId =
+      next && 'rootEntityId' in next ? next.rootEntityId : rootEntityId
+
+    return {
+      search: nextSearch.trim() || undefined,
+      status: nextStatus === 'all' ? undefined : (nextStatus as UserListStatusFilter),
+      rootEntityId: nextRootEntityId,
+    }
+  }
+
+  const applyDebouncedSearch = useEffectEvent((nextSearch: string) => {
+    onApply(buildFilters({
+      search: nextSearch,
+    }))
+  })
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+
+    applyDebouncedSearch(debouncedSearch)
+  }, [debouncedSearch])
 
   return (
     <form
       className="flex min-w-0 flex-wrap items-center gap-2 xl:flex-nowrap"
       onSubmit={(event) => {
         event.preventDefault()
-        onApply({
-          search: search.trim() || undefined,
-          status: status === 'all' ? undefined : (status as UserListStatusFilter),
-          rootEntityId,
-        })
+        onApply(buildFilters())
       }}
     >
       <div className="relative min-w-[220px] flex-[1_1_260px]">
@@ -93,7 +124,11 @@ export function UsersFilters({
             items={statusSelectItems}
             value={status}
             onValueChange={(value) => {
-              setStatus(value ?? 'all')
+              const nextStatus = value ?? 'all'
+              setStatus(nextStatus)
+              onApply(buildFilters({
+                status: nextStatus,
+              }))
             }}
           >
             <SelectTrigger className="w-full" aria-label="Filter by status">
@@ -121,7 +156,11 @@ export function UsersFilters({
             }
             value={selectedEntity}
             onValueChange={(value) => {
-              setRootEntityId(value?.id)
+              const nextRootEntityId = value?.id
+              setRootEntityId(nextRootEntityId)
+              onApply(buildFilters({
+                rootEntityId: nextRootEntityId,
+              }))
             }}
           >
             <ComboboxInput
@@ -149,9 +188,6 @@ export function UsersFilters({
         </div>
       ) : null}
       <div className="flex shrink-0 items-center gap-2">
-        <Button type="submit">
-          Apply
-        </Button>
         {hasDraftFilters ? (
           <Button
             type="button"

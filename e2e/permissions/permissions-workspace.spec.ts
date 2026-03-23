@@ -16,7 +16,7 @@ async function gotoPermissionsWorkspace(page: Page) {
 
 async function searchPermissions(page: Page, searchValue: string) {
   await page.getByRole('textbox', { name: 'Search permissions' }).fill(searchValue)
-  await page.getByRole('button', { name: 'Apply' }).click()
+  await expect.poll(() => new URL(page.url()).searchParams.get('search')).toBe(searchValue)
 }
 
 function getPermissionEntry(page: Page, permissionName: string) {
