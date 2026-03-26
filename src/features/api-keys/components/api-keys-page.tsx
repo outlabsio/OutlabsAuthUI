@@ -211,13 +211,13 @@ export function ApiKeysPage() {
   )
   const canReadApiKeys =
     Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:read'])
+    hasAnyPermission(actorPermissionNames, ['api_key:read', 'api_key:read_tree', 'api_key:read_all'])
   const canCreateApiKeys =
     Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:create'])
+    hasAnyPermission(actorPermissionNames, ['api_key:create', 'api_key:create_tree', 'api_key:create_all'])
   const canReadEntities =
     Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['entity:read'])
+    hasAnyPermission(actorPermissionNames, ['entity:read', 'entity:read_tree', 'entity:read_all'])
 
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
