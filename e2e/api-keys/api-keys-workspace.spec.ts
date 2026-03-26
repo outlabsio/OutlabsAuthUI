@@ -299,22 +299,7 @@ async function createTemporaryApiKeyRoleFixture({
   }
 }
 
-async function createTemporaryApiKeyAccessRole({
-  stem,
-  rootEntityId,
-}: {
-  stem: string
-  rootEntityId: string
-}) {
-  return createRole({
-    name: `${stem}_access_role`,
-    displayName: `Playwright ${stem} access role`,
-    rootEntityId,
-    permissions: ['api_key:read_tree', 'api_key:create_tree'],
-  })
-}
-
-async function createTemporaryScopedPermissionRole({
+async function createTemporaryMembershipApiKeyRoleFixture({
   stem,
   rootEntityId,
   scopeEntityId,
@@ -331,7 +316,7 @@ async function createTemporaryScopedPermissionRole({
     displayName: `Playwright ${stem} scope role`,
     rootEntityId,
     scopeEntityId,
-    permissions: [scopeName],
+    permissions: ['api_key:read_tree', 'api_key:create_tree', scopeName],
   })
 
   return {
@@ -567,19 +552,13 @@ test.describe('API Keys Workspace', () => {
         const entityName = 'West Coast Region'
         const rootEntityId = await getEntityIdByName(rootEntityName)
         const entityId = await getEntityIdByName(entityName)
-        const userId = await getUserIdByEmail(authPersonas.regionalAdmin.email)
         const keyName = `Regional Admin Membership Role ${timestamp}`
-        const accessRole = await createTemporaryApiKeyAccessRole({
-          stem: `playwright_regional_access_${timestamp}`,
-          rootEntityId,
-        })
-        const { role, scopeName } = await createTemporaryScopedPermissionRole({
+        const { role, scopeName } = await createTemporaryMembershipApiKeyRoleFixture({
           stem: `playwright_regional_membership_${timestamp}`,
           rootEntityId,
           scopeEntityId: entityId,
         })
 
-        await assignDirectRoleToUser(userId, accessRole.id)
         await addRoleToEntityMembership(entityId, authPersonas.regionalAdmin.email, role.id)
         await createSelfOwnedApiKey(page, entityName, keyName, scopeName)
 
@@ -606,17 +585,12 @@ test.describe('API Keys Workspace', () => {
         const entityId = await getEntityIdByName(entityName)
         const userId = await getUserIdByEmail(authPersonas.officeAdmin.email)
         const keyName = `Office Admin Membership Removed ${timestamp}`
-        const accessRole = await createTemporaryApiKeyAccessRole({
-          stem: `playwright_office_access_${timestamp}`,
-          rootEntityId,
-        })
-        const { role, scopeName } = await createTemporaryScopedPermissionRole({
+        const { role, scopeName } = await createTemporaryMembershipApiKeyRoleFixture({
           stem: `playwright_office_membership_${timestamp}`,
           rootEntityId,
           scopeEntityId: entityId,
         })
 
-        await assignDirectRoleToUser(userId, accessRole.id)
         await addRoleToEntityMembership(entityId, authPersonas.officeAdmin.email, role.id)
         await createSelfOwnedApiKey(page, entityName, keyName, scopeName)
 
