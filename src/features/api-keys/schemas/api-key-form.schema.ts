@@ -1,9 +1,10 @@
 import { z } from 'zod'
 
 export const apiKeyFormSchema = z.object({
+  ownerId: z.string().trim().min(1, 'Owner is required.'),
   name: z.string().trim().min(1, 'Name is required.').max(200),
   description: z.string().trim().max(1000),
-  scopesText: z.string(),
+  scopes: z.array(z.string().trim().min(1)).min(1, 'Select at least one scope.'),
   ipWhitelistText: z.string(),
   prefixType: z.string().trim().min(1, 'Prefix type is required.'),
   rateLimitPerMinute: z.coerce
@@ -20,7 +21,7 @@ export const apiKeyFormSchema = z.object({
       .max(3650, 'Expiration is too far in the future.'),
   ]),
   status: z.enum(['active', 'suspended']),
-  entityId: z.string(),
+  inheritFromTree: z.boolean(),
 })
 
 export type ApiKeyFormValues = z.infer<typeof apiKeyFormSchema>

@@ -108,31 +108,31 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
     label: 'API Keys',
     title: 'API Keys guide',
     description:
-      'The API Keys workspace is for current-user machine credentials. Use it to create secrets, rotate them safely, and narrow where integrations can operate.',
+      'The API Keys workspace is the admin surface for entity-anchored machine credentials. Use it to choose an entity, choose an owner, and manage personal keys without drifting from backend policy.',
     quickFacts: [
-      { label: 'Best for', value: 'Machine credential management' },
-      { label: 'Primary focus', value: 'Lifecycle, scopes, and rotation' },
-      { label: 'Watch for', value: 'One-time secret reveal on create/rotate' },
+      { label: 'Best for', value: 'Entity-scoped machine credential management' },
+      { label: 'Primary focus', value: 'Owner, grantable scopes, lifecycle, and rotation' },
+      { label: 'Watch for', value: 'One-time secret reveal and current effectiveness' },
     ],
     sections: [
       {
-        title: 'Secret handling',
+        title: 'Entity-first flow',
         description:
-          'The backend only returns the full secret at creation and rotation time, so operational hygiene matters here.',
+          'This page now mirrors the backend admin API key contract rather than the earlier current-user-only flow.',
         bullets: [
-          'Store the secret immediately after create or rotate.',
-          'Subsequent reads only expose the prefix and metadata.',
-          'Rotation replaces the old secret rather than revealing it again.',
+          'Choose the anchor entity first.',
+          'Choose the owner from that entity context.',
+          'Use the backend-provided grantable scopes rather than inventing scope policy in the UI.',
         ],
       },
       {
-        title: 'Safe scoping',
+        title: 'Operational reminders',
         description:
-          'API keys can be narrowed with explicit scopes, optional IP restrictions, and optional entity restrictions.',
+          'The backend only returns the full secret at creation and rotation time, and derived effectiveness can change as owner or entity state changes.',
         bullets: [
-          'Use scopes to limit the capability surface.',
-          'Use IP restrictions for trusted integration origins.',
-          'Use entity restrictions when a machine integration should only operate in one branch.',
+          'Store the secret immediately after create or rotate.',
+          'Use scopes and optional IP restrictions to narrow the credential.',
+          'Watch the effectiveness badge and ineffective reasons when a stored key is no longer usable at runtime.',
         ],
       },
     ],

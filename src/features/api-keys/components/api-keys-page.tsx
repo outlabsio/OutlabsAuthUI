@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Check, Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  KeyRound,
+  RefreshCcw,
+  ShieldAlert,
+  Trash2,
+} from 'lucide-react'
 
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
@@ -16,6 +23,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,8 +38,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -38,7 +60,10 @@ import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import {
   getApiKeysQueryOptions,
 } from '@/features/api-keys/api/api-keys.query-options'
-import { ApiKeyFormDialog } from '@/features/api-keys/components/api-key-form-dialog'
+import {
+  ApiKeyFormDialog,
+  type ApiKeyOwnerOption,
+} from '@/features/api-keys/components/api-key-form-dialog'
 import { useDeleteApiKeyMutation } from '@/features/api-keys/hooks/use-delete-api-key-mutation'
 import { useRotateApiKeyMutation } from '@/features/api-keys/hooks/use-rotate-api-key-mutation'
 import type {
@@ -46,11 +71,16 @@ import type {
   ApiKeyStatus,
   CreateApiKeyResponse,
 } from '@/features/api-keys/types/api-keys.types'
-import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
+import {
+  getEntitiesQueryOptions,
+  getEntityMembersQueryOptions,
+} from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import type { AppStatusTone } from '@/components/app/app-status'
+
+type ApiKeyStatusFilter = 'all' | ApiKeyStatus
 
 function formatDateTime(value?: string | null, fallback = 'Never') {
   if (!value) {
@@ -90,18 +120,80 @@ function getStatusTone(status: ApiKeyStatus): AppStatusTone {
   }
 }
 
-function getEntityLabel(apiKey: ApiKey, entityLabelsById: Map<string, string>) {
-  const entityId = apiKey.entity_ids?.[0]
-
-  if (!entityId) {
-    return 'All entities'
+function getEffectivenessTone(apiKey: ApiKey): AppStatusTone {
+  if (apiKey.status === 'revoked') {
+    return 'error'
   }
 
-  return entityLabelsById.get(entityId) ?? entityId
+  return apiKey.is_currently_effective ? 'success' : 'warning'
+}
+
+function formatIneffectiveReason(reason: string) {
+  return formatToken(reason)
+}
+
+function formatOwnerLabel(owner: ApiKeyOwnerOption | null, fallback?: string | null) {
+  if (owner) {
+    return owner.label
+  }
+
+  return fallback ?? 'Unknown owner'
+}
+
+function getOwnerSubtitle(owner: ApiKeyOwnerOption | null) {
+  return owner?.subtitle ?? 'Owner details unavailable in the current entity member list.'
 }
 
 function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
   return candidates.some((candidate) => permissionNames.has(candidate))
+}
+
+function buildOwnerOptions(
+  members: Array<{
+    user_id: string
+    user_email: string
+    user_first_name?: string | null
+    user_last_name?: string | null
+  }>
+) {
+  const deduped = new Map<string, ApiKeyOwnerOption>()
+
+  for (const member of members) {
+    const fullName = [member.user_first_name, member.user_last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
+
+    deduped.set(member.user_id, {
+      id: member.user_id,
+      label: fullName || member.user_email,
+      subtitle: fullName ? member.user_email : 'Entity member',
+    })
+  }
+
+  return [...deduped.values()].sort((left, right) => left.label.localeCompare(right.label))
+}
+
+function buildSessionOwnerOption(sessionUser: {
+  id: string
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+} | null): ApiKeyOwnerOption | null {
+  if (!sessionUser) {
+    return null
+  }
+
+  const fullName = [sessionUser.first_name, sessionUser.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+
+  return {
+    id: sessionUser.id,
+    label: fullName || sessionUser.email,
+    subtitle: fullName ? sessionUser.email : 'Current session user',
+  }
 }
 
 export function ApiKeysPage() {
@@ -112,47 +204,39 @@ export function ApiKeysPage() {
     ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
     enabled: Boolean(sessionUser?.id),
   })
-  const apiKeysQuery = useQuery(getApiKeysQueryOptions())
 
   const actorPermissionNames = useMemo(
     () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
     [actorPermissionsQuery.data]
   )
+  const canReadApiKeys =
+    Boolean(sessionUser?.is_superuser) ||
+    hasAnyPermission(actorPermissionNames, ['api_key:read'])
+  const canCreateApiKeys =
+    Boolean(sessionUser?.is_superuser) ||
+    hasAnyPermission(actorPermissionNames, ['api_key:create'])
   const canReadEntities =
     Boolean(sessionUser?.is_superuser) ||
     hasAnyPermission(actorPermissionNames, ['entity:read'])
+
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
       page: 1,
       limit: 1000,
     }),
-    enabled: canReadEntities,
+    enabled: canReadApiKeys && canReadEntities,
   })
-
-  const apiKeysEnabled = authConfigQuery.data?.features.api_keys ?? true
-  const pageError =
-    sessionQuery.error ??
-    actorPermissionsQuery.error ??
-    authConfigQuery.error ??
-    apiKeysQuery.error
 
   const entityOptions = useMemo(
     () => buildEntityOptions(entitiesQuery.data?.items ?? []),
     [entitiesQuery.data?.items]
   )
-  const entityLabelsById = useMemo(
-    () => new Map(entityOptions.map((entity) => [entity.id, entity.pathLabel])),
-    [entityOptions]
-  )
-  const apiKeys = useMemo(
-    () =>
-      [...(apiKeysQuery.data ?? [])].sort((left, right) =>
-        right.created_at.localeCompare(left.created_at)
-      ),
-    [apiKeysQuery.data]
-  )
-  const availableScopes = authConfigQuery.data?.available_permissions ?? []
 
+  const [selectedEntityId, setSelectedEntityId] = useState<string>('')
+  const [selectedOwnerFilterId, setSelectedOwnerFilterId] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<ApiKeyStatusFilter>('all')
+  const [searchText, setSearchText] = useState('')
+  const [page, setPage] = useState(1)
   const [selectedApiKeyId, setSelectedApiKeyId] = useState<string | null>(null)
   const [formState, setFormState] = useState<{
     open: boolean
@@ -163,25 +247,96 @@ export function ApiKeysPage() {
     mode: 'create',
     apiKey: null,
   })
-  const [showRevokedKeys, setShowRevokedKeys] = useState(false)
   const [rotateTarget, setRotateTarget] = useState<ApiKey | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null)
   const [revealedSecret, setRevealedSecret] = useState<CreateApiKeyResponse | null>(null)
   const [secretCopied, setSecretCopied] = useState(false)
-  const hasVisibleNonRevokedKey = apiKeys.some((apiKey) => apiKey.status !== 'revoked')
-  const showRevokedKeysState = showRevokedKeys || !hasVisibleNonRevokedKey
 
-  const visibleApiKeys = useMemo(
-    () =>
-      showRevokedKeysState
-        ? apiKeys
-        : apiKeys.filter((apiKey) => apiKey.status !== 'revoked'),
-    [apiKeys, showRevokedKeysState]
+  const preferredEntityId =
+    sessionUser?.root_entity_id &&
+    entityOptions.some((entity) => entity.id === sessionUser.root_entity_id)
+      ? sessionUser.root_entity_id
+      : entityOptions[0]?.id ?? ''
+  const effectiveSelectedEntityId =
+    selectedEntityId && entityOptions.some((entity) => entity.id === selectedEntityId)
+      ? selectedEntityId
+      : preferredEntityId
+  const selectedEntity =
+    entityOptions.find((entity) => entity.id === effectiveSelectedEntityId) ?? null
+
+  const membersQuery = useQuery({
+    ...getEntityMembersQueryOptions(effectiveSelectedEntityId, {
+      page: 1,
+      limit: 200,
+      includeInactive: true,
+    }),
+    enabled: canReadApiKeys && Boolean(effectiveSelectedEntityId),
+  })
+
+  const memberOwnerOptions = useMemo(
+    () => buildOwnerOptions(membersQuery.data ?? []),
+    [membersQuery.data]
+  )
+  const sessionOwnerOption = useMemo(
+    () => buildSessionOwnerOption(sessionUser),
+    [sessionUser]
+  )
+  const ownerOptions = useMemo(() => {
+    const deduped = new Map<string, ApiKeyOwnerOption>()
+
+    for (const option of memberOwnerOptions) {
+      deduped.set(option.id, option)
+    }
+
+    if (sessionOwnerOption) {
+      deduped.set(sessionOwnerOption.id, sessionOwnerOption)
+    }
+
+    return [...deduped.values()].sort((left, right) => left.label.localeCompare(right.label))
+  }, [memberOwnerOptions, sessionOwnerOption])
+  const createOwnerOptions = useMemo(
+    () => (sessionOwnerOption ? [sessionOwnerOption] : ownerOptions),
+    [ownerOptions, sessionOwnerOption]
+  )
+  const ownerById = useMemo(
+    () => new Map(ownerOptions.map((owner) => [owner.id, owner])),
+    [ownerOptions]
   )
 
+  const effectiveSelectedOwnerFilterId =
+    selectedOwnerFilterId && ownerOptions.some((owner) => owner.id === selectedOwnerFilterId)
+      ? selectedOwnerFilterId
+      : ''
+
+  const apiKeysEnabled = authConfigQuery.data?.features.api_keys ?? true
+  const apiKeysQuery = useQuery({
+    ...getApiKeysQueryOptions({
+      entityId: effectiveSelectedEntityId,
+      page,
+      limit: 20,
+      ownerId: effectiveSelectedOwnerFilterId || undefined,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      keyKind: 'personal',
+      search: searchText.trim() || undefined,
+    }),
+    enabled: apiKeysEnabled && canReadApiKeys && Boolean(effectiveSelectedEntityId),
+  })
+
+  const pageError =
+    sessionQuery.error ??
+    actorPermissionsQuery.error ??
+    authConfigQuery.error
+
+  const apiKeys = useMemo(
+    () => apiKeysQuery.data?.items ?? [],
+    [apiKeysQuery.data?.items]
+  )
+  const effectiveSelectedApiKeyId =
+    selectedApiKeyId && apiKeys.some((apiKey) => apiKey.id === selectedApiKeyId)
+      ? selectedApiKeyId
+      : apiKeys[0]?.id ?? null
   const activeApiKey =
-    visibleApiKeys.find((apiKey) => apiKey.id === selectedApiKeyId) ??
-    visibleApiKeys[0] ??
+    apiKeys.find((apiKey) => apiKey.id === effectiveSelectedApiKeyId) ??
     null
 
   const deleteMutation = useDeleteApiKeyMutation()
@@ -214,6 +369,26 @@ export function ApiKeysPage() {
     )
   }
 
+  if (!apiKeysEnabled) {
+    return (
+      <AppPage title="API Keys" hideTitle padded>
+        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+          The current backend preset does not advertise API key support.
+        </div>
+      </AppPage>
+    )
+  }
+
+  if (!canReadApiKeys) {
+    return (
+      <AppPage title="API Keys" hideTitle padded>
+        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+          Insufficient permissions. You need API key read access to use this workspace.
+        </div>
+      </AppPage>
+    )
+  }
+
   return (
     <>
       <AppPage
@@ -221,9 +396,10 @@ export function ApiKeysPage() {
         hideTitle
         padded
         shellAction={
-          apiKeysEnabled ? (
+          canCreateApiKeys ? (
             <Button
               type="button"
+              disabled={!effectiveSelectedEntityId || createOwnerOptions.length === 0}
               onClick={() =>
                 setFormState({
                   open: true,
@@ -238,271 +414,482 @@ export function ApiKeysPage() {
           ) : undefined
         }
       >
-        {!apiKeysEnabled ? (
-          <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-            The current backend preset does not advertise API key support.
-          </div>
-        ) : (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-            <Card>
-              <CardHeader className="gap-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <CardTitle className="text-xl">Current user's keys</CardTitle>
-                  {apiKeys.length > 0 ? (
-                    <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
-                      <Switch
-                        id="api-keys-show-revoked"
-                        checked={showRevokedKeysState}
-                        onCheckedChange={(checked) => {
-                          setShowRevokedKeys(Boolean(checked))
-                        }}
-                        aria-label="Show revoked keys"
-                      />
-                      <Label
-                        htmlFor="api-keys-show-revoked"
-                        className="cursor-pointer whitespace-nowrap text-sm font-medium"
-                      >
-                        Show revoked keys
-                      </Label>
-                    </div>
-                  ) : null}
-                </div>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader className="gap-3">
+              <div className="space-y-1">
+                <CardTitle className="text-xl">Entity API key workspace</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Secrets are only returned on create and rotate. Subsequent reads only expose the
-                  prefix and metadata.
+                  Manage entity-anchored personal keys through the admin API surface. Scope and
+                  effectiveness are computed from the selected entity and owner context.
                 </p>
-              </CardHeader>
-              <CardContent>
-                {visibleApiKeys.length === 0 ? (
-                  <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                    {apiKeys.length === 0
-                      ? 'No API keys exist for this account yet.'
-                      : 'No non-revoked API keys are currently visible. Enable revoked keys to inspect archived credentials.'}
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Prefix</TableHead>
-                        <TableHead>Usage</TableHead>
-                        <TableHead>Last used</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {visibleApiKeys.map((apiKey) => {
-                        const isSelected = activeApiKey?.id === apiKey.id
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+              <div className="space-y-2">
+                <Label htmlFor="api-keys-entity">Entity scope</Label>
+                <Combobox
+                  items={entityOptions}
+                  itemToStringValue={(item) =>
+                    item
+                      ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel} ${item.entityClassLabel}`
+                      : ''
+                  }
+                  value={selectedEntity}
+                  onValueChange={(value) => {
+                    setSelectedEntityId(value?.id ?? '')
+                    setSelectedOwnerFilterId('')
+                    setSelectedApiKeyId(null)
+                    setPage(1)
+                  }}
+                  disabled={entitiesQuery.isLoading || entityOptions.length === 0}
+                >
+                  <ComboboxInput
+                    id="api-keys-entity"
+                    placeholder="Search organization, region, office, or team"
+                    className="w-full"
+                    showClear
+                  />
+                  <ComboboxContent align="start">
+                    <ComboboxEmpty>No entities found.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(option) => (
+                        <ComboboxItem
+                          key={option.id}
+                          value={option}
+                          className="items-start py-2.5"
+                        >
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium">{option.title}</span>
+                              <Badge variant="outline">{option.entityTypeLabel}</Badge>
+                            </div>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {option.pathLabel}
+                            </span>
+                          </div>
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              </div>
 
-                        return (
-                          <TableRow
-                            key={apiKey.id}
-                            data-state={isSelected ? 'selected' : undefined}
-                            className="cursor-pointer"
-                            onClick={() => setSelectedApiKeyId(apiKey.id)}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="api-keys-owner-filter">Owner filter</Label>
+                  <Combobox
+                    items={ownerOptions}
+                    itemToStringValue={(item) =>
+                      item ? `${item.label} ${item.subtitle}` : ''
+                    }
+                    value={ownerOptions.find((owner) => owner.id === selectedOwnerFilterId) ?? null}
+                    onValueChange={(value) => {
+                      setSelectedOwnerFilterId(value?.id ?? '')
+                      setPage(1)
+                    }}
+                    disabled={!effectiveSelectedEntityId || membersQuery.isLoading}
+                  >
+                    <ComboboxInput
+                      id="api-keys-owner-filter"
+                      placeholder="All owners"
+                      className="w-full"
+                      showClear
+                    />
+                    <ComboboxContent align="start">
+                      <ComboboxEmpty>No matching owners found.</ComboboxEmpty>
+                      <ComboboxList>
+                        {(option) => (
+                          <ComboboxItem
+                            key={option.id}
+                            value={option}
+                            className="items-start py-2.5"
                           >
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-medium">{apiKey.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {apiKey.description || 'No description provided.'}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <AppStatusBadge tone={getStatusTone(apiKey.status)}>
-                                {formatToken(apiKey.status)}
-                              </AppStatusBadge>
-                            </TableCell>
-                            <TableCell className="font-mono">{apiKey.prefix}</TableCell>
-                            <TableCell>{apiKey.usage_count}</TableCell>
-                            <TableCell>{formatDateTime(apiKey.last_used_at)}</TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="gap-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-2">
-                    <CardTitle className="text-xl">
-                      {activeApiKey ? activeApiKey.name : 'Key details'}
-                    </CardTitle>
-                    <div className="text-sm text-muted-foreground">
-                      {activeApiKey
-                        ? 'Inspect lifecycle, scope, and operational metadata for the selected key.'
-                        : 'Select a key to inspect its configuration.'}
-                    </div>
-                  </div>
-                  {activeApiKey ? (
-                    <AppStatusBadge tone={getStatusTone(activeApiKey.status)}>
-                      {formatToken(activeApiKey.status)}
-                    </AppStatusBadge>
-                  ) : null}
+                            <div className="flex min-w-0 flex-col gap-1">
+                              <span className="font-medium">{option.label}</span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {option.subtitle}
+                              </span>
+                            </div>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!activeApiKey ? (
-                  <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                    Create a key or select an existing one from the table.
+
+                <div className="space-y-2">
+                  <Label>Status filter</Label>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => {
+                      setStatusFilter(value as ApiKeyStatusFilter)
+                      setPage(1)
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="revoked">Revoked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="api-keys-search">Search</Label>
+                  <Input
+                    id="api-keys-search"
+                    placeholder="Search key names"
+                    value={searchText}
+                    onChange={(event) => {
+                      setSearchText(event.target.value)
+                      setPage(1)
+                    }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {!effectiveSelectedEntityId ? (
+            <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+              Select an entity to load API keys.
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <Card>
+                <CardHeader className="gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <CardTitle className="text-xl">Keys in {selectedEntity?.title ?? 'entity'}</CardTitle>
+                      <div className="text-sm text-muted-foreground">
+                        {selectedEntity?.pathLabel ?? 'Selected entity scope'}
+                      </div>
+                    </div>
+                    <Badge variant="outline">
+                      {apiKeysQuery.data?.total ?? 0} total
+                    </Badge>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Prefix
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {apiKeysQuery.isLoading ? (
+                    <AppLoadingState title="Loading entity API keys" />
+                  ) : apiKeysQuery.isError ? (
+                    <AppErrorState>
+                      {getApiErrorMessage(
+                        apiKeysQuery.error,
+                        'The entity API key list could not be loaded.'
+                      )}
+                    </AppErrorState>
+                  ) : apiKeys.length === 0 ? (
+                    <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                      No API keys match the current entity and filter set.
+                    </div>
+                  ) : (
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Owner</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Effective</TableHead>
+                            <TableHead>Last used</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {apiKeys.map((apiKey) => {
+                            const isSelected = activeApiKey?.id === apiKey.id
+                            const owner = ownerById.get(apiKey.owner_id ?? '') ?? null
+
+                            return (
+                              <TableRow
+                                key={apiKey.id}
+                                data-state={isSelected ? 'selected' : undefined}
+                                className="cursor-pointer"
+                                onClick={() => setSelectedApiKeyId(apiKey.id)}
+                              >
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="font-medium">{apiKey.name}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {apiKey.description || 'No description provided.'}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium">
+                                      {formatOwnerLabel(owner, apiKey.owner_id)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {getOwnerSubtitle(owner)}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <AppStatusBadge tone={getStatusTone(apiKey.status)}>
+                                    {formatToken(apiKey.status)}
+                                  </AppStatusBadge>
+                                </TableCell>
+                                <TableCell>
+                                  <AppStatusBadge tone={getEffectivenessTone(apiKey)}>
+                                    {apiKey.is_currently_effective ? 'Effective' : 'Ineffective'}
+                                  </AppStatusBadge>
+                                </TableCell>
+                                <TableCell>{formatDateTime(apiKey.last_used_at)}</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-sm text-muted-foreground">
+                          Page {apiKeysQuery.data?.page ?? page} of{' '}
+                          {Math.max(apiKeysQuery.data?.pages ?? 0, 1)}
                         </div>
-                        <div className="mt-1 font-mono text-sm">{activeApiKey.prefix}</div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={page <= 1 || apiKeysQuery.isFetching}
+                            onClick={() => setPage((current) => Math.max(1, current - 1))}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                              !apiKeysQuery.data ||
+                              page >= apiKeysQuery.data.pages ||
+                              apiKeysQuery.isFetching
+                            }
+                            onClick={() => setPage((current) => current + 1)}
+                          >
+                            Next
+                          </Button>
+                        </div>
                       </div>
-                      <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Lifecycle
-                        </div>
-                        <div className="mt-1 text-sm">{formatToken(activeApiKey.status)}</div>
-                      </div>
-                      <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Usage count
-                        </div>
-                        <div className="mt-1 text-sm">{activeApiKey.usage_count}</div>
-                      </div>
-                      <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Entity scope
-                        </div>
-                        <div className="mt-1 text-sm">
-                          {getEntityLabel(activeApiKey, entityLabelsById)}
-                        </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <CardTitle className="text-xl">
+                        {activeApiKey ? activeApiKey.name : 'Key details'}
+                      </CardTitle>
+                      <div className="text-sm text-muted-foreground">
+                        {activeApiKey
+                          ? 'Inspect lifecycle, owner, scope, and current effectiveness for the selected key.'
+                          : 'Select a key to inspect its current state.'}
                       </div>
                     </div>
-
-                    <div className="space-y-3 rounded-2xl border px-4 py-4">
-                      <div>
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Description
-                        </div>
-                        <div className="mt-1 text-sm">
-                          {activeApiKey.description || 'No description provided.'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          Scopes
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {activeApiKey.scopes.length > 0 ? (
-                            activeApiKey.scopes.map((scope) => (
-                              <Badge key={scope} variant="secondary">
-                                {scope}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              No explicit scopes. The backend will treat this as unrestricted for the
-                              key's owner context.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                          IP whitelist
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {activeApiKey.ip_whitelist && activeApiKey.ip_whitelist.length > 0 ? (
-                            activeApiKey.ip_whitelist.map((ipAddress) => (
-                              <Badge key={ipAddress} variant="outline" className="font-mono">
-                                {ipAddress}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              No IP restriction configured.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="text-sm text-muted-foreground">
-                          Created: {formatDateTime(activeApiKey.created_at)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Expires: {formatDateTime(activeApiKey.expires_at, 'Does not expire')}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Last used: {formatDateTime(activeApiKey.last_used_at)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Rate limit: {activeApiKey.rate_limit_per_minute} requests/minute
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setFormState({
-                            open: true,
-                            mode: 'edit',
-                            apiKey: activeApiKey,
-                          })
-                        }
-                      >
-                        Edit key
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={
-                          rotateMutation.isPending ||
-                          activeApiKey.status === 'revoked'
-                        }
-                        onClick={() => {
-                          setRotateTarget(activeApiKey)
-                        }}
-                      >
-                        <RefreshCcw className="size-4" />
-                        {rotateMutation.isPending ? 'Rotating...' : 'Rotate key'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        disabled={activeApiKey.status === 'revoked'}
-                        onClick={() => setDeleteTarget(activeApiKey)}
-                      >
-                        <Trash2 className="size-4" />
-                        Revoke key
-                      </Button>
-                    </div>
-
-                    {entitiesQuery.isError ? (
-                      <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                        Entity names could not be loaded for scope labels. Existing restrictions are
-                        still shown using stored IDs.
+                    {activeApiKey ? (
+                      <div className="flex flex-wrap gap-2">
+                        <AppStatusBadge tone={getStatusTone(activeApiKey.status)}>
+                          {formatToken(activeApiKey.status)}
+                        </AppStatusBadge>
+                        <AppStatusBadge tone={getEffectivenessTone(activeApiKey)}>
+                          {activeApiKey.is_currently_effective ? 'Effective' : 'Ineffective'}
+                        </AppStatusBadge>
                       </div>
                     ) : null}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!activeApiKey ? (
+                    <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                      Select a key from the table to inspect its details.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Owner
+                          </div>
+                          <div className="mt-1 text-sm font-medium">
+                            {formatOwnerLabel(
+                              ownerById.get(activeApiKey.owner_id ?? '') ?? null,
+                              activeApiKey.owner_id
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Prefix
+                          </div>
+                          <div className="mt-1 font-mono text-sm">{activeApiKey.prefix}</div>
+                        </div>
+                        <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Key kind
+                          </div>
+                          <div className="mt-1 text-sm">{formatToken(activeApiKey.key_kind)}</div>
+                        </div>
+                        <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Hierarchy
+                          </div>
+                          <div className="mt-1 text-sm">
+                            {activeApiKey.inherit_from_tree ? 'Includes descendants' : 'Anchor only'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border px-4 py-4">
+                        <div>
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Description
+                          </div>
+                          <div className="mt-1 text-sm">
+                            {activeApiKey.description || 'No description provided.'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Scopes
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {activeApiKey.scopes.length > 0 ? (
+                              activeApiKey.scopes.map((scope) => (
+                                <Badge key={scope} variant="secondary">
+                                  {scope}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                No explicit scopes stored on this key.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            Current effectiveness
+                          </div>
+                          {activeApiKey.is_currently_effective ? (
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              The key is currently effective for its stored scope set.
+                            </div>
+                          ) : (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {(activeApiKey.ineffective_reasons ?? []).map((reason) => (
+                                <Badge key={reason} variant="outline">
+                                  {formatIneffectiveReason(reason)}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                            IP whitelist
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {activeApiKey.ip_whitelist && activeApiKey.ip_whitelist.length > 0 ? (
+                              activeApiKey.ip_whitelist.map((ipAddress) => (
+                                <Badge key={ipAddress} variant="outline" className="font-mono">
+                                  {ipAddress}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                No IP restriction configured.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="text-sm text-muted-foreground">
+                            Created: {formatDateTime(activeApiKey.created_at)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Expires: {formatDateTime(activeApiKey.expires_at, 'Does not expire')}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Last used: {formatDateTime(activeApiKey.last_used_at)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Rate limit: {activeApiKey.rate_limit_per_minute} requests/minute
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setFormState({
+                              open: true,
+                              mode: 'edit',
+                              apiKey: activeApiKey,
+                            })
+                          }
+                        >
+                          Edit key
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={rotateMutation.isPending || activeApiKey.status === 'revoked'}
+                          onClick={() => {
+                            setRotateTarget(activeApiKey)
+                          }}
+                        >
+                          <RefreshCcw className="size-4" />
+                          {rotateMutation.isPending ? 'Rotating...' : 'Rotate key'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          disabled={activeApiKey.status === 'revoked'}
+                          onClick={() => setDeleteTarget(activeApiKey)}
+                        >
+                          <Trash2 className="size-4" />
+                          Revoke key
+                        </Button>
+                      </div>
+
+                      {membersQuery.isError ? (
+                        <div className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                          Owner labels could not be fully resolved for this entity. Stored owner IDs
+                          are still shown.
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </AppPage>
 
       <ApiKeyFormDialog
         open={formState.open}
         mode={formState.mode}
+        entityId={effectiveSelectedEntityId}
+        entityLabel={selectedEntity?.pathLabel ?? 'Selected entity'}
         apiKey={formState.apiKey}
-        availableScopes={availableScopes}
-        entityOptions={entityOptions}
+        ownerOptions={formState.mode === 'create' ? createOwnerOptions : ownerOptions}
+        defaultOwnerId={effectiveSelectedOwnerFilterId || sessionUser?.id || null}
         onOpenChange={(open) =>
           setFormState((current) => ({
             ...current,
@@ -617,12 +1004,13 @@ export function ApiKeysPage() {
               type="button"
               disabled={!rotateTarget || rotateMutation.isPending}
               onClick={async () => {
-                if (!rotateTarget) {
+                if (!rotateTarget || !effectiveSelectedEntityId) {
                   return
                 }
 
                 try {
                   const rotatedKey = await rotateMutation.mutateAsync({
+                    entityId: effectiveSelectedEntityId,
                     keyId: rotateTarget.id,
                   })
                   setRotateTarget(null)
@@ -668,17 +1056,20 @@ export function ApiKeysPage() {
             <Button
               type="button"
               variant="destructive"
-              disabled={deleteMutation.isPending || !deleteTarget}
+              disabled={deleteMutation.isPending || !deleteTarget || !effectiveSelectedEntityId}
               onClick={async () => {
-                if (!deleteTarget) {
+                if (!deleteTarget || !effectiveSelectedEntityId) {
                   return
                 }
 
                 try {
-                  await deleteMutation.mutateAsync(deleteTarget.id)
+                  await deleteMutation.mutateAsync({
+                    entityId: effectiveSelectedEntityId,
+                    keyId: deleteTarget.id,
+                  })
                   setDeleteTarget(null)
 
-                  if (selectedApiKeyId === deleteTarget.id) {
+                  if (effectiveSelectedApiKeyId === deleteTarget.id) {
                     setSelectedApiKeyId(null)
                   }
                 } catch {

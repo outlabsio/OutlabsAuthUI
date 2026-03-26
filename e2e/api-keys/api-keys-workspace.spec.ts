@@ -31,17 +31,26 @@ async function typeIntoApiKeyField(page: Page, selector: string, value: string) 
 
   await expect(control).toBeVisible()
   await control.click()
-  await page.waitForTimeout(250)
-
-  const currentValue = await control.inputValue()
-
-  if (currentValue.length > 0) {
-    await control.selectText()
-    await control.press('Backspace')
-  }
-
-  await control.pressSequentially(value, { delay: 20 })
+  await control.fill(value)
   await expect(control).toHaveValue(value)
+}
+
+async function selectComboboxOption(
+  page: Page,
+  selector: string,
+  searchValue: string,
+  optionText: string
+) {
+  const control = page.locator(selector)
+
+  await expect(control).toBeVisible()
+  await control.click()
+  await control.fill(searchValue)
+  await page
+    .locator('[data-slot="combobox-content"]')
+    .getByText(optionText, { exact: true })
+    .first()
+    .click()
 }
 
 test.describe('API Keys Workspace', () => {
@@ -51,6 +60,13 @@ test.describe('API Keys Workspace', () => {
 
     await gotoApiKeysWorkspace(page)
 
+    await selectComboboxOption(
+      page,
+      '#api-keys-entity',
+      'San Francisco Office',
+      'San Francisco Office'
+    )
+
     await page.getByRole('button', { name: 'Create API key' }).click()
     const createDialog = page.getByRole('dialog', { name: 'Create API key' })
     await expect(createDialog).toBeVisible()
@@ -59,10 +75,15 @@ test.describe('API Keys Workspace', () => {
     await typeIntoApiKeyField(
       page,
       '#api-key-description',
-      'Created by Playwright to validate API key lifecycle parity.'
+      'Created by Playwright to validate entity-first API key lifecycle parity.'
     )
-    await typeIntoApiKeyField(page, '#api-key-scopes', 'user:read, permission:read')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    const scopeOption = createDialog
+      .locator('label')
+      .filter({ hasText: /[a-z_]+:[a-z_]+/ })
+      .first()
+    await expect(scopeOption).toBeVisible()
+    await scopeOption.click()
+    await createDialog.getByRole('button', { name: 'Create API key' }).click()
 
     const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
     await expect(secretDialog).toBeVisible()
