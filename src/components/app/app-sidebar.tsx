@@ -58,6 +58,7 @@ type NavigationItem = {
   to:
     | typeof routes.app.dashboard
     | typeof routes.app.apiKeys
+    | typeof routes.app.systemApiKeys
     | typeof routes.app.settings
     | typeof routes.app.users
     | typeof routes.app.permissions
@@ -94,6 +95,11 @@ const navigationGroups: Array<{
         icon: Key,
       },
       {
+        title: 'System API Keys',
+        to: routes.app.systemApiKeys,
+        icon: KeyRound,
+      },
+      {
         title: 'Users',
         to: routes.app.users,
         icon: Users,
@@ -101,12 +107,12 @@ const navigationGroups: Array<{
       {
         title: 'Permissions',
         to: routes.app.permissions,
-        icon: KeyRound,
+        icon: Shield,
       },
       {
         title: 'Roles',
         to: routes.app.roles,
-        icon: Shield,
+        icon: ShieldCheck,
       },
       {
         title: 'Entities',

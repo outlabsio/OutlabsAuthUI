@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const apiKeyFormSchema = z.object({
-  ownerId: z.string().trim().min(1, 'Owner is required.'),
+  entityId: z.string().trim(),
   name: z.string().trim().min(1, 'Name is required.').max(200),
   description: z.string().trim().max(1000),
   scopes: z.array(z.string().trim().min(1)).min(1, 'Select at least one scope.'),

@@ -19,6 +19,11 @@ test.describe('Operational Access Control', () => {
     await page.goto('/app/api-keys')
     await expect(page).toHaveURL(/\/app\/api-keys$/)
     await expect(page.getByRole('button', { name: 'Open API Keys guide' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create API key' })).toBeVisible()
+
+    await page.goto('/app/users/api-keys')
+    await expect(page).toHaveURL(/\/app\/users\/api-keys(?:\?.*)?$/)
+    await expect(page.getByRole('button', { name: 'Open System API Keys guide' })).toBeVisible()
     await expect(page.getByText('Insufficient permissions')).toBeVisible()
 
     await page.goto('/app/users')

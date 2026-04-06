@@ -5,9 +5,9 @@ import type {
 import { apiClient } from '@/lib/api/client'
 
 export function updateApiKey({ keyId, ...input }: UpdateApiKeyInput) {
-  const { entityId, ...body } = input
+  const body = input
 
-  return apiClient.patch<ApiKey>(`/admin/entities/${entityId}/api-keys/${keyId}`, {
+  return apiClient.patch<ApiKey>(`/api-keys/${keyId}`, {
     body,
   })
 }

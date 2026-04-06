@@ -15,13 +15,13 @@ export function useRotateApiKeyMutation() {
       error: 'The API key could not be rotated.',
       success: 'API key rotated.',
     }),
-    onSuccess: async (_, variables) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.lists(),
       })
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.grantableScopes({
-          entityId: variables.entityId,
+          entityId: undefined,
         }),
       })
     },

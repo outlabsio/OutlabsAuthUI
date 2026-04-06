@@ -2,6 +2,12 @@
 
 OutlabsAuthUI is a SPA frontend for OutlabsAuth built with Vite, React, TypeScript, Tailwind, shadcn/ui, TanStack Router, TanStack Query, Zustand, and Bun.
 
+## API Key Workspaces
+
+- `/app/api-keys` is the auth-owned self-service workspace for `personal` API keys.
+- `/app/users/api-keys` is the EnterpriseRBAC admin workspace for `system_integration` keys, integration principals, and entity inventory.
+- Both surfaces talk directly to mounted OutlabsAuth routes. The UI does not rely on host-owned auth wrappers for API-key management.
+
 ## Docs
 
 - Docs index: [`docs/README.md`](./docs/README.md)

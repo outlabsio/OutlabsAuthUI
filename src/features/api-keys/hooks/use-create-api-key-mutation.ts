@@ -21,9 +21,7 @@ export function useCreateApiKeyMutation() {
       })
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.grantableScopes({
-          entityId: variables.entityId,
-          ownerId: variables.owner_id,
-          keyKind: variables.key_kind ?? 'personal',
+          entityId: variables.entity_ids?.[0],
           inherit_from_tree: variables.inherit_from_tree ?? false,
         }),
       })

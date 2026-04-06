@@ -6,20 +6,19 @@ import { apiClient } from '@/lib/api/client'
 
 export async function getGrantableScopes({
   entityId,
-  ownerId,
-  keyKind = 'personal',
   inherit_from_tree = false,
 }: GetGrantableScopesInput) {
-  const searchParams = new URLSearchParams({
-    key_kind: keyKind,
-    inherit_from_tree: String(inherit_from_tree),
-  })
+  const searchParams = new URLSearchParams()
 
-  if (ownerId) {
-    searchParams.set('owner_id', ownerId)
+  if (entityId) {
+    searchParams.set('entity_id', entityId)
   }
 
+  searchParams.set('inherit_from_tree', String(inherit_from_tree))
+
+  const query = searchParams.toString()
+
   return apiClient.get<ApiKeyGrantableScopes>(
-    `/admin/entities/${entityId}/grantable-scopes?${searchParams.toString()}`
+    `/api-keys/grantable-scopes${query ? `?${query}` : ''}`
   )
 }

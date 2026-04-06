@@ -5,14 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@/components/ui/combobox'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -21,8 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,7 +27,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import {
   getGrantableScopesQueryOptions,
 } from '@/features/api-keys/api/api-keys.query-options'
@@ -48,70 +40,31 @@ import type {
   ApiKey,
   CreateApiKeyResponse,
 } from '@/features/api-keys/types/api-keys.types'
+import { formatDelimitedValues, parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
-
-export type ApiKeyOwnerOption = {
-  id: string
-  label: string
-  subtitle: string
-}
 
 type ApiKeyFormDialogProps = {
   open: boolean
   mode: 'create' | 'edit'
-  entityId: string
-  entityLabel: string
   apiKey: ApiKey | null
-  ownerOptions: ApiKeyOwnerOption[]
-  defaultOwnerId?: string | null
+  entityOptions: EntityOption[]
+  entityHierarchyEnabled: boolean
   onOpenChange: (open: boolean) => void
   onCreated: (apiKey: CreateApiKeyResponse) => void
   onUpdated: (apiKey: ApiKey) => void
-}
-
-function parseDelimitedValues(value: string) {
-  return value
-    .split(/[\n,]/g)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function formatDelimitedValues(values?: string[] | null) {
-  return (values ?? []).join(', ')
 }
 
 function uniq(values: string[]) {
   return Array.from(new Set(values))
 }
 
-function getInitialOwnerId({
-  apiKey,
-  defaultOwnerId,
-  ownerOptions,
-}: {
-  apiKey: ApiKey | null
-  defaultOwnerId?: string | null
-  ownerOptions: ApiKeyOwnerOption[]
-}) {
-  if (apiKey?.owner_id) {
-    return apiKey.owner_id
-  }
-
-  if (defaultOwnerId && ownerOptions.some((option) => option.id === defaultOwnerId)) {
-    return defaultOwnerId
-  }
-
-  return ownerOptions[0]?.id ?? ''
-}
-
 export function ApiKeyFormDialog({
   open,
   mode,
-  entityId,
-  entityLabel,
   apiKey,
-  ownerOptions,
-  defaultOwnerId,
+  entityOptions,
+  entityHierarchyEnabled,
   onOpenChange,
   onCreated,
   onUpdated,
@@ -124,7 +77,7 @@ export function ApiKeyFormDialog({
   const form = useForm<z.input<typeof apiKeyFormSchema>, unknown, ApiKeyFormValues>({
     resolver: zodResolver(apiKeyFormSchema),
     defaultValues: {
-      ownerId: '',
+      entityId: '',
       name: '',
       description: '',
       scopes: [],
@@ -143,11 +96,7 @@ export function ApiKeyFormDialog({
     }
 
     form.reset({
-      ownerId: getInitialOwnerId({
-        apiKey,
-        defaultOwnerId,
-        ownerOptions,
-      }),
+      entityId: apiKey?.entity_ids?.[0] ?? '',
       name: apiKey?.name ?? '',
       description: apiKey?.description ?? '',
       scopes: apiKey?.scopes ?? [],
@@ -161,11 +110,11 @@ export function ApiKeyFormDialog({
 
     resetCreateMutation()
     resetUpdateMutation()
-  }, [apiKey, defaultOwnerId, form, open, ownerOptions, resetCreateMutation, resetUpdateMutation])
+  }, [apiKey, form, open, resetCreateMutation, resetUpdateMutation])
 
-  const ownerId = useWatch({
+  const entityId = useWatch({
     control: form.control,
-    name: 'ownerId',
+    name: 'entityId',
   })
   const selectedScopes = useWatch({
     control: form.control,
@@ -180,18 +129,14 @@ export function ApiKeyFormDialog({
 
   const grantableScopesQuery = useQuery({
     ...getGrantableScopesQueryOptions({
-      entityId,
-      ownerId,
-      keyKind: 'personal',
-      inherit_from_tree: inheritFromTree,
+      entityId: entityId || undefined,
+      inherit_from_tree: entityId ? inheritFromTree : false,
     }),
-    enabled: open && Boolean(entityId) && Boolean(ownerId),
+    enabled: open,
   })
 
-  const selectedOwner =
-    ownerOptions.find((option) => option.id === ownerId) ??
-    ownerOptions.find((option) => option.id === apiKey?.owner_id) ??
-    null
+  const selectedEntity =
+    entityOptions.find((option) => option.id === entityId) ?? null
 
   const grantableScopes = useMemo(
     () => grantableScopesQuery.data?.grantable_scopes ?? [],
@@ -224,8 +169,8 @@ export function ApiKeyFormDialog({
           </DialogTitle>
           <DialogDescription>
             {mode === 'create'
-              ? 'Create an entity-anchored personal key. The full secret is only returned once, immediately after creation.'
-              : 'Update the selected key without exposing the stored secret again.'}
+              ? 'Create a personal API key for your own automation. The full secret is returned once, immediately after creation.'
+              : 'Update the selected personal key without exposing the stored secret again.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -233,12 +178,11 @@ export function ApiKeyFormDialog({
           className="space-y-5"
           onSubmit={form.handleSubmit(async (values) => {
             const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
+            const entityIds = values.entityId ? [values.entityId] : undefined
 
             try {
               if (mode === 'create') {
                 const createdKey = await createMutation.mutateAsync({
-                  entityId,
-                  owner_id: values.ownerId,
                   name: values.name.trim(),
                   description: values.description?.trim() || null,
                   scopes: values.scopes,
@@ -250,7 +194,8 @@ export function ApiKeyFormDialog({
                       ? undefined
                       : Number(values.expiresInDays),
                   key_kind: 'personal',
-                  inherit_from_tree: values.inheritFromTree,
+                  entity_ids: entityIds,
+                  inherit_from_tree: values.entityId ? values.inheritFromTree : false,
                 })
 
                 onCreated(createdKey)
@@ -262,7 +207,6 @@ export function ApiKeyFormDialog({
               }
 
               const updatedKey = await updateMutation.mutateAsync({
-                entityId,
                 keyId: apiKey.id,
                 name: values.name.trim(),
                 description: values.description?.trim() || null,
@@ -270,7 +214,8 @@ export function ApiKeyFormDialog({
                 ip_whitelist: ipWhitelist,
                 rate_limit_per_minute: values.rateLimitPerMinute,
                 status: values.status,
-                inherit_from_tree: values.inheritFromTree,
+                entity_ids: values.entityId ? [values.entityId] : [],
+                inherit_from_tree: values.entityId ? values.inheritFromTree : false,
               })
 
               onUpdated(updatedKey)
@@ -281,76 +226,56 @@ export function ApiKeyFormDialog({
         >
           <div className="rounded-2xl border bg-muted/20 px-4 py-3">
             <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Anchor entity
+              Ownership
             </div>
-            <div className="mt-1 text-sm font-medium">{entityLabel}</div>
+            <div className="mt-1 text-sm font-medium">This key belongs to your account.</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Personal keys stay user-owned and follow the self-service policy envelope.
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="api-key-owner">Owner</Label>
-              {mode === 'create' ? (
+            {entityHierarchyEnabled ? (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="api-key-entity">Anchor entity</Label>
                 <Controller
                   control={form.control}
-                  name="ownerId"
+                  name="entityId"
                   render={({ field }) => (
-                    <Combobox
-                      items={ownerOptions}
-                      itemToStringValue={(item) =>
-                        item ? `${item.label} ${item.subtitle}` : ''
-                      }
-                      value={ownerOptions.find((option) => option.id === field.value) ?? null}
+                    <Select
+                      value={field.value || '__none__'}
                       onValueChange={(value) => {
-                        field.onChange(value?.id ?? '')
+                        field.onChange(value === '__none__' ? '' : value)
                       }}
-                      disabled={isPending || ownerOptions.length === 0}
+                      disabled={isPending}
                     >
-                      <ComboboxInput
-                        id="api-key-owner"
-                        placeholder="Search entity members"
-                        className="w-full"
-                        showClear
-                      />
-                      <ComboboxContent align="start">
-                        <ComboboxEmpty>No matching members found.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(option) => (
-                            <ComboboxItem
-                              key={option.id}
-                              value={option}
-                              className="items-start py-2.5"
-                            >
-                              <div className="flex min-w-0 flex-col gap-1">
-                                <span className="font-medium">{option.label}</span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                  {option.subtitle}
-                                </span>
-                              </div>
-                            </ComboboxItem>
-                          )}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
+                      <SelectTrigger id="api-key-entity">
+                        <SelectValue placeholder="No entity anchor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No entity anchor</SelectItem>
+                        {entityOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.pathLabel}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 />
-              ) : (
-                <div className="rounded-xl border px-3 py-2 text-sm">
-                  <div className="font-medium">
-                    {selectedOwner?.label ?? apiKey?.owner_id ?? 'Unknown owner'}
-                  </div>
-                  <div className="text-muted-foreground">
-                    {selectedOwner?.subtitle ?? 'Owner is fixed after creation.'}
-                  </div>
+                <div className="text-xs text-muted-foreground">
+                  Leave this unset for an unanchored personal key. Choose an entity only when the
+                  key should be scoped to that branch.
                 </div>
-              )}
-              <FieldError errors={[form.formState.errors.ownerId]} />
-            </div>
+                <FieldError errors={[form.formState.errors.entityId]} />
+              </div>
+            ) : null}
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="api-key-name">Name</Label>
               <Input
                 id="api-key-name"
-                placeholder="Support automation key"
+                placeholder="Reporting automation key"
                 disabled={isPending}
                 {...form.register('name')}
               />
@@ -362,7 +287,7 @@ export function ApiKeyFormDialog({
               <Textarea
                 id="api-key-description"
                 rows={3}
-                placeholder="Who owns this key and what it is allowed to do."
+                placeholder="What this key is used for and where it runs."
                 disabled={isPending}
                 {...form.register('description')}
               />
@@ -433,26 +358,28 @@ export function ApiKeyFormDialog({
               <FieldError errors={[form.formState.errors.prefixType]} />
             </div>
 
-            <div className="space-y-2">
-              <Label className="block">Hierarchy</Label>
-              <Controller
-                control={form.control}
-                name="inheritFromTree"
-                render={({ field }) => (
-                  <label className="flex min-h-10 items-start gap-3 rounded-xl border px-3 py-2 text-sm">
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                      disabled={isPending}
-                    />
-                    <span>
-                      Allow descendant access from this entity anchor.
-                    </span>
-                  </label>
-                )}
-              />
-              <FieldError errors={[form.formState.errors.inheritFromTree]} />
-            </div>
+            {entityHierarchyEnabled ? (
+              <div className="space-y-2">
+                <Label className="block">Hierarchy</Label>
+                <Controller
+                  control={form.control}
+                  name="inheritFromTree"
+                  render={({ field }) => (
+                    <label className="flex min-h-10 items-start gap-3 rounded-xl border px-3 py-2 text-sm">
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                        disabled={isPending || !entityId}
+                      />
+                      <span>
+                        Allow descendant access from this entity anchor.
+                      </span>
+                    </label>
+                  )}
+                />
+                <FieldError errors={[form.formState.errors.inheritFromTree]} />
+              </div>
+            ) : null}
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="api-key-ip-whitelist">IP whitelist</Label>
@@ -474,8 +401,8 @@ export function ApiKeyFormDialog({
                 <div className="space-y-1">
                   <Label>Grantable scopes</Label>
                   <div className="text-xs text-muted-foreground">
-                    The backend calculates these from actor authority, owner permissions, key kind,
-                    and entity anchor.
+                    The backend calculates this from your current permissions and the optional
+                    entity anchor.
                   </div>
                 </div>
                 <Badge variant="outline">Personal key</Badge>
@@ -484,7 +411,7 @@ export function ApiKeyFormDialog({
               <div className="rounded-2xl border px-4 py-4">
                 {grantableScopesQuery.isPending ? (
                   <div className="text-sm text-muted-foreground">
-                    Loading grantable scopes for the selected owner…
+                    Loading grantable scopes for this personal key…
                   </div>
                 ) : grantableScopesQuery.isError ? (
                   <div className="space-y-2 text-sm">
@@ -494,13 +421,13 @@ export function ApiKeyFormDialog({
                     <div className="text-muted-foreground">
                       {getApiErrorMessage(
                         grantableScopesQuery.error,
-                        'The backend did not return scope guidance for this owner and entity.'
+                        'The backend did not return scope guidance for this personal key.'
                       )}
                     </div>
                   </div>
                 ) : scopeOptions.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    No grantable scopes are available for this owner in the selected entity.
+                    No grantable scopes are available for the current personal-key configuration.
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -508,6 +435,11 @@ export function ApiKeyFormDialog({
                       <div className="text-xs text-muted-foreground">
                         Allowed action prefixes:{' '}
                         {grantableScopesQuery.data.personal_allowed_action_prefixes.join(', ')}
+                      </div>
+                    ) : null}
+                    {selectedEntity ? (
+                      <div className="text-xs text-muted-foreground">
+                        Entity anchor: {selectedEntity.pathLabel}
                       </div>
                     ) : null}
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -538,7 +470,7 @@ export function ApiKeyFormDialog({
                               {!isGrantable ? (
                                 <div className="text-xs text-amber-700 dark:text-amber-300">
                                   This scope is already stored on the key but is not currently
-                                  grantable for the selected owner configuration.
+                                  grantable for the selected configuration.
                                 </div>
                               ) : null}
                             </div>
@@ -552,8 +484,8 @@ export function ApiKeyFormDialog({
 
               {selectedButNotGrantable.length > 0 ? (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-                  Some selected scopes are no longer grantable under the current owner or
-                  hierarchy settings: {selectedButNotGrantable.join(', ')}.
+                  Some selected scopes are no longer grantable under the current configuration:{' '}
+                  {selectedButNotGrantable.join(', ')}.
                 </div>
               ) : null}
 
@@ -576,7 +508,7 @@ export function ApiKeyFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || !entityId}>
+            <Button type="submit" disabled={isPending}>
               {mode === 'create'
                 ? (isPending ? 'Creating...' : 'Create API key')
                 : (isPending ? 'Saving...' : 'Save changes')}

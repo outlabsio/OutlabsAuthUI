@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { Link } from '@tanstack/react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
@@ -18,6 +20,7 @@ import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
 import { loginSchema } from '@/features/auth/schemas/login.schema'
 import type { LoginCredentials } from '@/features/auth/types/auth.types'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
+import { hasStoredAuthTokens } from '@/lib/api/auth-token'
 import { apiConfig } from '@/lib/api/config'
 import { routes } from '@/lib/constants/routes'
 import { cn } from '@/lib/utils/cn'
@@ -48,6 +51,17 @@ export function LoginPage({ className }: LoginPageProps) {
 
   const emailField = form.register('email')
   const passwordField = form.register('password')
+
+  useEffect(() => {
+    if (!hasStoredAuthTokens()) {
+      return
+    }
+
+    void navigate({
+      to: routes.app.dashboard,
+      replace: true,
+    })
+  }, [navigate])
 
   return (
     <div className={cn('flex w-full max-w-5xl flex-col gap-6', className)}>

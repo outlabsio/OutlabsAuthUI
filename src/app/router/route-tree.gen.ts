@@ -28,6 +28,7 @@ import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
 import { Route as AppRolesIndexRouteImport } from './routes/app/roles.index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions.index'
 import { Route as AppEntitiesIndexRouteImport } from './routes/app/entities.index'
+import { Route as AppUsersApiKeysRouteImport } from './routes/app/users.api-keys'
 import { Route as AppUsersUserIdRouteImport } from './routes/app/users.$userId'
 import { Route as AppRolesRoleIdRouteImport } from './routes/app/roles.$roleId'
 import { Route as AppPermissionsPermissionIdRouteImport } from './routes/app/permissions.$permissionId'
@@ -128,6 +129,11 @@ const AppEntitiesIndexRoute = AppEntitiesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppEntitiesRoute,
 } as any)
+const AppUsersApiKeysRoute = AppUsersApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => AppUsersRoute,
+} as any)
 const AppUsersUserIdRoute = AppUsersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/users/api-keys': typeof AppUsersApiKeysRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/users/api-keys': typeof AppUsersApiKeysRoute
   '/app/entities': typeof AppEntitiesIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/roles': typeof AppRolesIndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
+  '/app/users/api-keys': typeof AppUsersApiKeysRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
+    | '/app/users/api-keys'
     | '/app/entities/'
     | '/app/permissions/'
     | '/app/roles/'
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
+    | '/app/users/api-keys'
     | '/app/entities'
     | '/app/permissions'
     | '/app/roles'
@@ -290,6 +301,7 @@ export interface FileRouteTypes {
     | '/app/permissions/$permissionId'
     | '/app/roles/$roleId'
     | '/app/users/$userId'
+    | '/app/users/api-keys'
     | '/app/entities/'
     | '/app/permissions/'
     | '/app/roles/'
@@ -437,6 +449,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEntitiesIndexRouteImport
       parentRoute: typeof AppEntitiesRoute
     }
+    '/app/users/api-keys': {
+      id: '/app/users/api-keys'
+      path: '/api-keys'
+      fullPath: '/app/users/api-keys'
+      preLoaderRoute: typeof AppUsersApiKeysRouteImport
+      parentRoute: typeof AppUsersRoute
+    }
     '/app/users/$userId': {
       id: '/app/users/$userId'
       path: '/$userId'
@@ -512,11 +531,13 @@ const AppRolesRouteWithChildren = AppRolesRoute._addFileChildren(
 
 interface AppUsersRouteChildren {
   AppUsersUserIdRoute: typeof AppUsersUserIdRoute
+  AppUsersApiKeysRoute: typeof AppUsersApiKeysRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
 }
 
 const AppUsersRouteChildren: AppUsersRouteChildren = {
   AppUsersUserIdRoute: AppUsersUserIdRoute,
+  AppUsersApiKeysRoute: AppUsersApiKeysRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
 }
 

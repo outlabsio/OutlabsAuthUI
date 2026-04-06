@@ -1,7 +1,10 @@
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
 export type ApiKeyStatus = 'active' | 'suspended' | 'revoked' | 'expired'
-export type ApiKeyKind = 'personal'
+export type ApiKeyKind = 'personal' | 'system_integration'
+export type ApiKeyOwnerType = 'user' | 'integration_principal'
+export type IntegrationPrincipalStatus = 'active' | 'inactive' | 'archived'
+export type IntegrationPrincipalScopeKind = 'entity' | 'platform_global'
 
 export type ApiKey = {
   id: string
@@ -20,6 +23,7 @@ export type ApiKey = {
   entity_ids?: string[] | null
   inherit_from_tree?: boolean
   owner_id?: string | null
+  owner_type?: ApiKeyOwnerType | null
   is_currently_effective?: boolean | null
   ineffective_reasons?: string[] | null
 }
@@ -39,7 +43,7 @@ export type ListEntityApiKeysParams = {
 export type ApiKeyGrantableScopes = {
   actor_user_id: string
   owner_id: string
-  entity_id: string
+  entity_id?: string | null
   key_kind: ApiKeyKind
   inherit_from_tree: boolean
   allowed_key_kinds: ApiKeyKind[]
@@ -48,15 +52,11 @@ export type ApiKeyGrantableScopes = {
 }
 
 export type GetGrantableScopesInput = {
-  entityId: string
-  ownerId?: string
-  keyKind?: ApiKeyKind
+  entityId?: string
   inherit_from_tree?: boolean
 }
 
 export type CreateApiKeyInput = {
-  entityId: string
-  owner_id: string
   name: string
   scopes?: string[]
   prefix_type?: string
@@ -65,6 +65,7 @@ export type CreateApiKeyInput = {
   expires_in_days?: number
   description?: string | null
   key_kind?: ApiKeyKind
+  entity_ids?: string[]
   inherit_from_tree?: boolean
 }
 
@@ -73,7 +74,6 @@ export type CreateApiKeyResponse = ApiKey & {
 }
 
 export type UpdateApiKeyInput = {
-  entityId: string
   keyId: string
   name?: string
   scopes?: string[]
@@ -81,15 +81,120 @@ export type UpdateApiKeyInput = {
   rate_limit_per_minute?: number
   status?: Exclude<ApiKeyStatus, 'expired'>
   description?: string | null
+  entity_ids?: string[] | null
   inherit_from_tree?: boolean
 }
 
 export type RotateApiKeyInput = {
-  entityId: string
   keyId: string
 }
 
 export type DeleteApiKeyInput = {
+  keyId: string
+}
+
+export type DeleteEntityApiKeyInput = {
   entityId: string
+  keyId: string
+}
+
+export type IntegrationPrincipal = {
+  id: string
+  name: string
+  description?: string | null
+  status: IntegrationPrincipalStatus
+  scope_kind: IntegrationPrincipalScopeKind
+  anchor_entity_id?: string | null
+  inherit_from_tree: boolean
+  allowed_scopes: string[]
+  created_by_user_id?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type IntegrationPrincipalsListResponse = PaginatedResponse<IntegrationPrincipal>
+
+export type ListIntegrationPrincipalsParams = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  page?: number
+  limit?: number
+  status?: IntegrationPrincipalStatus
+  search?: string
+}
+
+export type CreateIntegrationPrincipalInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  name: string
+  description?: string | null
+  allowed_scopes: string[]
+  inherit_from_tree?: boolean
+}
+
+export type UpdateIntegrationPrincipalInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+  name?: string
+  description?: string | null
+  status?: Exclude<IntegrationPrincipalStatus, 'archived'>
+  allowed_scopes?: string[]
+  inherit_from_tree?: boolean
+}
+
+export type DeleteIntegrationPrincipalInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+}
+
+export type ListIntegrationPrincipalApiKeysParams = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+  page?: number
+  limit?: number
+  status?: ApiKeyStatus
+  search?: string
+}
+
+export type CreateSystemIntegrationApiKeyInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+  name: string
+  scopes: string[]
+  prefix_type?: string
+  ip_whitelist?: string[]
+  rate_limit_per_minute?: number
+  expires_in_days?: number
+  description?: string | null
+}
+
+export type UpdateSystemIntegrationApiKeyInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+  keyId: string
+  name?: string
+  scopes?: string[]
+  ip_whitelist?: string[]
+  rate_limit_per_minute?: number
+  status?: Exclude<ApiKeyStatus, 'expired'>
+  description?: string | null
+}
+
+export type RotateSystemIntegrationApiKeyInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
+  keyId: string
+}
+
+export type DeleteSystemIntegrationApiKeyInput = {
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  principalId: string
   keyId: string
 }

@@ -4,10 +4,9 @@ import type {
 } from '@/features/api-keys/types/api-keys.types'
 import { apiClient } from '@/lib/api/client'
 
-const defaultListParams: Required<Pick<ListEntityApiKeysParams, 'page' | 'limit' | 'keyKind'>> = {
+const defaultListParams: Required<Pick<ListEntityApiKeysParams, 'page' | 'limit'>> = {
   page: 1,
   limit: 20,
-  keyKind: 'personal',
 }
 
 export function getApiKeys({
@@ -16,14 +15,17 @@ export function getApiKeys({
   limit = defaultListParams.limit,
   ownerId,
   status,
-  keyKind = defaultListParams.keyKind,
+  keyKind,
   search,
 }: ListEntityApiKeysParams) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
-    key_kind: keyKind,
   })
+
+  if (keyKind) {
+    searchParams.set('key_kind', keyKind)
+  }
 
   if (ownerId) {
     searchParams.set('owner_id', ownerId)

@@ -5,9 +5,9 @@ import type {
 import { apiClient } from '@/lib/api/client'
 
 export function createApiKey(input: CreateApiKeyInput) {
-  const { entityId, ...body } = input
+  const body = input
 
-  return apiClient.post<CreateApiKeyResponse>(`/admin/entities/${entityId}/api-keys`, {
+  return apiClient.post<CreateApiKeyResponse>('/api-keys', {
     body,
   })
 }

@@ -41,7 +41,14 @@ const workspaceCards = [
     title: 'API Keys',
     to: routes.app.apiKeys,
     icon: Key,
-    accent: 'Machine access',
+    accent: 'Personal access',
+    visible: true,
+  },
+  {
+    title: 'System API Keys',
+    to: routes.app.systemApiKeys,
+    icon: KeyRound,
+    accent: 'Integrations',
     visible: true,
   },
   {

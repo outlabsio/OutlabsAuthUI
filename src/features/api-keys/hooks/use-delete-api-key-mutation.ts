@@ -15,13 +15,13 @@ export function useDeleteApiKeyMutation() {
       error: 'The API key could not be revoked.',
       success: 'API key revoked.',
     }),
-    onSuccess: async (_, variables) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.lists(),
       })
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.grantableScopes({
-          entityId: variables.entityId,
+          entityId: undefined,
         }),
       })
     },

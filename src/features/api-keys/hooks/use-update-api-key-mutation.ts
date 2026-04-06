@@ -21,7 +21,7 @@ export function useUpdateApiKeyMutation() {
       })
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.grantableScopes({
-          entityId: variables.entityId,
+          entityId: variables.entity_ids?.[0],
         }),
       })
     },
