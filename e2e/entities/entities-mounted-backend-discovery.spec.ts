@@ -4,11 +4,16 @@ import { expect, test } from '../support/auth-fixture'
 import { buildE2eAuthApiUrl } from '../support/auth-personas'
 
 type EntityListItem = {
+  id?: string
   display_name: string
 }
 
 type EntityListResponse = {
   items: EntityListItem[]
+}
+
+type SessionUser = {
+  root_entity_name?: string | null
 }
 
 async function gotoEntitiesWorkspace(page: Page) {
@@ -86,18 +91,61 @@ async function loadFirstAgentRoot(page: Page) {
   return payload.items[0]
 }
 
-test.describe('Diverse Entity Discovery', () => {
-  test('superuser defaults to Diverse Internal and can search root scope beyond the first page', async ({
+async function loadCurrentSession(page: Page) {
+  const accessToken = await getAccessToken(page)
+  const response = await page.request.get(buildE2eAuthApiUrl('/users/me'), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  expect(response.ok()).toBeTruthy()
+
+  return (await response.json()) as SessionUser
+}
+
+async function loadAlternateRoot(page: Page) {
+  const accessToken = await getAccessToken(page)
+  const response = await page.request.get(
+    buildE2eAuthApiUrl('/entities/?page=2&limit=1&root_only=true'),
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  expect(response.ok()).toBeTruthy()
+
+  const payload = (await response.json()) as EntityListResponse
+  expect(payload.items.length).toBeGreaterThan(0)
+
+  return payload.items[0]
+}
+
+test.describe('Mounted Backend Entity Discovery', () => {
+  test('superuser defaults to the current root and can search-select another root scope', async ({
     page,
   }) => {
     await gotoEntitiesWorkspace(page)
+    const sessionUser = await loadCurrentSession(page)
 
     const rootScopeField = page.locator('#entities-root-scope')
-    await expect(rootScopeField).toHaveValue('Diverse Internal')
-    await expect(page.getByRole('heading', { name: 'Diverse Internal' })).toBeVisible()
+    expect(sessionUser.root_entity_name).toBeTruthy()
+    await expect(rootScopeField).toHaveValue(sessionUser.root_entity_name ?? '')
+    await expect(
+      page.getByRole('heading', {
+        name: sessionUser.root_entity_name ?? '',
+      })
+    ).toBeVisible()
 
-    await selectRootScope(page, 'Seed Diverse Internal')
-    await expect(page.getByRole('heading', { name: 'Seed Diverse Internal' })).toBeVisible()
+    const alternateRoot = await loadAlternateRoot(page)
+    await selectRootScope(page, alternateRoot.display_name)
+    await expect(
+      page.getByRole('heading', {
+        name: alternateRoot.display_name,
+      })
+    ).toBeVisible()
   })
 
   test('agent roots show the migrated agent name and friendly Agent type label', async ({

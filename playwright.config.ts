@@ -34,12 +34,6 @@ export default defineConfig({
       ...process.env,
       VITE_API_BASE_URL: apiBaseURL,
       VITE_AUTH_API_PREFIX: authApiPrefix,
-      ...(process.env.E2E_ADMIN_EMAIL
-        ? { VITE_LOCAL_ADMIN_EMAIL: process.env.E2E_ADMIN_EMAIL }
-        : {}),
-      ...(process.env.E2E_ADMIN_PASSWORD
-        ? { VITE_LOCAL_ADMIN_PASSWORD: process.env.E2E_ADMIN_PASSWORD }
-        : {}),
     },
   },
   projects: [

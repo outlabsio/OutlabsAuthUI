@@ -9,11 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
@@ -23,6 +21,7 @@ import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { hasStoredAuthTokens } from '@/lib/api/auth-token'
 import { apiConfig } from '@/lib/api/config'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 import { cn } from '@/lib/utils/cn'
 
 type LoginPageProps = {
@@ -30,13 +29,10 @@ type LoginPageProps = {
 }
 
 export function LoginPage({ className }: LoginPageProps) {
+  const runtimeConfig = getRuntimeConfig()
   const navigate = useNavigate()
   const loginMutation = useLoginMutation()
   const apiTarget = `${apiConfig.baseUrl}${apiConfig.authPrefix}`
-  const previewAdminEmail =
-    import.meta.env.VITE_LOCAL_ADMIN_EMAIL ?? 'admin@demo.com'
-  const previewAdminPassword =
-    import.meta.env.VITE_LOCAL_ADMIN_PASSWORD ?? 'DiverseDemo123'
   const form = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -83,11 +79,11 @@ export function LoginPage({ className }: LoginPageProps) {
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  OutlabsAuth
+                  {runtimeConfig.authBrand}
                 </p>
                 <h1 className="text-2xl font-bold">Welcome back</h1>
                 <p className="text-balance text-muted-foreground">
-                  Sign in against the local OutlabsAuth backend to access the admin console.
+                  {runtimeConfig.signInDescription}
                 </p>
               </div>
               <Field>
@@ -148,13 +144,6 @@ export function LoginPage({ className }: LoginPageProps) {
                 </Button>
                 {submitError ? <FieldError>{submitError}</FieldError> : null}
               </Field>
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Local preview
-              </FieldSeparator>
-              <FieldDescription className="text-center">
-                Known local superuser: <code>{previewAdminEmail}</code> /{' '}
-                <code>{previewAdminPassword}</code>.
-              </FieldDescription>
             </FieldGroup>
           </form>
           <div className="relative hidden bg-muted md:block">
@@ -162,14 +151,13 @@ export function LoginPage({ className }: LoginPageProps) {
               <div className="flex h-full flex-col justify-between rounded-xl border bg-background p-6 text-foreground shadow-sm">
                 <div className="space-y-3">
                   <p className="text-xs font-semibold tracking-[0.24em] uppercase text-muted-foreground">
-                    External admin UI
+                    {runtimeConfig.authBrand}
                   </p>
                   <h2 className="text-2xl font-semibold">
-                    External admin frontend for OutlabsAuth.
+                    {runtimeConfig.appName}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    This screen targets the live login and current-user endpoints from whichever
-                    auth backend is configured for the current environment.
+                    {runtimeConfig.appSubtitle}
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -177,7 +165,8 @@ export function LoginPage({ className }: LoginPageProps) {
                     Shell: mixed `sidebar-07` collapse behavior with `sidebar-08` inset styling
                   </div>
                   <div className="rounded-lg border bg-muted px-4 py-3 text-sm">
-                    API target: <code>{apiTarget}</code>, overridable via <code>VITE_API_BASE_URL</code> and <code>VITE_AUTH_API_PREFIX</code>
+                    API target: <code>{apiTarget}</code>, configurable via runtime
+                    <code> app-config.json</code> or fallback Vite env variables.
                   </div>
                 </div>
               </div>

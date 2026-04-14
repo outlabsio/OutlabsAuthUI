@@ -1,0 +1,8 @@
+{
+  "apiBaseUrl": "http://localhost:8004",
+  "authApiPrefix": "/v1",
+  "appName": "OutlabsAuth UI",
+  "appSubtitle": "Shared auth admin console",
+  "authBrand": "OutlabsAuth",
+  "signInDescription": "Sign in against the configured auth backend to access this console."
+}

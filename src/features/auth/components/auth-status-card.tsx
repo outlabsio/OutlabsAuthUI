@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { Card, CardContent } from '@/components/ui/card'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 type AuthStatusCardProps = {
   actions?: ReactNode
@@ -12,7 +13,7 @@ type AuthStatusCardProps = {
 export function AuthStatusCard({
   actions,
   description,
-  eyebrow = 'OutlabsAuth',
+  eyebrow = getRuntimeConfig().authBrand,
   title,
 }: AuthStatusCardProps) {
   return (
