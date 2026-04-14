@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getEntityTypeSuggestionsQueryOptions } from '@/features/entities/api/entities.query-options'
 import { useCreateEntityMutation } from '@/features/entities/hooks/use-create-entity-mutation'
 import { useUpdateEntityMutation } from '@/features/entities/hooks/use-update-entity-mutation'
@@ -63,11 +64,6 @@ const entityStatusOptions = [
   { label: 'Inactive', value: 'inactive' },
   { label: 'Archived', value: 'archived' },
 ] as const
-
-const entityStatusCardOptions = entityStatusOptions.map((option) => ({
-  label: option.label,
-  value: option.value,
-}))
 
 function slugifyValue(value: string) {
   return value
@@ -902,20 +898,31 @@ export function EntityFormDialog({
                           control={form.control}
                           name="status"
                           render={({ field }) => (
-                            <AppRadioCards
+                            <ToggleGroup
                               aria-label="Status"
-                              appearance="compact"
-                              grouping="joined"
+                              className="w-full"
+                              disabled={isPending}
+                              type="single"
                               value={field.value}
                               onValueChange={(nextValue) => {
-                                form.setValue('status', nextValue as EntityFormValues['status'], {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                })
+                                if (!nextValue) {
+                                  return
+                                }
+
+                                field.onChange(nextValue as EntityFormValues['status'])
                               }}
-                              options={entityStatusCardOptions}
-                              disabled={isPending}
-                            />
+                              variant="outline"
+                            >
+                              {entityStatusOptions.map((option) => (
+                                <ToggleGroupItem
+                                  key={option.value}
+                                  className="flex-1"
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </ToggleGroupItem>
+                              ))}
+                            </ToggleGroup>
                           )}
                         />
                         <FieldError errors={[form.formState.errors.status]} />
@@ -953,20 +960,31 @@ export function EntityFormDialog({
                         control={form.control}
                         name="status"
                         render={({ field }) => (
-                          <AppRadioCards
+                          <ToggleGroup
                             aria-label="Status"
-                            appearance="compact"
-                            grouping="joined"
+                            className="w-full"
+                            disabled={isPending}
+                            type="single"
                             value={field.value}
                             onValueChange={(nextValue) => {
-                              form.setValue('status', nextValue as EntityFormValues['status'], {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              })
+                              if (!nextValue) {
+                                return
+                              }
+
+                              field.onChange(nextValue as EntityFormValues['status'])
                             }}
-                            options={entityStatusCardOptions}
-                            disabled={isPending}
-                          />
+                            variant="outline"
+                          >
+                            {entityStatusOptions.map((option) => (
+                              <ToggleGroupItem
+                                key={option.value}
+                                className="flex-1"
+                                value={option.value}
+                              >
+                                {option.label}
+                              </ToggleGroupItem>
+                            ))}
+                          </ToggleGroup>
                         )}
                       />
                       <FieldError errors={[form.formState.errors.status]} />

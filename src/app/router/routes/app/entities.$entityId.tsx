@@ -2,12 +2,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { Route as EntitiesLayoutRoute } from '@/app/router/routes/app/entities'
 import { EntitiesPage } from '@/features/entities/components/entities-page'
+import type { EntitiesPageSearch } from '@/features/entities/types/entities.types'
 import { routes } from '@/lib/constants/routes'
 
 function EntityDetailsRouteComponent() {
   const navigate = useNavigate()
   const params = Route.useParams()
-  const search = EntitiesLayoutRoute.useSearch()
+  const search = EntitiesLayoutRoute.useSearch() as EntitiesPageSearch
 
   return (
     <EntitiesPage

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { AppTagsInput } from '@/components/app/app-tags-input'
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/card'
 import { FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { getEntityTypeConfigQueryOptions } from '@/features/settings/api/settings.query-options'
 import { useUpdateEntityTypeConfigMutation } from '@/features/settings/hooks/use-update-entity-type-config-mutation'
 import {
@@ -43,7 +45,13 @@ function formatDateTime(value?: string | null) {
 
 export function SettingsPage() {
   const sessionQuery = useSessionQuery()
-  const entityTypeConfigQuery = useQuery(getEntityTypeConfigQueryOptions())
+  const authConfigQuery = useQuery(getAuthConfigQueryOptions())
+  const entityHierarchyEnabled =
+    authConfigQuery.data?.features.entity_hierarchy ?? false
+  const entityTypeConfigQuery = useQuery({
+    ...getEntityTypeConfigQueryOptions(),
+    enabled: entityHierarchyEnabled,
+  })
   const updateMutation = useUpdateEntityTypeConfigMutation()
   const sessionUser = sessionQuery.data ?? null
   const canUpdateConfig = Boolean(sessionUser?.is_superuser)
@@ -72,7 +80,8 @@ export function SettingsPage() {
     })
   }, [entityTypeConfigQuery.data, form])
 
-  const pageError = sessionQuery.error ?? entityTypeConfigQuery.error
+  const pageError =
+    sessionQuery.error ?? authConfigQuery.error ?? entityTypeConfigQuery.error
   const [
     structuralRootTypes = [],
     accessGroupRootTypes = [],
@@ -94,7 +103,7 @@ export function SettingsPage() {
       )
     : null
 
-  if (sessionQuery.isPending || entityTypeConfigQuery.isPending) {
+  if (sessionQuery.isPending || authConfigQuery.isPending || entityTypeConfigQuery.isPending) {
     return <AppLoadingState title="Loading settings workspace" />
   }
 
@@ -107,6 +116,18 @@ export function SettingsPage() {
             'The settings workspace could not load data from the auth API.'
           )}
         </div>
+      </AppPage>
+    )
+  }
+
+  if (!entityHierarchyEnabled) {
+    return (
+      <AppPage title="Settings" padded>
+        <AppEmptyState
+          title="Settings workspace unavailable"
+          description="This backend does not advertise entity hierarchy support, so /config/entity-types is not available."
+          compact
+        />
       </AppPage>
     )
   }

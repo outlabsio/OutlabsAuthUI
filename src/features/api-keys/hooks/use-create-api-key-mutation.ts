@@ -15,9 +15,15 @@ export function useCreateApiKeyMutation() {
       error: 'The API key could not be created.',
       success: 'API key created.',
     }),
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.lists(),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysKeys.grantableScopes({
+          entityId: variables.entity_ids?.[0],
+          inherit_from_tree: variables.inherit_from_tree ?? false,
+        }),
       })
     },
   })

@@ -34,7 +34,7 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
       { label: 'Primary focus', value: 'Current auth workspace state' },
       {
         label: 'Next step',
-        value: 'Move into Account, API Keys, Users, Permissions, Roles, Entities, or Settings',
+        value: 'Move into Account, API Keys, System API Keys, Users, Permissions, Roles, Entities, or Settings',
       },
     ],
     sections: [
@@ -44,7 +44,8 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
           'The app is organized around linked self-service and admin surfaces for accounts, users, permissions, roles, entities, machine credentials, and backend settings.',
         bullets: [
           'Account handles your own profile, password, and session-facing lifecycle details.',
-          'API keys manage machine access for the current account.',
+          'API Keys manage personal machine access for the current account.',
+          'System API Keys manage EnterpriseRBAC integration principals and non-human keys.',
           'Permissions define capabilities.',
           'Roles bundle permissions and decide where they apply.',
           'Entities provide hierarchy and assignment context.',
@@ -61,7 +62,8 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
           'Check Roles when you need to understand scope, inheritance, or blast radius.',
           'Check Entities when the question depends on hierarchy or local assignment context.',
           'Check Users when you need to audit a person’s effective access.',
-          'Check API Keys for machine credentials and rotation history.',
+          'Check API Keys for your own machine credentials and rotation history.',
+          'Check System API Keys for enterprise-managed integrations and incident-response revoke.',
           'Check Settings when entity type defaults or root constraints are involved.',
         ],
       },
@@ -108,31 +110,85 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
     label: 'API Keys',
     title: 'API Keys guide',
     description:
-      'The API Keys workspace is for current-user machine credentials. Use it to create secrets, rotate them safely, and narrow where integrations can operate.',
+      'The API Keys workspace is the self-service surface for your own personal API keys. Use it to mint, rotate, suspend, and revoke personal automation credentials without touching the admin integration flow.',
     quickFacts: [
-      { label: 'Best for', value: 'Machine credential management' },
-      { label: 'Primary focus', value: 'Lifecycle, scopes, and rotation' },
-      { label: 'Watch for', value: 'One-time secret reveal on create/rotate' },
+      { label: 'Best for', value: 'Personal automation and self-service rotation' },
+      { label: 'Primary focus', value: 'Your own key lifecycle and optional entity anchors' },
+      { label: 'Credential split', value: 'Personal keys, system integrations, and service tokens' },
     ],
     sections: [
       {
-        title: 'Secret handling',
+        title: 'Self-service flow',
         description:
-          'The backend only returns the full secret at creation and rotation time, so operational hygiene matters here.',
+          'This page stays on the auth-owned personal-key surface. It never asks you to pick another owner or step into the admin integration workflow.',
         bullets: [
-          'Store the secret immediately after create or rotate.',
-          'Subsequent reads only expose the prefix and metadata.',
-          'Rotation replaces the old secret rather than revealing it again.',
+          'Create, edit, rotate, and revoke only your own personal keys here.',
+          'Use the optional entity anchor when the key should stay scoped to one branch.',
+          'Grantable scopes come directly from the mounted self-service policy endpoint.',
         ],
       },
       {
-        title: 'Safe scoping',
+        title: 'Credential classes',
         description:
-          'API keys can be narrowed with explicit scopes, optional IP restrictions, and optional entity restrictions.',
+          'OutlabsAuth keeps human automation, durable non-human integrations, and internal platform automation as separate credential types.',
         bullets: [
-          'Use scopes to limit the capability surface.',
-          'Use IP restrictions for trusted integration origins.',
-          'Use entity restrictions when a machine integration should only operate in one branch.',
+          '`personal` keys remain self-service and user-owned.',
+          '`system_integration` keys are owned by integration principals and are the durable non-human admin surface.',
+          'Service tokens stay outside this workspace because they are the internal stateless platform primitive.',
+        ],
+      },
+      {
+        title: 'Operational reminders',
+        description:
+          'The backend only returns the full secret at creation and rotation time, and anchored personal keys can lose effectiveness if the entity or permission envelope changes.',
+        bullets: [
+          'Store the secret immediately after create or rotate.',
+          'Use the optional entity anchor and IP restrictions to narrow the credential.',
+          'Watch the effectiveness badge and ineffective reasons when a stored key is no longer usable at runtime.',
+        ],
+      },
+    ],
+  },
+  {
+    pathPrefix: '/app/users/api-keys',
+    label: 'System API Keys',
+    title: 'System API Keys guide',
+    description:
+      'The System API Keys workspace is the admin surface for EnterpriseRBAC machine credentials. Use it to manage integration principals, mint principal-owned system keys, and inspect anchored-key inventory without drifting from backend policy.',
+    quickFacts: [
+      { label: 'Best for', value: 'Integration principals, system keys, and incident-response revoke' },
+      { label: 'Primary focus', value: 'Principal envelope, key lifecycle, and runtime effectiveness' },
+      { label: 'Write access', value: 'Enterprise admin or superuser only' },
+    ],
+    sections: [
+      {
+        title: 'Integration-first flow',
+        description:
+          'This page mirrors the auth-owned EnterpriseRBAC split between integration principals and anchored-key inventory.',
+        bullets: [
+          'Choose entity-scoped or platform-global integrations first.',
+          'Define the integration principal envelope before minting any system keys.',
+          'Use the inventory tab for anchored-key inspection and incident-response revoke.',
+        ],
+      },
+      {
+        title: 'Credential classes',
+        description:
+          'OutlabsAuth keeps human automation, durable non-human integrations, and internal platform automation as separate credential types.',
+        bullets: [
+          '`personal` keys remain self-service and user-owned.',
+          '`system_integration` keys are owned by integration principals and are the durable non-human admin surface.',
+          'Service tokens stay outside this workspace because they are the internal stateless platform primitive.',
+        ],
+      },
+      {
+        title: 'Operational reminders',
+        description:
+          'The backend only returns the full secret at creation and rotation time, and derived effectiveness can change as principal or entity state changes.',
+        bullets: [
+          'Store the secret immediately after create or rotate.',
+          'Use the principal allowed-scope envelope plus optional IP restrictions to narrow the credential.',
+          'Watch the effectiveness badge and ineffective reasons when a stored key is no longer usable at runtime.',
         ],
       },
     ],

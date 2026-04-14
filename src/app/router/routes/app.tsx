@@ -52,7 +52,7 @@ function AppLayout() {
     return (
       <AppLoadingState
         title="Loading workspace"
-        description="Checking the current OutlabsAuth session."
+        description="Checking the current auth session."
       />
     )
   }

@@ -19,8 +19,10 @@ import {
 } from '@/features/auth/schemas/forgot-password.schema'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export function ForgotPasswordPage() {
+  const runtimeConfig = getRuntimeConfig()
   const forgotPasswordMutation = useForgotPasswordMutation()
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -78,7 +80,7 @@ export function ForgotPasswordPage() {
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  OutlabsAuth
+                  {runtimeConfig.authBrand}
                 </p>
                 <h1 className="text-2xl font-bold">Forgot your password?</h1>
                 <p className="text-sm text-muted-foreground">

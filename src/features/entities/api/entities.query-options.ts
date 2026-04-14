@@ -56,7 +56,7 @@ export function getEntityMembersQueryOptions(
 ) {
   const resolvedParams = {
     page: params.page ?? 1,
-    limit: params.limit ?? 50,
+    limit: Math.min(params.limit ?? 50, 100),
     includeInactive: params.includeInactive ?? false,
   }
 

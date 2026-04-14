@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Building2,
@@ -28,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import {
   Sidebar,
   SidebarContent,
@@ -42,6 +44,11 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
+import {
+  type WorkspaceKey,
+  isWorkspaceVisible,
+} from '@/lib/workspace-visibility'
 
 type AppSidebarProps = {
   user: {
@@ -54,10 +61,12 @@ type AppSidebarProps = {
 }
 
 type NavigationItem = {
+  key: WorkspaceKey
   title: string
   to:
     | typeof routes.app.dashboard
     | typeof routes.app.apiKeys
+    | typeof routes.app.systemApiKeys
     | typeof routes.app.settings
     | typeof routes.app.users
     | typeof routes.app.permissions
@@ -74,11 +83,13 @@ const navigationGroups: Array<{
     label: 'Workspace',
     items: [
       {
+        key: 'dashboard',
         title: 'Dashboard',
         to: routes.app.dashboard,
         icon: LayoutDashboard,
       },
       {
+        key: 'settings',
         title: 'Settings',
         to: routes.app.settings,
         icon: Settings,
@@ -89,26 +100,37 @@ const navigationGroups: Array<{
     label: 'Auth',
     items: [
       {
+        key: 'apiKeys',
         title: 'API Keys',
         to: routes.app.apiKeys,
         icon: Key,
       },
       {
+        key: 'systemApiKeys',
+        title: 'System API Keys',
+        to: routes.app.systemApiKeys,
+        icon: KeyRound,
+      },
+      {
+        key: 'users',
         title: 'Users',
         to: routes.app.users,
         icon: Users,
       },
       {
+        key: 'permissions',
         title: 'Permissions',
         to: routes.app.permissions,
-        icon: KeyRound,
-      },
-      {
-        title: 'Roles',
-        to: routes.app.roles,
         icon: Shield,
       },
       {
+        key: 'roles',
+        title: 'Roles',
+        to: routes.app.roles,
+        icon: ShieldCheck,
+      },
+      {
+        key: 'entities',
         title: 'Entities',
         to: routes.app.entities,
         icon: Building2,
@@ -220,6 +242,8 @@ export function AppSidebar({
   isLoggingOut = false,
   onLogout,
 }: AppSidebarProps) {
+  const runtimeConfig = getRuntimeConfig()
+  const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -231,16 +255,16 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              tooltip="OutlabsAuth UI"
+              tooltip={runtimeConfig.appName}
               render={<Link to={routes.app.dashboard} />}
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
                 <ShieldCheck className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">OutlabsAuth UI</span>
+                <span className="truncate font-medium">{runtimeConfig.appName}</span>
                 <span className="truncate text-xs text-sidebar-foreground/70">
-                  External admin console
+                  {runtimeConfig.appSubtitle}
                 </span>
               </div>
             </SidebarMenuButton>
@@ -254,6 +278,10 @@ export function AppSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
+                  if (!isWorkspaceVisible(item.key, authConfigQuery.data?.features)) {
+                    return null
+                  }
+
                   const Icon = item.icon
                   const isActive =
                     pathname === item.to || pathname.startsWith(`${item.to}/`)

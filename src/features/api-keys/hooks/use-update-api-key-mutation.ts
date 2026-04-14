@@ -15,9 +15,14 @@ export function useUpdateApiKeyMutation() {
       error: 'The API key could not be updated.',
       success: 'API key updated.',
     }),
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.lists(),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysKeys.grantableScopes({
+          entityId: variables.entity_ids?.[0],
+        }),
       })
     },
   })

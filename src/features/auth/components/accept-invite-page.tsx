@@ -20,8 +20,10 @@ import {
 } from '@/features/auth/schemas/password-setup.schema'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export function AcceptInvitePage() {
+  const runtimeConfig = getRuntimeConfig()
   const navigate = useNavigate()
   const { token } = useSearch({
     from: '/auth/accept-invite',
@@ -79,7 +81,7 @@ export function AcceptInvitePage() {
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  OutlabsAuth
+                  {runtimeConfig.authBrand}
                 </p>
                 <h1 className="text-2xl font-bold">Accept your invitation</h1>
                 <p className="text-sm text-muted-foreground">

@@ -5,7 +5,7 @@ type AppLoadingStateProps = {
 
 export function AppLoadingState({
   title = 'Loading',
-  description = 'Checking the latest state from OutlabsAuth.',
+  description = 'Checking the latest state from the configured auth backend.',
 }: AppLoadingStateProps) {
   return (
     <div className="flex min-h-[40svh] flex-col items-center justify-center gap-4 text-center">

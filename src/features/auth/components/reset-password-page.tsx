@@ -19,8 +19,10 @@ import {
 } from '@/features/auth/schemas/password-setup.schema'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export function ResetPasswordPage() {
+  const runtimeConfig = getRuntimeConfig()
   const { token } = useSearch({
     from: '/auth/reset-password',
   })
@@ -90,7 +92,7 @@ export function ResetPasswordPage() {
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  OutlabsAuth
+                  {runtimeConfig.authBrand}
                 </p>
                 <h1 className="text-2xl font-bold">Reset your password</h1>
                 <p className="text-sm text-muted-foreground">

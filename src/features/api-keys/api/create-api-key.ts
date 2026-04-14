@@ -5,7 +5,9 @@ import type {
 import { apiClient } from '@/lib/api/client'
 
 export function createApiKey(input: CreateApiKeyInput) {
-  return apiClient.post<CreateApiKeyResponse>('/api-keys/', {
-    body: input,
+  const body = input
+
+  return apiClient.post<CreateApiKeyResponse>('/api-keys', {
+    body,
   })
 }

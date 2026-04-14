@@ -62,12 +62,13 @@ export function UsersPage({
     () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
     [actorPermissionsQuery.data]
   )
+  const entityHierarchyEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
   const canReadEntities =
     Boolean(sessionUser?.is_superuser) ||
     hasAnyPermission(actorPermissionNames, ['entity:read', 'entity:read_tree'])
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions(),
-    enabled: canReadEntities,
+    enabled: canReadEntities && entityHierarchyEnabled,
   })
   const entityOptions = useMemo(
     () => buildEntityOptions(entitiesQuery.data?.items ?? []),
@@ -87,7 +88,7 @@ export function UsersPage({
     (Boolean(sessionUser?.is_superuser) ||
       hasAnyPermission(actorPermissionNames, ['user:create']))
   const showStatusFilter = authConfig?.features.user_status ?? true
-  const showEntityFilter = (authConfig?.features.entity_hierarchy ?? true) && canReadEntities
+  const showEntityFilter = entityHierarchyEnabled && canReadEntities
   const users = usersQuery.data?.items ?? []
   const invitedUsers = users.filter((user) => user.status === 'invited').length
   const adminUsers = users.filter((user) => user.is_superuser).length

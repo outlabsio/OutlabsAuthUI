@@ -21,9 +21,22 @@ import {
 } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { routes } from '@/lib/constants/routes'
+import { getRuntimeConfig } from '@/lib/runtime-config'
+import {
+  type WorkspaceKey,
+  isWorkspaceVisible,
+} from '@/lib/workspace-visibility'
 
-const workspaceCards = [
+const workspaceCards: Array<{
+  key: WorkspaceKey
+  title: string
+  to: string
+  icon: React.ComponentType<{ className?: string }>
+  accent: string
+  visible: boolean
+}> = [
   {
+    key: 'account',
     title: 'Account',
     to: routes.app.account,
     icon: UserRound,
@@ -31,6 +44,7 @@ const workspaceCards = [
     visible: true,
   },
   {
+    key: 'users',
     title: 'Users',
     to: routes.app.users,
     icon: Users,
@@ -38,13 +52,23 @@ const workspaceCards = [
     visible: true,
   },
   {
+    key: 'apiKeys',
     title: 'API Keys',
     to: routes.app.apiKeys,
     icon: Key,
-    accent: 'Machine access',
+    accent: 'Personal access',
     visible: true,
   },
   {
+    key: 'systemApiKeys',
+    title: 'System API Keys',
+    to: routes.app.systemApiKeys,
+    icon: KeyRound,
+    accent: 'Integrations',
+    visible: true,
+  },
+  {
+    key: 'permissions',
     title: 'Permissions',
     to: routes.app.permissions,
     icon: KeyRound,
@@ -52,6 +76,7 @@ const workspaceCards = [
     visible: true,
   },
   {
+    key: 'roles',
     title: 'Roles',
     to: routes.app.roles,
     icon: ShieldCheck,
@@ -59,6 +84,7 @@ const workspaceCards = [
     visible: true,
   },
   {
+    key: 'entities',
     title: 'Entities',
     to: routes.app.entities,
     icon: Building2,
@@ -66,6 +92,7 @@ const workspaceCards = [
     visible: true,
   },
   {
+    key: 'settings',
     title: 'Settings',
     to: routes.app.settings,
     icon: Settings,
@@ -86,6 +113,7 @@ const capabilityLabels = [
 ] as const
 
 export function DashboardPage() {
+  const runtimeConfig = getRuntimeConfig()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const enabledCapabilities = authConfigQuery.data
     ? capabilityLabels.filter(([key]) => authConfigQuery.data.features[key])
@@ -96,7 +124,11 @@ export function DashboardPage() {
       <div className="space-y-4">
         <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4">
           {workspaceCards
-            .filter((item) => item.visible)
+            .filter(
+              (item) =>
+                item.visible &&
+                isWorkspaceVisible(item.key, authConfigQuery.data?.features)
+            )
             .map((item) => {
             const Icon = item.icon
 
@@ -141,8 +173,8 @@ export function DashboardPage() {
               ) : null}
             </div>
             <p className="text-sm text-muted-foreground">
-              This admin SPA now consumes the sibling OutlabsAuth backend as an external
-              system. These flags come directly from <code>/auth/config</code>.
+              {runtimeConfig.appName} reads these flags directly from the configured auth backend
+              at <code>/auth/config</code>.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

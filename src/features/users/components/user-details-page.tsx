@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
+import { AppEmptyState } from '@/components/app/app-empty-state';
 import { AppInfoPopover } from '@/components/app/app-info-popover';
 import { AppPage } from '@/components/app/app-page';
 import { AppStatusBadge } from '@/components/app/app-status-badge';
@@ -403,27 +404,39 @@ export function UserDetailsPage({
   const [membershipHistoryPage, setMembershipHistoryPage] = useState(1);
   const sessionQuery = useSessionQuery();
   const authConfigQuery = useQuery(getAuthConfigQueryOptions());
-  const entitiesQuery = useQuery(getEntitiesQueryOptions());
+  const membershipRolesFeatureEnabled =
+    authConfigQuery.data?.features.entity_hierarchy === true;
+  const userStatusFeatureEnabled =
+    authConfigQuery.data?.features.user_status === true;
+  const activityTrackingFeatureEnabled =
+    authConfigQuery.data?.features.activity_tracking === true;
+  const entitiesQuery = useQuery({
+    ...getEntitiesQueryOptions(),
+    enabled: membershipRolesFeatureEnabled,
+  });
   const userQuery = useQuery(getUserQueryOptions(userId));
-  const auditEventsQuery = useQuery(
-    getUserAuditEventsQueryOptions(userId, {
+  const auditEventsQuery = useQuery({
+    ...getUserAuditEventsQueryOptions(userId, {
       page: auditEventsPage,
       limit: 6,
     }),
-  );
-  const membershipHistoryQuery = useQuery(
-    getUserMembershipHistoryQueryOptions(userId, {
+    enabled: activityTrackingFeatureEnabled,
+  });
+  const membershipHistoryQuery = useQuery({
+    ...getUserMembershipHistoryQueryOptions(userId, {
       page: membershipHistoryPage,
       limit: 6,
     }),
-  );
+    enabled: membershipRolesFeatureEnabled,
+  });
   const directRoleMembershipsQuery = useQuery(
     getUserRoleMembershipsQueryOptions(userId, { includeInactive: true }),
   );
   const userPermissionsQuery = useQuery(getUserPermissionsQueryOptions(userId));
-  const membershipsQuery = useQuery(
-    getUserMembershipsQueryOptions(userId, { includeInactive: true }),
-  );
+  const membershipsQuery = useQuery({
+    ...getUserMembershipsQueryOptions(userId, { includeInactive: true }),
+    enabled: membershipRolesFeatureEnabled,
+  });
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
     enabled: Boolean(sessionQuery.data?.id),
@@ -484,12 +497,6 @@ export function UserDetailsPage({
     [actorPermissionsQuery.data],
   );
   const pageError = userQuery.error ?? authConfigQuery.error;
-  const membershipRolesFeatureEnabled =
-    authConfigQuery.data?.features.entity_hierarchy ?? false;
-  const userStatusFeatureEnabled =
-    authConfigQuery.data?.features.user_status ?? true;
-  const activityTrackingFeatureEnabled =
-    authConfigQuery.data?.features.activity_tracking ?? true;
   const directRolesFeatureEnabled = true;
   const isActorSuperuser = sessionQuery.data?.is_superuser === true;
   const canReadScopedRoleCatalog = actorPermissionsQuery.isSuccess
@@ -619,7 +626,7 @@ export function UserDetailsPage({
     });
   }, [profileForm, statusForm, user]);
 
-  if (userQuery.isPending) {
+  if (userQuery.isPending || authConfigQuery.isPending) {
     return (
       <AppPage
         title="Loading user"
@@ -1229,7 +1236,13 @@ export function UserDetailsPage({
                     </Button>
                   }
                 >
-                  {membershipsQuery.isError ? (
+                  {!membershipRolesFeatureEnabled ? (
+                    <AppEmptyState
+                      title="Entity memberships unavailable"
+                      description="This backend does not advertise entity hierarchy support, so scoped memberships are not available on this user."
+                      compact
+                    />
+                  ) : membershipsQuery.isError ? (
                     <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                       {getApiErrorMessage(
                         membershipsQuery.error,
@@ -1697,7 +1710,13 @@ export function UserDetailsPage({
                   />
                 }
               >
-                {auditEventsQuery.isError ? (
+                {!activityTrackingFeatureEnabled ? (
+                  <AppEmptyState
+                    title="Audit timeline unavailable"
+                    description="This backend does not advertise activity tracking, so audit events are not available for this account."
+                    compact
+                  />
+                ) : auditEventsQuery.isError ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                     {getApiErrorMessage(
                       auditEventsQuery.error,
@@ -1780,7 +1799,13 @@ export function UserDetailsPage({
                   />
                 }
               >
-                {membershipHistoryQuery.isError ? (
+                {!membershipRolesFeatureEnabled ? (
+                  <AppEmptyState
+                    title="Membership history unavailable"
+                    description="This backend does not advertise entity hierarchy support, so membership history is not available for this account."
+                    compact
+                  />
+                ) : membershipHistoryQuery.isError ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
                     {getApiErrorMessage(
                       membershipHistoryQuery.error,

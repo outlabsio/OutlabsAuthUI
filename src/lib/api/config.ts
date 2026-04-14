@@ -1,16 +1,16 @@
-function trimTrailingSlash(value: string) {
-  return value.replace(/\/+$/, '')
-}
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 function ensureLeadingSlash(value: string) {
   return value.startsWith('/') ? value : `/${value}`
 }
 
 export const apiConfig = {
-  baseUrl: trimTrailingSlash(
-    import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8004'
-  ),
-  authPrefix: ensureLeadingSlash(import.meta.env.VITE_AUTH_API_PREFIX ?? '/v1'),
+  get baseUrl() {
+    return getRuntimeConfig().apiBaseUrl
+  },
+  get authPrefix() {
+    return ensureLeadingSlash(getRuntimeConfig().authApiPrefix)
+  },
 }
 
 export function resolveApiPath(path: string) {

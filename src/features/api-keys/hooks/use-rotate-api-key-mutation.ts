@@ -19,6 +19,11 @@ export function useRotateApiKeyMutation() {
       await queryClient.invalidateQueries({
         queryKey: apiKeysKeys.lists(),
       })
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysKeys.grantableScopes({
+          entityId: undefined,
+        }),
+      })
     },
   })
 }

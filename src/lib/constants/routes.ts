@@ -12,6 +12,7 @@ export const routes = {
     dashboard: '/app/dashboard',
     apiKeys: '/app/api-keys',
     settings: '/app/settings',
+    systemApiKeys: '/app/users/api-keys',
     users: '/app/users',
     userDetail: '/app/users/$userId',
     permissions: '/app/permissions',

@@ -10,7 +10,7 @@ the suite covers:
 - destructive actions and recovery paths
 - scoped access restrictions across personas
 - canonical navigation between related workspaces
-- enterprise fixture behavior and diverse fixture behavior separately
+- enterprise fixture behavior and mounted-backend behavior separately
 
 ## Enterprise Fixture Coverage
 
@@ -84,17 +84,24 @@ with auth routes under `/v1`.
 - `agent`
   - self-service-only access while admin catalogs stay denied
 
-## Diverse Fixture Coverage
+## Mounted Backend Specific Coverage
 
-These suites are intended for the mounted Diverse auth backend and should not be
-treated as part of the default enterprise-only validation pass.
+These suites are intended for mounted backend variants beyond the default
+enterprise fixture and should not be treated as part of the default
+enterprise-only validation pass.
 
-- `e2e/entities/entities-diverse-discovery.spec.ts`
-  - diverse root discovery
+- `e2e/entities/entities-mounted-backend-discovery.spec.ts`
+  - root discovery against a mounted backend
   - agent root naming
   - entity membership dialog layout and shared role table behavior
-- `e2e/roles/roles-diverse-access.spec.ts`
-  - role details surface against the diverse backend
+- `e2e/roles/roles-mounted-backend-access.spec.ts`
+  - role details surface against a mounted backend
+- `e2e/app/app-shell-simple-rbac.spec.ts`
+  - dashboard `/auth/config` auto-detection for `SimpleRBAC`
+  - enterprise-only workspace hiding driven by backend feature flags
+  - direct-route redirects for settings, entities, and system API keys
+  - shared workspace smoke coverage for account, personal API keys, users, roles, and permissions
+  - user-details degradation coverage when entity hierarchy is unavailable
 
 ## Validation Expectations
 
@@ -115,6 +122,17 @@ bunx playwright test \
 
 Use single-worker execution when the run intentionally mutates shared seeded data.
 
+For the mounted SimpleRBAC smoke pass, run:
+
+```bash
+E2E_API_BASE_URL=http://localhost:8003 \
+E2E_BACKEND_RESET_SCRIPT=/Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac/reset_test_env.py \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@test.com \
+E2E_ADMIN_PASSWORD=Test123!! \
+bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
+```
+
 ## Remaining Gaps
 
 The suite is broad, but still not mathematically exhaustive. Current notable gaps:
@@ -122,7 +140,7 @@ The suite is broad, but still not mathematically exhaustive. Current notable gap
 - no OAuth-provider browser coverage
 - no bulk pagination stress run across every workspace
 - no enterprise API-key read-only persona coverage yet
-- no second-fixture orchestration that runs enterprise and diverse suites in one command
+- no second-fixture orchestration that runs enterprise and mounted-backend suites in one command
 
 When adding new browser tests, update this matrix so the repo keeps an explicit
 record of what is covered and what is still intentionally missing.

@@ -9,7 +9,7 @@ async function gotoRolesWorkspace(page: Page) {
   await expect(page.getByRole('button', { name: 'Open Roles guide' })).toBeVisible()
 }
 
-test.describe('Diverse Roles Access', () => {
+test.describe('Mounted Backend Roles Access', () => {
   test('superuser can read the roles workspace and open a role details page', async ({
     page,
   }) => {

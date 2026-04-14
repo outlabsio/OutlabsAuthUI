@@ -10,7 +10,7 @@ Core pieces:
 - `e2e/support/reset-backend.ts`: reusable backend reseed entrypoint for deterministic runs
 - `e2e/support/base-ui-select.ts`: reusable helper for Base UI `Select` controls
 - `e2e/support/base-ui-text.ts`: reusable helper for Base UI text inputs and textareas
-- `docs/testing/e2e-coverage.md`: current coverage matrix for enterprise and diverse fixtures
+- `docs/testing/e2e-coverage.md`: current coverage matrix for enterprise and mounted-backend fixtures
 
 ## Commands
 
@@ -36,6 +36,12 @@ Run the app-shell and app access-control suites:
 
 ```bash
 bun run test:e2e:app
+```
+
+Run the SimpleRBAC mounted-backend smoke suite:
+
+```bash
+bun run test:e2e:simple
 ```
 
 Run the Roles workspace suite only:
@@ -90,6 +96,15 @@ bun run test:e2e:no-reset
 
 Use `localhost` consistently for both frontend and backend. Mixing `127.0.0.1` and `localhost` will break browser-origin assumptions in the auth flow.
 
+For the SimpleRBAC smoke suite, start the sibling example server first:
+
+```bash
+cd /Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac
+uv run uvicorn main:app --host localhost --port 8003
+```
+
+`bun run test:e2e:simple` overrides the backend reseed script, admin credentials, and API base URL so the frontend can exercise the verified `SimpleRBAC` contract.
+
 Playwright global setup will, by default:
 
 - verify the frontend and backend are reachable
@@ -130,7 +145,7 @@ E2E_AUTH_API_PREFIX=/iam
 E2E_RESET_BACKEND=0
 E2E_PERSONAS=admin
 E2E_ADMIN_EMAIL=admin@demo.com
-E2E_ADMIN_PASSWORD=DiverseDemo123
+E2E_ADMIN_PASSWORD=Testpass1!
 E2E_BACKEND_REPO_DIR=/path/to/outlabsAuth
 E2E_BACKEND_RESET_SCRIPT=/path/to/reset_test_env.py
 ```
@@ -144,21 +159,33 @@ These can be used when the frontend or backend run on non-default ports.
   as `admin` when running against a live backend that does not have the full
   seeded enterprise persona set.
 - `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` override the default admin persona
-  credentials used for login bootstrap and local login-page hints.
+  credentials used for login bootstrap.
 - `E2E_BACKEND_REPO_DIR` overrides the backend repo root used for reseeding.
 - `E2E_BACKEND_RESET_SCRIPT` overrides the exact reset script path.
 
-Example: run the targeted Diverse local entity-discovery spec against the
+Example: run the targeted mounted-backend entity-discovery spec against the
 mounted `/iam` auth backend without resetting data:
 
 ```bash
 E2E_RESET_BACKEND=0 \
 E2E_PERSONAS=admin \
 E2E_ADMIN_EMAIL=admin@demo.com \
-E2E_ADMIN_PASSWORD=DiverseDemo123 \
+E2E_ADMIN_PASSWORD=Testpass1! \
 E2E_API_BASE_URL=http://localhost:8010 \
 E2E_AUTH_API_PREFIX=/iam \
-bunx playwright test e2e/entities/entities-diverse-discovery.spec.ts
+bunx playwright test e2e/entities/entities-mounted-backend-discovery.spec.ts
+```
+
+Example: run the SimpleRBAC smoke suite against the sibling example with its
+seeded admin account:
+
+```bash
+E2E_API_BASE_URL=http://localhost:8003 \
+E2E_BACKEND_RESET_SCRIPT=/Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac/reset_test_env.py \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@test.com \
+E2E_ADMIN_PASSWORD=Test123!! \
+bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 ```
 
 ## Authoring Guidance
