@@ -16,7 +16,15 @@ export function isWorkspaceVisible(
   features?: AuthConfig['features']
 ) {
   if (!features) {
-    return true
+    switch (workspace) {
+      case 'apiKeys':
+      case 'systemApiKeys':
+      case 'entities':
+      case 'settings':
+        return false
+      default:
+        return true
+    }
   }
 
   switch (workspace) {

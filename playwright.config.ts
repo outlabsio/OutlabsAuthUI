@@ -34,6 +34,7 @@ export default defineConfig({
       ...process.env,
       VITE_API_BASE_URL: apiBaseURL,
       VITE_AUTH_API_PREFIX: authApiPrefix,
+      VITE_RUNTIME_CONFIG_PRIORITY: 'env',
     },
   },
   projects: [

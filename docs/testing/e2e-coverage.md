@@ -96,6 +96,12 @@ enterprise-only validation pass.
   - entity membership dialog layout and shared role table behavior
 - `e2e/roles/roles-mounted-backend-access.spec.ts`
   - role details surface against a mounted backend
+- `e2e/app/app-shell-simple-rbac.spec.ts`
+  - dashboard `/auth/config` auto-detection for `SimpleRBAC`
+  - enterprise-only workspace hiding driven by backend feature flags
+  - direct-route redirects for settings, entities, and system API keys
+  - shared workspace smoke coverage for account, personal API keys, users, roles, and permissions
+  - user-details degradation coverage when entity hierarchy is unavailable
 
 ## Validation Expectations
 
@@ -115,6 +121,17 @@ bunx playwright test \
 ```
 
 Use single-worker execution when the run intentionally mutates shared seeded data.
+
+For the mounted SimpleRBAC smoke pass, run:
+
+```bash
+E2E_API_BASE_URL=http://localhost:8003 \
+E2E_BACKEND_RESET_SCRIPT=/Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac/reset_test_env.py \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@test.com \
+E2E_ADMIN_PASSWORD=Test123!! \
+bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
+```
 
 ## Remaining Gaps
 

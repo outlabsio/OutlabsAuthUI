@@ -38,6 +38,12 @@ Run the app-shell and app access-control suites:
 bun run test:e2e:app
 ```
 
+Run the SimpleRBAC mounted-backend smoke suite:
+
+```bash
+bun run test:e2e:simple
+```
+
 Run the Roles workspace suite only:
 
 ```bash
@@ -89,6 +95,15 @@ bun run test:e2e:no-reset
   - `/Users/macbookm3/Documents/projects/outlabsAuth/examples/enterprise_rbac/reset_test_env.py`
 
 Use `localhost` consistently for both frontend and backend. Mixing `127.0.0.1` and `localhost` will break browser-origin assumptions in the auth flow.
+
+For the SimpleRBAC smoke suite, start the sibling example server first:
+
+```bash
+cd /Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac
+uv run uvicorn main:app --host localhost --port 8003
+```
+
+`bun run test:e2e:simple` overrides the backend reseed script, admin credentials, and API base URL so the frontend can exercise the verified `SimpleRBAC` contract.
 
 Playwright global setup will, by default:
 
@@ -159,6 +174,18 @@ E2E_ADMIN_PASSWORD=Testpass1! \
 E2E_API_BASE_URL=http://localhost:8010 \
 E2E_AUTH_API_PREFIX=/iam \
 bunx playwright test e2e/entities/entities-mounted-backend-discovery.spec.ts
+```
+
+Example: run the SimpleRBAC smoke suite against the sibling example with its
+seeded admin account:
+
+```bash
+E2E_API_BASE_URL=http://localhost:8003 \
+E2E_BACKEND_RESET_SCRIPT=/Users/macbookm3/Documents/projects/outlabsAuth/examples/simple_rbac/reset_test_env.py \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@test.com \
+E2E_ADMIN_PASSWORD=Test123!! \
+bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 ```
 
 ## Authoring Guidance

@@ -196,6 +196,8 @@ export function ApiKeysPage() {
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
+  const apiKeysEnabled = authConfigQuery.data?.features.api_keys ?? false
+  const enterpriseEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
   const actorPermissionsQuery = useQuery({
     ...getMyPermissionsQueryOptions(),
     enabled: Boolean(sessionUser?.id),
@@ -228,7 +230,7 @@ export function ApiKeysPage() {
       page: 1,
       limit: 1000,
     }),
-    enabled: canReadApiKeys && canReadEntities,
+    enabled: enterpriseEnabled && canReadApiKeys && canReadEntities,
   })
 
   const entityOptions = useMemo(
@@ -288,7 +290,8 @@ export function ApiKeysPage() {
       limit: 200,
       includeInactive: true,
     }),
-    enabled: canReadApiKeys && Boolean(effectiveSelectedEntityId),
+    enabled:
+      enterpriseEnabled && canReadApiKeys && Boolean(effectiveSelectedEntityId),
   })
   const ownerOptions = useMemo(
     () => buildOwnerOptions(membersQuery.data ?? []),
@@ -308,6 +311,7 @@ export function ApiKeysPage() {
       search: principalSearchText.trim() || undefined,
     }),
     enabled:
+      enterpriseEnabled &&
       activeTab === 'integrations' &&
       canReadApiKeys &&
       (scopeKind === 'platform_global' ? canManagePlatformPrincipals : Boolean(effectiveSelectedEntityId)),
@@ -333,6 +337,7 @@ export function ApiKeysPage() {
       limit: 100,
     }),
     enabled:
+      enterpriseEnabled &&
       activeTab === 'integrations' &&
       canReadApiKeys &&
       Boolean(effectiveSelectedPrincipalId) &&
@@ -359,7 +364,11 @@ export function ApiKeysPage() {
       keyKind: inventoryKeyKindFilter === 'all' ? undefined : inventoryKeyKindFilter,
       search: inventorySearchText.trim() || undefined,
     }),
-    enabled: activeTab === 'inventory' && canReadApiKeys && Boolean(effectiveSelectedEntityId),
+    enabled:
+      enterpriseEnabled &&
+      activeTab === 'inventory' &&
+      canReadApiKeys &&
+      Boolean(effectiveSelectedEntityId),
   })
   const inventoryKeys = useMemo(
     () => inventoryQuery.data?.items ?? [],
@@ -379,7 +388,11 @@ export function ApiKeysPage() {
       page: 1,
       limit: 100,
     }),
-    enabled: activeTab === 'inventory' && canReadApiKeys && Boolean(effectiveSelectedEntityId),
+    enabled:
+      enterpriseEnabled &&
+      activeTab === 'inventory' &&
+      canReadApiKeys &&
+      Boolean(effectiveSelectedEntityId),
   })
   const inventoryPrincipalById = useMemo(
     () =>
@@ -523,8 +536,6 @@ export function ApiKeysPage() {
   }
 
   const pageError = sessionQuery.error ?? actorPermissionsQuery.error ?? authConfigQuery.error
-  const apiKeysEnabled = authConfigQuery.data?.features.api_keys ?? true
-  const enterpriseEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading system API keys workspace" />

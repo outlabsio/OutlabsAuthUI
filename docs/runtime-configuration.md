@@ -54,6 +54,15 @@ For quick local work, `.env.local` can still provide:
 
 The repo includes [`.env.example`](../.env.example) as a neutral reference.
 
+When local testing needs env vars to win over a checked-in or deployment-time
+`app-config.json`, set:
+
+- `VITE_RUNTIME_CONFIG_PRIORITY=env`
+
+That keeps the default precedence unchanged for normal builds, but lets local
+test harnesses like Playwright force a specific backend target without mutating
+`public/app-config.json`.
+
 ## Deployment Guidance
 
 - Keep consumer-specific targets out of committed source.

@@ -30,6 +30,10 @@ function ensureLeadingSlash(value: string) {
   return value.startsWith('/') ? value : `/${value}`
 }
 
+function shouldPreferEnvConfig() {
+  return import.meta.env.VITE_RUNTIME_CONFIG_PRIORITY?.trim().toLowerCase() === 'env'
+}
+
 const builtInDefaults: RuntimeConfig = {
   apiBaseUrl: 'http://localhost:8004',
   authApiPrefix: '/v1',
@@ -108,13 +112,23 @@ export async function initializeRuntimeConfig() {
   initializePromise = (async () => {
     const runtimeFileConfig = await readRuntimeFileConfig()
     const inlineRuntimeConfig = readInlineRuntimeConfig()
+    const preferEnvConfig = shouldPreferEnvConfig()
 
-    runtimeConfig = normalizeRuntimeConfig({
-      ...builtInDefaults,
-      ...readEnvConfig(),
-      ...runtimeFileConfig,
-      ...inlineRuntimeConfig,
-    })
+    runtimeConfig = normalizeRuntimeConfig(
+      preferEnvConfig
+        ? {
+            ...builtInDefaults,
+            ...runtimeFileConfig,
+            ...readEnvConfig(),
+            ...inlineRuntimeConfig,
+          }
+        : {
+            ...builtInDefaults,
+            ...readEnvConfig(),
+            ...runtimeFileConfig,
+            ...inlineRuntimeConfig,
+          }
+    )
 
     applyDocumentConfig(runtimeConfig)
     return runtimeConfig

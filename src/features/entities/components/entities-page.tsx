@@ -3,6 +3,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, FolderTree } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
@@ -119,6 +120,8 @@ export function EntitiesPage({
   const deferredRootScopeSearchValue = useDeferredValue(rootScopeSearchValue)
   const normalizedRootScopeSearchValue = deferredRootScopeSearchValue.trim()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
+  const entityHierarchyEnabled =
+    authConfigQuery.data?.features.entity_hierarchy ?? false
   const actorPermissionsQuery = useQuery({
     ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
     enabled: Boolean(sessionUser?.id),
@@ -130,12 +133,12 @@ export function EntitiesPage({
       rootOnly: true,
       search: normalizedRootScopeSearchValue || undefined,
     }),
-    enabled: isSuperuser,
+    enabled: entityHierarchyEnabled && isSuperuser,
     placeholderData: (previousData) => previousData,
   })
   const selectedEntityPathQuery = useQuery({
     ...getEntityPathQueryOptions(selectedEntityId ?? ''),
-    enabled: Boolean(selectedEntityId),
+    enabled: entityHierarchyEnabled && Boolean(selectedEntityId),
   })
 
   const actorPermissionNames = useMemo(
@@ -195,15 +198,18 @@ export function EntitiesPage({
 
   const activeRootQuery = useQuery({
     ...getEntityQueryOptions(activeRootId ?? ''),
-    enabled: Boolean(activeRootId),
+    enabled: entityHierarchyEnabled && Boolean(activeRootId),
   })
   const descendantsQuery = useQuery({
     ...getEntityDescendantsQueryOptions(activeRootId ?? ''),
-    enabled: Boolean(activeRootId),
+    enabled: entityHierarchyEnabled && Boolean(activeRootId),
   })
   const selectedEntityQuery = useQuery({
     ...getEntityQueryOptions(selectedEntityId ?? ''),
-    enabled: Boolean(selectedEntityId) && selectedEntityId !== activeRootId,
+    enabled:
+      entityHierarchyEnabled &&
+      Boolean(selectedEntityId) &&
+      selectedEntityId !== activeRootId,
   })
   const rootOptions = useMemo(
     () =>
@@ -400,6 +406,8 @@ export function EntitiesPage({
 
   const pageError =
     sessionQuery.error ??
+    actorPermissionsQuery.error ??
+    authConfigQuery.error ??
     (isSuperuser ? rootEntitiesQuery.error : null) ??
     activeRootQuery.error ??
     descendantsQuery.error
@@ -423,12 +431,27 @@ export function EntitiesPage({
 
   const isPageLoading =
     sessionQuery.isPending ||
+    actorPermissionsQuery.isPending ||
+    authConfigQuery.isPending ||
     (Boolean(activeRootId) &&
       ((activeRootQuery.isPending && !activeRootQuery.data) ||
         (descendantsQuery.isPending && !descendantsQuery.data)))
 
   if (isPageLoading && !pageErrorMessage) {
     return <AppLoadingState title="Loading entity workspace" />
+  }
+
+  if (!entityHierarchyEnabled) {
+    return (
+      <AppPage title="Entities" hideTitle padded>
+        <AppEmptyState
+          title="Entities workspace unavailable"
+          description="This backend does not advertise entity hierarchy support, so entity browsing and membership management are not available."
+          icon={<Building2 className="size-6" />}
+          compact
+        />
+      </AppPage>
+    )
   }
 
   function handleScopeRootChange(nextRootId: string) {
