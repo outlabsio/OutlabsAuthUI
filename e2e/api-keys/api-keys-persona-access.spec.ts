@@ -428,7 +428,7 @@ test.describe('API Key Persona Access Matrix', () => {
       const entityIds = await getFixtureEntityIds()
 
       await gotoApiKeysWorkspace(page)
-      await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
       await expect(page.getByText('Insufficient permissions')).toHaveCount(0)
 
       const accessToken = await getAccessToken(page)
@@ -524,7 +524,7 @@ test.describe('API Key Persona Access Matrix', () => {
       const entityIds = await getFixtureEntityIds()
 
       await gotoApiKeysWorkspace(page)
-      await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
 
       const accessToken = await getAccessToken(page)
       const permissionNames = await getPermissionNames(page, accessToken)
@@ -590,7 +590,7 @@ test.describe('API Key Persona Access Matrix', () => {
       const entityIds = await getFixtureEntityIds()
 
       await gotoApiKeysWorkspace(page)
-      await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
 
       const accessToken = await getAccessToken(page)
       const permissionNames = await getPermissionNames(page, accessToken)
@@ -663,7 +663,7 @@ test.describe('API Key Persona Access Matrix', () => {
       const entityIds = await getFixtureEntityIds()
 
       await gotoApiKeysWorkspace(page)
-      await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
 
       const accessToken = await getAccessToken(page)
 
@@ -702,7 +702,7 @@ test.describe('API Key Persona Access Matrix', () => {
 
       await gotoApiKeysWorkspace(page)
       await expect(page.getByText('Insufficient permissions')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Create integration' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Create service account' })).toHaveCount(0)
 
       const accessToken = await getAccessToken(page)
       const deniedPrincipalResult = await createEntityIntegrationPrincipal(
@@ -728,7 +728,7 @@ test.describe('API Key Persona Access Matrix', () => {
 
       await gotoApiKeysWorkspace(page)
       await expect(page.getByText('Insufficient permissions')).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Create integration' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Create service account' })).toHaveCount(0)
 
       const accessToken = await getAccessToken(page)
       const deniedPrincipalResult = await createEntityIntegrationPrincipal(
@@ -755,7 +755,7 @@ test.describe('API Key Persona Access Matrix', () => {
       const entityIds = await getFixtureEntityIds()
 
       await gotoApiKeysWorkspace(page)
-      await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
 
       const accessToken = await getAccessToken(page)
       const permissionNames = await getPermissionNames(page, accessToken)

@@ -43,7 +43,7 @@ async function typeIntoField(
 ) {
   const control = page.locator(selector)
   await expect(control).toBeVisible()
-  await control.click()
+  await control.scrollIntoViewIfNeeded()
   await control.fill(value)
   await expect(control).toHaveValue(value)
 }
@@ -71,48 +71,88 @@ async function selectComboboxOption(
     .click()
 }
 
-async function createEntityIntegrationPrincipal(
+async function toggleRole(
+  page: Parameters<typeof test>[0]['page'],
+  dialogName: string,
+  roleName: string,
+  checked: boolean
+) {
+  const dialog = page.getByRole('dialog', { name: dialogName })
+  const checkbox = dialog.getByRole('checkbox', { name: roleName }).first()
+
+  await expect(checkbox).toBeVisible()
+
+  if (checked) {
+    await checkbox.check()
+  } else {
+    await checkbox.uncheck()
+  }
+}
+
+async function setKeyAccessMode(
+  page: Parameters<typeof test>[0]['page'],
+  mode: 'full' | 'restricted'
+) {
+  const dialog = page.getByRole('dialog', {
+    name: /Create machine API key|Edit machine API key/,
+  })
+  const label = mode === 'full' ? 'Full service-account access' : 'Restricted access'
+  await dialog.getByText(label, { exact: true }).click()
+}
+
+async function selectRestrictedPermission(
+  page: Parameters<typeof test>[0]['page'],
+  permissionLabel: string
+) {
+  const dialog = page.getByRole('dialog', {
+    name: /Create machine API key|Edit machine API key/,
+  })
+  await dialog.getByRole('textbox', { name: 'Search role permissions' }).fill(permissionLabel)
+  await dialog.getByRole('checkbox', { name: permissionLabel }).check()
+}
+
+async function createEntityServiceAccount(
   page: Parameters<typeof test>[0]['page'],
   {
     entityName,
     principalName,
-    allowedScopes,
+    roleName,
   }: {
     entityName: string
     principalName: string
-    allowedScopes: string
+    roleName: string
   }
 ) {
   await gotoApiKeysWorkspace(page)
   await selectComboboxOption(page, '#api-keys-entity', entityName, entityName)
 
-  await page.getByRole('button', { name: 'Create integration' }).click()
+  await page.getByRole('button', { name: 'Create service account' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'Create integration principal' })
+  const dialog = page.getByRole('dialog', { name: 'Create service account' })
   await expect(dialog).toBeVisible()
 
   await typeIntoField(page, '#integration-principal-name', principalName)
   await typeIntoField(
     page,
     '#integration-principal-description',
-    'Created by Playwright to validate the EnterpriseRBAC integration-principal workflow.'
+    'Created by Playwright to validate the EnterpriseRBAC service-account workflow.'
   )
-  await typeIntoField(page, '#integration-principal-allowed-scopes', allowedScopes)
-  await dialog.getByRole('button', { name: 'Create integration' }).click()
+  await toggleRole(page, 'Create service account', roleName, true)
+  await dialog.getByRole('button', { name: 'Create service account' }).click()
 
   const createdRow = getIntegrationRow(page, principalName)
   await expect(createdRow).toBeVisible()
   await createdRow.click()
 }
 
-async function createPlatformGlobalIntegrationPrincipal(
+async function createPlatformGlobalServiceAccount(
   page: Parameters<typeof test>[0]['page'],
   {
     principalName,
-    allowedScopes,
+    roleName,
   }: {
     principalName: string
-    allowedScopes: string
+    roleName: string
   }
 ) {
   await gotoApiKeysWorkspace(page)
@@ -124,47 +164,56 @@ async function createPlatformGlobalIntegrationPrincipal(
     optionName: 'Platform global',
   })
 
-  await page.getByRole('button', { name: 'Create integration' }).click()
+  await page.getByRole('button', { name: 'Create service account' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'Create integration principal' })
+  const dialog = page.getByRole('dialog', { name: 'Create service account' })
   await expect(dialog).toBeVisible()
 
   await typeIntoField(page, '#integration-principal-name', principalName)
   await typeIntoField(
     page,
     '#integration-principal-description',
-    'Created by Playwright to validate the platform-global integration workflow.'
+    'Created by Playwright to validate the platform-global service-account workflow.'
   )
-  await typeIntoField(page, '#integration-principal-allowed-scopes', allowedScopes)
-  await dialog.getByRole('button', { name: 'Create integration' }).click()
+  await toggleRole(page, 'Create service account', roleName, true)
+  await dialog.getByRole('button', { name: 'Create service account' }).click()
 
   const createdRow = getIntegrationRow(page, principalName)
   await expect(createdRow).toBeVisible()
   await createdRow.click()
 }
 
-async function createSystemIntegrationKey(
+async function createMachineKey(
   page: Parameters<typeof test>[0]['page'],
   {
     keyName,
-    scopes,
+    accessMode,
+    permissionLabel,
   }: {
     keyName: string
-    scopes: string
+    accessMode: 'full' | 'restricted'
+    permissionLabel?: string
   }
 ) {
-  await page.locator('header').getByRole('button', { name: 'Create system key' }).click()
+  await page.locator('header').getByRole('button', { name: 'Create machine key' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'Create system integration key' })
+  const dialog = page.getByRole('dialog', { name: 'Create machine API key' })
   await expect(dialog).toBeVisible()
 
   await typeIntoField(page, '#system-api-key-name', keyName)
   await typeIntoField(
     page,
     '#system-api-key-description',
-    'Created by Playwright to validate system-key lifecycle behavior in the UI.'
+    'Created by Playwright to validate machine-key lifecycle behavior in the UI.'
   )
-  await typeIntoField(page, '#system-api-key-scopes', scopes)
+
+  if (accessMode === 'restricted') {
+    await setKeyAccessMode(page, 'restricted')
+    if (permissionLabel) {
+      await selectRestrictedPermission(page, permissionLabel)
+    }
+  }
+
   await dialog.getByRole('button', { name: 'Create key' }).click()
 
   const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
@@ -242,22 +291,23 @@ test.describe('API Keys Workspace', () => {
     await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible()
   })
 
-  test('admin can manage an entity integration principal and revoke its system key from inventory', async ({
+  test('admin can manage an entity service account and revoke its restricted machine key from inventory', async ({
     page,
   }) => {
     const timestamp = Date.now()
-    const principalName = `Playwright Entity Integration ${timestamp}`
+    const principalName = `Playwright Entity Service Account ${timestamp}`
     const keyName = `Playwright Entity Key ${timestamp}`
 
-    await createEntityIntegrationPrincipal(page, {
+    await createEntityServiceAccount(page, {
       entityName: 'San Francisco Office',
       principalName,
-      allowedScopes: 'entity:read_tree, lead:read_tree',
+      roleName: 'Office Manager',
     })
 
-    await createSystemIntegrationKey(page, {
+    await createMachineKey(page, {
       keyName,
-      scopes: 'entity:read_tree',
+      accessMode: 'restricted',
+      permissionLabel: 'Entity Read Tree',
     })
 
     await page.getByRole('button', { name: 'Rotate key' }).click()
@@ -269,11 +319,12 @@ test.describe('API Keys Workspace', () => {
     await expect(rotatedSecretDialog).toBeVisible()
     await rotatedSecretDialog.getByRole('button', { name: 'Done' }).click()
 
-    await page.getByRole('button', { name: 'Edit integration' }).click()
-    const editIntegrationDialog = page.getByRole('dialog', { name: 'Edit integration principal' })
-    await expect(editIntegrationDialog).toBeVisible()
-    await typeIntoField(page, '#integration-principal-allowed-scopes', 'lead:read_tree')
-    await editIntegrationDialog.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('button', { name: 'Edit service account' }).click()
+    const editServiceAccountDialog = page.getByRole('dialog', { name: 'Edit service account' })
+    await expect(editServiceAccountDialog).toBeVisible()
+    await toggleRole(page, 'Edit service account', 'Office Manager', false)
+    await toggleRole(page, 'Edit service account', 'Agent', true)
+    await editServiceAccountDialog.getByRole('button', { name: 'Save changes' }).click()
 
     await expect(page.getByText('Ineffective', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('No Effective Scopes', { exact: true })).toBeVisible()
@@ -298,25 +349,27 @@ test.describe('API Keys Workspace', () => {
     await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible()
   })
 
-  test('admin can create a platform-global integration principal and system key', async ({ page }) => {
+  test('admin can create a platform-global service account and inherited machine key', async ({ page }) => {
     const timestamp = Date.now()
-    const principalName = `Playwright Global Integration ${timestamp}`
+    const principalName = `Playwright Global Service Account ${timestamp}`
     const keyName = `Playwright Global Key ${timestamp}`
 
-    await createPlatformGlobalIntegrationPrincipal(page, {
+    await createPlatformGlobalServiceAccount(page, {
       principalName,
-      allowedScopes: 'entity:read_tree',
+      roleName: 'Service Reader',
     })
 
     await expect(page.getByText('Platform Global', { exact: true }).first()).toBeVisible()
 
-    await createSystemIntegrationKey(page, {
+    await createMachineKey(page, {
       keyName,
-      scopes: 'entity:read_tree',
+      accessMode: 'full',
     })
 
     await expect(page.getByText('Platform Global', { exact: true }).first()).toBeVisible()
-    await expect(page.getByText('entity:read_tree', { exact: true }).first()).toBeVisible()
+    await expect(
+      page.getByText('This key inherits all permissions from its service account.')
+    ).toBeVisible()
     await expect(page.getByText(keyName, { exact: true }).first()).toBeVisible()
   })
 })

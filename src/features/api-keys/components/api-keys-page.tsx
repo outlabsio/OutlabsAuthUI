@@ -81,6 +81,8 @@ import {
   getEntitiesQueryOptions,
   getEntityMembersQueryOptions,
 } from '@/features/entities/api/entities.query-options'
+import { getRolesForEntityQueryOptions, getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
+import type { Role } from '@/features/roles/types/roles.types'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { withMutationToast } from '@/lib/query/mutation-toast'
@@ -159,6 +161,14 @@ function formatOwnerType(ownerType?: ApiKey['owner_type'] | null) {
   }
 
   return formatToken(ownerType)
+}
+
+function describeKeyPermissions(apiKey: ApiKey, principal?: IntegrationPrincipal | null) {
+  if (apiKey.scopes.length > 0) {
+    return apiKey.scopes
+  }
+
+  return principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? []
 }
 
 function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
@@ -283,8 +293,8 @@ export function ApiKeysPage() {
     : scopeKind
   const pageTitle = simpleGlobalKeysEnabled ? 'API Keys' : 'System API Keys'
   const pageSummary = simpleGlobalKeysEnabled
-    ? 'Manage platform-global integration principals and principal-owned system keys for SimpleRBAC backends.'
-    : 'Manage EnterpriseRBAC integration principals, principal-owned system keys, and entity key inventory from one place.'
+    ? 'Manage platform-global service accounts and machine API keys for SimpleRBAC backends.'
+    : 'Manage EnterpriseRBAC service accounts, machine API keys, and entity key inventory from one place.'
   const loadingTitle = simpleGlobalKeysEnabled
     ? 'Loading API keys workspace'
     : 'Loading system API keys workspace'
@@ -300,6 +310,40 @@ export function ApiKeysPage() {
       : preferredEntityId
   const selectedEntity =
     entityOptions.find((entity) => entity.id === effectiveSelectedEntityId) ?? null
+
+  const platformRolesQuery = useQuery({
+    ...getRolesQueryOptions({
+      page: 1,
+      limit: 100,
+      isGlobal: true,
+    }),
+    enabled:
+      supportsSystemKeysWorkspace &&
+      canReadApiKeys &&
+      canManagePlatformPrincipals &&
+      effectiveScopeKind === 'platform_global',
+  })
+  const entityRolesQuery = useQuery({
+    ...getRolesForEntityQueryOptions(effectiveSelectedEntityId, {
+      page: 1,
+      limit: 100,
+    }),
+    enabled:
+      supportsSystemKeysWorkspace &&
+      canReadApiKeys &&
+      Boolean(effectiveSelectedEntityId) &&
+      effectiveScopeKind === 'entity',
+  })
+  const availableRolesQuery =
+    effectiveScopeKind === 'platform_global' ? platformRolesQuery : entityRolesQuery
+  const availableRoles = useMemo(
+    () => availableRolesQuery.data?.items ?? [],
+    [availableRolesQuery.data?.items]
+  )
+  const roleById = useMemo(
+    () => new Map(availableRoles.map((role) => [role.id, role])),
+    [availableRoles]
+  )
 
   const membersQuery = useQuery({
     ...getEntityMembersQueryOptions(effectiveSelectedEntityId, {
@@ -346,6 +390,13 @@ export function ApiKeysPage() {
       : integrationPrincipals[0]?.id ?? null
   const activePrincipal =
     integrationPrincipals.find((principal) => principal.id === effectiveSelectedPrincipalId) ?? null
+  const activePrincipalRoles = useMemo(
+    () =>
+      (activePrincipal?.role_ids ?? [])
+        .map((roleId) => roleById.get(roleId))
+        .filter((role): role is Role => Boolean(role)),
+    [activePrincipal?.role_ids, roleById]
+  )
 
   const principalKeysQuery = useQuery({
     ...getIntegrationPrincipalApiKeysQueryOptions({
@@ -622,7 +673,7 @@ export function ApiKeysPage() {
             }
           >
             <KeyRound className="size-4" />
-            Create system key
+            Create machine key
           </Button>
         ) : null}
         {canCreateApiKeys ? (
@@ -642,7 +693,7 @@ export function ApiKeysPage() {
             }
           >
             <ShieldAlert className="size-4" />
-            Create integration
+            Create service account
           </Button>
         ) : null}
       </div>
@@ -702,8 +753,8 @@ export function ApiKeysPage() {
                         </div>
                       ) : (
                         <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                          SimpleRBAC exposes one admin-managed API key model: platform-global
-                          integration principals with principal-owned system keys.
+                          SimpleRBAC exposes one admin-managed machine-credential model:
+                          platform-global service accounts with owned API keys.
                         </div>
                       )}
 
@@ -771,7 +822,7 @@ export function ApiKeysPage() {
                     </div>
                   ) : effectiveScopeKind === 'entity' && !effectiveSelectedEntityId ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                      Select an entity to load integration principals.
+                      Select an entity to load service accounts.
                     </div>
                   ) : (
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
@@ -779,11 +830,11 @@ export function ApiKeysPage() {
                         <CardHeader className="gap-3">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="space-y-1">
-                              <CardTitle className="text-xl">Integration principals</CardTitle>
+                              <CardTitle className="text-xl">Service accounts</CardTitle>
                               <div className="text-sm text-muted-foreground">
                                 {effectiveScopeKind === 'entity'
                                   ? selectedEntity?.pathLabel ?? 'Selected entity scope'
-                                  : 'Platform-global integrations'}
+                                  : 'Platform-global machine principals'}
                               </div>
                             </div>
                             <Badge variant="outline">
@@ -792,12 +843,12 @@ export function ApiKeysPage() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="integration-principal-search">Search</Label>
-                            <Input
-                              id="integration-principal-search"
-                              placeholder="Search integration names"
-                              value={principalSearchText}
-                              onChange={(event) => {
-                                setPrincipalSearchText(event.target.value)
+                              <Input
+                                id="integration-principal-search"
+                                placeholder="Search service-account names"
+                                value={principalSearchText}
+                                onChange={(event) => {
+                                  setPrincipalSearchText(event.target.value)
                                 setSelectedPrincipalId(null)
                                 setSelectedPrincipalKeyId(null)
                               }}
@@ -806,17 +857,17 @@ export function ApiKeysPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {integrationPrincipalsQuery.isLoading ? (
-                            <AppLoadingState title="Loading integration principals" />
+                            <AppLoadingState title="Loading service accounts" />
                           ) : integrationPrincipalsQuery.isError ? (
                             <AppErrorState>
                               {getApiErrorMessage(
                                 integrationPrincipalsQuery.error,
-                                'The integration principal list could not be loaded.'
+                                'The service-account list could not be loaded.'
                               )}
                             </AppErrorState>
                           ) : integrationPrincipals.length === 0 ? (
                             <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                              No integration principals match the current scope and search.
+                              No service accounts match the current scope and search.
                             </div>
                           ) : (
                             <Table>
@@ -824,7 +875,8 @@ export function ApiKeysPage() {
                                 <TableRow>
                                   <TableHead>Name</TableHead>
                                   <TableHead>Status</TableHead>
-                                  <TableHead>Allowed scopes</TableHead>
+                                  <TableHead>Roles</TableHead>
+                                  <TableHead>Permissions</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -854,7 +906,8 @@ export function ApiKeysPage() {
                                           {formatToken(principal.status)}
                                         </AppStatusBadge>
                                       </TableCell>
-                                      <TableCell>{principal.allowed_scopes.length}</TableCell>
+                                      <TableCell>{principal.role_ids.length}</TableCell>
+                                      <TableCell>{principal.effective_allowed_scopes.length}</TableCell>
                                     </TableRow>
                                   )
                                 })}
@@ -868,16 +921,16 @@ export function ApiKeysPage() {
                         <Card>
                           <CardHeader className="gap-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div className="space-y-1">
-                                <CardTitle className="text-xl">
-                                  {activePrincipal ? activePrincipal.name : 'Integration details'}
-                                </CardTitle>
-                                <div className="text-sm text-muted-foreground">
+                            <div className="space-y-1">
+                              <CardTitle className="text-xl">
+                                  {activePrincipal ? activePrincipal.name : 'Service-account details'}
+                              </CardTitle>
+                              <div className="text-sm text-muted-foreground">
                                   {activePrincipal
-                                    ? 'Inspect the principal envelope, lifecycle, and owned keys.'
-                                    : 'Select an integration principal to inspect its details.'}
-                                </div>
+                                    ? 'Inspect roles, derived permissions, lifecycle, and owned keys.'
+                                    : 'Select a service account to inspect its details.'}
                               </div>
+                            </div>
                               {activePrincipal ? (
                                 <div className="flex flex-wrap gap-2">
                                   <AppStatusBadge tone={getPrincipalStatusTone(activePrincipal.status)}>
@@ -893,7 +946,7 @@ export function ApiKeysPage() {
                           <CardContent className="space-y-4">
                             {!activePrincipal ? (
                               <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                Select a principal from the table to inspect its details.
+                                Select a service account from the table to inspect its details.
                               </div>
                             ) : (
                               <>
@@ -934,16 +987,50 @@ export function ApiKeysPage() {
 
                                   <div>
                                     <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                      Allowed scopes
+                                      Assigned roles
                                     </div>
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                      {activePrincipal.allowed_scopes.map((scope) => (
+                                      {activePrincipalRoles.length > 0 ? (
+                                        activePrincipalRoles.map((role) => (
+                                          <Badge key={role.id} variant="outline">
+                                            {role.display_name}
+                                          </Badge>
+                                        ))
+                                      ) : (
+                                        <span className="text-sm text-muted-foreground">
+                                          No roles assigned.
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                      Derived permissions
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {activePrincipal.effective_allowed_scopes.map((scope) => (
                                         <Badge key={scope} variant="secondary">
                                           {scope}
                                         </Badge>
                                       ))}
                                     </div>
                                   </div>
+
+                                  {activePrincipal.allowed_scopes.length > 0 ? (
+                                    <div>
+                                      <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                        Legacy direct permissions
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {activePrincipal.allowed_scopes.map((scope) => (
+                                          <Badge key={scope} variant="outline">
+                                            {scope}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : null}
 
                                   <div className="grid gap-2 sm:grid-cols-2">
                                     <div className="text-sm text-muted-foreground">
@@ -968,7 +1055,7 @@ export function ApiKeysPage() {
                                         })
                                       }
                                     >
-                                      Edit integration
+                                      Edit service account
                                     </Button>
                                   ) : null}
                                   {canCreateApiKeys ? (
@@ -985,7 +1072,7 @@ export function ApiKeysPage() {
                                       }
                                     >
                                       <KeyRound className="size-4" />
-                                      Create system key
+                                      Create machine key
                                     </Button>
                                   ) : null}
                                   {canDeleteApiKeys ? (
@@ -996,7 +1083,7 @@ export function ApiKeysPage() {
                                       onClick={() => setArchivePrincipalTarget(activePrincipal)}
                                     >
                                       <Trash2 className="size-4" />
-                                      Archive integration
+                                      Archive service account
                                     </Button>
                                   ) : null}
                                 </div>
@@ -1008,12 +1095,12 @@ export function ApiKeysPage() {
                         <Card>
                           <CardHeader className="gap-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div className="space-y-1">
-                                <CardTitle className="text-xl">System keys</CardTitle>
+                            <div className="space-y-1">
+                                <CardTitle className="text-xl">Machine keys</CardTitle>
                                 <div className="text-sm text-muted-foreground">
                                   {activePrincipal
-                                    ? 'Manage keys owned by the selected integration principal.'
-                                    : 'Select an integration principal to load its keys.'}
+                                    ? 'Manage keys owned by the selected service account.'
+                                    : 'Select a service account to load its keys.'}
                                 </div>
                               </div>
                               <Badge variant="outline">
@@ -1024,20 +1111,20 @@ export function ApiKeysPage() {
                           <CardContent className="space-y-4">
                             {!activePrincipal ? (
                               <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                Select a principal to load its keys.
+                                Select a service account to load its keys.
                               </div>
                             ) : principalKeysQuery.isLoading ? (
-                              <AppLoadingState title="Loading system integration keys" />
+                              <AppLoadingState title="Loading machine keys" />
                             ) : principalKeysQuery.isError ? (
                               <AppErrorState>
                                 {getApiErrorMessage(
                                   principalKeysQuery.error,
-                                  'The integration-principal key list could not be loaded.'
+                                  'The service-account key list could not be loaded.'
                                 )}
                               </AppErrorState>
                             ) : principalKeys.length === 0 ? (
                               <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                No keys exist for this integration principal yet.
+                                No keys exist for this service account yet.
                               </div>
                             ) : (
                               <>
@@ -1124,15 +1211,26 @@ export function ApiKeysPage() {
 
                                     <div>
                                       <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        Scopes
+                                        Effective permissions
                                       </div>
                                       <div className="mt-2 flex flex-wrap gap-2">
-                                        {activePrincipalKey.scopes.map((scope) => (
-                                          <Badge key={scope} variant="secondary">
-                                            {scope}
-                                          </Badge>
-                                        ))}
+                                        {describeKeyPermissions(activePrincipalKey, activePrincipal).length > 0 ? (
+                                          describeKeyPermissions(activePrincipalKey, activePrincipal).map((scope) => (
+                                            <Badge key={scope} variant="secondary">
+                                              {scope}
+                                            </Badge>
+                                          ))
+                                        ) : (
+                                          <span className="text-sm text-muted-foreground">
+                                            No effective permissions.
+                                          </span>
+                                        )}
                                       </div>
+                                      {activePrincipalKey.scopes.length === 0 ? (
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                          This key inherits all permissions from its service account.
+                                        </div>
+                                      ) : null}
                                     </div>
 
                                     <div>
@@ -1517,14 +1615,20 @@ export function ApiKeysPage() {
 
                                   <div>
                                     <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                      Scopes
+                                      Stored permissions
                                     </div>
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                      {activeInventoryKey.scopes.map((scope) => (
-                                        <Badge key={scope} variant="secondary">
-                                          {scope}
-                                        </Badge>
-                                      ))}
+                                      {activeInventoryKey.scopes.length > 0 ? (
+                                        activeInventoryKey.scopes.map((scope) => (
+                                          <Badge key={scope} variant="secondary">
+                                            {scope}
+                                          </Badge>
+                                        ))
+                                      ) : (
+                                        <span className="text-sm text-muted-foreground">
+                                          This key inherits all permissions from its owner.
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 
@@ -1534,7 +1638,7 @@ export function ApiKeysPage() {
                                     </div>
                                     {activeInventoryKey.is_currently_effective ? (
                                       <div className="mt-1 text-sm text-muted-foreground">
-                                        The key is currently effective for its stored scope set.
+                                        The key is currently effective for its stored permission set.
                                       </div>
                                     ) : (
                                       <div className="mt-2 flex flex-wrap gap-2">
@@ -1713,10 +1817,10 @@ export function ApiKeysPage() {
       <Dialog open={Boolean(archivePrincipalTarget)} onOpenChange={(open) => !open && setArchivePrincipalTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Archive integration principal</DialogTitle>
+            <DialogTitle>Archive service account</DialogTitle>
             <DialogDescription>
-              Archiving this integration principal revokes its active keys and removes it from
-              normal create/update flows.
+              Archiving this service account revokes its active keys and removes it from normal
+              create/update flows.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1740,7 +1844,7 @@ export function ApiKeysPage() {
                 }
               }}
             >
-              {archivePrincipalMutation.isPending ? 'Archiving...' : 'Archive integration'}
+              {archivePrincipalMutation.isPending ? 'Archiving...' : 'Archive service account'}
             </Button>
           </DialogFooter>
         </DialogContent>

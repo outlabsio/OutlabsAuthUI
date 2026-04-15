@@ -107,6 +107,8 @@ export type IntegrationPrincipal = {
   anchor_entity_id?: string | null
   inherit_from_tree: boolean
   allowed_scopes: string[]
+  effective_allowed_scopes: string[]
+  role_ids: string[]
   created_by_user_id?: string | null
   created_at: string
   updated_at: string
@@ -129,6 +131,7 @@ export type CreateIntegrationPrincipalInput = {
   name: string
   description?: string | null
   allowed_scopes: string[]
+  role_ids?: string[]
   inherit_from_tree?: boolean
 }
 
@@ -140,6 +143,7 @@ export type UpdateIntegrationPrincipalInput = {
   description?: string | null
   status?: Exclude<IntegrationPrincipalStatus, 'archived'>
   allowed_scopes?: string[]
+  role_ids?: string[]
   inherit_from_tree?: boolean
 }
 

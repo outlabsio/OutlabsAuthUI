@@ -94,10 +94,10 @@ test.describe('Simple RBAC App Shell', () => {
     await expect(page.getByRole('heading', { name: 'API Keys' })).toBeVisible()
     await expect(
       page.getByText(
-        'SimpleRBAC exposes one admin-managed API key model: platform-global integration principals with principal-owned system keys.'
+        'SimpleRBAC exposes one admin-managed machine-credential model: platform-global service accounts with owned API keys.'
       )
     ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Create integration' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create service account' })).toBeVisible()
 
     await page.goto('/app/users')
     await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)

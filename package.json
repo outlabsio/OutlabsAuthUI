@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "test:e2e:account": "playwright test e2e/account/account-workspace.spec.ts",
     "test:e2e:app": "playwright test e2e/app",
-    "test:e2e:api-keys": "playwright test e2e/api-keys",
+    "test:e2e:api-keys": "playwright test e2e/api-keys/api-keys-workspace.spec.ts e2e/api-keys/api-keys-persona-access.spec.ts",
     "test:e2e:auth": "playwright test e2e/auth/auth-flow.spec.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",

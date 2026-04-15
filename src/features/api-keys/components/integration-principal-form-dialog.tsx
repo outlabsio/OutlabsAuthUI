@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Checkbox } from '@/components/ui/checkbox'
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,14 +36,17 @@ import type {
   IntegrationPrincipal,
   IntegrationPrincipalScopeKind,
 } from '@/features/api-keys/types/api-keys.types'
-import { formatDelimitedValues, parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
+import { getRolesForEntityQueryOptions, getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
+import type { Role } from '@/features/roles/types/roles.types'
+import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { withMutationToast } from '@/lib/query/mutation-toast'
 
 const integrationPrincipalFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(200),
   description: z.string().trim().max(1000),
-  allowedScopesText: z.string().trim().min(1, 'Enter at least one allowed scope.'),
+  roleIds: z.array(z.string()),
   status: z.enum(['active', 'inactive']),
   inheritFromTree: z.boolean(),
 })
@@ -62,6 +65,12 @@ type IntegrationPrincipalFormDialogProps = {
   onUpdated: (principal: IntegrationPrincipal) => void
 }
 
+function buildDerivedPermissions(selectedRoles: Role[], legacyScopes: string[]) {
+  return [...new Set([...selectedRoles.flatMap((role) => role.permissions), ...legacyScopes])].sort(
+    (left, right) => left.localeCompare(right)
+  )
+}
+
 export function IntegrationPrincipalFormDialog({
   open,
   mode,
@@ -74,12 +83,13 @@ export function IntegrationPrincipalFormDialog({
   onUpdated,
 }: IntegrationPrincipalFormDialogProps) {
   const queryClient = useQueryClient()
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false)
   const form = useForm<IntegrationPrincipalFormValues>({
     resolver: zodResolver(integrationPrincipalFormSchema),
     defaultValues: {
       name: '',
       description: '',
-      allowedScopesText: '',
+      roleIds: [],
       status: 'active',
       inheritFromTree: false,
     },
@@ -90,34 +100,79 @@ export function IntegrationPrincipalFormDialog({
       return
     }
 
+    setShowSelectedOnly(false)
     form.reset({
       name: principal?.name ?? '',
       description: principal?.description ?? '',
-      allowedScopesText: formatDelimitedValues(principal?.allowed_scopes),
+      roleIds: principal?.role_ids ?? [],
       status: principal?.status === 'inactive' ? 'inactive' : 'active',
       inheritFromTree: principal?.inherit_from_tree ?? false,
     })
   }, [form, open, principal])
 
+  const platformRolesQuery = useQuery({
+    ...getRolesQueryOptions({
+      page: 1,
+      limit: 100,
+      isGlobal: true,
+    }),
+    enabled: open && scopeKind === 'platform_global',
+  })
+  const entityRolesQuery = useQuery({
+    ...getRolesForEntityQueryOptions(entityId ?? '', {
+      page: 1,
+      limit: 100,
+    }),
+    enabled: open && scopeKind === 'entity' && Boolean(entityId),
+  })
+  const rolesQuery = scopeKind === 'platform_global' ? platformRolesQuery : entityRolesQuery
+
+  const availableRoles = useMemo(() => rolesQuery.data?.items ?? [], [rolesQuery.data?.items])
+  const roleById = useMemo(
+    () => new Map(availableRoles.map((role) => [role.id, role])),
+    [availableRoles]
+  )
+  const selectedRoleIds = form.watch('roleIds')
+  const selectedRoles = useMemo(
+    () =>
+      selectedRoleIds
+        .map((roleId) => roleById.get(roleId))
+        .filter((role): role is Role => Boolean(role)),
+    [roleById, selectedRoleIds]
+  )
+  const legacyDirectPermissions = principal?.allowed_scopes ?? []
+  const derivedPermissions = useMemo(
+    () => buildDerivedPermissions(selectedRoles, legacyDirectPermissions),
+    [legacyDirectPermissions, selectedRoles]
+  )
+  const missingRoleIds = useMemo(
+    () => selectedRoleIds.filter((roleId) => !roleById.has(roleId)),
+    [roleById, selectedRoleIds]
+  )
+
   const mutation = useMutation({
     mutationKey: apiKeysKeys.all,
     mutationFn: async (values: IntegrationPrincipalFormValues) => {
-      const allowedScopes = parseDelimitedValues(values.allowedScopesText)
+      const trimmedName = values.name.trim()
+      const trimmedDescription = values.description.trim() || null
+      const hasRoleSelection = values.roleIds.length > 0
+      const hasLegacyPermissions = legacyDirectPermissions.length > 0
 
-      if (allowedScopes.length === 0) {
-        form.setError('allowedScopesText', {
-          message: 'Enter at least one allowed scope.',
+      if (!hasRoleSelection && !hasLegacyPermissions) {
+        form.setError('roleIds', {
+          message: 'Assign at least one role to define the service-account envelope.',
         })
-        throw new Error('allowed scopes required')
+        throw new Error('role selection required')
       }
 
       if (mode === 'create') {
         return createIntegrationPrincipal({
           scopeKind,
           entityId,
-          name: values.name.trim(),
-          description: values.description.trim() || null,
-          allowed_scopes: allowedScopes,
+          name: trimmedName,
+          description: trimmedDescription,
+          role_ids: values.roleIds,
+          allowed_scopes: [],
           inherit_from_tree: scopeKind === 'entity' ? values.inheritFromTree : false,
         })
       }
@@ -130,22 +185,19 @@ export function IntegrationPrincipalFormDialog({
         scopeKind,
         entityId,
         principalId: principal.id,
-        name: values.name.trim(),
-        description: values.description.trim() || null,
+        name: trimmedName,
+        description: trimmedDescription,
         status: values.status,
-        allowed_scopes: allowedScopes,
+        role_ids: values.roleIds,
         inherit_from_tree: scopeKind === 'entity' ? values.inheritFromTree : false,
       })
     },
     meta: withMutationToast({
       error:
         mode === 'create'
-          ? 'The integration principal could not be created.'
-          : 'The integration principal could not be updated.',
-      success:
-        mode === 'create'
-          ? 'Integration principal created.'
-          : 'Integration principal updated.',
+          ? 'The service account could not be created.'
+          : 'The service account could not be updated.',
+      success: mode === 'create' ? 'Service account created.' : 'Service account updated.',
       skipErrorToast: true,
     }),
     onSuccess: async (result) => {
@@ -165,8 +217,8 @@ export function IntegrationPrincipalFormDialog({
     ? getApiErrorMessage(
         mutation.error,
         mode === 'create'
-          ? 'The integration principal could not be created.'
-          : 'The integration principal could not be updated.'
+          ? 'The service account could not be created.'
+          : 'The service account could not be updated.'
       )
     : null
 
@@ -174,15 +226,14 @@ export function IntegrationPrincipalFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Create integration principal' : 'Edit integration principal'}
+            {mode === 'create' ? 'Create service account' : 'Edit service account'}
           </DialogTitle>
           <DialogDescription>
-            {scopeKind === 'entity'
-              ? 'Define a durable non-human integration for the selected entity tree. Backend policy still validates grantability and system-key scope rules when you save.'
-              : 'Define a platform-global integration principal. This surface is superuser-only and is intended for global external integrations rather than internal service tokens.'}
+            Assign roles to define this machine principal. Keys created for the service account
+            inherit its derived permissions by default and can optionally be narrowed later.
           </DialogDescription>
         </DialogHeader>
 
@@ -215,7 +266,7 @@ export function IntegrationPrincipalFormDialog({
               <Label htmlFor="integration-principal-name">Name</Label>
               <Input
                 id="integration-principal-name"
-                placeholder="Office sync worker"
+                placeholder="Scraping Workers"
                 disabled={isPending}
                 {...form.register('name')}
               />
@@ -227,7 +278,7 @@ export function IntegrationPrincipalFormDialog({
               <Textarea
                 id="integration-principal-description"
                 rows={3}
-                placeholder="What this integration does and who operates it."
+                placeholder="What this service account does and where its keys are used."
                 disabled={isPending}
                 {...form.register('description')}
               />
@@ -273,7 +324,7 @@ export function IntegrationPrincipalFormDialog({
                         onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                         disabled={isPending}
                       />
-                      <span>Allow keys under this principal to inherit descendant entity access.</span>
+                      <span>Allow descendant entity access for inherited key evaluations.</span>
                     </label>
                   )}
                 />
@@ -281,20 +332,124 @@ export function IntegrationPrincipalFormDialog({
               </div>
             ) : null}
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="integration-principal-allowed-scopes">Allowed scopes</Label>
-              <Textarea
-                id="integration-principal-allowed-scopes"
-                rows={5}
-                placeholder="entity:read, membership:read"
-                disabled={isPending}
-                {...form.register('allowedScopesText')}
-              />
-              <div className="text-xs text-muted-foreground">
-                Separate scopes with commas or new lines. The backend validates actor authority,
-                system-key allowlists, and scope boundaries when you save.
+            <div className="space-y-3 sm:col-span-2">
+              <div className="space-y-1">
+                <Label>Assigned roles</Label>
+                <p className="text-xs text-muted-foreground">
+                  Roles define the service-account envelope. A key can inherit all derived
+                  permissions or restrict itself to a subset later.
+                </p>
               </div>
-              <FieldError errors={[form.formState.errors.allowedScopesText]} />
+
+              {rolesQuery.isLoading ? (
+                <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                  Loading available roles…
+                </div>
+              ) : rolesQuery.isError ? (
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {getApiErrorMessage(rolesQuery.error, 'The role catalog could not be loaded.')}
+                </div>
+              ) : (
+                <AssignableRolesTable
+                  roles={availableRoles}
+                  emptyMessage="No roles are available for this scope."
+                  selectedRoleIds={selectedRoleIds}
+                  showSelectedOnly={showSelectedOnly}
+                  onShowSelectedOnlyChange={setShowSelectedOnly}
+                  onRoleToggle={(roleId, checked) => {
+                    const nextRoleIds = checked
+                      ? [...new Set([...selectedRoleIds, roleId])]
+                      : selectedRoleIds.filter((selectedRoleId) => selectedRoleId !== roleId)
+
+                    form.setValue('roleIds', nextRoleIds, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  disabled={isPending}
+                />
+              )}
+              <FieldError errors={[form.formState.errors.roleIds]} />
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="space-y-3 rounded-2xl border px-4 py-4">
+              <div>
+                <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Role envelope
+                </div>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {selectedRoles.length > 0 ? (
+                    selectedRoles.map((role) => (
+                      <Badge key={role.id} variant="outline">
+                        {role.display_name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      No roles selected yet.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {missingRoleIds.length > 0 ? (
+                <div className="rounded-xl border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning-foreground">
+                  {missingRoleIds.length} previously assigned role
+                  {missingRoleIds.length === 1 ? '' : 's'} could not be resolved in the current
+                  catalog.
+                </div>
+              ) : null}
+
+              {legacyDirectPermissions.length > 0 ? (
+                <div>
+                  <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Legacy direct permissions
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {legacyDirectPermissions.map((scope) => (
+                      <Badge key={scope} variant="secondary">
+                        {scope}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    These legacy direct permissions remain in force for compatibility, but new
+                    service-account access should be role-backed.
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-3 rounded-2xl border px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Derived permissions
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    These are the permissions owned by the service account before any key-level
+                    restriction is applied.
+                  </div>
+                </div>
+                <Badge variant="outline">{derivedPermissions.length} permissions</Badge>
+              </div>
+
+              <div className="flex max-h-48 flex-wrap gap-2 overflow-auto pr-1">
+                {derivedPermissions.length > 0 ? (
+                  derivedPermissions.map((scope) => (
+                    <Badge key={scope} variant="secondary">
+                      {formatRoleToken(scope)}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Select one or more roles to preview the derived permissions.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -319,7 +474,7 @@ export function IntegrationPrincipalFormDialog({
                   ? 'Creating...'
                   : 'Saving...'
                 : mode === 'create'
-                  ? 'Create integration'
+                  ? 'Create service account'
                   : 'Save changes'}
             </Button>
           </DialogFooter>

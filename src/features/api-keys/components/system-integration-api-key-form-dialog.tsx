@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +19,10 @@ import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@/components/ui/radio-group'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -37,14 +41,18 @@ import type {
   IntegrationPrincipal,
   IntegrationPrincipalScopeKind,
 } from '@/features/api-keys/types/api-keys.types'
-import { formatDelimitedValues, parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import { parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import { RolePermissionsPicker } from '@/features/roles/components/role-permissions-picker'
+import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
+import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { withMutationToast } from '@/lib/query/mutation-toast'
 
 const systemIntegrationApiKeyFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(200),
   description: z.string().trim().max(1000),
-  scopesText: z.string().trim().min(1, 'Enter at least one scope.'),
+  accessMode: z.enum(['full', 'restricted']),
+  selectedScopes: z.array(z.string()),
   ipWhitelistText: z.string(),
   prefixType: z.string().trim().min(1, 'Prefix type is required.'),
   rateLimitPerMinute: z.coerce
@@ -79,6 +87,21 @@ type SystemIntegrationApiKeyFormDialogProps = {
   onUpdated: (apiKey: ApiKey) => void
 }
 
+function buildPermissionOptions(permissionNames: string[]): RolePermissionOption[] {
+  return permissionNames
+    .map((permissionName) => {
+      const resource = permissionName.split(':')[0] || 'general'
+
+      return {
+        name: permissionName,
+        label: formatRoleToken(permissionName),
+        resource,
+        description: null,
+      }
+    })
+    .sort((left, right) => left.label.localeCompare(right.label))
+}
+
 export function SystemIntegrationApiKeyFormDialog({
   open,
   mode,
@@ -92,6 +115,13 @@ export function SystemIntegrationApiKeyFormDialog({
   onUpdated,
 }: SystemIntegrationApiKeyFormDialogProps) {
   const queryClient = useQueryClient()
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false)
+  const [visiblePermissionCount, setVisiblePermissionCount] = useState(0)
+  const principalAllowedScopes = principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? []
+  const permissionOptions = useMemo(
+    () => buildPermissionOptions(principalAllowedScopes),
+    [principalAllowedScopes]
+  )
   const form = useForm<
     SystemIntegrationApiKeyFormInput,
     unknown,
@@ -101,7 +131,8 @@ export function SystemIntegrationApiKeyFormDialog({
     defaultValues: {
       name: '',
       description: '',
-      scopesText: '',
+      accessMode: 'full',
+      selectedScopes: [],
       ipWhitelistText: '',
       prefixType: 'sk_live',
       rateLimitPerMinute: 60,
@@ -115,17 +146,22 @@ export function SystemIntegrationApiKeyFormDialog({
       return
     }
 
+    setShowSelectedOnly(false)
     form.reset({
       name: apiKey?.name ?? '',
       description: apiKey?.description ?? '',
-      scopesText: formatDelimitedValues(apiKey?.scopes),
-      ipWhitelistText: formatDelimitedValues(apiKey?.ip_whitelist),
+      accessMode: apiKey && apiKey.scopes.length > 0 ? 'restricted' : 'full',
+      selectedScopes: apiKey?.scopes ?? [],
+      ipWhitelistText: (apiKey?.ip_whitelist ?? []).join('\n'),
       prefixType: 'sk_live',
       rateLimitPerMinute: apiKey?.rate_limit_per_minute ?? 60,
       expiresInDays: '',
       status: apiKey?.status === 'suspended' ? 'suspended' : 'active',
     })
   }, [apiKey, form, open])
+
+  const accessMode = form.watch('accessMode')
+  const selectedScopes = form.watch('selectedScopes')
 
   const mutation = useMutation({
     mutationKey: apiKeysKeys.all,
@@ -134,13 +170,13 @@ export function SystemIntegrationApiKeyFormDialog({
         throw new Error('integration principal missing')
       }
 
-      const scopes = parseDelimitedValues(values.scopesText)
+      const scopes = values.accessMode === 'full' ? [] : values.selectedScopes
 
-      if (scopes.length === 0) {
-        form.setError('scopesText', {
-          message: 'Enter at least one scope.',
+      if (values.accessMode === 'restricted' && scopes.length === 0) {
+        form.setError('selectedScopes', {
+          message: 'Choose at least one permission or use full access.',
         })
-        throw new Error('scopes required')
+        throw new Error('restricted scopes required')
       }
 
       const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
@@ -181,12 +217,12 @@ export function SystemIntegrationApiKeyFormDialog({
     meta: withMutationToast({
       error:
         mode === 'create'
-          ? 'The system integration key could not be created.'
-          : 'The system integration key could not be updated.',
+          ? 'The machine API key could not be created.'
+          : 'The machine API key could not be updated.',
       success:
         mode === 'create'
-          ? 'System integration key created.'
-          : 'System integration key updated.',
+          ? 'Machine API key created.'
+          : 'Machine API key updated.',
       skipErrorToast: true,
     }),
     onSuccess: async (result) => {
@@ -206,8 +242,8 @@ export function SystemIntegrationApiKeyFormDialog({
     ? getApiErrorMessage(
         mutation.error,
         mode === 'create'
-          ? 'The system integration key could not be created.'
-          : 'The system integration key could not be updated.'
+          ? 'The machine API key could not be created.'
+          : 'The machine API key could not be updated.'
       )
     : null
 
@@ -215,14 +251,14 @@ export function SystemIntegrationApiKeyFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Create system integration key' : 'Edit system integration key'}
+            {mode === 'create' ? 'Create machine API key' : 'Edit machine API key'}
           </DialogTitle>
           <DialogDescription>
-            Create or update a principal-owned system key. Backend policy validates the selected
-            scopes against the principal envelope, system-key allowlist, and actor authority.
+            Create or update a service-account-owned key. Full access inherits every permission
+            from the service account envelope; restricted access narrows the key to a subset.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,10 +274,10 @@ export function SystemIntegrationApiKeyFormDialog({
         >
           <div className="rounded-2xl border bg-muted/20 px-4 py-3">
             <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Principal envelope
+              Service-account envelope
             </div>
             <div className="mt-1 text-sm font-medium">
-              {principal?.name ?? 'Select an integration principal first'}
+              {principal?.name ?? 'Select a service account first'}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge variant="outline">
@@ -250,16 +286,21 @@ export function SystemIntegrationApiKeyFormDialog({
               {scopeKind === 'entity' && entityLabel ? (
                 <Badge variant="outline">{entityLabel}</Badge>
               ) : null}
+              <Badge variant="outline">{principalAllowedScopes.length} permissions</Badge>
             </div>
-            {principal?.allowed_scopes?.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {principal.allowed_scopes.map((scope) => (
+            <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-auto pr-1">
+              {principalAllowedScopes.length > 0 ? (
+                principalAllowedScopes.map((scope) => (
                   <Badge key={scope} variant="secondary">
-                    {scope}
+                    {formatRoleToken(scope)}
                   </Badge>
-                ))}
-              </div>
-            ) : null}
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  This service account does not currently derive any permissions.
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -267,7 +308,7 @@ export function SystemIntegrationApiKeyFormDialog({
               <Label htmlFor="system-api-key-name">Name</Label>
               <Input
                 id="system-api-key-name"
-                placeholder="Office sync key"
+                placeholder="Scraping Worker Key"
                 disabled={isPending}
                 {...form.register('name')}
               />
@@ -286,21 +327,79 @@ export function SystemIntegrationApiKeyFormDialog({
               <FieldError errors={[form.formState.errors.description]} />
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="system-api-key-scopes">Scopes</Label>
-              <Textarea
-                id="system-api-key-scopes"
-                rows={5}
-                placeholder="entity:read, membership:read"
-                disabled={isPending}
-                {...form.register('scopesText')}
-              />
-              <div className="text-xs text-muted-foreground">
-                Separate scopes with commas or new lines. Scopes must fit the integration
-                principal envelope shown above.
+            <div className="space-y-3 sm:col-span-2">
+              <div className="space-y-1">
+                <Label>Access model</Label>
+                <p className="text-xs text-muted-foreground">
+                  Full access inherits every service-account permission. Restricted access narrows
+                  the key to a chosen subset.
+                </p>
               </div>
-              <FieldError errors={[form.formState.errors.scopesText]} />
+              <Controller
+                control={form.control}
+                name="accessMode"
+                render={({ field }) => (
+                  <RadioGroup
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                    className="grid gap-3 md:grid-cols-2"
+                  >
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4">
+                      <RadioGroupItem value="full" />
+                      <div className="space-y-1">
+                        <div className="font-medium">Full service-account access</div>
+                        <p className="text-sm text-muted-foreground">
+                          The key inherits all {principalAllowedScopes.length} permissions from the
+                          selected service account.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4">
+                      <RadioGroupItem value="restricted" />
+                      <div className="space-y-1">
+                        <div className="font-medium">Restricted access</div>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a smaller permission set for this specific key.
+                        </p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                )}
+              />
             </div>
+
+            {accessMode === 'restricted' ? (
+              <div className="space-y-3 sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <Label>Restricted permissions</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Filter and select the permissions this key should keep.
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {selectedScopes.length} selected · {visiblePermissionCount} visible
+                  </Badge>
+                </div>
+
+                <RolePermissionsPicker
+                  permissionOptions={permissionOptions}
+                  selectedPermissionNames={selectedScopes}
+                  showSelectedOnly={showSelectedOnly}
+                  disabled={isPending || permissionOptions.length === 0}
+                  onShowSelectedOnlyChange={setShowSelectedOnly}
+                  onVisiblePermissionCountChange={setVisiblePermissionCount}
+                  onChange={(permissionNames) =>
+                    form.setValue('selectedScopes', permissionNames, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
+                <FieldError errors={[form.formState.errors.selectedScopes]} />
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="system-api-key-rate-limit">Rate limit per minute</Label>
@@ -394,7 +493,7 @@ export function SystemIntegrationApiKeyFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || !principal}>
+            <Button type="submit" disabled={isPending || !principal || principalAllowedScopes.length === 0}>
               {isPending
                 ? mode === 'create'
                   ? 'Creating...'
