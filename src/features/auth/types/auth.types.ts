@@ -56,6 +56,7 @@ export type AuthConfig = {
     abac: boolean
     tree_permissions: boolean
     api_keys: boolean
+    system_api_keys?: boolean
     user_status: boolean
     activity_tracking: boolean
     invitations: boolean

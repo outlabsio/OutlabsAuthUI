@@ -196,8 +196,14 @@ export function ApiKeysPage() {
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const apiKeysEnabled = authConfigQuery.data?.features.api_keys ?? false
-  const enterpriseEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
+  const authConfig = authConfigQuery.data
+  const apiKeysEnabled = authConfig?.features.api_keys ?? false
+  const enterpriseEnabled = authConfig?.features.entity_hierarchy ?? false
+  const simpleGlobalKeysEnabled =
+    authConfig?.preset === 'SimpleRBAC' &&
+    apiKeysEnabled &&
+    (authConfig.features.system_api_keys ?? false)
+  const supportsSystemKeysWorkspace = enterpriseEnabled || simpleGlobalKeysEnabled
   const actorPermissionsQuery = useQuery({
     ...getMyPermissionsQueryOptions(),
     enabled: Boolean(sessionUser?.id),
@@ -272,6 +278,17 @@ export function ApiKeysPage() {
   const [revealedSecret, setRevealedSecret] = useState<CreateApiKeyResponse | null>(null)
   const [secretCopied, setSecretCopied] = useState(false)
 
+  const effectiveScopeKind: IntegrationPrincipalScopeKind = simpleGlobalKeysEnabled
+    ? 'platform_global'
+    : scopeKind
+  const pageTitle = simpleGlobalKeysEnabled ? 'API Keys' : 'System API Keys'
+  const pageSummary = simpleGlobalKeysEnabled
+    ? 'Manage platform-global integration principals and principal-owned system keys for SimpleRBAC backends.'
+    : 'Manage EnterpriseRBAC integration principals, principal-owned system keys, and entity key inventory from one place.'
+  const loadingTitle = simpleGlobalKeysEnabled
+    ? 'Loading API keys workspace'
+    : 'Loading system API keys workspace'
+
   const preferredEntityId =
     sessionUser?.root_entity_id &&
     entityOptions.some((entity) => entity.id === sessionUser.root_entity_id)
@@ -304,17 +321,19 @@ export function ApiKeysPage() {
 
   const integrationPrincipalsQuery = useQuery({
     ...getIntegrationPrincipalsQueryOptions({
-      scopeKind,
-      entityId: scopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
+      scopeKind: effectiveScopeKind,
+      entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
       page: 1,
       limit: 100,
       search: principalSearchText.trim() || undefined,
     }),
     enabled:
-      enterpriseEnabled &&
+      supportsSystemKeysWorkspace &&
       activeTab === 'integrations' &&
       canReadApiKeys &&
-      (scopeKind === 'platform_global' ? canManagePlatformPrincipals : Boolean(effectiveSelectedEntityId)),
+      (effectiveScopeKind === 'platform_global'
+        ? canManagePlatformPrincipals
+        : Boolean(effectiveSelectedEntityId)),
   })
 
   const integrationPrincipals = useMemo(
@@ -330,18 +349,20 @@ export function ApiKeysPage() {
 
   const principalKeysQuery = useQuery({
     ...getIntegrationPrincipalApiKeysQueryOptions({
-      scopeKind,
-      entityId: scopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
+      scopeKind: effectiveScopeKind,
+      entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
       principalId: effectiveSelectedPrincipalId ?? '',
       page: 1,
       limit: 100,
     }),
     enabled:
-      enterpriseEnabled &&
+      supportsSystemKeysWorkspace &&
       activeTab === 'integrations' &&
       canReadApiKeys &&
       Boolean(effectiveSelectedPrincipalId) &&
-      (scopeKind === 'platform_global' ? canManagePlatformPrincipals : Boolean(effectiveSelectedEntityId)),
+      (effectiveScopeKind === 'platform_global'
+        ? canManagePlatformPrincipals
+        : Boolean(effectiveSelectedEntityId)),
   })
 
   const principalKeys = useMemo(
@@ -429,8 +450,8 @@ export function ApiKeysPage() {
       }
 
       return rotateSystemIntegrationApiKey({
-        scopeKind,
-        entityId: scopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
+        scopeKind: effectiveScopeKind,
+        entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
         principalId: activePrincipal.id,
         keyId: apiKey.id,
       })
@@ -457,8 +478,8 @@ export function ApiKeysPage() {
       }
 
       return deleteSystemIntegrationApiKey({
-        scopeKind,
-        entityId: scopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
+        scopeKind: effectiveScopeKind,
+        entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
         principalId: activePrincipal.id,
         keyId: apiKey.id,
       })
@@ -538,14 +559,14 @@ export function ApiKeysPage() {
   const pageError = sessionQuery.error ?? actorPermissionsQuery.error ?? authConfigQuery.error
 
   if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
-    return <AppLoadingState title="Loading system API keys workspace" />
+    return <AppLoadingState title={loadingTitle} />
   }
 
   if (pageError) {
     return (
-      <AppPage title="System API Keys" hideTitle padded>
+      <AppPage title={pageTitle} hideTitle padded>
         <AppErrorState>
-          {getApiErrorMessage(pageError, 'The system API keys workspace could not load data from the auth API.')}
+          {getApiErrorMessage(pageError, `The ${pageTitle.toLowerCase()} workspace could not load data from the auth API.`)}
         </AppErrorState>
       </AppPage>
     )
@@ -553,7 +574,7 @@ export function ApiKeysPage() {
 
   if (!apiKeysEnabled) {
     return (
-      <AppPage title="System API Keys" hideTitle padded>
+      <AppPage title={pageTitle} hideTitle padded>
         <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
           The current backend preset does not advertise API key support.
         </div>
@@ -561,11 +582,11 @@ export function ApiKeysPage() {
     )
   }
 
-  if (!enterpriseEnabled) {
+  if (!supportsSystemKeysWorkspace) {
     return (
-      <AppPage title="System API Keys" hideTitle padded>
+      <AppPage title={pageTitle} hideTitle padded>
         <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-          System integration keys and anchored inventory are only available when entity hierarchy is enabled.
+          System integration keys are not available for the current backend preset.
         </div>
       </AppPage>
     )
@@ -573,7 +594,7 @@ export function ApiKeysPage() {
 
   if (!canReadApiKeys) {
     return (
-      <AppPage title="System API Keys" hideTitle padded>
+      <AppPage title={pageTitle} hideTitle padded>
         <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
           Insufficient permissions. You need API key read access to use this workspace.
         </div>
@@ -607,7 +628,11 @@ export function ApiKeysPage() {
         {canCreateApiKeys ? (
           <Button
             type="button"
-            disabled={scopeKind === 'entity' ? !effectiveSelectedEntityId : !canManagePlatformPrincipals}
+            disabled={
+              effectiveScopeKind === 'entity'
+                ? !effectiveSelectedEntityId
+                : !canManagePlatformPrincipals
+            }
             onClick={() =>
               setPrincipalFormState({
                 open: true,
@@ -625,16 +650,13 @@ export function ApiKeysPage() {
 
   return (
     <>
-      <AppPage title="System API Keys" hideTitle padded shellAction={shellAction}>
+      <AppPage title={pageTitle} hideTitle padded shellAction={shellAction}>
         <div className="grid gap-4">
           <Card>
             <CardHeader className="gap-3">
               <div className="space-y-1">
-                <CardTitle className="text-xl">System API keys workspace</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Manage EnterpriseRBAC integration principals, principal-owned system keys, and
-                  entity key inventory from one place.
-                </p>
+                <CardTitle className="text-xl">{pageTitle}</CardTitle>
+                <p className="text-sm text-muted-foreground">{pageSummary}</p>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -643,40 +665,49 @@ export function ApiKeysPage() {
                 onValueChange={(value) => setActiveTab(value as TabValue)}
                 className="space-y-4"
               >
-                <TabsList>
-                  <TabsTrigger value="integrations">Integrations</TabsTrigger>
-                  <TabsTrigger value="inventory">Entity inventory</TabsTrigger>
-                </TabsList>
+                {enterpriseEnabled ? (
+                  <TabsList>
+                    <TabsTrigger value="integrations">Integrations</TabsTrigger>
+                    <TabsTrigger value="inventory">Entity inventory</TabsTrigger>
+                  </TabsList>
+                ) : null}
 
                 <TabsContent value="integrations" className="space-y-4 pt-1">
                   <Card>
                     <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-                      <div className="space-y-2">
-                        <Label>Scope model</Label>
-                        <Select
-                          value={scopeKind}
-                          onValueChange={(value) => {
-                            setScopeKind(value as IntegrationPrincipalScopeKind)
-                            setSelectedPrincipalId(null)
-                            setSelectedPrincipalKeyId(null)
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select integration scope" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="entity">Entity scoped</SelectItem>
-                            <SelectItem
-                              value="platform_global"
-                              disabled={!canManagePlatformPrincipals}
-                            >
-                              Platform global
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {enterpriseEnabled ? (
+                        <div className="space-y-2">
+                          <Label>Scope model</Label>
+                          <Select
+                            value={scopeKind}
+                            onValueChange={(value) => {
+                              setScopeKind(value as IntegrationPrincipalScopeKind)
+                              setSelectedPrincipalId(null)
+                              setSelectedPrincipalKeyId(null)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select integration scope" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="entity">Entity scoped</SelectItem>
+                              <SelectItem
+                                value="platform_global"
+                                disabled={!canManagePlatformPrincipals}
+                              >
+                                Platform global
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                          SimpleRBAC exposes one admin-managed API key model: platform-global
+                          integration principals with principal-owned system keys.
+                        </div>
+                      )}
 
-                      {scopeKind === 'entity' ? (
+                      {effectiveScopeKind === 'entity' ? (
                         <div className="space-y-2">
                           <Label htmlFor="api-keys-entity">Anchor entity</Label>
                           <Combobox
@@ -734,11 +765,11 @@ export function ApiKeysPage() {
                     </CardContent>
                   </Card>
 
-                  {scopeKind === 'platform_global' && !canManagePlatformPrincipals ? (
+                  {effectiveScopeKind === 'platform_global' && !canManagePlatformPrincipals ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
                       Platform-global integrations are only available to superusers.
                     </div>
-                  ) : scopeKind === 'entity' && !effectiveSelectedEntityId ? (
+                  ) : effectiveScopeKind === 'entity' && !effectiveSelectedEntityId ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
                       Select an entity to load integration principals.
                     </div>
@@ -750,7 +781,7 @@ export function ApiKeysPage() {
                             <div className="space-y-1">
                               <CardTitle className="text-xl">Integration principals</CardTitle>
                               <div className="text-sm text-muted-foreground">
-                                {scopeKind === 'entity'
+                                {effectiveScopeKind === 'entity'
                                   ? selectedEntity?.pathLabel ?? 'Selected entity scope'
                                   : 'Platform-global integrations'}
                               </div>
@@ -1207,7 +1238,8 @@ export function ApiKeysPage() {
                   )}
                 </TabsContent>
 
-                <TabsContent value="inventory" className="space-y-4 pt-1">
+                {enterpriseEnabled ? (
+                  <TabsContent value="inventory" className="space-y-4 pt-1">
                   {!effectiveSelectedEntityId ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
                       Select an entity to load key inventory.
@@ -1551,7 +1583,8 @@ export function ApiKeysPage() {
                       </div>
                     </>
                   )}
-                </TabsContent>
+                  </TabsContent>
+                ) : null}
               </Tabs>
             </CardContent>
           </Card>
@@ -1561,8 +1594,8 @@ export function ApiKeysPage() {
       <IntegrationPrincipalFormDialog
         open={principalFormState.open}
         mode={principalFormState.mode}
-        scopeKind={scopeKind}
-        entityId={scopeKind === 'entity' ? effectiveSelectedEntityId : undefined}
+        scopeKind={effectiveScopeKind}
+        entityId={effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined}
         entityLabel={selectedEntity?.pathLabel ?? selectedEntity?.title ?? null}
         principal={principalFormState.principal}
         onOpenChange={(open) =>
@@ -1592,8 +1625,8 @@ export function ApiKeysPage() {
       <SystemIntegrationApiKeyFormDialog
         open={systemKeyFormState.open}
         mode={systemKeyFormState.mode}
-        scopeKind={scopeKind}
-        entityId={scopeKind === 'entity' ? effectiveSelectedEntityId : undefined}
+        scopeKind={effectiveScopeKind}
+        entityId={effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined}
         entityLabel={selectedEntity?.pathLabel ?? selectedEntity?.title ?? null}
         principal={activePrincipal}
         apiKey={systemKeyFormState.apiKey}
