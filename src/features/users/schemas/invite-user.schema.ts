@@ -10,6 +10,7 @@ export const inviteUserSchema = z.object({
   lastName: z.string().trim().max(100).optional(),
   entityId: z.string().trim().optional(),
   roleIds: z.array(z.string()),
+  isSuperuser: z.boolean().optional(),
 })
 
 export type InviteUserFormValues = z.infer<typeof inviteUserSchema>

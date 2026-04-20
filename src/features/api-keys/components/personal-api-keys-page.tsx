@@ -43,6 +43,7 @@ import type {
   ApiKeyStatus,
   CreateApiKeyResponse,
 } from '@/features/api-keys/types/api-keys.types'
+import { formatApiKeyRateLimitPerMinute } from '@/features/api-keys/utils/rate-limit'
 import { getEntities } from '@/features/entities/api/get-entities'
 import { getEntity } from '@/features/entities/api/get-entity'
 import type { Entity } from '@/features/entities/types/entities.types'
@@ -465,7 +466,9 @@ export function PersonalApiKeysPage() {
                         <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                           Rate limit
                         </div>
-                        <div className="mt-1 text-sm font-medium">{activeKey.rate_limit_per_minute}/minute</div>
+                        <div className="mt-1 text-sm font-medium">
+                          {formatApiKeyRateLimitPerMinute(activeKey.rate_limit_per_minute)}
+                        </div>
                       </div>
                     </div>
 

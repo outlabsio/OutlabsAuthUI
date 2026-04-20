@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
+import { AppConfirmDialog } from '@/components/app/app-confirm-dialog';
 import { AppEmptyState } from '@/components/app/app-empty-state';
 import { AppInfoPopover } from '@/components/app/app-info-popover';
 import { AppPage } from '@/components/app/app-page';
@@ -66,6 +67,7 @@ import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invit
 import { useRestoreUserMutation } from '@/features/users/hooks/use-restore-user-mutation';
 import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation';
 import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation';
+import { useUpdateUserSuperuserMutation } from '@/features/users/hooks/use-update-user-superuser-mutation';
 import {
   type UpdateUserProfileFormValues,
   updateUserProfileSchema,
@@ -305,9 +307,18 @@ function getStringArrayValue(record: unknown, key: string) {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
+function getBooleanValue(record: unknown, key: string) {
+  const resolvedRecord = asRecord(record);
+  const value = resolvedRecord?.[key];
+
+  return typeof value === 'boolean' ? value : null;
+}
+
 function getAuditEventSummary(event: UserAuditEvent) {
   const beforeStatus = getStringValue(event.before, 'status');
   const afterStatus = getStringValue(event.after, 'status');
+  const beforeSuperuser = getBooleanValue(event.before, 'is_superuser');
+  const afterSuperuser = getBooleanValue(event.after, 'is_superuser');
   const entityDisplayName =
     getStringValue(event.metadata, 'entity_display_name') ??
     getStringValue(event.metadata, 'entity_name');
@@ -315,6 +326,14 @@ function getAuditEventSummary(event: UserAuditEvent) {
 
   if (beforeStatus && afterStatus && beforeStatus !== afterStatus) {
     return `${formatToken(beforeStatus)} -> ${formatToken(afterStatus)}`;
+  }
+
+  if (
+    beforeSuperuser !== null &&
+    afterSuperuser !== null &&
+    beforeSuperuser !== afterSuperuser
+  ) {
+    return afterSuperuser ? 'Superuser granted' : 'Superuser revoked';
   }
 
   if (entityDisplayName) {
@@ -334,6 +353,7 @@ function getAuditEventSummary(event: UserAuditEvent) {
 
 function getAuditEventTone(event: UserAuditEvent): AppStatusTone {
   const afterStatus = getStringValue(event.after, 'status');
+  const afterSuperuser = getBooleanValue(event.after, 'is_superuser');
 
   switch (afterStatus) {
     case 'active':
@@ -345,6 +365,14 @@ function getAuditEventTone(event: UserAuditEvent): AppStatusTone {
     case 'revoked':
       return 'error';
     default:
+      if (afterSuperuser === true) {
+        return 'success';
+      }
+
+      if (afterSuperuser === false) {
+        return 'warning';
+      }
+
       return 'neutral';
   }
 }
@@ -443,6 +471,7 @@ export function UserDetailsPage({
   });
   const updateUserMutation = useUpdateUserMutation();
   const updateUserStatusMutation = useUpdateUserStatusMutation();
+  const updateUserSuperuserMutation = useUpdateUserSuperuserMutation();
   const updateMembershipMutation = useUpdateMembershipMutation();
   const resendInviteMutation = useResendInviteMutation();
   const restoreUserMutation = useRestoreUserMutation();
@@ -450,6 +479,7 @@ export function UserDetailsPage({
   const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
+  const [superuserConfirmOpen, setSuperuserConfirmOpen] = useState(false);
   const [confirmingDirectRoleId, setConfirmingDirectRoleId] = useState<
     string | null
   >(null);
@@ -516,26 +546,28 @@ export function UserDetailsPage({
     ? isActorSuperuser || actorPermissionNames.has('user:delete')
     : isActorSuperuser;
   const canRemoveDirectRoles = canUpdateUsers;
-  const canManageMembershipAccess = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser ||
-      (membershipRolesFeatureEnabled &&
-        (hasAnyPermission(actorPermissionNames, [
+  const canManageMembershipAccess =
+    membershipRolesFeatureEnabled &&
+    (actorPermissionsQuery.isSuccess
+      ? isActorSuperuser ||
+        hasAnyPermission(actorPermissionNames, [
           'membership:create',
           'membership:create_tree',
         ]) ||
-          hasAnyPermission(actorPermissionNames, [
-            'membership:update',
-            'membership:update_tree',
-          ])))
-    : isActorSuperuser && membershipRolesFeatureEnabled;
-  const canRemoveMemberships = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser ||
-      (membershipRolesFeatureEnabled &&
+        hasAnyPermission(actorPermissionNames, [
+          'membership:update',
+          'membership:update_tree',
+        ])
+      : isActorSuperuser);
+  const canRemoveMemberships =
+    membershipRolesFeatureEnabled &&
+    (actorPermissionsQuery.isSuccess
+      ? isActorSuperuser ||
         hasAnyPermission(actorPermissionNames, [
           'membership:delete',
           'membership:delete_tree',
-        ]))
-    : isActorSuperuser && membershipRolesFeatureEnabled;
+        ])
+      : isActorSuperuser);
   const membershipRoleQueries = useQueries({
     queries: (membershipsQuery.data ?? []).map((membership) => ({
       ...getRolesForEntityQueryOptions(membership.entity_id, { limit: 100 }),
@@ -568,6 +600,12 @@ export function UserDetailsPage({
     canDeleteUsers &&
     sessionQuery.data?.id !== userId &&
     user?.status !== 'deleted';
+  const isSelfUser = sessionQuery.data?.id === userId;
+  const canManageSuperuserAccess =
+    isActorSuperuser && user?.status !== 'deleted';
+  const canChangeSuperuserAccess =
+    canManageSuperuserAccess && !(isSelfUser && user?.is_superuser);
+  const nextSuperuserValue = !(user?.is_superuser ?? false);
   const watchedStatus = statusForm.watch('status');
   const profileError = updateUserMutation.error
     ? getApiErrorMessage(
@@ -597,6 +635,12 @@ export function UserDetailsPage({
     ? getApiErrorMessage(
         removeRoleMutation.error,
         'Unable to remove the direct role.',
+      )
+    : null;
+  const superuserAccessError = updateUserSuperuserMutation.error
+    ? getApiErrorMessage(
+        updateUserSuperuserMutation.error,
+        'Unable to update superuser access.',
       )
     : null;
 
@@ -1074,6 +1118,78 @@ export function UserDetailsPage({
                 ) : null}
 
                 <DetailSection
+                  title="Superuser access"
+                  info={{
+                    label: 'Explain superuser access section',
+                    title: 'Superuser access',
+                    content:
+                      'Superuser access is a platform-wide account flag, not a role. Only current superusers can grant or revoke it.',
+                  }}
+                  action={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={user.is_superuser ? 'destructive' : 'outline'}
+                      disabled={
+                        !canChangeSuperuserAccess ||
+                        updateUserSuperuserMutation.isPending
+                      }
+                      onClick={() => {
+                        setSuperuserConfirmOpen(true);
+                      }}
+                    >
+                      {user.is_superuser ? 'Remove superuser' : 'Grant superuser'}
+                    </Button>
+                  }
+                >
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Shield className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">
+                            Current access
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {user.is_superuser
+                              ? 'Platform-wide administrative access is active.'
+                              : 'This account follows roles, memberships, and regular permissions.'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={user.is_superuser ? 'secondary' : 'outline'}
+                      >
+                        {user.is_superuser ? 'Superuser' : 'Standard user'}
+                      </Badge>
+                    </div>
+
+                    {!isActorSuperuser ? (
+                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                        Your account can view this flag, but only superusers can
+                        change it.
+                      </div>
+                    ) : null}
+                    {isSelfUser && user.is_superuser ? (
+                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                        You cannot revoke your own superuser access from this
+                        screen.
+                      </div>
+                    ) : null}
+                    {user.status === 'deleted' ? (
+                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                        Restore this user before changing superuser access.
+                      </div>
+                    ) : null}
+                    {superuserAccessError ? (
+                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                        {superuserAccessError}
+                      </div>
+                    ) : null}
+                  </div>
+                </DetailSection>
+
+                <DetailSection
                   title="Danger zone"
                   info={{
                     label: 'Explain danger zone section',
@@ -1218,7 +1334,7 @@ export function UserDetailsPage({
                     content:
                       'Memberships attach the user to specific entities. They are the place to review local roles, time windows, and whether access comes from one branch of the hierarchy.',
                   }}
-                  action={
+                  action={membershipRolesFeatureEnabled ? (
                     <Button
                       type="button"
                       size="sm"
@@ -1234,7 +1350,7 @@ export function UserDetailsPage({
                     >
                       Assign entity
                     </Button>
-                  }
+                  ) : undefined}
                 >
                   {!membershipRolesFeatureEnabled ? (
                     <AppEmptyState
@@ -1416,8 +1532,9 @@ export function UserDetailsPage({
                   info={{
                     label: 'Explain direct account roles section',
                     title: 'Direct account roles',
-                    content:
-                      'Direct roles apply to the account itself, outside a single entity membership. Use memberships above when the access should stay scoped to one branch.',
+                    content: membershipRolesFeatureEnabled
+                      ? 'Direct roles apply to the account itself, outside a single entity membership. Use memberships above when the access should stay scoped to one branch.'
+                      : 'Direct roles apply to the account itself and are the access model for this backend.',
                   }}
                   action={
                     <Button
@@ -1874,6 +1991,41 @@ export function UserDetailsPage({
         </TabsContent>
       </Tabs>
 
+      <AppConfirmDialog
+        open={superuserConfirmOpen}
+        onOpenChange={setSuperuserConfirmOpen}
+        title={
+          nextSuperuserValue
+            ? 'Grant superuser access'
+            : 'Remove superuser access'
+        }
+        description={
+          nextSuperuserValue
+            ? `Grant platform-wide superuser access to ${user.email}.`
+            : `Remove platform-wide superuser access from ${user.email}.`
+        }
+        confirmLabel={
+          nextSuperuserValue ? 'Grant superuser' : 'Remove superuser'
+        }
+        confirmLabelPending={
+          nextSuperuserValue ? 'Granting…' : 'Removing…'
+        }
+        confirmVariant={nextSuperuserValue ? 'default' : 'destructive'}
+        confirmDisabled={!canChangeSuperuserAccess}
+        isPending={updateUserSuperuserMutation.isPending}
+        errorMessage={superuserAccessError}
+        onConfirm={async () => {
+          await updateUserSuperuserMutation.mutateAsync({
+            userId,
+            is_superuser: nextSuperuserValue,
+            reason: nextSuperuserValue
+              ? 'Granted from admin UI'
+              : 'Revoked from admin UI',
+          });
+          setSuperuserConfirmOpen(false);
+        }}
+      />
+
       <DirectRoleAssignmentDialog
         open={directRoleDialogOpen}
         onOpenChange={setDirectRoleDialogOpen}
@@ -1899,23 +2051,25 @@ export function UserDetailsPage({
         onDeleted={onDeleted}
       />
 
-      <MembershipAccessDialog
-        key={`${membershipAccessDialogState.entityId ?? 'none'}:${membershipAccessDialogState.lockEntity ? 'locked' : 'free'}`}
-        open={membershipAccessDialogState.open}
-        onOpenChange={(nextOpen) => {
-          setMembershipAccessDialogState((currentState) => ({
-            ...currentState,
-            open: nextOpen,
-          }));
-        }}
-        userId={userId}
-        entities={entitiesQuery.data?.items ?? []}
-        memberships={membershipsQuery.data ?? []}
-        initialEntityId={membershipAccessDialogState.entityId}
-        lockEntity={membershipAccessDialogState.lockEntity}
-        canManageMembershipAccess={canManageMembershipAccess}
-        canRemoveMemberships={canRemoveMemberships}
-      />
+      {membershipRolesFeatureEnabled ? (
+        <MembershipAccessDialog
+          key={`${membershipAccessDialogState.entityId ?? 'none'}:${membershipAccessDialogState.lockEntity ? 'locked' : 'free'}`}
+          open={membershipAccessDialogState.open}
+          onOpenChange={(nextOpen) => {
+            setMembershipAccessDialogState((currentState) => ({
+              ...currentState,
+              open: nextOpen,
+            }));
+          }}
+          userId={userId}
+          entities={entitiesQuery.data?.items ?? []}
+          memberships={membershipsQuery.data ?? []}
+          initialEntityId={membershipAccessDialogState.entityId}
+          lockEntity={membershipAccessDialogState.lockEntity}
+          canManageMembershipAccess={canManageMembershipAccess}
+          canRemoveMemberships={canRemoveMemberships}
+        />
+      ) : null}
     </AppPage>
   );
 }

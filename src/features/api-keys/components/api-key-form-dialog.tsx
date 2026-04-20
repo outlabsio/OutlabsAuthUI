@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   getGrantableScopesQueryOptions,
@@ -41,6 +42,11 @@ import type {
   CreateApiKeyResponse,
 } from '@/features/api-keys/types/api-keys.types'
 import { formatDelimitedValues, parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import {
+  DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  getLimitedApiKeyRateLimitFallback,
+  isUnlimitedApiKeyRateLimit,
+} from '@/features/api-keys/utils/rate-limit'
 import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -83,7 +89,7 @@ export function ApiKeyFormDialog({
       scopes: [],
       ipWhitelistText: '',
       prefixType: 'sk_live',
-      rateLimitPerMinute: 60,
+      rateLimitPerMinute: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
       expiresInDays: '',
       status: 'active',
       inheritFromTree: false,
@@ -102,7 +108,8 @@ export function ApiKeyFormDialog({
       scopes: apiKey?.scopes ?? [],
       ipWhitelistText: formatDelimitedValues(apiKey?.ip_whitelist),
       prefixType: 'sk_live',
-      rateLimitPerMinute: apiKey?.rate_limit_per_minute ?? 60,
+      rateLimitPerMinute:
+        apiKey?.rate_limit_per_minute ?? DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
       expiresInDays: '',
       status: apiKey?.status === 'suspended' ? 'suspended' : 'active',
       inheritFromTree: apiKey?.inherit_from_tree ?? false,
@@ -126,6 +133,12 @@ export function ApiKeyFormDialog({
     name: 'inheritFromTree',
     defaultValue: false,
   })
+  const rateLimitPerMinute = useWatch({
+    control: form.control,
+    name: 'rateLimitPerMinute',
+    defaultValue: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  })
+  const rateLimitUnlimited = isUnlimitedApiKeyRateLimit(rateLimitPerMinute)
 
   const grantableScopesQuery = useQuery({
     ...getGrantableScopesQueryOptions({
@@ -295,14 +308,41 @@ export function ApiKeyFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="api-key-rate-limit">Rate limit per minute</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="api-key-rate-limit">Rate limit per minute</Label>
+                <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                  <span className={rateLimitUnlimited ? 'text-foreground' : 'text-muted-foreground'}>
+                    Unlimited
+                  </span>
+                  <Switch
+                    checked={rateLimitUnlimited}
+                    disabled={isPending}
+                    aria-label="Use unlimited rate limit"
+                    onCheckedChange={(checked) => {
+                      form.setValue(
+                        'rateLimitPerMinute',
+                        checked ? 0 : getLimitedApiKeyRateLimitFallback(rateLimitPerMinute),
+                        {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        }
+                      )
+                    }}
+                  />
+                </label>
+              </div>
               <Input
                 id="api-key-rate-limit"
                 type="number"
-                min={1}
+                min={0}
+                readOnly={rateLimitUnlimited}
                 disabled={isPending}
                 {...form.register('rateLimitPerMinute')}
               />
+              <div className="text-xs text-muted-foreground">
+                Use 0 or the Unlimited switch for trusted keys that should not be throttled.
+              </div>
               <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
             </div>
 

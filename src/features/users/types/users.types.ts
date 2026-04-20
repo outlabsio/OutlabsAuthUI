@@ -68,6 +68,7 @@ export type InviteUserInput = {
   last_name?: string
   role_ids?: string[]
   entity_id?: string
+  is_superuser?: boolean
 }
 
 export type UpdateUserInput = {
@@ -81,6 +82,12 @@ export type UpdateUserStatusInput = {
   userId: string
   status: UserStatusUpdateValue
   suspended_until?: string
+  reason?: string
+}
+
+export type UpdateUserSuperuserInput = {
+  userId: string
+  is_superuser: boolean
   reason?: string
 }
 

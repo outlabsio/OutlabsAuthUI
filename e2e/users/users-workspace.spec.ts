@@ -97,6 +97,32 @@ async function createTemporaryDirectRole() {
   return (await response.json()) as { display_name: string }
 }
 
+async function createTemporaryUser(label = 'superuser-target') {
+  const accessToken = await getAdminAccessToken()
+  const timestamp = Date.now()
+  const email = `playwright-${label}-${timestamp}@example.com`
+
+  const response = await fetch(`${e2eApiBaseURL}/v1/users/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      email,
+      password: 'PlaywrightPass123!',
+      first_name: 'Playwright',
+      last_name: 'Superuser',
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to create temporary user fixture: ${response.status}`)
+  }
+
+  return (await response.json()) as { id: string; email: string }
+}
+
 async function createTemporaryUserWithMembership() {
   const accessToken = await getAdminAccessToken()
   const timestamp = Date.now()
@@ -168,6 +194,29 @@ async function createTemporaryUserWithMembership() {
   return user
 }
 
+async function updateSuperuserViaApi(userId: string, isSuperuser: boolean) {
+  const accessToken = await getAdminAccessToken()
+  const response = await fetch(`${e2eApiBaseURL}/v1/users/${userId}/superuser`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      is_superuser: isSuperuser,
+      reason: 'Playwright cleanup',
+    }),
+  })
+
+  if (response.status === 404) {
+    return
+  }
+
+  if (!response.ok) {
+    throw new Error(`Unable to update superuser fixture: ${response.status}`)
+  }
+}
+
 async function restoreUserProfile({
   userId,
   firstName,
@@ -201,6 +250,15 @@ function getDirectRoleCardByStatus(page: Page, roleName: string, status: string)
     .filter({
       has: page.getByText(roleName, { exact: true }),
       hasText: status,
+    })
+    .first()
+}
+
+function getSuperuserAccessSection(page: Page) {
+  return page
+    .locator('[data-slot="card"]')
+    .filter({
+      has: page.getByRole('heading', { name: 'Superuser access' }),
     })
     .first()
 }
@@ -311,6 +369,84 @@ test.describe('Users Workspace', () => {
     await expect(
       dialog.getByText('User with email invited@acme.com already exists')
     ).toBeVisible()
+  })
+
+  test('admin can invite a user with superuser access', async ({ page }) => {
+    const email = `playwright-super-invite-${Date.now()}@example.com`
+    let invitedUserId: string | null = null
+
+    try {
+      await gotoUsersWorkspace(page)
+      await page.getByRole('button', { name: 'Invite user' }).click()
+
+      const dialog = page.getByRole('dialog', { name: 'Invite user' })
+      await expect(dialog).toBeVisible()
+
+      await dialog.locator('#invite-email').fill(email)
+      await dialog.locator('[data-slot="switch"]').click()
+      await dialog.getByRole('button', { name: 'Send invite' }).click()
+      await expect(dialog).toBeHidden()
+
+      await page.getByPlaceholder('Search people by name or email').fill(email)
+      await expectUsersSearchParam(page, email)
+      await openUserDetails(page, email)
+
+      invitedUserId = page.url().split('/app/users/')[1]?.split('?')[0] ?? null
+      await expect(
+        getSuperuserAccessSection(page).getByText('Superuser', { exact: true })
+      ).toBeVisible()
+      await expect(
+        getSuperuserAccessSection(page).getByRole('button', {
+          name: 'Remove superuser',
+        })
+      ).toBeVisible()
+    } finally {
+      if (invitedUserId) {
+        await updateSuperuserViaApi(invitedUserId, false)
+      }
+    }
+  })
+
+  test('admin can grant and revoke superuser access from user details', async ({
+    page,
+  }) => {
+    const temporaryUser = await createTemporaryUser()
+
+    try {
+      await gotoUsersWorkspace(page)
+      await page.getByPlaceholder('Search people by name or email').fill(temporaryUser.email)
+      await expectUsersSearchParam(page, temporaryUser.email)
+      await openUserDetails(page, temporaryUser.email)
+
+      const superuserSection = getSuperuserAccessSection(page)
+      await expect(
+        superuserSection.getByText('Standard user', { exact: true })
+      ).toBeVisible()
+
+      await superuserSection.getByRole('button', { name: 'Grant superuser' }).click()
+      const grantDialog = page.getByRole('dialog', {
+        name: 'Grant superuser access',
+      })
+      await expect(grantDialog).toBeVisible()
+      await grantDialog.getByRole('button', { name: 'Grant superuser' }).click()
+      await expect(grantDialog).toBeHidden()
+      await expect(
+        superuserSection.getByText('Superuser', { exact: true })
+      ).toBeVisible()
+
+      await superuserSection.getByRole('button', { name: 'Remove superuser' }).click()
+      const revokeDialog = page.getByRole('dialog', {
+        name: 'Remove superuser access',
+      })
+      await expect(revokeDialog).toBeVisible()
+      await revokeDialog.getByRole('button', { name: 'Remove superuser' }).click()
+      await expect(revokeDialog).toBeHidden()
+      await expect(
+        superuserSection.getByText('Standard user', { exact: true })
+      ).toBeVisible()
+    } finally {
+      await updateSuperuserViaApi(temporaryUser.id, false)
+    }
   })
 
   test('admin can assign and remove a direct account role', async ({ page }) => {
@@ -453,6 +589,7 @@ test.describe('Users Workspace', () => {
 
       await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Update status' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Grant superuser' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Reset password' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Delete user' })).toBeDisabled()
 
@@ -478,6 +615,7 @@ test.describe('Users Workspace', () => {
 
       await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Update status' })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Grant superuser' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Reset password' })).toBeDisabled()
       await expect(page.getByRole('button', { name: 'Delete user' })).toBeDisabled()
 

@@ -77,6 +77,7 @@ import type {
   IntegrationPrincipal,
   IntegrationPrincipalScopeKind,
 } from '@/features/api-keys/types/api-keys.types'
+import { formatApiKeyRateLimitPerMinute } from '@/features/api-keys/utils/rate-limit'
 import {
   getEntitiesQueryOptions,
   getEntityMembersQueryOptions,
@@ -511,13 +512,12 @@ export function ApiKeysPage() {
       error: 'The system integration key could not be rotated.',
       success: 'System integration key rotated.',
     }),
-    onSuccess: async (createdKey) => {
-      await queryClient.invalidateQueries({
+    onSuccess: (createdKey) => {
+      setSelectedPrincipalKeyId(createdKey.id)
+      openSecretDialog(createdKey)
+      void queryClient.invalidateQueries({
         queryKey: apiKeysKeys.all,
       })
-      setSelectedPrincipalKeyId(createdKey.id)
-      setRevealedSecret(createdKey)
-      setSecretCopied(false)
     },
   })
 
@@ -1204,7 +1204,9 @@ export function ApiKeysPage() {
                                           Rate limit
                                         </div>
                                         <div className="mt-1 text-sm">
-                                          {activePrincipalKey.rate_limit_per_minute} requests/minute
+                                          {formatApiKeyRateLimitPerMinute(
+                                            activePrincipalKey.rate_limit_per_minute
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -1662,7 +1664,10 @@ export function ApiKeysPage() {
                                       Last used: {formatDateTime(activeInventoryKey.last_used_at)}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
-                                      Rate limit: {activeInventoryKey.rate_limit_per_minute} requests/minute
+                                      Rate limit:{' '}
+                                      {formatApiKeyRateLimitPerMinute(
+                                        activeInventoryKey.rate_limit_per_minute
+                                      )}
                                     </div>
                                   </div>
                                 </div>

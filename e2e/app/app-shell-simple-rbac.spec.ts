@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
-import { authPersonas } from '../support/auth-personas'
+import { authPersonas, buildE2eAuthApiUrl } from '../support/auth-personas'
 
 async function gotoDashboard(page: Page) {
   await page.goto('/app/dashboard')
@@ -34,6 +34,98 @@ async function openUserDetails(page: Page, email: string) {
   await expect(userRow).toBeVisible()
   await userRow.click()
   await expect(page.getByText(email, { exact: true }).first()).toBeVisible()
+}
+
+async function getAdminAccessToken() {
+  const response = await fetch(buildE2eAuthApiUrl('/auth/login'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email: authPersonas.admin.email,
+      password: authPersonas.admin.password,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to authenticate admin test fixture: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as { access_token: string }
+  return payload.access_token
+}
+
+async function getRoleByName(roleName: string) {
+  const accessToken = await getAdminAccessToken()
+  const response = await fetch(buildE2eAuthApiUrl('/roles/?page=1&limit=100'), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to load role catalog: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as {
+    items: Array<{ id: string; name: string; display_name: string }>
+  }
+  const role = payload.items.find((item) => item.name === roleName)
+
+  if (!role) {
+    throw new Error(`Unable to find role fixture: ${roleName}`)
+  }
+
+  return role
+}
+
+async function getUserByEmail(email: string) {
+  const accessToken = await getAdminAccessToken()
+  const response = await fetch(
+    buildE2eAuthApiUrl(`/users/?page=1&limit=20&search=${encodeURIComponent(email)}`),
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Unable to load invited user: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as {
+    items: Array<{ id: string; email: string; status: string }>
+  }
+
+  return payload.items.find((item) => item.email === email) ?? null
+}
+
+async function getActiveDirectRoleNames(userId: string) {
+  const accessToken = await getAdminAccessToken()
+  const response = await fetch(
+    buildE2eAuthApiUrl(`/users/${userId}/role-memberships?include_inactive=true`),
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Unable to load user direct role memberships: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as Array<{
+    status: string
+    role: { name: string; display_name: string }
+  }>
+
+  return payload
+    .filter((membership) => membership.status === 'active')
+    .map((membership) => membership.role.name)
+    .sort()
 }
 
 test.describe('Simple RBAC App Shell', () => {
@@ -124,5 +216,58 @@ test.describe('Simple RBAC App Shell', () => {
     await expect(
       page.getByRole('button', { name: 'Toggle Permission permission group' })
     ).toBeVisible()
+  })
+
+  test('invite assigns selected roles as direct account roles in SimpleRBAC', async ({
+    page,
+  }) => {
+    const writerRole = await getRoleByName('writer')
+    const invitedEmail = `playwright-simple-invite-${Date.now()}@example.com`
+    const invitePayloads: Array<Record<string, unknown>> = []
+
+    await page.route('**/v1/auth/invite', async (route) => {
+      invitePayloads.push(route.request().postDataJSON() as Record<string, unknown>)
+      await route.continue()
+    })
+
+    await page.goto('/app/users')
+    await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)
+    await page.getByRole('button', { name: 'Invite user' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Invite user' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Entity scope', { exact: true })).toHaveCount(0)
+    await expect(dialog.locator('#invite-entity')).toHaveCount(0)
+
+    await dialog.locator('#invite-email').fill(invitedEmail)
+    await dialog.locator('#invite-first-name').fill('Simple')
+    await dialog.locator('#invite-last-name').fill('Invite')
+    await dialog.getByRole('checkbox', { name: 'Writer' }).click()
+    await expect(dialog.getByText('1 selected', { exact: true })).toBeVisible()
+    await dialog.getByRole('button', { name: 'Send invite' }).click()
+    await expect(dialog).toHaveCount(0)
+
+    expect(invitePayloads).toHaveLength(1)
+    expect(invitePayloads[0]).toMatchObject({
+      email: invitedEmail,
+      first_name: 'Simple',
+      last_name: 'Invite',
+      role_ids: [writerRole.id],
+    })
+    expect(invitePayloads[0]).not.toHaveProperty('entity_id')
+
+    await expect
+      .poll(async () => Boolean(await getUserByEmail(invitedEmail)))
+      .toBe(true)
+
+    const invitedUser = await getUserByEmail(invitedEmail)
+    expect(invitedUser).not.toBeNull()
+    expect(invitedUser?.status).toBe('invited')
+
+    await expect
+      .poll(async () =>
+        invitedUser ? (await getActiveDirectRoleNames(invitedUser.id)).join(',') : ''
+      )
+      .toBe('writer')
   })
 })

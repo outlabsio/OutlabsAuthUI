@@ -90,6 +90,8 @@ test.describe('Simple RBAC API Keys Workspace', () => {
       '#system-api-key-description',
       'Created by Playwright to validate SimpleRBAC global system-key lifecycle.'
     )
+    await createKeyDialog.getByRole('switch', { name: 'Use unlimited rate limit' }).click()
+    await expect(createKeyDialog.locator('#system-api-key-rate-limit')).toHaveValue('0')
     await createKeyDialog.getByRole('button', { name: 'Create key' }).click()
 
     const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
@@ -104,6 +106,7 @@ test.describe('Simple RBAC API Keys Workspace', () => {
     await expect(
       page.getByText('This key inherits all permissions from its service account.')
     ).toBeVisible()
+    await expect(page.getByText('Unlimited', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Rotate key' }).click()
     const rotateDialog = page.getByRole('dialog', { name: 'Rotate API key' })

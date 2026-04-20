@@ -4,6 +4,8 @@ const appPort = Number(process.env.E2E_PORT ?? 3000)
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${appPort}`
 const apiBaseURL = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
 const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
+const reuseExistingServer =
+  process.env.E2E_REUSE_EXISTING_SERVER === '0' ? false : !process.env.CI
 
 export default defineConfig({
   testDir: './e2e',
@@ -28,7 +30,7 @@ export default defineConfig({
   webServer: {
     command: `bun run dev -- --host localhost --port ${appPort}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer,
     timeout: 120_000,
     env: {
       ...process.env,

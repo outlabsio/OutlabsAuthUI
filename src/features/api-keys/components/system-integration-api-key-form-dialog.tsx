@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Badge } from '@/components/ui/badge'
@@ -29,12 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
 import {
   createSystemIntegrationApiKey,
   updateSystemIntegrationApiKey,
 } from '@/features/api-keys/api/integration-principals'
+import { apiKeyRateLimitPerMinuteSchema } from '@/features/api-keys/schemas/api-key-form.schema'
 import type {
   ApiKey,
   CreateApiKeyResponse,
@@ -42,6 +44,11 @@ import type {
   IntegrationPrincipalScopeKind,
 } from '@/features/api-keys/types/api-keys.types'
 import { parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import {
+  DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  getLimitedApiKeyRateLimitFallback,
+  isUnlimitedApiKeyRateLimit,
+} from '@/features/api-keys/utils/rate-limit'
 import { RolePermissionsPicker } from '@/features/roles/components/role-permissions-picker'
 import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
@@ -55,11 +62,7 @@ const systemIntegrationApiKeyFormSchema = z.object({
   selectedScopes: z.array(z.string()),
   ipWhitelistText: z.string(),
   prefixType: z.string().trim().min(1, 'Prefix type is required.'),
-  rateLimitPerMinute: z.coerce
-    .number()
-    .int('Enter a whole number.')
-    .min(1, 'Rate limit must be at least 1.')
-    .max(100000, 'Rate limit is too high.'),
+  rateLimitPerMinute: apiKeyRateLimitPerMinuteSchema,
   expiresInDays: z.union([
     z.literal(''),
     z.coerce
@@ -117,7 +120,10 @@ export function SystemIntegrationApiKeyFormDialog({
   const queryClient = useQueryClient()
   const [showSelectedOnly, setShowSelectedOnly] = useState(false)
   const [visiblePermissionCount, setVisiblePermissionCount] = useState(0)
-  const principalAllowedScopes = principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? []
+  const principalAllowedScopes = useMemo(
+    () => principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? [],
+    [principal?.allowed_scopes, principal?.effective_allowed_scopes]
+  )
   const permissionOptions = useMemo(
     () => buildPermissionOptions(principalAllowedScopes),
     [principalAllowedScopes]
@@ -135,7 +141,7 @@ export function SystemIntegrationApiKeyFormDialog({
       selectedScopes: [],
       ipWhitelistText: '',
       prefixType: 'sk_live',
-      rateLimitPerMinute: 60,
+      rateLimitPerMinute: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
       expiresInDays: '',
       status: 'active',
     },
@@ -146,7 +152,6 @@ export function SystemIntegrationApiKeyFormDialog({
       return
     }
 
-    setShowSelectedOnly(false)
     form.reset({
       name: apiKey?.name ?? '',
       description: apiKey?.description ?? '',
@@ -154,14 +159,29 @@ export function SystemIntegrationApiKeyFormDialog({
       selectedScopes: apiKey?.scopes ?? [],
       ipWhitelistText: (apiKey?.ip_whitelist ?? []).join('\n'),
       prefixType: 'sk_live',
-      rateLimitPerMinute: apiKey?.rate_limit_per_minute ?? 60,
+      rateLimitPerMinute:
+        apiKey?.rate_limit_per_minute ?? DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
       expiresInDays: '',
       status: apiKey?.status === 'suspended' ? 'suspended' : 'active',
     })
   }, [apiKey, form, open])
 
-  const accessMode = form.watch('accessMode')
-  const selectedScopes = form.watch('selectedScopes')
+  const accessMode = useWatch({
+    control: form.control,
+    name: 'accessMode',
+    defaultValue: 'full',
+  })
+  const selectedScopes = useWatch({
+    control: form.control,
+    name: 'selectedScopes',
+    defaultValue: [],
+  })
+  const rateLimitPerMinute = useWatch({
+    control: form.control,
+    name: 'rateLimitPerMinute',
+    defaultValue: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  })
+  const rateLimitUnlimited = isUnlimitedApiKeyRateLimit(rateLimitPerMinute)
 
   const mutation = useMutation({
     mutationKey: apiKeysKeys.all,
@@ -248,9 +268,16 @@ export function SystemIntegrationApiKeyFormDialog({
     : null
 
   const isPending = mutation.isPending
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setShowSelectedOnly(false)
+    }
+
+    onOpenChange(nextOpen)
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
@@ -402,14 +429,41 @@ export function SystemIntegrationApiKeyFormDialog({
             ) : null}
 
             <div className="space-y-2">
-              <Label htmlFor="system-api-key-rate-limit">Rate limit per minute</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="system-api-key-rate-limit">Rate limit per minute</Label>
+                <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                  <span className={rateLimitUnlimited ? 'text-foreground' : 'text-muted-foreground'}>
+                    Unlimited
+                  </span>
+                  <Switch
+                    checked={rateLimitUnlimited}
+                    disabled={isPending}
+                    aria-label="Use unlimited rate limit"
+                    onCheckedChange={(checked) => {
+                      form.setValue(
+                        'rateLimitPerMinute',
+                        checked ? 0 : getLimitedApiKeyRateLimitFallback(rateLimitPerMinute),
+                        {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        }
+                      )
+                    }}
+                  />
+                </label>
+              </div>
               <Input
                 id="system-api-key-rate-limit"
                 type="number"
-                min={1}
+                min={0}
+                readOnly={rateLimitUnlimited}
                 disabled={isPending}
                 {...form.register('rateLimitPerMinute')}
               />
+              <div className="text-xs text-muted-foreground">
+                Use 0 or the Unlimited switch for trusted service keys that should not be throttled.
+              </div>
               <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
             </div>
 
@@ -489,7 +543,7 @@ export function SystemIntegrationApiKeyFormDialog({
               type="button"
               variant="outline"
               disabled={isPending}
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>

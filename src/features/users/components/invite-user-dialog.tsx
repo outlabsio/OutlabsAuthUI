@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Shield } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
@@ -50,14 +50,18 @@ type InviteUserDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   entities: Entity[]
+  entityHierarchyEnabled: boolean
   contextAwareRoles: boolean
+  canInviteSuperusers: boolean
 }
 
 export function InviteUserDialog({
   open,
   onOpenChange,
   entities,
+  entityHierarchyEnabled,
   contextAwareRoles,
+  canInviteSuperusers,
 }: InviteUserDialogProps) {
   const inviteMutation = useInviteUserMutation()
   const previousOpenRef = useRef(open)
@@ -71,6 +75,7 @@ export function InviteUserDialog({
       lastName: '',
       entityId: '',
       roleIds: [],
+      isSuperuser: false,
     },
   })
 
@@ -93,20 +98,22 @@ export function InviteUserDialog({
     ? getApiErrorMessage(inviteMutation.error, 'Unable to send the invitation.')
     : null
   const entityOptions = useMemo(() => buildEntityOptions(entities), [entities])
-  const selectedEntity =
-    entityOptions.find((option) => option.id === entityId) ?? null
+  const selectedEntity = entityHierarchyEnabled
+    ? entityOptions.find((option) => option.id === entityId) ?? null
+    : null
   const selectedEntityPath = selectedEntity?.pathLabel.split(' / ') ?? []
+  const rolesRequireEntity = entityHierarchyEnabled && contextAwareRoles
   const genericRolesQuery = useQuery({
     ...getRolesQueryOptions({ limit: 100 }),
-    enabled: open && !contextAwareRoles,
+    enabled: open && !rolesRequireEntity,
   })
   const entityRolesQuery = useQuery({
     ...getRolesForEntityQueryOptions(selectedEntity?.id ?? '', { limit: 100 }),
-    enabled: open && contextAwareRoles && Boolean(selectedEntity?.id),
+    enabled: open && rolesRequireEntity && Boolean(selectedEntity?.id),
   })
 
   useEffect(() => {
-    if (!contextAwareRoles) {
+    if (!rolesRequireEntity) {
       return
     }
 
@@ -123,7 +130,7 @@ export function InviteUserDialog({
     }
 
     previousEntityIdRef.current = nextEntityId
-  }, [contextAwareRoles, entityId, form])
+  }, [entityId, form, rolesRequireEntity])
 
   useEffect(() => {
     if (roleIds.length === 0 && showSelectedRolesOnly) {
@@ -133,13 +140,13 @@ export function InviteUserDialog({
 
   const availableRoles = useMemo(
     () =>
-      contextAwareRoles
+      rolesRequireEntity
         ? entityRolesQuery.data?.items ?? []
         : genericRolesQuery.data?.items ?? [],
-    [contextAwareRoles, entityRolesQuery.data?.items, genericRolesQuery.data?.items]
+    [rolesRequireEntity, entityRolesQuery.data?.items, genericRolesQuery.data?.items]
   )
-  const rolesError = contextAwareRoles ? entityRolesQuery.error : genericRolesQuery.error
-  const rolesPending = contextAwareRoles
+  const rolesError = rolesRequireEntity ? entityRolesQuery.error : genericRolesQuery.error
+  const rolesPending = rolesRequireEntity
     ? Boolean(selectedEntity) && entityRolesQuery.isPending
     : genericRolesQuery.isPending
   const sortedRoles = useMemo(
@@ -172,8 +179,9 @@ export function InviteUserDialog({
                 label="Explain invite user flow"
                 title="Invite user"
               >
-                A usable email address is required. This flow creates the account invitation and
-                can optionally attach an initial entity membership with scoped roles.
+                {entityHierarchyEnabled
+                  ? 'A usable email address is required. This flow creates the account invitation and can optionally attach an initial entity membership with scoped roles.'
+                  : 'A usable email address is required. This flow creates the account invitation and can optionally attach direct account roles.'}
               </AppInfoPopover>
             </div>
           </DialogHeader>
@@ -185,10 +193,17 @@ export function InviteUserDialog({
                   email: values.email,
                   first_name: values.firstName?.trim() || undefined,
                   last_name: values.lastName?.trim() || undefined,
-                  entity_id: values.entityId || undefined,
+                  entity_id: entityHierarchyEnabled
+                    ? values.entityId || undefined
+                    : undefined,
                   role_ids:
-                    values.entityId && values.roleIds.length > 0
+                    (!rolesRequireEntity || values.entityId) &&
+                    values.roleIds.length > 0
                       ? values.roleIds
+                      : undefined,
+                  is_superuser:
+                    canInviteSuperusers && values.isSuperuser
+                      ? true
                       : undefined,
                 })
                 onOpenChange(false)
@@ -238,136 +253,175 @@ export function InviteUserDialog({
                   </div>
                 </div>
 
-                <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">Entity scope</h3>
-                    <AppInfoPopover
-                      label="Explain invite entity scope"
-                      title="Entity scope"
-                    >
-                      Choose an entity when the invited user should start with a scoped membership.
-                      Leave it empty only if the account should be invited first and assigned
-                      later.
-                    </AppInfoPopover>
-                  </div>
-
-                  <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
-                    <Controller
-                      name="entityId"
-                      control={form.control}
-                      render={({ field, fieldState }) => (
-                        <div className="space-y-2">
-                          <Combobox
-                            items={entityOptions}
-                            itemToStringValue={(item) =>
-                              item
-                                ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel} ${item.entityClassLabel}`
-                                : ''
-                            }
-                            value={selectedEntity}
-                            onValueChange={(value) => {
-                              field.onChange(value?.id ?? '')
-                            }}
-                            disabled={inviteMutation.isPending}
-                          >
-                            <ComboboxInput
-                              id="invite-entity"
-                              placeholder="Search organization, region, office, or team"
-                              className="w-full"
-                              showClear
-                            />
-                            <ComboboxContent align="start">
-                              <ComboboxEmpty>No entities found.</ComboboxEmpty>
-                              <ComboboxList>
-                                {(option) => (
-                                  <ComboboxItem
-                                    key={option.id}
-                                    value={option}
-                                    className="items-start py-2.5"
-                                  >
-                                    <div className="flex min-w-0 flex-col gap-1">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-medium">
-                                          {option.title}
-                                        </span>
-                                        <Badge variant="outline">
-                                          {option.entityTypeLabel}
-                                        </Badge>
-                                      </div>
-                                      <span className="truncate text-xs text-muted-foreground">
-                                        {option.pathLabel}
-                                      </span>
-                                    </div>
-                                  </ComboboxItem>
-                                )}
-                              </ComboboxList>
-                            </ComboboxContent>
-                          </Combobox>
-                          <FieldError errors={[fieldState.error]} />
-                        </div>
-                      )}
-                    />
-
-                    {selectedEntity ? (
-                      <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-muted/30 p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">{selectedEntity.title}</p>
-                          <Badge variant="outline">
-                            {selectedEntity.entityTypeLabel}
-                          </Badge>
-                          <Badge variant="outline">
-                            {selectedEntity.entityClassLabel}
-                          </Badge>
-                          {selectedEntity.isTopLevel ? (
-                            <Badge variant="secondary">Top level</Badge>
-                          ) : null}
-                        </div>
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
-                            Hierarchy path
-                          </p>
-                          <div className="-mx-1 overflow-x-auto px-1 pb-1">
-                            <div className="flex min-w-max items-center gap-1">
-                              {selectedEntityPath.map((segment, index) => {
-                                const isLast = index === selectedEntityPath.length - 1
-
-                                return (
-                                  <div
-                                    key={`${segment}-${index}`}
-                                    className="flex shrink-0 items-center gap-1"
-                                  >
-                                    {index > 0 ? (
-                                      <ChevronRight className="size-3 text-muted-foreground" />
-                                    ) : null}
-                                    <span
-                                      className={cn(
-                                        'inline-flex shrink-0 whitespace-nowrap rounded-sm border px-2 py-0.5 text-xs leading-5',
-                                        isLast
-                                          ? 'border-foreground bg-foreground text-background'
-                                          : 'bg-background text-foreground'
-                                      )}
-                                    >
-                                      {segment}
-                                    </span>
-                                  </div>
-                                )
-                              })}
+                {canInviteSuperusers ? (
+                  <Controller
+                    name="isSuperuser"
+                    control={form.control}
+                    render={({ field }) => (
+                      <section className="rounded-md border bg-muted/30 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex min-w-0 gap-3">
+                            <Shield className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                            <div className="space-y-1">
+                              <Label
+                                id="invite-superuser-label"
+                                htmlFor="invite-superuser"
+                                className="font-medium"
+                              >
+                                Superuser access
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                Platform-wide administrative access outside role
+                                scope.
+                              </p>
                             </div>
                           </div>
+                          <Switch
+                            id="invite-superuser"
+                            checked={Boolean(field.value)}
+                            onCheckedChange={field.onChange}
+                            disabled={inviteMutation.isPending}
+                            aria-labelledby="invite-superuser-label"
+                            aria-label="Invite as superuser"
+                          />
                         </div>
-                        {!selectedEntity.isTopLevel ? (
-                          <div className="mt-4 text-sm text-muted-foreground">
-                            Parent: {selectedEntity.parentPathLabel}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-dashed p-4">
-                        <p className="font-medium">No entity selected</p>
-                      </div>
+                      </section>
                     )}
-                  </div>
-                </section>
+                  />
+                ) : null}
+
+                {entityHierarchyEnabled ? (
+                  <section className="flex min-h-0 flex-1 flex-col rounded-xl border p-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">Entity scope</h3>
+                      <AppInfoPopover
+                        label="Explain invite entity scope"
+                        title="Entity scope"
+                      >
+                        Choose an entity when the invited user should start with a scoped membership.
+                        Leave it empty only if the account should be invited first and assigned
+                        later.
+                      </AppInfoPopover>
+                    </div>
+
+                    <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
+                      <Controller
+                        name="entityId"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <div className="space-y-2">
+                            <Combobox
+                              items={entityOptions}
+                              itemToStringValue={(item) =>
+                                item
+                                  ? `${item.title} ${item.pathLabel} ${item.entityTypeLabel} ${item.entityClassLabel}`
+                                  : ''
+                              }
+                              value={selectedEntity}
+                              onValueChange={(value) => {
+                                field.onChange(value?.id ?? '')
+                              }}
+                              disabled={inviteMutation.isPending}
+                            >
+                              <ComboboxInput
+                                id="invite-entity"
+                                placeholder="Search organization, region, office, or team"
+                                className="w-full"
+                                showClear
+                              />
+                              <ComboboxContent align="start">
+                                <ComboboxEmpty>No entities found.</ComboboxEmpty>
+                                <ComboboxList>
+                                  {(option) => (
+                                    <ComboboxItem
+                                      key={option.id}
+                                      value={option}
+                                      className="items-start py-2.5"
+                                    >
+                                      <div className="flex min-w-0 flex-col gap-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="font-medium">
+                                            {option.title}
+                                          </span>
+                                          <Badge variant="outline">
+                                            {option.entityTypeLabel}
+                                          </Badge>
+                                        </div>
+                                        <span className="truncate text-xs text-muted-foreground">
+                                          {option.pathLabel}
+                                        </span>
+                                      </div>
+                                    </ComboboxItem>
+                                  )}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
+                            <FieldError errors={[fieldState.error]} />
+                          </div>
+                        )}
+                      />
+
+                      {selectedEntity ? (
+                        <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-muted/30 p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{selectedEntity.title}</p>
+                            <Badge variant="outline">
+                              {selectedEntity.entityTypeLabel}
+                            </Badge>
+                            <Badge variant="outline">
+                              {selectedEntity.entityClassLabel}
+                            </Badge>
+                            {selectedEntity.isTopLevel ? (
+                              <Badge variant="secondary">Top level</Badge>
+                            ) : null}
+                          </div>
+                          <div className="mt-4 space-y-2">
+                            <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                              Hierarchy path
+                            </p>
+                            <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                              <div className="flex min-w-max items-center gap-1">
+                                {selectedEntityPath.map((segment, index) => {
+                                  const isLast = index === selectedEntityPath.length - 1
+
+                                  return (
+                                    <div
+                                      key={`${segment}-${index}`}
+                                      className="flex shrink-0 items-center gap-1"
+                                    >
+                                      {index > 0 ? (
+                                        <ChevronRight className="size-3 text-muted-foreground" />
+                                      ) : null}
+                                      <span
+                                        className={cn(
+                                          'inline-flex shrink-0 whitespace-nowrap rounded-sm border px-2 py-0.5 text-xs leading-5',
+                                          isLast
+                                            ? 'border-foreground bg-foreground text-background'
+                                            : 'bg-background text-foreground'
+                                        )}
+                                      >
+                                        {segment}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          {!selectedEntity.isTopLevel ? (
+                            <div className="mt-4 text-sm text-muted-foreground">
+                              Parent: {selectedEntity.parentPathLabel}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-dashed p-4">
+                          <p className="font-medium">No entity selected</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                ) : null}
               </div>
 
               <section className="flex min-h-0 h-full flex-col overflow-hidden rounded-xl border bg-background">
@@ -379,8 +433,9 @@ export function InviteUserDialog({
                         label="Explain invite roles"
                         title="Roles"
                       >
-                        Selected roles are applied through the membership created for the chosen
-                        entity. Without an entity, no scoped roles can be assigned here.
+                        {entityHierarchyEnabled
+                          ? 'Selected roles are applied through the membership created for the chosen entity.'
+                          : 'Selected roles are assigned directly to the account.'}
                       </AppInfoPopover>
                     </div>
                     <div className="flex items-center gap-2">
@@ -406,7 +461,7 @@ export function InviteUserDialog({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-auto bg-background">
-                  {contextAwareRoles && !selectedEntity ? (
+                  {rolesRequireEntity && !selectedEntity ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
                       Choose an entity to load roles.
                     </div>

@@ -109,7 +109,7 @@ export function UsersPage({
         <span className="font-medium text-foreground">{invitedUsers}</span> pending
       </span>
       <span>
-        <span className="font-medium text-foreground">{adminUsers}</span> admins
+        <span className="font-medium text-foreground">{adminUsers}</span> superusers
       </span>
       <span>
         <span className="font-medium text-foreground">{verifiedUsers}</span> verified
@@ -178,7 +178,9 @@ export function UsersPage({
         open={isInviteDialogOpen}
         onOpenChange={setIsInviteDialogOpen}
         entities={entitiesQuery.data?.items ?? []}
+        entityHierarchyEnabled={entityHierarchyEnabled}
         contextAwareRoles={authConfig?.features.context_aware_roles ?? false}
+        canInviteSuperusers={Boolean(sessionUser?.is_superuser)}
       />
     </>
   )
