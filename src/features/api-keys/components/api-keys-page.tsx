@@ -236,11 +236,18 @@ export function ApiKeysPage() {
     hasAnyPermission(actorPermissionNames, ['api_key:update', 'api_key:update_tree', 'api_key:update_all'])
   const canDeleteApiKeys =
     Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:delete', 'api_key:delete_tree', 'api_key:delete_all'])
+    hasAnyPermission(actorPermissionNames, [
+      'api_key:delete',
+      'api_key:delete_tree',
+      'api_key:delete_all',
+      'api_key:revoke',
+    ])
   const canReadEntities =
     Boolean(sessionUser?.is_superuser) ||
     hasAnyPermission(actorPermissionNames, ['entity:read', 'entity:read_tree', 'entity:read_all'])
-  const canManagePlatformPrincipals = Boolean(sessionUser?.is_superuser)
+  const canManagePlatformPrincipals =
+    Boolean(sessionUser?.is_superuser) ||
+    (simpleGlobalKeysEnabled && canReadApiKeys)
 
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
@@ -299,6 +306,12 @@ export function ApiKeysPage() {
   const loadingTitle = simpleGlobalKeysEnabled
     ? 'Loading API keys workspace'
     : 'Loading system API keys workspace'
+  const platformGlobalSummary = simpleGlobalKeysEnabled
+    ? 'SimpleRBAC platform-global service accounts use API-key permissions for DB-backed key lifecycle management.'
+    : 'Platform-global integrations are superuser-only and are meant for global external integrations that need DB-backed key lifecycle management.'
+  const platformGlobalUnavailableMessage = simpleGlobalKeysEnabled
+    ? 'Platform-global service accounts require API key read permission.'
+    : 'Platform-global integrations are only available to superusers.'
 
   const preferredEntityId =
     sessionUser?.root_entity_id &&
@@ -809,8 +822,7 @@ export function ApiKeysPage() {
                         </div>
                       ) : (
                         <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                          Platform-global integrations are superuser-only and are meant for global
-                          external integrations that need DB-backed key lifecycle management.
+                          {platformGlobalSummary}
                         </div>
                       )}
                     </CardContent>
@@ -818,7 +830,7 @@ export function ApiKeysPage() {
 
                   {effectiveScopeKind === 'platform_global' && !canManagePlatformPrincipals ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                      Platform-global integrations are only available to superusers.
+                      {platformGlobalUnavailableMessage}
                     </div>
                   ) : effectiveScopeKind === 'entity' && !effectiveSelectedEntityId ? (
                     <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
