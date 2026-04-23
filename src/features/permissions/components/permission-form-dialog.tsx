@@ -387,17 +387,36 @@ export function PermissionFormDialog({
                   {canCreateSystemPermissions && mode === 'create' ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <Label>Protected system permission</Label>
+                        <Label>Library-owned (system) permission</Label>
                         <AppInfoPopover
                           label="Explain system permission toggle"
-                          title="Protected system permission"
+                          title="Library-owned (system) permission"
                         >
-                          System permissions are backend-protected after creation. Use this only
-                          for platform-level defaults that operators should not edit later.
+                          <p className="mb-2">
+                            Leave this <strong>OFF</strong> for any permission your application
+                            defines (e.g. <code>case:read</code>, <code>agent:write</code>,{' '}
+                            <code>list:create</code>). These are domain permissions and should be
+                            managed by your app's own seeder.
+                          </p>
+                          <p className="mb-2">
+                            Turn this <strong>ON</strong> only for permissions that{' '}
+                            <strong>outlabs-auth itself</strong> owns — the library's built-in set
+                            such as <code>user:read</code>, <code>role:create</code>,{' '}
+                            <code>permission:check</code>. These are seeded by the auth library and
+                            must not be managed by consumers.
+                          </p>
+                          <p className="text-amber-600">
+                            <strong>Warning:</strong> if you mark a domain permission as system,
+                            the consuming app's startup seeder will refuse to reconcile it and
+                            raise <code>RuntimeError</code>, which can trigger a restart loop.
+                            When in doubt, leave this OFF.
+                          </p>
                         </AppInfoPopover>
                       </div>
                       <div className="flex min-h-10 items-center justify-between rounded-2xl border px-4">
-                        <span className="text-sm text-muted-foreground">System-managed after creation</span>
+                        <span className="text-sm text-muted-foreground">
+                          Leave OFF for application permissions. ON = owned by the auth library.
+                        </span>
                         <Switch
                           checked={isSystem}
                           onCheckedChange={(checked) =>
