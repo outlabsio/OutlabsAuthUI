@@ -226,8 +226,8 @@ export function IntegrationPrincipalFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 px-4 py-4">
           <DialogTitle>
             {mode === 'create' ? 'Create service account' : 'Edit service account'}
           </DialogTitle>
@@ -238,7 +238,8 @@ export function IntegrationPrincipalFormDialog({
         </DialogHeader>
 
         <form
-          className="space-y-5"
+          id="integration-principal-form"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
             try {
               await mutation.mutateAsync(values)
@@ -458,27 +459,31 @@ export function IntegrationPrincipalFormDialog({
               {submitError}
             </div>
           ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || (scopeKind === 'entity' && !entityId)}>
-              {isPending
-                ? mode === 'create'
-                  ? 'Creating...'
-                  : 'Saving...'
-                : mode === 'create'
-                  ? 'Create service account'
-                  : 'Save changes'}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="integration-principal-form"
+            disabled={isPending || (scopeKind === 'entity' && !entityId)}
+          >
+            {isPending
+              ? mode === 'create'
+                ? 'Creating...'
+                : 'Saving...'
+              : mode === 'create'
+                ? 'Create service account'
+                : 'Save changes'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

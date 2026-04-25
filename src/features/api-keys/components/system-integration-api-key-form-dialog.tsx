@@ -278,8 +278,8 @@ export function SystemIntegrationApiKeyFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 px-4 py-4">
           <DialogTitle>
             {mode === 'create' ? 'Create machine API key' : 'Edit machine API key'}
           </DialogTitle>
@@ -290,7 +290,8 @@ export function SystemIntegrationApiKeyFormDialog({
         </DialogHeader>
 
         <form
-          className="space-y-5"
+          id="system-integration-api-key-form"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
             try {
               await mutation.mutateAsync(values)
@@ -537,27 +538,31 @@ export function SystemIntegrationApiKeyFormDialog({
               {submitError}
             </div>
           ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => handleOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || !principal || principalAllowedScopes.length === 0}>
-              {isPending
-                ? mode === 'create'
-                  ? 'Creating...'
-                  : 'Saving...'
-                : mode === 'create'
-                  ? 'Create key'
-                  : 'Save changes'}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="system-integration-api-key-form"
+            disabled={isPending || !principal || principalAllowedScopes.length === 0}
+          >
+            {isPending
+              ? mode === 'create'
+                ? 'Creating...'
+                : 'Saving...'
+              : mode === 'create'
+                ? 'Create key'
+                : 'Save changes'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

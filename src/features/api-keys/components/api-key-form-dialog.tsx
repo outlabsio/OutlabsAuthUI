@@ -443,10 +443,10 @@ export function ApiKeyFormDialog({
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <Label>Grantable scopes</Label>
+                  <Label>Grantable permissions</Label>
                   <div className="text-xs text-muted-foreground">
-                    The backend calculates this from your current permissions and the optional
-                    entity anchor.
+                    The backend calculates this permission set from your current access and the
+                    optional entity anchor.
                   </div>
                 </div>
                 <Badge variant="outline">Personal key</Badge>
@@ -455,23 +455,24 @@ export function ApiKeyFormDialog({
               <div className="rounded-2xl border px-4 py-4">
                 {grantableScopesQuery.isPending ? (
                   <div className="text-sm text-muted-foreground">
-                    Loading grantable scopes for this personal key…
+                    Loading grantable permissions for this personal key…
                   </div>
                 ) : grantableScopesQuery.isError ? (
                   <div className="space-y-2 text-sm">
                     <div className="font-medium text-destructive">
-                      Grantable scopes could not be loaded.
+                      Grantable permissions could not be loaded.
                     </div>
                     <div className="text-muted-foreground">
                       {getApiErrorMessage(
                         grantableScopesQuery.error,
-                        'The backend did not return scope guidance for this personal key.'
+                        'The backend did not return permission guidance for this personal key.'
                       )}
                     </div>
                   </div>
                 ) : scopeOptions.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    No grantable scopes are available for the current personal-key configuration.
+                    No grantable permissions are available for the current personal-key
+                    configuration.
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -513,7 +514,7 @@ export function ApiKeyFormDialog({
                               <div className="font-medium">{scope}</div>
                               {!isGrantable ? (
                                 <div className="text-xs text-amber-700 dark:text-amber-300">
-                                  This scope is already stored on the key but is not currently
+                                  This permission is already stored on the key but is not currently
                                   grantable for the selected configuration.
                                 </div>
                               ) : null}
@@ -528,7 +529,8 @@ export function ApiKeyFormDialog({
 
               {selectedButNotGrantable.length > 0 ? (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-                  Some selected scopes are no longer grantable under the current configuration:{' '}
+                  Some selected permissions are no longer grantable under the current
+                  configuration:{' '}
                   {selectedButNotGrantable.join(', ')}.
                 </div>
               ) : null}

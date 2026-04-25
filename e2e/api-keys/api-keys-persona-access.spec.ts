@@ -583,7 +583,7 @@ test.describe('API Key Persona Access Matrix', () => {
   test.describe('entity-only admins', () => {
     test.use({ persona: 'officeAdmin' })
 
-    test('office admin can create office-local keys but cannot escalate to branch or platform-global', async ({
+    test('office admin cannot mint system keys without tree-scoped API key authority', async ({
       page,
     }) => {
       const timestamp = Date.now()
@@ -609,10 +609,7 @@ test.describe('API Key Persona Access Matrix', () => {
           inheritFromTree: false,
         }
       )
-      const allowedPrincipal = (await expectJsonStatus(
-        allowedPrincipalResult.response,
-        201
-      )) as IntegrationPrincipalResponse
+      expect(allowedPrincipalResult.response.status()).toBe(403)
 
       const deniedBranchPrincipalResult = await createEntityIntegrationPrincipal(
         page,
@@ -635,21 +632,6 @@ test.describe('API Key Persona Access Matrix', () => {
         }
       )
       expect(deniedPlatformPrincipalResult.response.status()).toBe(403)
-
-      const keyResult = await createSystemIntegrationKey(page, accessToken, {
-        scopeKind: 'entity',
-        entityId: entityIds['San Francisco Office'],
-        principalId: allowedPrincipal.id,
-        name: `Playwright Office Key ${timestamp}`,
-        scopes: ['membership:read'],
-      })
-      const key = (await expectJsonStatus(keyResult.response, 201)) as CreateApiKeyResponse
-
-      await expectTeamDirectoryStatus(page, key.api_key, entityIds['San Francisco Office'], [200])
-      await expectTeamDirectoryStatus(page, key.api_key, entityIds['SF Residential Team'], [
-        401,
-        403,
-      ])
     })
   })
 

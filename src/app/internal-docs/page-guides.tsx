@@ -124,7 +124,7 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
         bullets: [
           'Create, edit, rotate, and revoke only your own personal keys here.',
           'Use the optional entity anchor when the key should stay scoped to one branch.',
-          'Grantable scopes come directly from the mounted self-service policy endpoint.',
+          'Grantable permissions come directly from the mounted self-service policy endpoint.',
         ],
       },
       {

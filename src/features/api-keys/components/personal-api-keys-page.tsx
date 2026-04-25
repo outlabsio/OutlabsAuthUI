@@ -434,7 +434,7 @@ export function PersonalApiKeysPage() {
 
                     <div className="space-y-2">
                       <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        Scopes
+                        Permissions
                       </div>
                       {activeKey.scopes.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
@@ -446,7 +446,7 @@ export function PersonalApiKeysPage() {
                         </div>
                       ) : (
                         <div className="text-sm text-muted-foreground">
-                          No scopes are currently assigned to this key.
+                          No permissions are currently assigned to this key.
                         </div>
                       )}
                     </div>

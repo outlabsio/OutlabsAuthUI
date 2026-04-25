@@ -1,3 +1,5 @@
+import type { Locator, Page } from '@playwright/test'
+
 import { expect, test } from '../support/auth-fixture'
 import { selectBaseUiOption } from '../support/base-ui-select'
 
@@ -46,6 +48,41 @@ async function typeIntoField(
   await control.scrollIntoViewIfNeeded()
   await control.fill(value)
   await expect(control).toHaveValue(value)
+}
+
+async function openCreatePersonalApiKeyDialog(page: Page) {
+  await gotoPersonalApiKeysWorkspace(page)
+
+  await page.locator('header').getByRole('button', { name: 'Create API key' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+  await expect(dialog).toBeVisible()
+
+  return dialog
+}
+
+async function choosePersonalKeyAnchor(
+  page: Page,
+  dialog: Locator,
+  optionName: string | RegExp
+) {
+  await selectBaseUiOption({
+    page,
+    container: dialog,
+    fieldLabel: 'Anchor entity',
+    optionName,
+  })
+}
+
+async function choosePersonalKeyPermission(
+  dialog: Locator,
+  permissionName: string
+) {
+  const checkbox = dialog.getByRole('checkbox', { name: permissionName })
+
+  await expect(checkbox).toBeVisible()
+  await checkbox.check()
+  await expect(checkbox).toBeChecked()
 }
 
 async function selectComboboxOption(
@@ -234,12 +271,7 @@ test.describe('API Keys Workspace', () => {
     const timestamp = Date.now()
     const keyName = `Playwright Personal Key ${timestamp}`
 
-    await gotoPersonalApiKeysWorkspace(page)
-
-    await page.locator('header').getByRole('button', { name: 'Create API key' }).click()
-
-    const dialog = page.getByRole('dialog', { name: 'Create API key' })
-    await expect(dialog).toBeVisible()
+    const dialog = await openCreatePersonalApiKeyDialog(page)
 
     await typeIntoField(page, '#api-key-name', keyName)
     await typeIntoField(
@@ -248,15 +280,10 @@ test.describe('API Keys Workspace', () => {
       'Created by Playwright to validate the self-service personal API key workflow.'
     )
 
-    await selectBaseUiOption({
-      page,
-      container: dialog,
-      fieldLabel: 'Anchor entity',
-      optionName: /San Francisco Office$/,
-    })
-    await dialog.getByText('Allow descendant access from this entity anchor.', { exact: true }).click()
+    await choosePersonalKeyAnchor(page, dialog, /San Francisco Office$/)
+    await dialog.getByRole('switch', { name: 'Include descendant entities' }).click()
 
-    await dialog.getByText('entity:read_tree', { exact: true }).click()
+    await choosePersonalKeyPermission(dialog, 'entity:read_tree')
     await dialog.getByRole('button', { name: 'Create API key' }).click()
 
     const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
@@ -289,6 +316,89 @@ test.describe('API Keys Workspace', () => {
     await revokeDialog.getByRole('button', { name: 'Revoke key' }).click()
 
     await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible()
+  })
+
+  test('personal API key form exposes grantable permissions and sends the policy payload', async ({
+    page,
+  }) => {
+    const timestamp = Date.now()
+    const keyName = `Playwright Personal Policy Key ${timestamp}`
+    const createApiKeyRequests: unknown[] = []
+
+    await page.route('**/v1/api-keys', async (route) => {
+      const request = route.request()
+      if (request.method() === 'POST') {
+        createApiKeyRequests.push(request.postDataJSON())
+      }
+
+      await route.continue()
+    })
+
+    const dialog = await openCreatePersonalApiKeyDialog(page)
+    const rateLimitInput = dialog.locator('#api-key-rate-limit')
+    const unlimitedSwitch = dialog.getByRole('switch', { name: 'Use unlimited rate limit' })
+    const descendantsSwitch = dialog.getByRole('switch', {
+      name: 'Include descendant entities',
+    })
+
+    await expect(dialog.getByText('Grantable permissions', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Personal key', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Allowed action prefixes:')).toBeVisible()
+    await expect(dialog.getByText('req/min', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Separate addresses or CIDR blocks with commas or new lines.')).toBeVisible()
+    await expect(descendantsSwitch).toBeDisabled()
+    await expect(rateLimitInput).toHaveValue('60')
+
+    await unlimitedSwitch.click()
+    await expect(rateLimitInput).toBeDisabled()
+    await expect(rateLimitInput).toHaveValue('0')
+
+    await unlimitedSwitch.click()
+    await expect(rateLimitInput).toBeEnabled()
+    await expect(rateLimitInput).toHaveValue('60')
+
+    await typeIntoField(page, '#api-key-name', keyName)
+    await typeIntoField(
+      page,
+      '#api-key-description',
+      'Created by Playwright to verify the personal-key policy form payload.'
+    )
+    await typeIntoField(page, '#api-key-rate-limit', '125')
+    await typeIntoField(page, '#api-key-expires-days', '14')
+    await typeIntoField(page, '#api-key-ip-whitelist', '203.0.113.10, 198.51.100.0/24')
+    await choosePersonalKeyAnchor(page, dialog, /San Francisco Office$/)
+    await expect(descendantsSwitch).toBeEnabled()
+    await descendantsSwitch.click()
+    await choosePersonalKeyPermission(dialog, 'entity:read_tree')
+
+    await dialog.getByRole('button', { name: 'Create API key' }).click()
+
+    const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
+    await expect(secretDialog).toBeVisible()
+    await secretDialog.getByRole('button', { name: 'Done' }).click()
+
+    expect(createApiKeyRequests).toHaveLength(1)
+    expect(createApiKeyRequests[0]).toEqual(
+      expect.objectContaining({
+        name: keyName,
+        description: 'Created by Playwright to verify the personal-key policy form payload.',
+        scopes: ['entity:read_tree'],
+        key_kind: 'personal',
+        inherit_from_tree: true,
+        rate_limit_per_minute: 125,
+        expires_in_days: 14,
+        ip_whitelist: ['203.0.113.10', '198.51.100.0/24'],
+      })
+    )
+    expect((createApiKeyRequests[0] as { entity_ids?: unknown[] }).entity_ids).toHaveLength(1)
+
+    const keyRow = getIntegrationRow(page, keyName)
+    await expect(keyRow).toBeVisible()
+    await keyRow.click()
+    await expect(page.getByText('Descendants allowed', { exact: true })).toBeVisible()
+    await expect(page.getByText('125 requests/minute', { exact: true })).toBeVisible()
+    await expect(page.getByRole('main').getByText('Permissions', { exact: true })).toBeVisible()
+    await expect(page.getByText('entity:read_tree', { exact: true })).toBeVisible()
   })
 
   test('admin can manage an entity service account and revoke its restricted machine key from inventory', async ({
