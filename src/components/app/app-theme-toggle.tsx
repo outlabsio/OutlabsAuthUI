@@ -1,8 +1,8 @@
 import { Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
 
 import { DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu'
 import { Toggle } from '@/components/ui/toggle'
-import { useThemeStore } from '@/lib/store/theme.store'
 import { cn } from '@/lib/utils/cn'
 
 type AppThemeToggleProps = {
@@ -14,19 +14,19 @@ export function AppThemeToggle({
   className,
   variant = 'button',
 }: AppThemeToggleProps) {
-  const theme = useThemeStore((state) => state.theme)
-  const setTheme = useThemeStore((state) => state.setTheme)
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
 
   if (variant === 'menu-item') {
     return (
       <DropdownMenuCheckboxItem
-        checked={theme === 'dark'}
+        checked={isDark}
         className={className}
         onCheckedChange={(checked) => {
           setTheme(checked ? 'dark' : 'light')
         }}
       >
-        {theme === 'dark' ? (
+        {isDark ? (
           <Moon className="size-4" />
         ) : (
           <Sun className="size-4" />
@@ -40,7 +40,7 @@ export function AppThemeToggle({
     <Toggle
       variant="outline"
       size="sm"
-      pressed={theme === 'dark'}
+      pressed={isDark}
       aria-label="Toggle dark mode"
       className={cn('relative', className)}
       onPressedChange={(pressed) => {

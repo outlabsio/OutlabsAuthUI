@@ -16,6 +16,7 @@ import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-passw
 import { Route as AuthMagicLinkRouteImport } from './routes/auth/magic-link'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as AuthAccessCodeRouteImport } from './routes/auth/access-code'
 import { Route as AuthAcceptInviteRouteImport } from './routes/auth/accept-invite'
 import { Route as AppUsersRouteImport } from './routes/app/users'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
@@ -68,6 +69,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAccessCodeRoute = AuthAccessCodeRouteImport.update({
+  id: '/access-code',
+  path: '/access-code',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthAcceptInviteRoute = AuthAcceptInviteRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/app/settings': typeof AppSettingsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/access-code': typeof AuthAccessCodeRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/magic-link': typeof AuthMagicLinkRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/settings': typeof AppSettingsRoute
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/access-code': typeof AuthAccessCodeRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/magic-link': typeof AuthMagicLinkRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/app/settings': typeof AppSettingsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/access-code': typeof AuthAccessCodeRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/magic-link': typeof AuthMagicLinkRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/app/users'
     | '/auth/accept-invite'
+    | '/auth/access-code'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/magic-link'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/settings'
     | '/auth/accept-invite'
+    | '/auth/access-code'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/magic-link'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/app/users'
     | '/auth/accept-invite'
+    | '/auth/access-code'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/magic-link'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/auth/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/access-code': {
+      id: '/auth/access-code'
+      path: '/access-code'
+      fullPath: '/auth/access-code'
+      preLoaderRoute: typeof AuthAccessCodeRouteImport
       parentRoute: typeof AuthRoute
     }
     '/auth/accept-invite': {
@@ -590,6 +609,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthAcceptInviteRoute: typeof AuthAcceptInviteRoute
+  AuthAccessCodeRoute: typeof AuthAccessCodeRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthMagicLinkRoute: typeof AuthMagicLinkRoute
@@ -598,6 +618,7 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAcceptInviteRoute: AuthAcceptInviteRoute,
+  AuthAccessCodeRoute: AuthAccessCodeRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthMagicLinkRoute: AuthMagicLinkRoute,

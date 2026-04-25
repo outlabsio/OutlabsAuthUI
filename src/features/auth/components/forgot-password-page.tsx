@@ -1,9 +1,10 @@
+import { useState } from 'react'
+
 import { Link } from '@tanstack/react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
   FieldError,
@@ -11,24 +12,38 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { AuthCard } from '@/features/auth/components/auth-card'
+import { AuthRequestCooldownNote } from '@/features/auth/components/auth-request-cooldown-note'
 import { AuthStatusCard } from '@/features/auth/components/auth-status-card'
 import { useForgotPasswordMutation } from '@/features/auth/hooks/use-forgot-password-mutation'
 import {
   type ForgotPasswordFormValues,
   forgotPasswordSchema,
 } from '@/features/auth/schemas/forgot-password.schema'
+import {
+  formatCooldown,
+  getRetryAfterSeconds,
+  useAuthRequestCooldown,
+} from '@/features/auth/utils/auth-request-cooldown'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { routes } from '@/lib/constants/routes'
-import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export function ForgotPasswordPage() {
-  const runtimeConfig = getRuntimeConfig()
   const forgotPasswordMutation = useForgotPasswordMutation()
+  const [requestedEmail, setRequestedEmail] = useState<string | null>(null)
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
       email: '',
     },
+  })
+  const emailValue = useWatch({
+    control: form.control,
+    name: 'email',
+  })
+  const cooldown = useAuthRequestCooldown({
+    email: requestedEmail ?? emailValue,
+    kind: 'forgot-password',
   })
 
   const submitError = forgotPasswordMutation.error
@@ -48,15 +63,24 @@ export function ForgotPasswordPage() {
             <Button nativeButton={false} render={<Link to={routes.auth.login} />}>
               Back to sign in
             </Button>
+            <AuthRequestCooldownNote
+              actionLabel="You can request another reset link"
+              progressPercent={cooldown.progressPercent}
+              secondsRemaining={cooldown.secondsRemaining}
+            />
             <Button
               type="button"
               variant="outline"
+              disabled={cooldown.isCoolingDown}
               onClick={() => {
                 forgotPasswordMutation.reset()
                 form.reset()
+                setRequestedEmail(null)
               }}
             >
-              Request another link
+              {cooldown.isCoolingDown
+                ? `Request another link in ${formatCooldown(cooldown.secondsRemaining)}`
+                : 'Request another link'}
             </Button>
           </>
         }
@@ -65,62 +89,76 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6">
-      <Card>
-        <CardContent className="p-6 sm:p-8">
-          <form
-            onSubmit={form.handleSubmit(async (values) => {
-              try {
-                await forgotPasswordMutation.mutateAsync(values)
-              } catch {
-                return
-              }
-            })}
+    <AuthCard
+      title="Reset your password"
+      description="Enter your email address and we will send a reset link if the account exists."
+      footer={
+        <div className="text-sm text-muted-foreground">
+          Remember your password?{' '}
+          <Link
+            to={routes.auth.login}
+            className="underline underline-offset-4 transition-colors hover:text-primary"
           >
-            <FieldGroup>
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  {runtimeConfig.authBrand}
-                </p>
-                <h1 className="text-2xl font-bold">Forgot your password?</h1>
-                <p className="text-sm text-muted-foreground">
-                  Enter your email address and we&apos;ll send a reset link if the account exists.
-                </p>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="forgot-password-email">Email</FieldLabel>
-                <Input
-                  id="forgot-password-email"
-                  type="email"
-                  autoComplete="email"
-                  aria-invalid={Boolean(form.formState.errors.email)}
-                  disabled={forgotPasswordMutation.isPending}
-                  {...form.register('email')}
-                />
-                <FieldError errors={[form.formState.errors.email]} />
-              </Field>
-              <Field>
-                <Button type="submit" disabled={forgotPasswordMutation.isPending}>
-                  {forgotPasswordMutation.isPending
-                    ? 'Sending reset link...'
-                    : 'Send reset link'}
-                </Button>
-                {submitError ? <FieldError>{submitError}</FieldError> : null}
-              </Field>
-              <Field>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to={routes.auth.login} />}
-                >
-                  Back to sign in
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            Back to sign in
+          </Link>
+        </div>
+      }
+    >
+      <form
+        onSubmit={form.handleSubmit(async (values) => {
+          if (cooldown.isCoolingDown) {
+            return
+          }
+
+          try {
+            await forgotPasswordMutation.mutateAsync(values)
+            setRequestedEmail(values.email)
+            cooldown.startCooldown()
+          } catch (error) {
+            const retryAfterSeconds = getRetryAfterSeconds(error)
+
+            if (retryAfterSeconds != null) {
+              setRequestedEmail(values.email)
+              cooldown.startCooldown(retryAfterSeconds)
+            }
+
+            return
+          }
+        })}
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="forgot-password-email">Email</FieldLabel>
+            <Input
+              id="forgot-password-email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={Boolean(form.formState.errors.email)}
+              disabled={forgotPasswordMutation.isPending}
+              {...form.register('email')}
+            />
+            <FieldError errors={[form.formState.errors.email]} />
+          </Field>
+          <Field>
+            <Button
+              type="submit"
+              disabled={forgotPasswordMutation.isPending || cooldown.isCoolingDown}
+            >
+              {cooldown.isCoolingDown
+                ? `Send again in ${formatCooldown(cooldown.secondsRemaining)}`
+                : forgotPasswordMutation.isPending
+                  ? 'Sending reset link...'
+                  : 'Send reset link'}
+            </Button>
+            <AuthRequestCooldownNote
+              actionLabel="You can request another reset link"
+              progressPercent={cooldown.progressPercent}
+              secondsRemaining={cooldown.secondsRemaining}
+            />
+            {submitError ? <FieldError>{submitError}</FieldError> : null}
+          </Field>
+        </FieldGroup>
+      </form>
+    </AuthCard>
   )
 }

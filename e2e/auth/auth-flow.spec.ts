@@ -22,12 +22,28 @@ const magicLinkAuthConfig = {
     activity_tracking: true,
     invitations: true,
     magic_links: true,
+    access_codes: false,
   },
   auth_methods: {
     password: true,
     magic_link: true,
+    access_code: false,
   },
   available_permissions: ['user:read'],
+}
+
+const accessCodeAuthConfig = {
+  ...magicLinkAuthConfig,
+  features: {
+    ...magicLinkAuthConfig.features,
+    magic_links: false,
+    access_codes: true,
+  },
+  auth_methods: {
+    password: true,
+    magic_link: false,
+    access_code: true,
+  },
 }
 
 const magicLinkSessionUser = {
@@ -126,6 +142,87 @@ test.describe('Auth Flow', () => {
     })
   })
 
+  test('magic link request cooldown persists across reloads', async ({ page }) => {
+    let requestCount = 0
+
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkAuthConfig,
+      })
+    })
+    await page.route('**/v1/auth/magic-link/request', async (route) => {
+      requestCount += 1
+      await route.fulfill({ status: 204 })
+    })
+
+    await page.goto('/auth/magic-link')
+    await page.locator('#magic-link-email').fill('admin@acme.com')
+    await page.getByRole('button', { name: 'Send sign-in link' }).click()
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Check your email',
+      })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: /Request another link in/ })
+    ).toBeDisabled()
+    expect(requestCount).toBe(1)
+
+    await page.goto('/auth/magic-link')
+    await page.locator('#magic-link-email').fill('admin@acme.com')
+    await expect(
+      page.getByRole('button', { name: /Send again in/ })
+    ).toBeDisabled()
+    expect(requestCount).toBe(1)
+  })
+
+  test('password reset cooldown honors server retry metadata', async ({ page }) => {
+    let requestCount = 0
+
+    await page.route('**/v1/auth/forgot-password', async (route) => {
+      requestCount += 1
+      await route.fulfill({
+        contentType: 'application/json',
+        headers: {
+          'Retry-After': '90',
+        },
+        status: 429,
+        json: {
+          detail: {
+            message: 'Too many password reset requests. Please try again later.',
+            retry_after_seconds: 90,
+            retry_after_minutes: 1.5,
+          },
+        },
+      })
+    })
+
+    await page.goto('/auth/forgot-password')
+    await page.locator('#forgot-password-email').fill('admin@acme.com')
+    await page.getByRole('button', { name: 'Send reset link' }).click()
+
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({
+          hasText: 'Too many password reset requests. Please try again later.',
+        })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: /Send again in 1m/ })
+    ).toBeDisabled()
+    expect(requestCount).toBe(1)
+
+    await page.goto('/auth/forgot-password')
+    await page.locator('#forgot-password-email').fill('admin@acme.com')
+    await expect(
+      page.getByRole('button', { name: /Send again in 1m/ })
+    ).toBeDisabled()
+    expect(requestCount).toBe(1)
+  })
+
   test('magic link token exchange lands on the dashboard', async ({ page }) => {
     let verifyBody: unknown = null
 
@@ -166,5 +263,148 @@ test.describe('Auth Flow', () => {
         page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
       )
       .toBe('magic-access-token')
+  })
+
+  test('access code method requests a code and signs in with it', async ({ page }) => {
+    let requestBody: unknown = null
+    let verifyBody: unknown = null
+
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: accessCodeAuthConfig,
+      })
+    })
+    await page.route('**/v1/auth/access-code/request', async (route) => {
+      requestBody = route.request().postDataJSON()
+      await route.fulfill({ status: 204 })
+    })
+    await page.route('**/v1/auth/access-code/verify', async (route) => {
+      verifyBody = route.request().postDataJSON()
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          access_token: 'access-code-token',
+          refresh_token: 'access-code-refresh-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+        },
+      })
+    })
+    await page.route('**/v1/users/me', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkSessionUser,
+      })
+    })
+
+    await page.goto('/auth/login')
+    await expectLoginPage(page)
+
+    await page.getByText('Email me a sign-in code').click()
+    await expect(page).toHaveURL(/\/auth\/access-code$/)
+
+    await page.locator('#access-code-email').fill('admin@acme.com')
+    await page.getByRole('button', { name: 'Send sign-in code' }).click()
+
+    await expect(page.getByText('Verify your login')).toBeVisible()
+    expect(requestBody).toMatchObject({
+      email: 'admin@acme.com',
+      redirect_url: expect.stringContaining('/app/dashboard'),
+    })
+
+    await page.locator('#access-code-code').fill('123456')
+    await page.getByRole('button', { name: 'Verify' }).click()
+
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
+    await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
+    expect(verifyBody).toEqual({
+      email: 'admin@acme.com',
+      code: '123456',
+    })
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBe('access-code-token')
+  })
+
+  test('access code entry is reachable after the original tab is closed', async ({ page }) => {
+    let verifyBody: unknown = null
+
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: accessCodeAuthConfig,
+      })
+    })
+    await page.route('**/v1/auth/access-code/verify', async (route) => {
+      verifyBody = route.request().postDataJSON()
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          access_token: 'direct-access-code-token',
+          refresh_token: 'direct-access-code-refresh-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+        },
+      })
+    })
+    await page.route('**/v1/users/me', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkSessionUser,
+      })
+    })
+
+    await page.goto('/auth/login')
+    await page.getByRole('link', { name: 'Enter code' }).click()
+    await expect(page).toHaveURL(/\/auth\/access-code\?mode=verify$/)
+
+    await expect(page.getByText('Verify your login')).toBeVisible()
+    await page.locator('#access-code-verify-email').fill('admin@acme.com')
+    await page.locator('#access-code-code').fill('123456')
+    await page.getByRole('button', { name: 'Verify' }).click()
+
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
+    expect(verifyBody).toEqual({
+      email: 'admin@acme.com',
+      code: '123456',
+    })
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBe('direct-access-code-token')
+  })
+
+  test('access code route reports when the method is disabled', async ({ page }) => {
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          ...accessCodeAuthConfig,
+          features: {
+            ...accessCodeAuthConfig.features,
+            access_codes: false,
+          },
+          auth_methods: {
+            ...accessCodeAuthConfig.auth_methods,
+            access_code: false,
+          },
+        },
+      })
+    })
+
+    await page.goto('/auth/access-code')
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Access codes unavailable',
+      })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Back to sign in' })
+    ).toBeVisible()
   })
 })

@@ -1,12 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Link, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
   FieldError,
@@ -15,6 +14,8 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
+import { AuthCard } from '@/features/auth/components/auth-card'
+import { AuthRequestCooldownNote } from '@/features/auth/components/auth-request-cooldown-note'
 import { AuthStatusCard } from '@/features/auth/components/auth-status-card'
 import { useRequestMagicLinkMutation } from '@/features/auth/hooks/use-request-magic-link-mutation'
 import { useVerifyMagicLinkMutation } from '@/features/auth/hooks/use-verify-magic-link-mutation'
@@ -23,9 +24,13 @@ import {
   magicLinkRequestSchema,
 } from '@/features/auth/schemas/magic-link.schema'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
+import {
+  formatCooldown,
+  getRetryAfterSeconds,
+  useAuthRequestCooldown,
+} from '@/features/auth/utils/auth-request-cooldown'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { routes } from '@/lib/constants/routes'
-import { getRuntimeConfig } from '@/lib/runtime-config'
 
 const startedMagicLinkVerifications = new Set<string>()
 
@@ -60,13 +65,13 @@ function getSafeRedirectTarget(redirect?: string) {
 }
 
 export function MagicLinkPage() {
-  const runtimeConfig = getRuntimeConfig()
   const { redirect, token } = useSearch({
     from: '/auth/magic-link',
   })
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const requestMagicLinkMutation = useRequestMagicLinkMutation()
   const verifyMagicLinkMutation = useVerifyMagicLinkMutation()
+  const [requestedEmail, setRequestedEmail] = useState<string | null>(null)
   const form = useForm<MagicLinkRequestFormValues>({
     resolver: zodResolver(magicLinkRequestSchema),
     defaultValues: {
@@ -74,6 +79,14 @@ export function MagicLinkPage() {
     },
   })
   const emailField = form.register('email')
+  const emailValue = useWatch({
+    control: form.control,
+    name: 'email',
+  })
+  const cooldown = useAuthRequestCooldown({
+    email: requestedEmail ?? emailValue,
+    kind: 'magic-link',
+  })
 
   const magicLinkEnabled =
     authConfigQuery.data?.auth_methods?.magic_link ??
@@ -172,15 +185,24 @@ export function MagicLinkPage() {
             <Button nativeButton={false} render={<Link to={routes.auth.login} />}>
               Back to sign in
             </Button>
+            <AuthRequestCooldownNote
+              actionLabel="You can request another sign-in link"
+              progressPercent={cooldown.progressPercent}
+              secondsRemaining={cooldown.secondsRemaining}
+            />
             <Button
               type="button"
               variant="outline"
+              disabled={cooldown.isCoolingDown}
               onClick={() => {
                 requestMagicLinkMutation.reset()
                 form.reset()
+                setRequestedEmail(null)
               }}
             >
-              Request another link
+              {cooldown.isCoolingDown
+                ? `Request another link in ${formatCooldown(cooldown.secondsRemaining)}`
+                : 'Request another link'}
             </Button>
           </>
         }
@@ -189,77 +211,90 @@ export function MagicLinkPage() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6">
-      <Card>
-        <CardContent className="p-6 sm:p-8">
-          <form
-            onSubmit={form.handleSubmit(async (values) => {
-              try {
-                await requestMagicLinkMutation.mutateAsync({
-                  email: values.email,
-                  redirect_url: buildDashboardRedirectUrl(),
-                })
-              } catch {
-                return
-              }
-            })}
+    <AuthCard
+      title="Email sign-in link"
+      description="Enter your email and we will send a one-time link if the account exists."
+      footer={
+        <div className="text-sm text-muted-foreground">
+          Prefer another method?{' '}
+          <Link
+            to={routes.auth.login}
+            className="underline underline-offset-4 transition-colors hover:text-primary"
           >
-            <FieldGroup>
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  {runtimeConfig.authBrand}
-                </p>
-                <h1 className="text-2xl font-bold">Email sign-in link</h1>
-                <p className="text-sm text-muted-foreground">
-                  Enter your email and we&apos;ll send a one-time link if the account exists.
-                </p>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="magic-link-email">Email</FieldLabel>
-                <Input
-                  id="magic-link-email"
-                  type="email"
-                  autoComplete="email"
-                  aria-invalid={Boolean(form.formState.errors.email)}
-                  disabled={requestMagicLinkMutation.isPending}
-                  {...emailField}
-                  onChange={(event) => {
-                    if (requestMagicLinkMutation.error) {
-                      requestMagicLinkMutation.reset()
-                    }
+            Back to sign in
+          </Link>
+        </div>
+      }
+    >
+      <form
+        onSubmit={form.handleSubmit(async (values) => {
+          if (cooldown.isCoolingDown) {
+            return
+          }
 
-                    emailField.onChange(event)
-                  }}
-                />
-                <FieldError errors={[form.formState.errors.email]} />
-              </Field>
-              <Field>
-                <Button
-                  type="submit"
-                  disabled={requestMagicLinkMutation.isPending}
-                >
-                  {requestMagicLinkMutation.isPending
-                    ? 'Sending link...'
-                    : 'Send sign-in link'}
-                </Button>
-                {requestSubmitError ? (
-                  <FieldError>{requestSubmitError}</FieldError>
-                ) : null}
-              </Field>
-              <Field>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to={routes.auth.login} />}
-                >
-                  Back to sign in
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          try {
+            await requestMagicLinkMutation.mutateAsync({
+              email: values.email,
+              redirect_url: buildDashboardRedirectUrl(),
+            })
+            setRequestedEmail(values.email)
+            cooldown.startCooldown()
+          } catch (error) {
+            const retryAfterSeconds = getRetryAfterSeconds(error)
+
+            if (retryAfterSeconds != null) {
+              setRequestedEmail(values.email)
+              cooldown.startCooldown(retryAfterSeconds)
+            }
+
+            return
+          }
+        })}
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="magic-link-email">Email</FieldLabel>
+            <Input
+              id="magic-link-email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={Boolean(form.formState.errors.email)}
+              disabled={requestMagicLinkMutation.isPending}
+              {...emailField}
+              onChange={(event) => {
+                if (requestMagicLinkMutation.error) {
+                  requestMagicLinkMutation.reset()
+                }
+
+                emailField.onChange(event)
+              }}
+            />
+            <FieldError errors={[form.formState.errors.email]} />
+          </Field>
+          <Field>
+            <Button
+              type="submit"
+              disabled={
+                requestMagicLinkMutation.isPending || cooldown.isCoolingDown
+              }
+            >
+              {cooldown.isCoolingDown
+                ? `Send again in ${formatCooldown(cooldown.secondsRemaining)}`
+                : requestMagicLinkMutation.isPending
+                  ? 'Sending link...'
+                  : 'Send sign-in link'}
+            </Button>
+            <AuthRequestCooldownNote
+              actionLabel="You can request another sign-in link"
+              progressPercent={cooldown.progressPercent}
+              secondsRemaining={cooldown.secondsRemaining}
+            />
+            {requestSubmitError ? (
+              <FieldError>{requestSubmitError}</FieldError>
+            ) : null}
+          </Field>
+        </FieldGroup>
+      </form>
+    </AuthCard>
   )
 }

@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
   FieldDescription,
@@ -12,6 +11,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { AuthCard } from '@/features/auth/components/auth-card'
 import { AuthStatusCard } from '@/features/auth/components/auth-status-card'
 import { useAcceptInviteMutation } from '@/features/auth/hooks/use-accept-invite-mutation'
 import {
@@ -20,10 +20,8 @@ import {
 } from '@/features/auth/schemas/password-setup.schema'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { routes } from '@/lib/constants/routes'
-import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export function AcceptInvitePage() {
-  const runtimeConfig = getRuntimeConfig()
   const navigate = useNavigate()
   const { token } = useSearch({
     from: '/auth/accept-invite',
@@ -59,90 +57,80 @@ export function AcceptInvitePage() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6">
-      <Card>
-        <CardContent className="p-6 sm:p-8">
-          <form
-            onSubmit={form.handleSubmit(async (values) => {
-              try {
-                await acceptInviteMutation.mutateAsync({
-                  token,
-                  new_password: values.newPassword,
-                })
-
-                await navigate({
-                  to: routes.app.dashboard,
-                })
-              } catch {
-                return
-              }
-            })}
+    <AuthCard
+      title="Accept your invitation"
+      description="Set your password to activate the account."
+      footer={
+        <div className="text-sm text-muted-foreground">
+          Not ready to accept?{' '}
+          <Link
+            to={routes.auth.login}
+            className="underline underline-offset-4 transition-colors hover:text-primary"
           >
-            <FieldGroup>
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  {runtimeConfig.authBrand}
-                </p>
-                <h1 className="text-2xl font-bold">Accept your invitation</h1>
-                <p className="text-sm text-muted-foreground">
-                  Set your password to activate the account. The backend will sign you in
-                  immediately unless the account is still blocked by a lockout window.
-                </p>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="accept-invite-new-password">
-                  New password
-                </FieldLabel>
-                <Input
-                  id="accept-invite-new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  aria-invalid={Boolean(form.formState.errors.newPassword)}
-                  disabled={acceptInviteMutation.isPending}
-                  {...form.register('newPassword')}
-                />
-                <FieldError errors={[form.formState.errors.newPassword]} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="accept-invite-confirm-password">
-                  Confirm password
-                </FieldLabel>
-                <Input
-                  id="accept-invite-confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  aria-invalid={Boolean(form.formState.errors.confirmPassword)}
-                  disabled={acceptInviteMutation.isPending}
-                  {...form.register('confirmPassword')}
-                />
-                <FieldError errors={[form.formState.errors.confirmPassword]} />
-              </Field>
-              <FieldDescription className="text-sm">
-                If you are currently signed in as another user in this browser,
-                this will replace that active session.
-              </FieldDescription>
-              <Field>
-                <Button type="submit" disabled={acceptInviteMutation.isPending}>
-                  {acceptInviteMutation.isPending
-                    ? 'Accepting invitation...'
-                    : 'Accept invitation'}
-                </Button>
-                {submitError ? <FieldError>{submitError}</FieldError> : null}
-              </Field>
-              <Field>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to={routes.auth.login} />}
-                >
-                  Back to sign in
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            Back to sign in
+          </Link>
+        </div>
+      }
+    >
+      <form
+        onSubmit={form.handleSubmit(async (values) => {
+          try {
+            await acceptInviteMutation.mutateAsync({
+              token,
+              new_password: values.newPassword,
+            })
+
+            await navigate({
+              to: routes.app.dashboard,
+            })
+          } catch {
+            return
+          }
+        })}
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="accept-invite-new-password">
+              New password
+            </FieldLabel>
+            <Input
+              id="accept-invite-new-password"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={Boolean(form.formState.errors.newPassword)}
+              disabled={acceptInviteMutation.isPending}
+              {...form.register('newPassword')}
+            />
+            <FieldError errors={[form.formState.errors.newPassword]} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="accept-invite-confirm-password">
+              Confirm password
+            </FieldLabel>
+            <Input
+              id="accept-invite-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={Boolean(form.formState.errors.confirmPassword)}
+              disabled={acceptInviteMutation.isPending}
+              {...form.register('confirmPassword')}
+            />
+            <FieldError errors={[form.formState.errors.confirmPassword]} />
+          </Field>
+          <FieldDescription className="text-sm">
+            If you are currently signed in as another user in this browser, this
+            will replace that active session.
+          </FieldDescription>
+          <Field>
+            <Button type="submit" disabled={acceptInviteMutation.isPending}>
+              {acceptInviteMutation.isPending
+                ? 'Accepting invitation...'
+                : 'Accept invitation'}
+            </Button>
+            {submitError ? <FieldError>{submitError}</FieldError> : null}
+          </Field>
+        </FieldGroup>
+      </form>
+    </AuthCard>
   )
 }

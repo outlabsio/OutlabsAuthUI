@@ -1,14 +1,12 @@
 import { useEffect } from 'react'
 
 import { Link } from '@tanstack/react-router'
-import { Mail } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
   FieldError,
@@ -18,12 +16,12 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
+import { AuthCard } from '@/features/auth/components/auth-card'
 import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
 import { loginSchema } from '@/features/auth/schemas/login.schema'
 import type { LoginCredentials } from '@/features/auth/types/auth.types'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import { hasStoredAuthTokens } from '@/lib/api/auth-token'
-import { apiConfig } from '@/lib/api/config'
 import { routes } from '@/lib/constants/routes'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 import { cn } from '@/lib/utils/cn'
@@ -37,7 +35,6 @@ export function LoginPage({ className }: LoginPageProps) {
   const navigate = useNavigate()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const loginMutation = useLoginMutation()
-  const apiTarget = `${apiConfig.baseUrl}${apiConfig.authPrefix}`
   const form = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -55,7 +52,12 @@ export function LoginPage({ className }: LoginPageProps) {
   const magicLinkEnabled =
     authConfigQuery.data?.auth_methods?.magic_link ??
     authConfigQuery.data?.features.magic_links ??
-    false
+    true
+  const accessCodeEnabled =
+    authConfigQuery.data?.auth_methods?.access_code ??
+    authConfigQuery.data?.features.access_codes ??
+    true
+  const passwordlessEnabled = magicLinkEnabled || accessCodeEnabled
 
   useEffect(() => {
     if (!hasStoredAuthTokens()) {
@@ -69,136 +71,144 @@ export function LoginPage({ className }: LoginPageProps) {
   }, [navigate])
 
   return (
-    <div className={cn('flex w-full max-w-5xl flex-col gap-6', className)}>
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          <form
-            className="p-6 md:p-8"
-            onSubmit={form.handleSubmit(async (values) => {
-              try {
-                await loginMutation.mutateAsync(values)
-                await navigate({
-                  to: routes.app.dashboard,
-                })
-              } catch {
-                return
-              }
-            })}
-          >
-            <FieldGroup>
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="text-xs font-semibold tracking-[0.24em] text-muted-foreground uppercase">
-                  {runtimeConfig.authBrand}
-                </p>
-                <h1 className="text-2xl font-bold">Welcome back</h1>
-                <p className="text-balance text-muted-foreground">
-                  {runtimeConfig.signInDescription}
-                </p>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  aria-invalid={Boolean(form.formState.errors.email)}
-                  disabled={loginMutation.isPending}
-                  {...emailField}
-                  onChange={(event) => {
-                    if (loginMutation.error) {
-                      loginMutation.reset()
-                    }
+    <div className={cn('w-full', className)}>
+      <AuthCard
+        title="Welcome back"
+        description={runtimeConfig.signInDescription}
+        footer={
+          <div className="text-sm text-muted-foreground">
+            Need another option?{' '}
+            <Link
+              to={routes.auth.accessCode}
+              search={{ mode: 'verify' }}
+              className="underline underline-offset-4 transition-colors hover:text-primary"
+            >
+              Enter code
+            </Link>
+          </div>
+        }
+      >
+        <form
+          onSubmit={form.handleSubmit(async (values) => {
+            try {
+              await loginMutation.mutateAsync(values)
+              await navigate({
+                to: routes.app.dashboard,
+              })
+            } catch {
+              return
+            }
+          })}
+        >
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                aria-invalid={Boolean(form.formState.errors.email)}
+                disabled={loginMutation.isPending}
+                {...emailField}
+                onChange={(event) => {
+                  if (loginMutation.error) {
+                    loginMutation.reset()
+                  }
 
-                    emailField.onChange(event)
-                  }}
-                />
-                <FieldError errors={[form.formState.errors.email]} />
-              </Field>
-              <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="ml-auto h-auto px-0 text-sm"
-                    nativeButton={false}
-                    render={<Link to={routes.auth.forgotPassword} />}
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  aria-invalid={Boolean(form.formState.errors.password)}
-                  disabled={loginMutation.isPending}
-                  {...passwordField}
-                  onChange={(event) => {
-                    if (loginMutation.error) {
-                      loginMutation.reset()
-                    }
-
-                    passwordField.onChange(event)
-                  }}
-                />
-                <FieldError errors={[form.formState.errors.password]} />
-              </Field>
-              <Field>
-                <Button type="submit" disabled={loginMutation.isPending}>
-                  {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+                  emailField.onChange(event)
+                }}
+              />
+              <FieldError errors={[form.formState.errors.email]} />
+            </Field>
+            <Field>
+              <div className="flex items-center">
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="ml-auto h-auto px-0 text-sm"
+                  nativeButton={false}
+                  render={<Link to={routes.auth.forgotPassword} />}
+                >
+                  Forgot password?
                 </Button>
-                {submitError ? <FieldError>{submitError}</FieldError> : null}
-              </Field>
-              {magicLinkEnabled ? (
-                <>
-                  <FieldSeparator>or</FieldSeparator>
-                  <Field>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                aria-invalid={Boolean(form.formState.errors.password)}
+                disabled={loginMutation.isPending}
+                {...passwordField}
+                onChange={(event) => {
+                  if (loginMutation.error) {
+                    loginMutation.reset()
+                  }
+
+                  passwordField.onChange(event)
+                }}
+              />
+              <FieldError errors={[form.formState.errors.password]} />
+            </Field>
+            <Field>
+              <Button type="submit" disabled={loginMutation.isPending}>
+                {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+              </Button>
+              {submitError ? <FieldError>{submitError}</FieldError> : null}
+            </Field>
+            {passwordlessEnabled ? (
+              <>
+                <FieldSeparator>or</FieldSeparator>
+                <div className="grid gap-2">
+                  {magicLinkEnabled ? (
                     <Button
                       type="button"
                       variant="outline"
                       nativeButton={false}
                       render={<Link to={routes.auth.magicLink} />}
                     >
-                      <Mail aria-hidden="true" />
                       Email me a sign-in link
                     </Button>
-                  </Field>
-                </>
-              ) : null}
-            </FieldGroup>
-          </form>
-          <div className="relative hidden bg-muted md:block">
-            <div className="absolute inset-0 p-8">
-              <div className="flex h-full flex-col justify-between rounded-xl border bg-background p-6 text-foreground shadow-sm">
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold tracking-[0.24em] uppercase text-muted-foreground">
-                    {runtimeConfig.authBrand}
-                  </p>
-                  <h2 className="text-2xl font-semibold">
-                    {runtimeConfig.appName}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {runtimeConfig.appSubtitle}
-                  </p>
+                  ) : null}
+                  {accessCodeEnabled ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link to={routes.auth.accessCode} />}
+                    >
+                      Email me a sign-in code
+                    </Button>
+                  ) : null}
                 </div>
-                <div className="grid gap-3">
-                  <div className="rounded-lg border bg-muted px-4 py-3 text-sm">
-                    Shell: mixed `sidebar-07` collapse behavior with `sidebar-08` inset styling
-                  </div>
-                  <div className="rounded-lg border bg-muted px-4 py-3 text-sm">
-                    API target: <code>{apiTarget}</code>, configurable via runtime
-                    <code> app-config.json</code> or fallback Vite env variables.
-                  </div>
-                </div>
-              </div>
+              </>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <Link
+                to={routes.auth.magicLink}
+                className="underline underline-offset-4 transition-colors hover:text-primary"
+              >
+                Magic link
+              </Link>
+              <Link
+                to={routes.auth.accessCode}
+                className="underline underline-offset-4 transition-colors hover:text-primary"
+              >
+                Request code
+              </Link>
+              <Link
+                to={routes.auth.forgotPassword}
+                className="underline underline-offset-4 transition-colors hover:text-primary"
+              >
+                Reset password
+              </Link>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </FieldGroup>
+        </form>
+      </AuthCard>
     </div>
   )
 }

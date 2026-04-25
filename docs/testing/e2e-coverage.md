@@ -21,6 +21,7 @@ with auth routes under `/v1`.
 
 - `e2e/auth/auth-flow.spec.ts`
   - login flow
+  - passwordless magic-link and access-code flows
   - auth bootstrap and route transitions
 - `e2e/app/app-shell.spec.ts`
   - shell layout and persistent navigation

@@ -249,15 +249,14 @@ export function AppSidebar({
   })
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    <Sidebar
+      variant="inset"
+      collapsible="icon"
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip={runtimeConfig.appName}
-              render={<Link to={routes.app.dashboard} />}
-            >
+            <div className="flex h-12 items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
               <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
                 <ShieldCheck className="size-4" />
               </div>
@@ -267,7 +266,7 @@ export function AppSidebar({
                   {runtimeConfig.appSubtitle}
                 </span>
               </div>
-            </SidebarMenuButton>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

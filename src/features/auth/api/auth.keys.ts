@@ -1,5 +1,7 @@
 export const authKeys = {
   all: ['auth'] as const,
+  accessCodeRequest: () => [...authKeys.all, 'access-code-request'] as const,
+  accessCodeVerify: () => [...authKeys.all, 'access-code-verify'] as const,
   acceptInvite: () => [...authKeys.all, 'accept-invite'] as const,
   config: () => [...authKeys.all, 'config'] as const,
   forgotPassword: () => [...authKeys.all, 'forgot-password'] as const,

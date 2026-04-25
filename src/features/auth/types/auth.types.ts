@@ -16,6 +16,16 @@ export type MagicLinkVerifyInput = {
   token: string
 }
 
+export type AccessCodeRequestInput = {
+  email: string
+  redirect_url?: string | null
+}
+
+export type AccessCodeVerifyInput = {
+  email: string
+  code: string
+}
+
 export type ResetPasswordInput = {
   token: string
   new_password: string
@@ -70,10 +80,12 @@ export type AuthConfig = {
     activity_tracking: boolean
     invitations: boolean
     magic_links?: boolean
+    access_codes?: boolean
   }
   auth_methods?: {
     password: boolean
-    magic_link: boolean
+    magic_link?: boolean
+    access_code?: boolean
   }
   available_permissions: string[]
 }

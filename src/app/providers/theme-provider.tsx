@@ -1,26 +1,22 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
-
-import { useThemeStore } from '@/lib/store/theme.store'
+import {
+  ThemeProvider as NextThemesProvider,
+  type ThemeProviderProps as NextThemesProviderProps,
+} from 'next-themes'
 
 type ThemeProviderProps = {
   children: ReactNode
-}
+} & Omit<NextThemesProviderProps, 'children'>
 
-function applyTheme(resolvedTheme: 'light' | 'dark') {
-  const root = window.document.documentElement
-
-  root.classList.toggle('dark', resolvedTheme === 'dark')
-  root.dataset.theme = resolvedTheme
-  root.style.colorScheme = resolvedTheme
-}
-
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  const theme = useThemeStore((state) => state.theme)
-
-  useEffect(() => {
-    applyTheme(theme)
-  }, [theme])
-
-  return children
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      {...props}
+    >
+      {children}
+    </NextThemesProvider>
+  )
 }

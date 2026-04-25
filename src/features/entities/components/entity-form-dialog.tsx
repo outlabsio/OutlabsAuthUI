@@ -902,14 +902,15 @@ export function EntityFormDialog({
                               aria-label="Status"
                               className="w-full"
                               disabled={isPending}
-                              type="single"
-                              value={field.value}
+                              value={field.value ? [field.value] : []}
                               onValueChange={(nextValue) => {
-                                if (!nextValue) {
+                                const [selectedStatus] = nextValue
+
+                                if (!selectedStatus) {
                                   return
                                 }
 
-                                field.onChange(nextValue as EntityFormValues['status'])
+                                field.onChange(selectedStatus as EntityFormValues['status'])
                               }}
                               variant="outline"
                             >
@@ -964,14 +965,15 @@ export function EntityFormDialog({
                             aria-label="Status"
                             className="w-full"
                             disabled={isPending}
-                            type="single"
-                            value={field.value}
+                            value={field.value ? [field.value] : []}
                             onValueChange={(nextValue) => {
-                              if (!nextValue) {
+                              const [selectedStatus] = nextValue
+
+                              if (!selectedStatus) {
                                 return
                               }
 
-                              field.onChange(nextValue as EntityFormValues['status'])
+                              field.onChange(selectedStatus as EntityFormValues['status'])
                             }}
                             variant="outline"
                           >

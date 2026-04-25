@@ -64,7 +64,7 @@ export function AppShell({
           }}
           onLogout={onLogout}
         />
-        <SidebarInset className="min-h-0 overflow-hidden">
+        <SidebarInset className="min-h-0 overflow-hidden md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0">
           <header className="z-20 grid h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2 px-2">
               <SidebarTrigger className="-ml-1" />

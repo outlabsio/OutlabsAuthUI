@@ -286,8 +286,7 @@ export function EntityMemberAccessDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        viewportClassName="items-stretch p-0 sm:p-4"
-        className="h-[100svh] max-h-[100svh] w-screen max-w-none overflow-hidden rounded-none p-0 ring-0 sm:h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-none sm:rounded-2xl sm:ring-1 xl:w-[min(112rem,calc(100vw-2rem))]"
+        className="top-0 left-0 h-[100svh] max-h-[100svh] w-screen max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-none p-0 ring-0 sm:top-4 sm:left-4 sm:h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-none sm:rounded-2xl sm:ring-1 xl:w-[min(112rem,calc(100vw-2rem))]"
       >
         <div className="flex min-h-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 border-b px-6 py-5 pr-16">

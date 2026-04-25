@@ -177,17 +177,14 @@ export function AssignableRolesTable({
       ) : null}
 
       {visibleRoles.length > 0 ? (
-        <Table
-          containerProps={{
-            'data-slot': 'assignable-roles-scroll-region',
-            'aria-label': 'Assignable roles',
-            className:
-              'min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain [scrollbar-gutter:stable]',
-            onWheelCapture: handleScrollRegionWheel,
-            tabIndex: 0,
-          }}
-          className="min-w-[760px] table-fixed"
+        <div
+          data-slot="assignable-roles-scroll-region"
+          aria-label="Assignable roles"
+          className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+          onWheelCapture={handleScrollRegionWheel}
+          tabIndex={0}
         >
+          <Table className="min-w-[760px] table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {canSelectRoles ? (
@@ -316,6 +313,7 @@ export function AssignableRolesTable({
               })}
             </TableBody>
           </Table>
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10 text-sm text-muted-foreground">
           {getEmptyStateMessage()}
