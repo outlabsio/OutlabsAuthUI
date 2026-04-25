@@ -1,11 +1,20 @@
-import { useEffect, useEffectEvent, useRef } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
+import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { Sparkles } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { DataTableColumnHeader } from '@/components/ui/data-table-column-header'
 import {
   Table,
   TableBody,
@@ -28,6 +37,7 @@ import {
   getRoleTypeLabel,
   groupPermissions,
 } from '@/features/roles/utils/role-display'
+import { cn } from '@/lib/utils/cn'
 
 type RolesTableProps = {
   roles: Role[]
@@ -36,6 +46,8 @@ type RolesTableProps = {
   isRefreshing: boolean
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
+  sorting?: SortingState
+  onSortingChange?: (sorting: SortingState) => void
   onLoadMore?: () => Promise<unknown> | void
   onRoleSelect: (roleId: string) => void
   embedded?: boolean
@@ -53,6 +65,8 @@ export function RolesTable({
   isRefreshing,
   hasNextPage = false,
   isFetchingNextPage = false,
+  sorting,
+  onSortingChange,
   onLoadMore,
   onRoleSelect,
   embedded = false,
@@ -63,6 +77,157 @@ export function RolesTable({
   emptyDescription = 'Adjust or clear the current filters.',
 }: RolesTableProps) {
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const [internalSorting, setInternalSorting] = useState<SortingState>([
+    {
+      id: 'role',
+      desc: false,
+    },
+  ])
+  const activeSorting = sorting ?? internalSorting
+  const setActiveSorting = onSortingChange ?? setInternalSorting
+  const columns = useMemo<ColumnDef<Role>[]>(
+    () => [
+      {
+        id: 'role',
+        accessorFn: (role) => `${role.display_name} ${role.name}`.toLowerCase(),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
+        cell: ({ row }) => {
+          const role = row.original
+
+          return (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="font-medium">{role.display_name}</div>
+                <Badge variant="outline">{getRoleTypeLabel(role)}</Badge>
+                {role.is_system_role ? <Badge variant="secondary">System</Badge> : null}
+                {role.is_auto_assigned ? <Badge variant="outline">Auto</Badge> : null}
+                <AppStatusBadge tone={getRoleStatusTone(role.status)}>
+                  {getRoleStatusLabel(role.status)}
+                </AppStatusBadge>
+              </div>
+              <div className="break-all font-mono text-xs text-muted-foreground">
+                {role.name}
+              </div>
+              {role.description ? (
+                <div className="line-clamp-2 text-sm text-muted-foreground">
+                  {role.description}
+                </div>
+              ) : null}
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'applicability',
+        accessorFn: (role) =>
+          `${getRoleTypeLabel(role)} ${getRoleDefinitionLabel(role)} ${getRoleBlastRadiusLabel(role)}`.toLowerCase(),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Applicability" />
+        ),
+        cell: ({ row }) => {
+          const role = row.original
+
+          return (
+            <div className="space-y-2.5">
+              <div className="text-sm font-medium">{getRoleTypeDescription(role)}</div>
+              <div className="text-sm text-foreground">{getRoleDefinitionLabel(role)}</div>
+              <div className="text-xs text-muted-foreground">
+                {getRoleBlastRadiusLabel(role)}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'assignment',
+        accessorFn: (role) =>
+          `${role.is_auto_assigned ? 'auto' : 'manual'} ${getRoleAssignmentRuleLabel(role)} ${getRoleOperationalSummary(role)}`.toLowerCase(),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Assignment" />
+        ),
+        cell: ({ row }) => {
+          const role = row.original
+
+          return (
+            <div className="space-y-2.5">
+              <div className="text-sm font-medium">
+                {role.is_auto_assigned ? 'Auto-assigned access' : 'Intentional admin grant'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getRoleAssignmentRuleLabel(role)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getRoleOperationalSummary(role)}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'footprint',
+        accessorFn: (role) => role.permissions.length,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Permission footprint" />
+        ),
+        cell: ({ row }) => {
+          const role = row.original
+          const assignableTypes = formatAssignableTypes(role)
+          const permissionGroups = groupPermissions(role.permissions)
+          const permissionPreview = permissionGroups.slice(0, 3)
+          const hiddenPermissionGroupsCount = Math.max(
+            permissionGroups.length - permissionPreview.length,
+            0
+          )
+
+          return (
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">
+                  {role.permissions.length} permission
+                  {role.permissions.length === 1 ? '' : 's'}
+                </Badge>
+                {assignableTypes ? (
+                  <Badge variant="outline">{assignableTypes}</Badge>
+                ) : (
+                  <Badge variant="outline">Any entity type</Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {permissionPreview.map((permissionGroup) => (
+                  <Badge key={permissionGroup.resource} variant="secondary">
+                    {permissionGroup.label}
+                  </Badge>
+                ))}
+                {hiddenPermissionGroupsCount > 0 ? (
+                  <Badge variant="secondary">+{hiddenPermissionGroupsCount} more</Badge>
+                ) : null}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getRoleScopeSummary(role)}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+    ],
+    []
+  )
+  const table = useReactTable({
+    data: roles,
+    columns,
+    state: {
+      sorting: activeSorting,
+    },
+    onSortingChange: (updater) => {
+      setActiveSorting(typeof updater === 'function' ? updater(activeSorting) : updater)
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
   const handleScrollNearBottom = useEffectEvent(() => {
     if (!hasNextPage || isFetchingNextPage || !onLoadMore) {
       return
@@ -142,38 +307,38 @@ export function RolesTable({
               className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain"
             >
               <Table className="table-fixed">
-                <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[29%] px-4">
-                      Role
-                    </TableHead>
-                    <TableHead className="w-[25%] px-4">
-                      Applicability
-                    </TableHead>
-                    <TableHead className="w-[24%] px-4">
-                      Assignment
-                    </TableHead>
-                    <TableHead className="w-[22%] px-4">
-                      Permission footprint
-                    </TableHead>
-                  </TableRow>
+                <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_var(--color-border)]">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                      {headerGroup.headers.map((header) => (
+                        <TableHead
+                          key={header.id}
+                          className={cn(
+                            'px-4',
+                            header.column.id === 'role' ? 'w-[29%]' : null,
+                            header.column.id === 'applicability' ? 'w-[25%]' : null,
+                            header.column.id === 'assignment' ? 'w-[24%]' : null,
+                            header.column.id === 'footprint' ? 'w-[22%]' : null
+                          )}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
                 </TableHeader>
                 <TableBody>
-                  {roles.map((role) => {
+                  {table.getRowModel().rows.map((row) => {
+                    const role = row.original
                     const isSelected = selectedRoleId === role.id
-                    const assignableTypes = formatAssignableTypes(role)
-                    const permissionGroups = groupPermissions(role.permissions)
-                    const permissionPreview = permissionGroups.slice(0, 3)
-                    const hiddenPermissionGroupsCount = Math.max(
-                      permissionGroups.length - permissionPreview.length,
-                      0
-                    )
 
                     return (
                       <TableRow
                         key={role.id}
                         data-state={isSelected ? 'selected' : undefined}
-                        className="cursor-pointer"
+                        className="cursor-pointer transition-colors hover:bg-muted/60"
                         tabIndex={0}
                         onClick={() => onRoleSelect(role.id)}
                         onKeyDown={(event) => {
@@ -185,78 +350,14 @@ export function RolesTable({
                           onRoleSelect(role.id)
                         }}
                       >
-                        <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="font-medium">{role.display_name}</div>
-                              <Badge variant="outline">{getRoleTypeLabel(role)}</Badge>
-                              {role.is_system_role ? <Badge variant="secondary">System</Badge> : null}
-                              {role.is_auto_assigned ? (
-                                <Badge variant="outline">Auto</Badge>
-                              ) : null}
-                              <AppStatusBadge tone={getRoleStatusTone(role.status)}>
-                                {getRoleStatusLabel(role.status)}
-                              </AppStatusBadge>
-                            </div>
-                            <div className="break-all font-mono text-xs text-muted-foreground">
-                              {role.name}
-                            </div>
-                            {role.description ? (
-                              <div className="line-clamp-2 text-sm text-muted-foreground">
-                                {role.description}
-                              </div>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2.5">
-                            <div className="text-sm font-medium">{getRoleTypeDescription(role)}</div>
-                            <div className="text-sm text-foreground">{getRoleDefinitionLabel(role)}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {getRoleBlastRadiusLabel(role)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2.5">
-                            <div className="text-sm font-medium">
-                              {role.is_auto_assigned ? 'Auto-assigned access' : 'Intentional admin grant'}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {getRoleAssignmentRuleLabel(role)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {getRoleOperationalSummary(role)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-top whitespace-normal">
-                          <div className="space-y-2.5">
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline">
-                                {role.permissions.length} permission{role.permissions.length === 1 ? '' : 's'}
-                              </Badge>
-                              {assignableTypes ? (
-                                <Badge variant="outline">{assignableTypes}</Badge>
-                              ) : (
-                                <Badge variant="outline">Any entity type</Badge>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {permissionPreview.map((permissionGroup) => (
-                                <Badge key={permissionGroup.resource} variant="secondary">
-                                  {permissionGroup.label}
-                                </Badge>
-                              ))}
-                              {hiddenPermissionGroupsCount > 0 ? (
-                                <Badge variant="secondary">+{hiddenPermissionGroupsCount} more</Badge>
-                              ) : null}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {getRoleScopeSummary(role)}
-                            </div>
-                          </div>
-                        </TableCell>
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            className="px-4 py-4 align-top whitespace-normal"
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     )
                   })}

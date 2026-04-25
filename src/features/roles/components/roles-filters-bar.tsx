@@ -147,13 +147,13 @@ export function RolesFiltersBar({
 
   return (
     <form
-      className="flex min-w-0 flex-wrap items-center gap-2"
+      className="flex min-w-0 flex-wrap items-center gap-2 xl:flex-nowrap"
       onSubmit={(event) => {
         event.preventDefault()
         onApply(buildFilters())
       }}
     >
-      <div className="relative min-w-[190px] flex-[0_1_220px] xl:flex-[0_1_240px]">
+      <div className="relative min-w-[220px] flex-[1_1_260px]">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={searchValue}

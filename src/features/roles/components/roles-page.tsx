@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import type { SortingState } from '@tanstack/react-table'
 import { ShieldPlus } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
@@ -42,6 +43,12 @@ export function RolesPage({
   onSearchChange,
   onRoleSelect,
 }: RolesPageProps) {
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: 'role',
+      desc: false,
+    },
+  ])
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
@@ -247,7 +254,10 @@ export function RolesPage({
         }
         action={
           canReadRoles ? (
-            <AppToolbar variant="plain" className="min-w-0 p-4">
+            <AppToolbar
+              variant="plain"
+              className="border-b bg-background/95 px-4 py-3"
+            >
               <RolesFiltersBar
                 key={searchKey}
                 search={search}
@@ -273,6 +283,8 @@ export function RolesPage({
             isRefreshing={rolesQuery.isRefetching && !rolesQuery.isPending && !rolesQuery.isFetchingNextPage}
             hasNextPage={rolesQuery.hasNextPage}
             isFetchingNextPage={rolesQuery.isFetchingNextPage}
+            sorting={sorting}
+            onSortingChange={setSorting}
             onLoadMore={() => rolesQuery.fetchNextPage()}
             onRoleSelect={(roleId) => onRoleSelect(roleId)}
             plain
