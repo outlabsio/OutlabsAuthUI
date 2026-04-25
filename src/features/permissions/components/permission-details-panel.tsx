@@ -2,13 +2,11 @@ import { useMemo, useState } from 'react'
 
 import { Fingerprint, KeyRound, PencilLine, Trash2 } from 'lucide-react'
 
-import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AbacConditionsSection } from '@/features/abac/components/abac-conditions-section'
 import { AppSection } from '@/components/app/app-section'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { PermissionCondition, PermissionConditionGroup, Permission } from '@/features/permissions/types/permissions.types'
 import {
@@ -73,7 +71,7 @@ type CompactMetricProps = {
 
 function DetailField({ label, value }: DetailFieldProps) {
   return (
-    <div className="space-y-1 rounded-2xl border bg-muted/20 px-4 py-3">
+    <div className="space-y-1 rounded-2xl border bg-muted/20 px-3 py-2.5">
       <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</div>
       <div className="text-sm leading-6 text-foreground">{value}</div>
     </div>
@@ -121,81 +119,86 @@ export function PermissionDetailsPanel({
 
   if (!permission) {
     return (
-      <AppEmptyState
-        title="Select a permission"
-        description="Select a permission to inspect it."
-        icon={<KeyRound className="size-7" />}
-        className="min-h-[40svh] border-border/80 bg-card/80"
-      />
+      <div className="flex h-full min-h-[40svh] min-w-0 items-center justify-center px-6 text-center">
+        <div className="flex max-w-sm flex-col items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <KeyRound className="size-6" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-sm font-medium">Select a permission</h2>
+            <p className="text-sm text-muted-foreground">Choose a permission to view details.</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-4">
-      <Card className="shrink-0 border border-border/70 bg-card/90 ring-0">
-        <CardContent className="space-y-3 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <Badge variant="outline" className="gap-1.5">
-                <Fingerprint className="size-3.5" />
-                {permission.name}
-              </Badge>
-              {permission.is_system ? <Badge variant="secondary">System permission</Badge> : null}
-              <AppStatusBadge tone={getPermissionStatusTone(permission)}>
-                {permission.status === 'active'
-                  ? 'Active'
-                  : permission.status === 'archived'
-                    ? 'Archived'
-                    : 'Inactive'}
-              </AppStatusBadge>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={onEditPermission}
-                disabled={!canManagePermission}
-              >
-                <PencilLine className="size-4" />
-                Edit permission
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={onDeletePermission}
-                disabled={!canDeletePermission}
-              >
-                <Trash2 className="size-4" />
-                Delete
-              </Button>
-            </div>
+      <section className="shrink-0 space-y-3 px-1 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <Badge variant="outline" className="gap-1.5">
+              <Fingerprint className="size-3.5" />
+              {permission.name}
+            </Badge>
+            {permission.is_system ? <Badge variant="secondary">System permission</Badge> : null}
+            <AppStatusBadge tone={getPermissionStatusTone(permission)}>
+              {permission.status === 'active'
+                ? 'Active'
+                : permission.status === 'archived'
+                  ? 'Archived'
+                  : 'Inactive'}
+            </AppStatusBadge>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0 flex-1 space-y-1">
-              <h2 className="truncate text-xl font-semibold tracking-tight">
-                {permission.display_name}
-              </h2>
-              <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
-                {permission.description || getPermissionBehaviorSummary(permission)}
-              </p>
-            </div>
-
-            <div className="flex min-w-0 flex-wrap items-center gap-2 xl:max-w-[22rem] xl:justify-end">
-              <CompactMetric label="Tags" value={previewTags.length} />
-              <CompactMetric label="Linked roles" value={linkedRoles.length} />
-              <CompactMetric label="ABAC rules" value={conditionGroups.length + conditions.length} />
-              <CompactMetric
-                label="Status"
-                value={permission.status === 'active' ? 'Live' : 'Paused'}
-              />
-            </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="disabled:pointer-events-auto disabled:cursor-not-allowed"
+              onClick={onEditPermission}
+              disabled={!canManagePermission}
+            >
+              <PencilLine className="size-4" />
+              Edit permission
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="disabled:pointer-events-auto disabled:cursor-not-allowed"
+              onClick={onDeletePermission}
+              disabled={!canDeletePermission}
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1 space-y-1">
+            <h2 className="truncate text-xl font-semibold tracking-tight">
+              {permission.display_name}
+            </h2>
+            <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
+              {permission.description || getPermissionBehaviorSummary(permission)}
+            </p>
+          </div>
+
+          <div className="flex min-w-0 flex-wrap items-center gap-2 xl:max-w-[22rem] xl:justify-end">
+            <CompactMetric label="Tags" value={previewTags.length} />
+            <CompactMetric label="Linked roles" value={linkedRoles.length} />
+            <CompactMetric label="ABAC rules" value={conditionGroups.length + conditions.length} />
+            <CompactMetric
+              label="Status"
+              value={permission.status === 'active' ? 'Live' : 'Paused'}
+            />
+          </div>
+        </div>
+      </section>
 
       <Tabs
         value={activeTab}
@@ -223,7 +226,7 @@ export function PermissionDetailsPanel({
                   'These fields describe the capability atom itself: which resource it targets, which action it represents, and whether the name includes a scope suffix.',
               }}
             >
-              <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 <DetailField label="Resource" value={getPermissionResourceLabel(permission)} />
                 <DetailField label="Action" value={getPermissionActionLabel(permission)} />
                 <DetailField label="Scope suffix" value={getPermissionScopeLabel(permission)} />

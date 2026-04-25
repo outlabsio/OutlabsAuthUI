@@ -398,7 +398,144 @@ test.describe('API Keys Workspace', () => {
     await expect(page.getByText('Descendants allowed', { exact: true })).toBeVisible()
     await expect(page.getByText('125 requests/minute', { exact: true })).toBeVisible()
     await expect(page.getByRole('main').getByText('Permissions', { exact: true })).toBeVisible()
-    await expect(page.getByText('entity:read_tree', { exact: true })).toBeVisible()
+    await expect(page.getByText('entity:read_tree', { exact: true }).first()).toBeVisible()
+  })
+
+  test('service account forms expose role-backed access and send scoped machine-key payloads', async ({
+    page,
+  }) => {
+    const timestamp = Date.now()
+    const principalName = `Playwright Service Payload ${timestamp}`
+    const keyName = `Playwright Restricted Machine Payload ${timestamp}`
+    const createPrincipalRequests: unknown[] = []
+    const createMachineKeyRequests: unknown[] = []
+
+    await page.route('**/v1/admin/entities/*/integration-principals**', async (route) => {
+      const request = route.request()
+      const requestUrl = request.url()
+
+      if (request.method() === 'POST' && !requestUrl.includes('/api-keys')) {
+        createPrincipalRequests.push(request.postDataJSON())
+      }
+
+      await route.continue()
+    })
+
+    await page.route('**/v1/admin/entities/*/integration-principals/*/api-keys', async (route) => {
+      const request = route.request()
+
+      if (request.method() === 'POST') {
+        createMachineKeyRequests.push(request.postDataJSON())
+      }
+
+      await route.continue()
+    })
+
+    await gotoApiKeysWorkspace(page)
+    await selectComboboxOption(page, '#api-keys-entity', 'San Francisco Office', 'San Francisco Office')
+
+    await page.getByRole('button', { name: 'Create service account' }).click()
+
+    const createPrincipalDialog = page.getByRole('dialog', { name: 'Create service account' })
+    await expect(createPrincipalDialog).toBeVisible()
+    await expect(createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' })).toBeVisible()
+    await expect(createPrincipalDialog.getByText('Let this service account inherit access below the selected anchor.')).toBeVisible()
+    await expect(createPrincipalDialog.getByText('Role envelope', { exact: true })).toBeVisible()
+    await expect(createPrincipalDialog.getByText('Derived permissions', { exact: true })).toBeVisible()
+
+    await typeIntoField(page, '#integration-principal-name', principalName)
+    await typeIntoField(
+      page,
+      '#integration-principal-description',
+      'Created by Playwright to verify the role-backed service-account payload.'
+    )
+
+    await createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' }).click()
+    await expect(
+      createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' })
+    ).toBeChecked()
+
+    await createPrincipalDialog.getByRole('textbox', { name: 'Search roles' }).fill('ACME Auditor')
+    await expect(createPrincipalDialog.getByText('ACME Auditor', { exact: true })).toBeVisible()
+    await expect(createPrincipalDialog.getByText('acme_auditor', { exact: true })).toHaveCount(0)
+    await expect(createPrincipalDialog.getByText('Owned by ACME Realty', { exact: true })).toHaveCount(1)
+
+    await toggleRole(page, 'Create service account', 'ACME Auditor', true)
+    await expect(createPrincipalDialog.getByText('1 selected', { exact: true })).toHaveCount(2)
+    await expect(createPrincipalDialog.getByText('7 permissions', { exact: true })).toHaveCount(2)
+
+    await createPrincipalDialog.getByRole('switch', { name: 'Show selected roles only' }).click()
+    await expect(
+      createPrincipalDialog
+        .getByLabel('Assignable roles')
+        .getByText('ACME Auditor', { exact: true })
+    ).toBeVisible()
+
+    await createPrincipalDialog.getByRole('button', { name: 'Create service account' }).click()
+
+    const createdPrincipalRow = getIntegrationRow(page, principalName)
+    await expect(createdPrincipalRow).toBeVisible()
+    await createdPrincipalRow.click()
+
+    expect(createPrincipalRequests).toHaveLength(1)
+    expect(createPrincipalRequests[0]).toEqual(
+      expect.objectContaining({
+        name: principalName,
+        description: 'Created by Playwright to verify the role-backed service-account payload.',
+        allowed_scopes: [],
+        inherit_from_tree: true,
+      })
+    )
+    expect((createPrincipalRequests[0] as { role_ids?: unknown[] }).role_ids).toHaveLength(1)
+
+    await page.locator('header').getByRole('button', { name: 'Create machine key' }).click()
+
+    const createKeyDialog = page.getByRole('dialog', { name: 'Create machine API key' })
+    await expect(createKeyDialog).toBeVisible()
+    await expect(createKeyDialog.getByText(principalName, { exact: true })).toBeVisible()
+    await expect(createKeyDialog.getByText('7 permissions', { exact: true })).toBeVisible()
+
+    await typeIntoField(page, '#system-api-key-name', keyName)
+    await typeIntoField(
+      page,
+      '#system-api-key-description',
+      'Created by Playwright to verify restricted machine-key policy payloads.'
+    )
+    await setKeyAccessMode(page, 'restricted')
+    await selectRestrictedPermission(page, 'Entity Read Tree')
+    await typeIntoField(page, '#system-api-key-rate-limit', '75')
+    await typeIntoField(page, '#system-api-key-expires-days', '21')
+    await typeIntoField(page, '#system-api-key-ip-whitelist', '203.0.113.10\n198.51.100.0/24')
+
+    await createKeyDialog.getByRole('button', { name: 'Create key' }).click()
+
+    const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
+    await expect(secretDialog).toBeVisible()
+    await secretDialog.getByRole('button', { name: 'Done' }).click()
+
+    expect(createMachineKeyRequests).toHaveLength(1)
+    expect(createMachineKeyRequests[0]).toEqual(
+      expect.objectContaining({
+        name: keyName,
+        description: 'Created by Playwright to verify restricted machine-key policy payloads.',
+        scopes: ['entity:read_tree'],
+        prefix_type: 'sk_live',
+        ip_whitelist: ['203.0.113.10', '198.51.100.0/24'],
+        rate_limit_per_minute: 75,
+        expires_in_days: 21,
+      })
+    )
+
+    const keyRow = getIntegrationRow(page, keyName)
+    await expect(keyRow).toBeVisible()
+    await expect(keyRow.getByText('Active', { exact: true })).toBeVisible()
+    await expect(keyRow.getByText('Effective', { exact: true })).toBeVisible()
+    await keyRow.click()
+
+    await expect(page.getByText('75 requests/minute', { exact: true })).toBeVisible()
+    await expect(page.getByText('entity:read_tree', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('203.0.113.10', { exact: true })).toBeVisible()
+    await expect(page.getByText('198.51.100.0/24', { exact: true })).toBeVisible()
   })
 
   test('admin can manage an entity service account and revoke its restricted machine key from inventory', async ({

@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { ChevronRight, Sparkles } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Switch } from '@/components/ui/switch'
 import type { Permission } from '@/features/permissions/types/permissions.types'
@@ -53,15 +52,15 @@ function PermissionCatalogRow({
     <button
       type="button"
       className={cn(
-        'w-full min-w-0 rounded-2xl border px-4 py-4 text-left transition-colors',
+        'w-full min-w-0 border-b px-3 py-3 text-left transition-colors last:border-b-0',
         isSelected
-          ? 'border-primary/25 bg-primary/6 shadow-sm'
-          : 'border-border/70 bg-background/80 hover:bg-muted/20'
+          ? 'border-primary/20 bg-primary/6'
+          : 'border-border/60 bg-transparent hover:bg-muted/20'
       )}
       onClick={() => onPermissionSelect(permission.id)}
     >
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_minmax(0,0.75fr)]">
-        <div className="min-w-0 space-y-1.5">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.75fr)_minmax(0,0.7fr)_minmax(0,0.7fr)]">
+        <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-medium">{permission.display_name}</div>
             {isSelected ? <Badge variant="secondary">Selected</Badge> : null}
@@ -71,7 +70,7 @@ function PermissionCatalogRow({
           </div>
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="min-w-0 space-y-1">
           <div className="text-sm font-medium">{getPermissionActionLabel(permission)}</div>
           <div className="text-sm text-muted-foreground">
             {getPermissionResourceLabel(permission)}
@@ -79,7 +78,7 @@ function PermissionCatalogRow({
           <div className="text-xs text-muted-foreground">{getPermissionScopeLabel(permission)}</div>
         </div>
 
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap gap-2">
             {permission.is_system ? (
               <Badge variant="secondary">System</Badge>
@@ -104,7 +103,7 @@ function PermissionCatalogRow({
           </div>
         </div>
 
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5">
           {visibleTags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {visibleTags.map((tag) => (
@@ -140,71 +139,42 @@ export function PermissionsTable({
     [permissions]
   )
   const [groupedView, setGroupedView] = useState(true)
-  const [resourceExpansionOverrides, setResourceExpansionOverrides] = useState<
-    Record<string, boolean>
-  >({})
-  const defaultExpandedResources = useMemo(() => {
-    const nextResources = new Set<string>()
-
-    if (hasActiveFilters || groupedPermissions.length === 1) {
-      groupedPermissions.forEach((group) => {
-        nextResources.add(group.resource)
-      })
+  const [expandedResource, setExpandedResource] = useState<string | null>(null)
+  const selectedPermissionResource = useMemo(() => {
+    if (!selectedPermissionId) {
+      return null
     }
 
-    if (selectedPermissionId) {
-      const selectedPermission = permissions.find(
-        (permission) => permission.id === selectedPermissionId
-      )
+    const selectedPermission = permissions.find(
+      (permission) => permission.id === selectedPermissionId
+    )
 
-      if (selectedPermission) {
-        nextResources.add(getPermissionResourceKey(selectedPermission))
-      }
+    return selectedPermission ? getPermissionResourceKey(selectedPermission) : null
+  }, [permissions, selectedPermissionId])
+
+  useEffect(() => {
+    if (selectedPermissionResource) {
+      setExpandedResource(selectedPermissionResource)
+      return
     }
 
-    return nextResources
-  }, [groupedPermissions, hasActiveFilters, permissions, selectedPermissionId])
-  const expandedResources = useMemo(() => {
-    const validResources = new Set(groupedPermissions.map((group) => group.resource))
-    const nextResources = new Set(defaultExpandedResources)
+    if (hasActiveFilters && groupedPermissions[0]) {
+      setExpandedResource(groupedPermissions[0].resource)
+      return
+    }
 
-    Object.entries(resourceExpansionOverrides).forEach(([resource, isExpanded]) => {
-      if (!validResources.has(resource)) {
-        return
-      }
-
-      if (isExpanded) {
-        nextResources.add(resource)
-      } else {
-        nextResources.delete(resource)
-      }
-    })
-
-    return nextResources
-  }, [defaultExpandedResources, groupedPermissions, resourceExpansionOverrides])
+    setExpandedResource(null)
+  }, [groupedPermissions, hasActiveFilters, selectedPermissionResource])
 
   function handleResourceToggle(resource: string) {
-    setResourceExpansionOverrides((currentOverrides) => {
-      const defaultExpanded = defaultExpandedResources.has(resource)
-      const currentExpanded = currentOverrides[resource] ?? defaultExpanded
-      const nextExpanded = !currentExpanded
-      const nextOverrides = { ...currentOverrides }
-
-      if (nextExpanded === defaultExpanded) {
-        delete nextOverrides[resource]
-      } else {
-        nextOverrides[resource] = nextExpanded
-      }
-
-      return nextOverrides
-    })
+    setExpandedResource((currentResource) => (currentResource === resource ? null : resource))
   }
 
   return (
-    <Card className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col gap-0 overflow-hidden border border-border/70 bg-card/90 pb-0 pt-4 ring-0">
-      <CardHeader className="border-b border-border/60">
+    <div className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col gap-0 overflow-hidden">
+      <div className="shrink-0 px-4 pb-3 pt-4">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
-          <CardTitle className="text-base">Permission catalog</CardTitle>
+          <h2 className="text-base font-semibold">Permission catalog</h2>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
               <span className={cn(groupedView ? 'text-muted-foreground' : 'text-foreground')}>
@@ -228,9 +198,9 @@ export function PermissionsTable({
             ) : null}
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {isLoading ? (
           <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
             Loading permissions…
@@ -246,9 +216,9 @@ export function PermissionsTable({
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 pb-0">
               {groupedView ? (
-                <div className="min-w-0 space-y-3 pt-4">
+                <div className="min-w-0 space-y-3 pt-2">
                   {groupedPermissions.map((group) => {
-                    const isExpanded = expandedResources.has(group.resource)
+                    const isExpanded = expandedResource === group.resource
                     const selectedPermissionInGroup = group.permissions.find(
                       (permission) => permission.id === selectedPermissionId
                     )
@@ -258,9 +228,9 @@ export function PermissionsTable({
 
                     return (
                       <Collapsible key={group.resource} open={isExpanded}>
-                        <div className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+                        <div className="min-w-0 overflow-hidden rounded-2xl bg-background/70 ring-1 ring-border/60">
                           <CollapsibleTrigger
-                            className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/20"
+                            className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left outline-none hover:bg-muted/20 focus-visible:ring-0 focus-visible:outline-none"
                             aria-label={`Toggle ${group.label} permission group`}
                             onClick={() => handleResourceToggle(group.resource)}
                           >
@@ -298,8 +268,8 @@ export function PermissionsTable({
                             </div>
                           </CollapsibleTrigger>
 
-                          <CollapsibleContent className="border-t border-border/60 bg-muted/10">
-                            <div className="space-y-3 p-3">
+                          <CollapsibleContent className="border-t border-border/60 bg-muted/5">
+                            <div>
                               {group.permissions.map((permission) => (
                                 <PermissionCatalogRow
                                   key={permission.id}
@@ -320,7 +290,7 @@ export function PermissionsTable({
                   })}
                 </div>
               ) : (
-                <div className="min-w-0 space-y-3 pt-4">
+                <div className="mt-2 min-w-0 overflow-hidden rounded-2xl bg-background/40 ring-1 ring-border/60">
                   {permissions.map((permission) => (
                     <PermissionCatalogRow
                       key={permission.id}
@@ -336,7 +306,7 @@ export function PermissionsTable({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

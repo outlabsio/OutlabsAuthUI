@@ -7,7 +7,6 @@ import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
-import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
@@ -19,7 +18,10 @@ import {
 } from '@/features/permissions/api/permissions.query-options'
 import { DeletePermissionDialog } from '@/features/permissions/components/delete-permission-dialog'
 import { PermissionDetailsPanel } from '@/features/permissions/components/permission-details-panel'
-import { PermissionsFiltersBar } from '@/features/permissions/components/permissions-filters-bar'
+import {
+  PermissionsFiltersPopover,
+  PermissionsSearchControl,
+} from '@/features/permissions/components/permissions-filters-bar'
 import { PermissionFormDialog } from '@/features/permissions/components/permission-form-dialog'
 import { PermissionsTable } from '@/features/permissions/components/permissions-table'
 import type { Permission, PermissionsPageSearch } from '@/features/permissions/types/permissions.types'
@@ -179,8 +181,7 @@ export function PermissionsPage({
     permission: null,
   })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const searchKey = [
-    search.search ?? '',
+  const filtersKey = [
     search.resource ?? '',
     search.status ?? '',
     search.system ?? '',
@@ -211,22 +212,44 @@ export function PermissionsPage({
         hideTitle
         padded={!canReadPermissions}
         className="min-h-0 flex-1"
+        shellMeta={
+          canReadPermissions ? (
+            <PermissionsSearchControl
+              key={search.search ?? 'empty-search'}
+              search={search}
+              onApply={onSearchChange}
+            />
+          ) : undefined
+        }
         shellAction={
-          canCreatePermissions ? (
-            <Button
-              type="button"
-              className="shrink-0"
-              onClick={() =>
-                setPermissionDialogState({
-                  open: true,
-                  mode: 'create',
-                  permission: null,
-                })
-              }
-            >
-              <KeyRound className="size-4" />
-              Create permission
-            </Button>
+          canReadPermissions || canCreatePermissions ? (
+            <>
+              {canReadPermissions ? (
+                <PermissionsFiltersPopover
+                  key={filtersKey}
+                  search={search}
+                  resources={resources}
+                  tags={tags}
+                  onApply={onSearchChange}
+                />
+              ) : null}
+              {canCreatePermissions ? (
+                <Button
+                  type="button"
+                  className="shrink-0"
+                  onClick={() =>
+                    setPermissionDialogState({
+                      open: true,
+                      mode: 'create',
+                      permission: null,
+                    })
+                  }
+                >
+                  <KeyRound className="size-4" />
+                  Create permission
+                </Button>
+              ) : null}
+            </>
           ) : undefined
         }
       >
@@ -238,19 +261,6 @@ export function PermissionsPage({
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-            <div className="p-4">
-              <AppToolbar>
-                <PermissionsFiltersBar
-                  key={searchKey}
-                  search={search}
-                  resources={resources}
-                  tags={tags}
-                  onApply={onSearchChange}
-                  onReset={() => onSearchChange({})}
-                />
-              </AppToolbar>
-            </div>
-
             <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
               <div className="min-h-0 min-w-0">
                 <PermissionsTable
