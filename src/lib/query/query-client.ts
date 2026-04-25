@@ -1,7 +1,8 @@
-import { MutationCache, QueryClient } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { getApiErrorMessage } from '@/lib/api/errors'
+import { expireAuthSession } from '@/lib/api/auth-session'
+import { ApiError, getApiErrorMessage } from '@/lib/api/errors'
 import { getMutationToastConfig } from '@/lib/query/mutation-toast'
 
 function showMutationSuccessToast(meta: unknown) {
@@ -44,8 +45,19 @@ function showMutationErrorToast(error: unknown, meta: unknown) {
 }
 
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        expireAuthSession()
+      }
+    },
+  }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
+      if (error instanceof ApiError && error.status === 401) {
+        expireAuthSession()
+      }
+
       showMutationErrorToast(error, mutation.options.meta)
     },
     onSuccess: (_data, _variables, _context, mutation) => {

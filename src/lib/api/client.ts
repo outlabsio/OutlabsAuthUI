@@ -1,9 +1,9 @@
 import {
-  clearStoredAuthTokens,
   getStoredAccessToken,
   getStoredRefreshToken,
   setStoredAuthTokens,
 } from '@/lib/api/auth-token'
+import { expireAuthSession } from '@/lib/api/auth-session'
 import { buildApiUrl } from '@/lib/api/config'
 import {
   type ApiErrorPayload,
@@ -22,6 +22,8 @@ type RefreshResponse = {
   access_token: string
   refresh_token: string
 }
+
+let refreshAccessTokenPromise: Promise<string> | null = null
 
 async function parseApiError(response: Response) {
   let data: ApiErrorPayload | null = null
@@ -66,7 +68,7 @@ async function refreshAccessToken() {
   const refreshToken = getStoredRefreshToken()
 
   if (!refreshToken) {
-    clearStoredAuthTokens()
+    expireAuthSession()
     throw new ApiError({
       message: 'Session expired.',
       status: 401,
@@ -86,7 +88,7 @@ async function refreshAccessToken() {
   })
 
   if (!response.ok) {
-    clearStoredAuthTokens()
+    expireAuthSession()
     await parseApiError(response)
   }
 
@@ -98,6 +100,14 @@ async function refreshAccessToken() {
   })
 
   return tokens.access_token
+}
+
+function refreshAccessTokenOnce() {
+  refreshAccessTokenPromise ??= refreshAccessToken().finally(() => {
+    refreshAccessTokenPromise = null
+  })
+
+  return refreshAccessTokenPromise
 }
 
 async function request<T>(
@@ -141,7 +151,7 @@ async function request<T>(
 
   if (response.status === 401 && auth && !hasRetried && getStoredRefreshToken()) {
     try {
-      const nextAccessToken = await refreshAccessToken()
+      const nextAccessToken = await refreshAccessTokenOnce()
 
       return request<T>(
         path,
@@ -155,7 +165,7 @@ async function request<T>(
         true
       )
     } catch (error) {
-      clearStoredAuthTokens()
+      expireAuthSession()
       throw error
     }
   }

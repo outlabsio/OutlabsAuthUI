@@ -11,13 +11,18 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '@/components/ui/input-group'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -150,6 +155,7 @@ export function ApiKeyFormDialog({
 
   const selectedEntity =
     entityOptions.find((option) => option.id === entityId) ?? null
+  const selectedEntityLabel = selectedEntity?.pathLabel ?? 'No entity anchor'
 
   const grantableScopes = useMemo(
     () => grantableScopesQuery.data?.grantable_scopes ?? [],
@@ -175,20 +181,16 @@ export function ApiKeyFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 px-4 py-4">
           <DialogTitle>
-            {mode === 'create' ? 'Create API key' : 'Edit API key'}
+            {mode === 'create' ? 'Create personal API key' : 'Edit API key'}
           </DialogTitle>
-          <DialogDescription>
-            {mode === 'create'
-              ? 'Create a personal API key for your own automation. The full secret is returned once, immediately after creation.'
-              : 'Update the selected personal key without exposing the stored secret again.'}
-          </DialogDescription>
         </DialogHeader>
 
         <form
-          className="space-y-5"
+          id="api-key-form"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
             const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
             const entityIds = values.entityId ? [values.entityId] : undefined
@@ -237,192 +239,197 @@ export function ApiKeyFormDialog({
             }
           })}
         >
-          <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-            <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Ownership
-            </div>
-            <div className="mt-1 text-sm font-medium">This key belongs to your account.</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Personal keys stay user-owned and follow the self-service policy envelope.
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {entityHierarchyEnabled ? (
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="api-key-entity">Anchor entity</Label>
-                <Controller
-                  control={form.control}
-                  name="entityId"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || '__none__'}
-                      onValueChange={(value) => {
-                        field.onChange(value === '__none__' ? '' : value)
-                      }}
-                      disabled={isPending}
-                    >
-                      <SelectTrigger id="api-key-entity">
-                        <SelectValue placeholder="No entity anchor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">No entity anchor</SelectItem>
-                        {entityOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.pathLabel}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <div className="text-xs text-muted-foreground">
-                  Leave this unset for an unanchored personal key. Choose an entity only when the
-                  key should be scoped to that branch.
+          <div className="space-y-5">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="api-key-name">Name</Label>
+                  <Input
+                    id="api-key-name"
+                    placeholder="Reporting automation key"
+                    disabled={isPending}
+                    {...form.register('name')}
+                  />
+                  <FieldError errors={[form.formState.errors.name]} />
                 </div>
-                <FieldError errors={[form.formState.errors.entityId]} />
-              </div>
-            ) : null}
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="api-key-name">Name</Label>
-              <Input
-                id="api-key-name"
-                placeholder="Reporting automation key"
-                disabled={isPending}
-                {...form.register('name')}
-              />
-              <FieldError errors={[form.formState.errors.name]} />
+                <div className="space-y-2">
+                  <Label htmlFor="api-key-description">Description</Label>
+                  <Textarea
+                    id="api-key-description"
+                    rows={3}
+                    placeholder="What this key is used for and where it runs."
+                    disabled={isPending}
+                    {...form.register('description')}
+                  />
+                  <FieldError errors={[form.formState.errors.description]} />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {entityHierarchyEnabled ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key-entity">Anchor entity</Label>
+                    <Controller
+                      control={form.control}
+                      name="entityId"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value || '__none__'}
+                          onValueChange={(value) => {
+                            field.onChange(value === '__none__' ? '' : value)
+                          }}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger id="api-key-entity" className="w-full">
+                            <SelectValue>{selectedEntityLabel}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">No entity anchor</SelectItem>
+                            {entityOptions.map((option) => (
+                              <SelectItem key={option.id} value={option.id}>
+                                {option.pathLabel}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      Leave unset for an unanchored personal key.
+                    </div>
+                    <FieldError errors={[form.formState.errors.entityId]} />
+
+                    <Controller
+                      control={form.control}
+                      name="inheritFromTree"
+                      render={({ field }) => (
+                        <label className="flex w-full items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
+                          <span className="space-y-0.5">
+                            <span className="block font-medium">
+                              Include descendant entities
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Let this key inherit access below the selected anchor.
+                            </span>
+                          </span>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            disabled={isPending || !entityId}
+                            aria-label="Include descendant entities"
+                          />
+                        </label>
+                      )}
+                    />
+                    <FieldError errors={[form.formState.errors.inheritFromTree]} />
+                  </div>
+                ) : null}
+              </div>
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="api-key-description">Description</Label>
-              <Textarea
-                id="api-key-description"
-                rows={3}
-                placeholder="What this key is used for and where it runs."
-                disabled={isPending}
-                {...form.register('description')}
-              />
-              <FieldError errors={[form.formState.errors.description]} />
+            <div className="space-y-2">
+              <div className="grid max-w-4xl gap-3 sm:grid-cols-[minmax(16rem,1fr)_9rem_14rem]">
+                <div className="space-y-2">
+                  <Label htmlFor="api-key-rate-limit">Rate limit</Label>
+                  <div className="flex items-center gap-2">
+                    <InputGroup data-disabled={isPending || rateLimitUnlimited}>
+                      <InputGroupInput
+                        id="api-key-rate-limit"
+                        type="number"
+                        min={0}
+                        disabled={isPending || rateLimitUnlimited}
+                        {...form.register('rateLimitPerMinute')}
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupText>req/min</InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+
+                    <label className="flex h-8 shrink-0 items-center gap-2 rounded-lg border bg-background px-2.5 text-sm font-medium">
+                      <Switch
+                        checked={rateLimitUnlimited}
+                        disabled={isPending}
+                        aria-label="Use unlimited rate limit"
+                        onCheckedChange={(checked) => {
+                          form.setValue(
+                            'rateLimitPerMinute',
+                            checked ? 0 : getLimitedApiKeyRateLimitFallback(rateLimitPerMinute),
+                            {
+                              shouldDirty: true,
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            }
+                          )
+                        }}
+                      />
+                      Unlimited
+                    </label>
+                  </div>
+                </div>
+
+                {mode === 'create' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key-expires-days">Expires in days</Label>
+                    <Input
+                      id="api-key-expires-days"
+                      type="number"
+                      min={1}
+                      placeholder="Optional"
+                      disabled={isPending}
+                      {...form.register('expiresInDays')}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Lifecycle</Label>
+                    <Controller
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select lifecycle state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="api-key-prefix-type">Prefix type</Label>
+                  <Input
+                    id="api-key-prefix-type"
+                    disabled={isPending || mode === 'edit'}
+                    {...form.register('prefixType')}
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Keep compact numeric settings left-aligned. Use 0 or Unlimited for trusted keys.
+              </div>
+              <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
+              <FieldError errors={[form.formState.errors.expiresInDays]} />
+              <FieldError errors={[form.formState.errors.status]} />
+              <FieldError errors={[form.formState.errors.prefixType]} />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="api-key-rate-limit">Rate limit per minute</Label>
-                <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
-                  <span className={rateLimitUnlimited ? 'text-foreground' : 'text-muted-foreground'}>
-                    Unlimited
-                  </span>
-                  <Switch
-                    checked={rateLimitUnlimited}
-                    disabled={isPending}
-                    aria-label="Use unlimited rate limit"
-                    onCheckedChange={(checked) => {
-                      form.setValue(
-                        'rateLimitPerMinute',
-                        checked ? 0 : getLimitedApiKeyRateLimitFallback(rateLimitPerMinute),
-                        {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        }
-                      )
-                    }}
-                  />
-                </label>
+                <Label htmlFor="api-key-ip-whitelist">IP whitelist</Label>
+                <div className="text-xs text-muted-foreground">
+                  Separate addresses or CIDR blocks with commas or new lines.
+                </div>
               </div>
-              <Input
-                id="api-key-rate-limit"
-                type="number"
-                min={0}
-                readOnly={rateLimitUnlimited}
-                disabled={isPending}
-                {...form.register('rateLimitPerMinute')}
-              />
-              <div className="text-xs text-muted-foreground">
-                Use 0 or the Unlimited switch for trusted keys that should not be throttled.
-              </div>
-              <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
-            </div>
-
-            {mode === 'create' ? (
-              <div className="space-y-2">
-                <Label htmlFor="api-key-expires-days">Expires in days</Label>
-                <Input
-                  id="api-key-expires-days"
-                  type="number"
-                  min={1}
-                  placeholder="Optional"
-                  disabled={isPending}
-                  {...form.register('expiresInDays')}
-                />
-                <FieldError errors={[form.formState.errors.expiresInDays]} />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Lifecycle</Label>
-                <Controller
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isPending}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select lifecycle state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FieldError errors={[form.formState.errors.status]} />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="api-key-prefix-type">Prefix type</Label>
-              <Input
-                id="api-key-prefix-type"
-                disabled={isPending || mode === 'edit'}
-                {...form.register('prefixType')}
-              />
-              <div className="text-xs text-muted-foreground">
-                Keep the production prefix unless you have a test-environment reason to change it.
-              </div>
-              <FieldError errors={[form.formState.errors.prefixType]} />
-            </div>
-
-            {entityHierarchyEnabled ? (
-              <div className="space-y-2">
-                <Label className="block">Hierarchy</Label>
-                <Controller
-                  control={form.control}
-                  name="inheritFromTree"
-                  render={({ field }) => (
-                    <label className="flex min-h-10 items-start gap-3 rounded-xl border px-3 py-2 text-sm">
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                        disabled={isPending || !entityId}
-                      />
-                      <span>
-                        Allow descendant access from this entity anchor.
-                      </span>
-                    </label>
-                  )}
-                />
-                <FieldError errors={[form.formState.errors.inheritFromTree]} />
-              </div>
-            ) : null}
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="api-key-ip-whitelist">IP whitelist</Label>
               <Textarea
                 id="api-key-ip-whitelist"
                 rows={3}
@@ -430,13 +437,10 @@ export function ApiKeyFormDialog({
                 disabled={isPending}
                 {...form.register('ipWhitelistText')}
               />
-              <div className="text-xs text-muted-foreground">
-                Separate addresses or CIDR blocks with commas or new lines.
-              </div>
               <FieldError errors={[form.formState.errors.ipWhitelistText]} />
             </div>
 
-            <div className="space-y-3 sm:col-span-2">
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1">
                   <Label>Grantable scopes</Label>
@@ -538,23 +542,23 @@ export function ApiKeyFormDialog({
               {submitErrorMessage}
             </div>
           ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {mode === 'create'
-                ? (isPending ? 'Creating...' : 'Create API key')
-                : (isPending ? 'Saving...' : 'Save changes')}
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form="api-key-form" disabled={isPending}>
+            {mode === 'create'
+              ? (isPending ? 'Creating...' : 'Create API key')
+              : (isPending ? 'Saving...' : 'Save changes')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

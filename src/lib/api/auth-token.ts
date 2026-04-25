@@ -30,6 +30,10 @@ export function hasStoredAuthTokens() {
   return Boolean(getStoredAccessToken() && getStoredRefreshToken())
 }
 
+export function isAuthTokenStorageKey(key: string | null) {
+  return key === accessTokenKey || key === refreshTokenKey
+}
+
 export function setStoredAuthTokens(tokens: StoredAuthTokens) {
   if (!isBrowser()) {
     return

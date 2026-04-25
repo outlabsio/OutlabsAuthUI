@@ -108,6 +108,118 @@ test.describe('Auth Flow', () => {
     await expect(page.getByRole('link', { name: 'Open Users workspace' })).toBeVisible()
   })
 
+  test('expired access token refreshes once and keeps the user in the app', async ({ page }) => {
+    let refreshCount = 0
+    let sessionCount = 0
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem('outlabs-auth.access-token', 'expired-access-token')
+      window.localStorage.setItem('outlabs-auth.refresh-token', 'valid-refresh-token')
+    })
+    await page.route('**/v1/users/me', async (route) => {
+      sessionCount += 1
+
+      if (sessionCount === 1) {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          json: {
+            detail: 'Access token expired.',
+          },
+        })
+        return
+      }
+
+      expect(route.request().headers().authorization).toBe(
+        'Bearer refreshed-access-token'
+      )
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkSessionUser,
+      })
+    })
+    await page.route('**/v1/auth/refresh', async (route) => {
+      refreshCount += 1
+      expect(route.request().postDataJSON()).toEqual({
+        refresh_token: 'valid-refresh-token',
+      })
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          access_token: 'refreshed-access-token',
+          refresh_token: 'rotated-refresh-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+        },
+      })
+    })
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkAuthConfig,
+      })
+    })
+
+    await page.goto('/app/dashboard')
+
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
+    await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
+    expect(refreshCount).toBe(1)
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBe('refreshed-access-token')
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.refresh-token'))
+      )
+      .toBe('rotated-refresh-token')
+  })
+
+  test('failed refresh clears stored tokens and returns to login', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('outlabs-auth.access-token', 'expired-access-token')
+      window.localStorage.setItem('outlabs-auth.refresh-token', 'invalid-refresh-token')
+    })
+    await page.route('**/v1/users/me', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        json: {
+          detail: 'Access token expired.',
+        },
+      })
+    })
+    await page.route('**/v1/auth/refresh', async (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        refresh_token: 'invalid-refresh-token',
+      })
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        json: {
+          detail: 'Refresh token expired.',
+        },
+      })
+    })
+
+    await page.goto('/app/dashboard')
+
+    await expect(page).toHaveURL(/\/auth\/login$/)
+    await expectLoginPage(page)
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBeNull()
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.refresh-token'))
+      )
+      .toBeNull()
+  })
+
   test('magic link method is surfaced and requests an email link', async ({ page }) => {
     let requestBody: unknown = null
 

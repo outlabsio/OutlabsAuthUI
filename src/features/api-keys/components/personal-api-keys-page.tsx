@@ -239,15 +239,6 @@ export function PersonalApiKeysPage() {
   const activeKey =
     personalKeys.find((apiKey) => apiKey.id === effectiveSelectedKeyId) ?? null
 
-  const summary = useMemo(
-    () => ({
-      total: personalKeys.length,
-      active: personalKeys.filter((apiKey) => apiKey.status === 'active').length,
-      anchored: personalKeys.filter((apiKey) => (apiKey.entity_ids?.length ?? 0) > 0).length,
-    }),
-    [personalKeys]
-  )
-
   if (sessionQuery.isPending || authConfigQuery.isPending || myKeysQuery.isPending || personalContextPending) {
     return <AppLoadingState title="Loading personal API keys" />
   }
@@ -302,37 +293,6 @@ export function PersonalApiKeysPage() {
     <>
       <AppPage title="API Keys" hideTitle padded shellAction={shellAction}>
         <div className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Total keys</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{summary.total}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Active keys</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{summary.active}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Anchored keys</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{summary.anchored}</CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle className="text-xl">Personal API keys</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Manage your own automation keys through the auth-owned self-service surface. Personal
-                keys stay user-owned, while durable non-human integrations live in System API Keys.
-              </p>
-            </CardHeader>
-          </Card>
-
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <Card>
               <CardHeader className="gap-3">

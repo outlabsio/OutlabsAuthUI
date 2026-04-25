@@ -12,19 +12,11 @@ export async function redirectIfWorkspaceHidden(
   queryClient: QueryClient,
   workspace: WorkspaceKey
 ) {
-  try {
-    const authConfig = await queryClient.ensureQueryData(getAuthConfigQueryOptions())
+  const authConfig = await queryClient.ensureQueryData(getAuthConfigQueryOptions())
 
-    if (!isWorkspaceVisible(workspace, authConfig.features)) {
-      throw redirect({
-        to: routes.app.dashboard,
-      })
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      return
-    }
-
-    throw error
+  if (!isWorkspaceVisible(workspace, authConfig.features)) {
+    throw redirect({
+      to: routes.app.dashboard,
+    })
   }
 }

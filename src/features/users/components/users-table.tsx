@@ -1,7 +1,20 @@
+import { useMemo } from 'react'
+
+import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
+import type { AppStatusTone } from '@/components/app/app-status'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DataTableColumnHeader } from '@/components/ui/data-table-column-header'
 import {
   Table,
   TableBody,
@@ -11,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { User } from '@/features/users/types/users.types'
-import type { AppStatusTone } from '@/components/app/app-status'
+import { cn } from '@/lib/utils/cn'
 
 type UsersTableProps = {
   users: User[]
@@ -22,6 +35,8 @@ type UsersTableProps = {
   isRefreshing: boolean
   canResendInvites: boolean
   resendInvitePendingUserId?: string
+  sorting: SortingState
+  onSortingChange: (sorting: SortingState) => void
   onPageChange: (page: number) => void
   onResendInvite: (userId: string) => void
   onSelectUser: (userId: string) => void
@@ -103,6 +118,14 @@ function getActivityNote(user: User) {
   return 'No recent restrictions'
 }
 
+function getLastLoginSortValue(user: User) {
+  if (!user.last_login) {
+    return 0
+  }
+
+  return new Date(user.last_login).getTime()
+}
+
 export function UsersTable({
   users,
   page,
@@ -112,14 +135,140 @@ export function UsersTable({
   isRefreshing,
   canResendInvites,
   resendInvitePendingUserId,
+  sorting,
+  onSortingChange,
   onPageChange,
   onResendInvite,
   onSelectUser,
 }: UsersTableProps) {
+  const columns = useMemo<ColumnDef<User>[]>(
+    () => [
+      {
+        id: 'user',
+        accessorFn: (user) => getUserDisplayName(user).toLowerCase(),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="User" />
+        ),
+        cell: ({ row }) => {
+          const user = row.original
+
+          return (
+            <div className="space-y-1.5">
+              <span className="font-medium">{getUserDisplayName(user)}</span>
+              <div className="break-all text-sm text-muted-foreground">
+                {user.email}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Created {formatDateTime(user.created_at, 'Unknown')}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'access',
+        accessorFn: (user) => `${user.status}:${getScopeLabel(user)}`.toLowerCase(),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Access" />
+        ),
+        cell: ({ row }) => {
+          const user = row.original
+
+          return (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <AppStatusBadge tone={getStatusTone(user.status)}>
+                  {user.status}
+                </AppStatusBadge>
+                {user.is_superuser ? (
+                  <Badge variant="outline">Superuser</Badge>
+                ) : null}
+                {user.email_verified ? <Badge variant="outline">Verified</Badge> : null}
+                {user.locked_until ? (
+                  <AppStatusBadge tone="warning">Locked</AppStatusBadge>
+                ) : null}
+                {user.deleted_at ? <Badge variant="outline">Retained</Badge> : null}
+              </div>
+              <div className="text-sm text-muted-foreground">{getScopeLabel(user)}</div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'activity',
+        accessorFn: getLastLoginSortValue,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Activity" />
+        ),
+        cell: ({ row }) => {
+          const user = row.original
+
+          return (
+            <div className="space-y-1.5">
+              <div className="text-sm font-medium">
+                {user.last_login
+                  ? formatDateTime(user.last_login, 'No sign-in yet')
+                  : 'No sign-in yet'}
+              </div>
+              <div className="text-xs text-muted-foreground">{getActivityNote(user)}</div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'actions',
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const user = row.original
+          const canResendInvite = canResendInvites && user.status === 'invited'
+          const isResending = resendInvitePendingUserId === user.id
+
+          return (
+            <div className="flex flex-wrap justify-end gap-2">
+              {canResendInvite ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onResendInvite(user.id)
+                  }}
+                  disabled={isResending}
+                >
+                  {isResending ? 'Resending...' : 'Resend invite'}
+                </Button>
+              ) : (
+                <span className="text-sm text-muted-foreground">No row actions</span>
+              )}
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+    ],
+    [canResendInvites, onResendInvite, resendInvitePendingUserId]
+  )
+
+  const table = useReactTable({
+    data: users,
+    columns,
+    state: {
+      sorting,
+    },
+    onSortingChange: (updater) => {
+      onSortingChange(typeof updater === 'function' ? updater(sorting) : updater)
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
+
   if (isLoading) {
     return (
       <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground">
-        Loading users…
+        Loading users...
       </div>
     )
   }
@@ -137,107 +286,65 @@ export function UsersTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain">
+      <div className="min-h-0 flex-1 overflow-auto [&>[data-slot=table-container]]:overflow-visible">
         <Table className="table-fixed">
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="sticky top-0 z-10 w-1/3 px-4">
-                User
-              </TableHead>
-              <TableHead className="sticky top-0 z-10 w-1/4 px-4">
-                Access
-              </TableHead>
-              <TableHead className="sticky top-0 z-10 w-1/4 px-4">
-                Activity
-              </TableHead>
-              <TableHead className="sticky top-0 z-10 w-40 px-4 text-right">
-                Actions
-              </TableHead>
-            </TableRow>
+          <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_var(--color-border)]">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className={cn(
+                      'px-4',
+                      header.column.id === 'user' ? 'w-[34%]' : null,
+                      header.column.id === 'access' ? 'w-[29%]' : null,
+                      header.column.id === 'activity' ? 'w-[25%]' : null,
+                      header.column.id === 'actions' ? 'w-40 text-right' : null
+                    )}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {users.map((user) => {
-              const canResendInvite = canResendInvites && user.status === 'invited'
-              const isResending = resendInvitePendingUserId === user.id
+            {table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="cursor-pointer transition-colors hover:bg-muted/60"
+                tabIndex={0}
+                onClick={() => {
+                  onSelectUser(row.original.id)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') {
+                    return
+                  }
 
-              return (
-                <TableRow
-                  key={user.id}
-                  className="cursor-pointer"
-                  tabIndex={0}
-                  onClick={() => {
-                    onSelectUser(user.id)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') {
-                      return
-                    }
-
-                    event.preventDefault()
-                    onSelectUser(user.id)
-                  }}
-                >
-                  <TableCell className="px-4 py-4 align-top whitespace-normal">
-                    <div className="space-y-1.5">
-                      <span className="font-medium">{getUserDisplayName(user)}</span>
-                      <div className="break-all text-sm text-muted-foreground">{user.email}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Created {formatDateTime(user.created_at, 'Unknown')}
-                      </div>
-                    </div>
+                  event.preventDefault()
+                  onSelectUser(row.original.id)
+                }}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={cn(
+                      'px-4 py-4 align-top whitespace-normal',
+                      cell.column.id === 'actions' ? 'w-40 text-right' : null
+                    )}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
-                  <TableCell className="px-4 py-4 align-top whitespace-normal">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        <AppStatusBadge tone={getStatusTone(user.status)}>
-                          {user.status}
-                        </AppStatusBadge>
-                        {user.is_superuser ? <Badge variant="outline">Superuser</Badge> : null}
-                        {user.email_verified ? <Badge variant="outline">Verified</Badge> : null}
-                        {user.locked_until ? (
-                          <AppStatusBadge tone="warning">Locked</AppStatusBadge>
-                        ) : null}
-                        {user.deleted_at ? <Badge variant="outline">Retained</Badge> : null}
-                      </div>
-                      <div className="text-sm text-muted-foreground">{getScopeLabel(user)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-top whitespace-normal">
-                    <div className="space-y-1.5">
-                      <div className="text-sm font-medium">
-                        {user.last_login
-                          ? formatDateTime(user.last_login, 'No sign-in yet')
-                          : 'No sign-in yet'}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{getActivityNote(user)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="w-40 px-4 py-4 text-right align-top whitespace-normal">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {canResendInvite ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onResendInvite(user.id)
-                          }}
-                          disabled={isResending}
-                        >
-                          {isResending ? 'Resending…' : 'Resend invite'}
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">No row actions</span>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                ))}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-col gap-3 border-t px-4 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 border-t px-4 py-3 md:flex-row md:items-center md:justify-between">
         <div className="text-sm text-muted-foreground">
           Page {page} of {pages} with {total} total users
           {isRefreshing ? ' | Refreshing...' : ''}

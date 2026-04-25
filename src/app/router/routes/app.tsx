@@ -1,11 +1,9 @@
 import { useEffect } from 'react'
 
-import { useQueryClient } from '@tanstack/react-query'
 import {
   Outlet,
   createFileRoute,
   redirect,
-  useNavigate,
 } from '@tanstack/react-router'
 
 import { AppLoadingState } from '@/components/app/app-loading-state'
@@ -13,7 +11,8 @@ import { AppShell } from '@/app/layouts/app-shell'
 import { getSessionQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import type { SessionUser } from '@/features/auth/types/auth.types'
-import { clearStoredAuthTokens, hasStoredAuthTokens } from '@/lib/api/auth-token'
+import { hasStoredAuthTokens } from '@/lib/api/auth-token'
+import { expireAuthSession } from '@/lib/api/auth-session'
 import { ApiError, getApiErrorMessage } from '@/lib/api/errors'
 import { routes } from '@/lib/constants/routes'
 
@@ -31,8 +30,6 @@ function getUserDisplayName(user: SessionUser) {
 }
 
 function AppLayout() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const sessionQuery = useSessionQuery()
 
   useEffect(() => {
@@ -40,13 +37,8 @@ function AppLayout() {
       return
     }
 
-    clearStoredAuthTokens()
-    queryClient.clear()
-    void navigate({
-      to: routes.auth.login,
-      replace: true,
-    })
-  }, [navigate, queryClient, sessionQuery.error])
+    expireAuthSession()
+  }, [sessionQuery.error])
 
   if (sessionQuery.isPending) {
     return (
@@ -92,12 +84,7 @@ function AppLayout() {
       name={getUserDisplayName(user)}
       email={user.email}
       onLogout={() => {
-        clearStoredAuthTokens()
-        queryClient.clear()
-        void navigate({
-          to: routes.auth.login,
-          replace: true,
-        })
+        expireAuthSession()
       }}
     >
       <Outlet />
@@ -117,7 +104,7 @@ export const Route = createFileRoute('/app')({
       await context.queryClient.ensureQueryData(getSessionQueryOptions())
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        clearStoredAuthTokens()
+        expireAuthSession()
         context.queryClient.clear()
 
         throw redirect({

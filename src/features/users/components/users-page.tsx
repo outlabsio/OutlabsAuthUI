@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import type { SortingState } from '@tanstack/react-table'
 import { UserPlus } from 'lucide-react'
 
 import { AppErrorState } from '@/components/app/app-error-state'
@@ -41,6 +42,12 @@ export function UsersPage({
   onUserSelect,
 }: UsersPageProps) {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: 'user',
+      desc: false,
+    },
+  ])
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
@@ -143,7 +150,10 @@ export function UsersPage({
         shellMeta={usersSummary}
         shellAction={shellAction}
         action={
-          <AppToolbar variant="plain" className="min-w-0 p-4">
+          <AppToolbar
+            variant="plain"
+            className="border-b bg-background/95 px-4 py-3"
+          >
             <UsersFilters
               key={filtersKey}
               filters={filters}
@@ -167,6 +177,8 @@ export function UsersPage({
           isRefreshing={usersQuery.isFetching && !usersQuery.isPending}
           canResendInvites={canInviteUsers}
           resendInvitePendingUserId={resendInviteMutation.variables}
+          sorting={sorting}
+          onSortingChange={setSorting}
           onPageChange={onPageChange}
           onResendInvite={(userId) => {
             void resendInviteMutation.mutateAsync(userId)
