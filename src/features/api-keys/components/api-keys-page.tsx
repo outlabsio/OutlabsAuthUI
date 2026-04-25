@@ -300,9 +300,6 @@ export function ApiKeysPage() {
     ? 'platform_global'
     : scopeKind
   const pageTitle = simpleGlobalKeysEnabled ? 'API Keys' : 'System API Keys'
-  const pageSummary = simpleGlobalKeysEnabled
-    ? 'Manage platform-global service accounts and machine API keys for SimpleRBAC backends.'
-    : 'Manage EnterpriseRBAC service accounts, machine API keys, and entity key inventory from one place.'
   const loadingTitle = simpleGlobalKeysEnabled
     ? 'Loading API keys workspace'
     : 'Loading system API keys workspace'
@@ -715,15 +712,7 @@ export function ApiKeysPage() {
   return (
     <>
       <AppPage title={pageTitle} hideTitle padded shellAction={shellAction}>
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader className="gap-3">
-              <div className="space-y-1">
-                <CardTitle className="text-xl">{pageTitle}</CardTitle>
-                <p className="text-sm text-muted-foreground">{pageSummary}</p>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="space-y-4">
               <Tabs
                 value={activeTab}
                 onValueChange={(value) => setActiveTab(value as TabValue)}
@@ -1707,8 +1696,6 @@ export function ApiKeysPage() {
                   </TabsContent>
                 ) : null}
               </Tabs>
-            </CardContent>
-          </Card>
         </div>
       </AppPage>
 
