@@ -7,11 +7,9 @@ import { z } from 'zod'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -26,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
 import {
@@ -227,19 +226,15 @@ export function IntegrationPrincipalFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <DialogHeader className="shrink-0 px-4 py-4">
+        <DialogHeader className="shrink-0 px-4 py-3">
           <DialogTitle>
             {mode === 'create' ? 'Create service account' : 'Edit service account'}
           </DialogTitle>
-          <DialogDescription>
-            Assign roles to define this machine principal. Keys created for the service account
-            inherit its derived permissions by default and can optionally be narrowed later.
-          </DialogDescription>
         </DialogHeader>
 
         <form
           id="integration-principal-form"
-          className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
             try {
               await mutation.mutateAsync(values)
@@ -248,109 +243,119 @@ export function IntegrationPrincipalFormDialog({
             }
           })}
         >
-          <div className="rounded-2xl border bg-muted/20 px-4 py-3">
-            <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Scope model
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="integration-principal-name">Name</Label>
+                <Input
+                  id="integration-principal-name"
+                  placeholder="Scraping Workers"
+                  disabled={isPending}
+                  {...form.register('name')}
+                />
+                <FieldError errors={[form.formState.errors.name]} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="integration-principal-description">Description</Label>
+                <Textarea
+                  id="integration-principal-description"
+                  rows={3}
+                  placeholder="What this service account does and where its keys are used."
+                  disabled={isPending}
+                  {...form.register('description')}
+                />
+                <FieldError errors={[form.formState.errors.description]} />
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
-                {scopeKind === 'entity' ? 'Entity scoped' : 'Platform global'}
-              </Badge>
-              {scopeKind === 'entity' && entityLabel ? (
-                <span className="text-sm text-muted-foreground">{entityLabel}</span>
+
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Scope model</Label>
+                <div className="min-h-8 rounded-lg border bg-background px-2.5 py-1.5 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {scopeKind === 'entity' ? 'Entity scoped' : 'Platform global'}
+                    </Badge>
+                    {scopeKind === 'entity' && entityLabel ? (
+                      <span className="truncate text-muted-foreground">{entityLabel}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {mode === 'edit' ? (
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Controller
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={isPending}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select lifecycle state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError errors={[form.formState.errors.status]} />
+                </div>
+              ) : null}
+
+              {scopeKind === 'entity' ? (
+                <div className="space-y-2">
+                  <Controller
+                    control={form.control}
+                    name="inheritFromTree"
+                    render={({ field }) => (
+                      <label className="flex w-full items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
+                        <span className="space-y-0.5">
+                          <span className="block font-medium">
+                            Include descendant entities
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Let this service account inherit access below the selected anchor.
+                          </span>
+                        </span>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                          disabled={isPending}
+                          aria-label="Include descendant entities"
+                        />
+                      </label>
+                    )}
+                  />
+                  <FieldError errors={[form.formState.errors.inheritFromTree]} />
+                </div>
               ) : null}
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="integration-principal-name">Name</Label>
-              <Input
-                id="integration-principal-name"
-                placeholder="Scraping Workers"
-                disabled={isPending}
-                {...form.register('name')}
-              />
-              <FieldError errors={[form.formState.errors.name]} />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Label>Assigned roles</Label>
+              <Badge variant="outline">{selectedRoles.length} selected</Badge>
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="integration-principal-description">Description</Label>
-              <Textarea
-                id="integration-principal-description"
-                rows={3}
-                placeholder="What this service account does and where its keys are used."
-                disabled={isPending}
-                {...form.register('description')}
-              />
-              <FieldError errors={[form.formState.errors.description]} />
-            </div>
-
-            {mode === 'edit' ? (
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Controller
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isPending}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select lifecycle state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FieldError errors={[form.formState.errors.status]} />
+            {rolesQuery.isLoading ? (
+              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+                Loading available roles…
               </div>
-            ) : null}
-
-            {scopeKind === 'entity' ? (
-              <div className="space-y-2">
-                <Label className="block">Hierarchy</Label>
-                <Controller
-                  control={form.control}
-                  name="inheritFromTree"
-                  render={({ field }) => (
-                    <label className="flex min-h-10 items-start gap-3 rounded-xl border px-3 py-2 text-sm">
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                        disabled={isPending}
-                      />
-                      <span>Allow descendant entity access for inherited key evaluations.</span>
-                    </label>
-                  )}
-                />
-                <FieldError errors={[form.formState.errors.inheritFromTree]} />
+            ) : rolesQuery.isError ? (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {getApiErrorMessage(rolesQuery.error, 'The role catalog could not be loaded.')}
               </div>
-            ) : null}
-
-            <div className="space-y-3 sm:col-span-2">
-              <div className="space-y-1">
-                <Label>Assigned roles</Label>
-                <p className="text-xs text-muted-foreground">
-                  Roles define the service-account envelope. A key can inherit all derived
-                  permissions or restrict itself to a subset later.
-                </p>
-              </div>
-
-              {rolesQuery.isLoading ? (
-                <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                  Loading available roles…
-                </div>
-              ) : rolesQuery.isError ? (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                  {getApiErrorMessage(rolesQuery.error, 'The role catalog could not be loaded.')}
-                </div>
-              ) : (
+            ) : (
+              <div className="h-[min(42svh,25rem)] min-h-72">
                 <AssignableRolesTable
                   roles={availableRoles}
                   emptyMessage="No roles are available for this scope."
@@ -370,13 +375,13 @@ export function IntegrationPrincipalFormDialog({
                   }}
                   disabled={isPending}
                 />
-              )}
-              <FieldError errors={[form.formState.errors.roleIds]} />
-            </div>
+              </div>
+            )}
+            <FieldError errors={[form.formState.errors.roleIds]} />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <div className="space-y-3 rounded-2xl border px-4 py-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div className="space-y-3 rounded-xl border px-3 py-3">
               <div>
                 <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Role envelope
@@ -416,23 +421,15 @@ export function IntegrationPrincipalFormDialog({
                       </Badge>
                     ))}
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    These legacy direct permissions remain in force for compatibility, but new
-                    service-account access should be role-backed.
-                  </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="space-y-3 rounded-2xl border px-4 py-4">
+            <div className="space-y-3 rounded-xl border px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     Derived permissions
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    These are the permissions owned by the service account before any key-level
-                    restriction is applied.
                   </div>
                 </div>
                 <Badge variant="outline">{derivedPermissions.length} permissions</Badge>

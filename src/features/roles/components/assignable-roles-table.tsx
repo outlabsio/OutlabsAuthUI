@@ -19,7 +19,6 @@ import {
   getRoleAssignmentRuleLabel,
   getRoleDefinitionLabel,
   getRoleScopeModeLabel,
-  getRoleScopeSummary,
   getRoleTypeLabel,
 } from '@/features/roles/utils/role-display'
 import { filterAssignableRoles } from '@/features/roles/utils/filter-assignable-roles'
@@ -237,7 +236,7 @@ export function AssignableRolesTable({
                     }}
                   >
                     {canSelectRoles ? (
-                      <TableCell className="px-4 py-4 align-top">
+                    <TableCell className="px-4 py-3 align-top">
                         <div
                           className="flex items-start justify-center pt-0.5"
                           onClick={(event) => event.stopPropagation()}
@@ -253,24 +252,23 @@ export function AssignableRolesTable({
                         </div>
                       </TableCell>
                     ) : null}
-                    <TableCell className="px-4 py-4 align-top whitespace-normal">
-                      <div className="space-y-1.5">
+                    <TableCell className="px-4 py-3 align-top whitespace-normal">
+                      <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="font-medium text-foreground">{role.display_name}</div>
                           {isLocked ? (
                             <Badge variant="secondary">{lockedRoleLabel}</Badge>
                           ) : null}
                         </div>
-                        <div className="break-all font-mono text-xs text-muted-foreground">
-                          {role.name}
-                        </div>
                         {role.description ? (
-                          <div className="text-sm text-muted-foreground">{role.description}</div>
+                          <div className="line-clamp-2 text-sm text-muted-foreground">
+                            {role.description}
+                          </div>
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 align-top whitespace-normal">
-                      <div className="space-y-2">
+                    <TableCell className="px-4 py-3 align-top whitespace-normal">
+                      <div className="space-y-1.5">
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline">{getRoleTypeLabel(role)}</Badge>
                           {role.is_system_role ? (
@@ -285,13 +283,10 @@ export function AssignableRolesTable({
                         <div className="text-sm font-medium">
                           {getRoleDefinitionLabel(role)}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {getRoleScopeSummary(role)}
-                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 align-top whitespace-normal">
-                      <div className="space-y-2">
+                    <TableCell className="px-4 py-3 align-top whitespace-normal">
+                      <div className="space-y-1.5">
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline">
                             {role.permissions.length} permission
@@ -303,9 +298,11 @@ export function AssignableRolesTable({
                             <Badge variant="outline">Manual</Badge>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {getRoleAssignmentRuleLabel(role)}
-                        </div>
+                        {role.assignable_at_types.length > 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            {getRoleAssignmentRuleLabel(role)}
+                          </div>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
