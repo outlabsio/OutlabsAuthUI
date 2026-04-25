@@ -7,6 +7,15 @@ export type ForgotPasswordInput = {
   email: string
 }
 
+export type MagicLinkRequestInput = {
+  email: string
+  redirect_url?: string | null
+}
+
+export type MagicLinkVerifyInput = {
+  token: string
+}
+
 export type ResetPasswordInput = {
   token: string
   new_password: string
@@ -60,6 +69,11 @@ export type AuthConfig = {
     user_status: boolean
     activity_tracking: boolean
     invitations: boolean
+    magic_links?: boolean
+  }
+  auth_methods?: {
+    password: boolean
+    magic_link: boolean
   }
   available_permissions: string[]
 }

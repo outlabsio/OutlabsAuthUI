@@ -4,6 +4,7 @@ export const routes = {
     login: '/auth/login',
     register: '/auth/register',
     forgotPassword: '/auth/forgot-password',
+    magicLink: '/auth/magic-link',
     resetPassword: '/auth/reset-password',
     acceptInvite: '/auth/accept-invite',
   },

@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 
 import { Link } from '@tanstack/react-router'
+import { Mail } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
@@ -12,8 +14,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
 import { loginSchema } from '@/features/auth/schemas/login.schema'
 import type { LoginCredentials } from '@/features/auth/types/auth.types'
@@ -31,6 +35,7 @@ type LoginPageProps = {
 export function LoginPage({ className }: LoginPageProps) {
   const runtimeConfig = getRuntimeConfig()
   const navigate = useNavigate()
+  const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const loginMutation = useLoginMutation()
   const apiTarget = `${apiConfig.baseUrl}${apiConfig.authPrefix}`
   const form = useForm<LoginCredentials>({
@@ -47,6 +52,10 @@ export function LoginPage({ className }: LoginPageProps) {
 
   const emailField = form.register('email')
   const passwordField = form.register('password')
+  const magicLinkEnabled =
+    authConfigQuery.data?.auth_methods?.magic_link ??
+    authConfigQuery.data?.features.magic_links ??
+    false
 
   useEffect(() => {
     if (!hasStoredAuthTokens()) {
@@ -144,6 +153,22 @@ export function LoginPage({ className }: LoginPageProps) {
                 </Button>
                 {submitError ? <FieldError>{submitError}</FieldError> : null}
               </Field>
+              {magicLinkEnabled ? (
+                <>
+                  <FieldSeparator>or</FieldSeparator>
+                  <Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link to={routes.auth.magicLink} />}
+                    >
+                      <Mail aria-hidden="true" />
+                      Email me a sign-in link
+                    </Button>
+                  </Field>
+                </>
+              ) : null}
             </FieldGroup>
           </form>
           <div className="relative hidden bg-muted md:block">

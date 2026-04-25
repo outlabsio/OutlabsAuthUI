@@ -9,13 +9,45 @@ const emptyStorageState = {
   origins: [],
 }
 
+const magicLinkAuthConfig = {
+  preset: 'EnterpriseRBAC',
+  features: {
+    entity_hierarchy: true,
+    context_aware_roles: true,
+    abac: true,
+    tree_permissions: true,
+    api_keys: true,
+    system_api_keys: true,
+    user_status: true,
+    activity_tracking: true,
+    invitations: true,
+    magic_links: true,
+  },
+  auth_methods: {
+    password: true,
+    magic_link: true,
+  },
+  available_permissions: ['user:read'],
+}
+
+const magicLinkSessionUser = {
+  id: '00000000-0000-4000-8000-000000000001',
+  email: 'admin@acme.com',
+  first_name: 'Admin',
+  last_name: 'User',
+  status: 'active',
+  email_verified: true,
+  is_superuser: true,
+}
+
 async function expectLoginPage(page: Page) {
   await expect(
     page.getByRole('heading', {
       name: 'Welcome back',
     })
   ).toBeVisible()
-  await expect(page.getByText('Use admin@acme.com')).toBeVisible()
+  await expect(page.locator('#email')).toBeVisible()
+  await expect(page.locator('#password')).toBeVisible()
 }
 
 async function signIn(page: Page, email: string, password: string) {
@@ -58,5 +90,81 @@ test.describe('Auth Flow', () => {
     await expect(page).toHaveURL(/\/app\/dashboard$/)
     await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Users workspace' })).toBeVisible()
+  })
+
+  test('magic link method is surfaced and requests an email link', async ({ page }) => {
+    let requestBody: unknown = null
+
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkAuthConfig,
+      })
+    })
+    await page.route('**/v1/auth/magic-link/request', async (route) => {
+      requestBody = route.request().postDataJSON()
+      await route.fulfill({ status: 204 })
+    })
+
+    await page.goto('/auth/login')
+    await expectLoginPage(page)
+
+    await page.getByText('Email me a sign-in link').click()
+    await expect(page).toHaveURL(/\/auth\/magic-link$/)
+
+    await page.locator('#magic-link-email').fill('admin@acme.com')
+    await page.getByRole('button', { name: 'Send sign-in link' }).click()
+
+    await expect(
+      page.getByRole('heading', {
+        name: 'Check your email',
+      })
+    ).toBeVisible()
+    expect(requestBody).toMatchObject({
+      email: 'admin@acme.com',
+      redirect_url: expect.stringContaining('/app/dashboard'),
+    })
+  })
+
+  test('magic link token exchange lands on the dashboard', async ({ page }) => {
+    let verifyBody: unknown = null
+
+    await page.route('**/v1/auth/config', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkAuthConfig,
+      })
+    })
+    await page.route('**/v1/auth/magic-link/verify', async (route) => {
+      verifyBody = route.request().postDataJSON()
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          access_token: 'magic-access-token',
+          refresh_token: 'magic-refresh-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+        },
+      })
+    })
+    await page.route('**/v1/users/me', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: magicLinkSessionUser,
+      })
+    })
+
+    await page.goto('/auth/magic-link?token=one-time-token')
+
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
+    await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
+    expect(verifyBody).toEqual({
+      token: 'one-time-token',
+    })
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBe('magic-access-token')
   })
 })

@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
+import { Route as AuthMagicLinkRouteImport } from './routes/auth/magic-link'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthAcceptInviteRouteImport } from './routes/auth/accept-invite'
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthMagicLinkRoute = AuthMagicLinkRouteImport.update({
+  id: '/magic-link',
+  path: '/magic-link',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/magic-link': typeof AuthMagicLinkRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/magic-link': typeof AuthMagicLinkRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/magic-link': typeof AuthMagicLinkRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/app/entities/$entityId': typeof AppEntitiesEntityIdRoute
   '/app/permissions/$permissionId': typeof AppPermissionsPermissionIdRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/auth/accept-invite'
     | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/magic-link'
     | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/auth/accept-invite'
     | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/magic-link'
     | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/auth/accept-invite'
     | '/auth/forgot-password'
     | '/auth/login'
+    | '/auth/magic-link'
     | '/auth/reset-password'
     | '/app/entities/$entityId'
     | '/app/permissions/$permissionId'
@@ -342,6 +354,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/auth/reset-password'
       preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/magic-link': {
+      id: '/auth/magic-link'
+      path: '/magic-link'
+      fullPath: '/auth/magic-link'
+      preLoaderRoute: typeof AuthMagicLinkRouteImport
       parentRoute: typeof AuthRoute
     }
     '/auth/login': {
@@ -573,6 +592,7 @@ interface AuthRouteChildren {
   AuthAcceptInviteRoute: typeof AuthAcceptInviteRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthMagicLinkRoute: typeof AuthMagicLinkRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
 }
 
@@ -580,6 +600,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthAcceptInviteRoute: AuthAcceptInviteRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthMagicLinkRoute: AuthMagicLinkRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
 }
 
