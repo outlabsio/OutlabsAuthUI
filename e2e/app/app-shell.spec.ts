@@ -55,6 +55,7 @@ test.describe('App Shell', () => {
     await expect(page).toHaveURL(/\/app\/users\/api-keys(?:\?.*)?$/)
     await expect(page.getByRole('button', { name: 'Open System API Keys guide' })).toBeVisible()
 
+
     await page.goto('/app/settings')
     await expect(page).toHaveURL(/\/app\/settings$/)
     await expect(page.getByRole('button', { name: 'Open Settings guide' })).toBeVisible()
@@ -112,5 +113,33 @@ test.describe('App Shell', () => {
 
     await page.goto('/app/dashboard')
     await expect(page).toHaveURL(/\/auth\/login$/)
+  })
+
+  test('api-keys deep link redirects to dashboard when the feature is disabled', async ({
+    page,
+  }) => {
+    await page.route('**/v1/auth/config', async (route) => {
+      const response = await route.fetch()
+      const payload = (await response.json()) as {
+        features: Record<string, unknown>
+      }
+
+      await route.fulfill({
+        status: response.status(),
+        contentType: 'application/json',
+        json: {
+          ...payload,
+          features: {
+            ...payload.features,
+            api_keys: false,
+          },
+        },
+      })
+    })
+
+    await page.goto('/app/api-keys')
+    await expect(page).toHaveURL(/\/app\/dashboard$/)
+    await expect(page.getByRole('button', { name: 'Open Dashboard guide' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open API Keys workspace' })).toHaveCount(0)
   })
 })
