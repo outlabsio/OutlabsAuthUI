@@ -27,7 +27,7 @@ optional product gaps, not required console parity unless a mount depends on the
 | Account self-service | Covered | Profile + password |
 | Users admin | Covered | Invite, create-with-password, status, roles, memberships, history, audit |
 | Roles / permissions / ABAC | Covered | |
-| Entities hierarchy + members | Covered | Create/edit/status/move/archive-delete (cascade when needed) |
+| Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete |
 | Personal API keys | Covered | Self-service + admin list/revoke on user details |
 | System / integration API keys | Covered | Managed in System API Keys workspace |
 | Settings | Narrow | Entity type config only |

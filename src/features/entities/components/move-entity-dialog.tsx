@@ -18,11 +18,14 @@ import {
 } from '@/features/entities/utils/entity-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
+const PROMOTE_TO_ROOT_VALUE = '__promote_to_root__'
+
 type MoveEntityDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   entity?: Entity | null
   parentOptions: Entity[]
+  canPromoteToRoot?: boolean
   onMoved?: (entity: Entity) => void
 }
 
@@ -31,6 +34,7 @@ export function MoveEntityDialog({
   onOpenChange,
   entity,
   parentOptions,
+  canPromoteToRoot = true,
   onMoved,
 }: MoveEntityDialogProps) {
   const moveEntityMutation = useMoveEntityMutation()
@@ -46,6 +50,8 @@ export function MoveEntityDialog({
       ),
     [parentOptions]
   )
+  const hasMoveTargets = sortedParentOptions.length > 0 || canPromoteToRoot
+  const isPromoteToRoot = newParentId === PROMOTE_TO_ROOT_VALUE
 
   useEffect(() => {
     if (!open) {
@@ -57,14 +63,26 @@ export function MoveEntityDialog({
       sortedParentOptions.find((option) => option.id === currentParentId) ??
       sortedParentOptions[0]
 
-    setNewParentId(preferredParent?.id ?? '')
-  }, [entity?.parent_entity_id, open, sortedParentOptions])
+    if (preferredParent) {
+      setNewParentId(preferredParent.id)
+      return
+    }
+
+    setNewParentId(canPromoteToRoot ? PROMOTE_TO_ROOT_VALUE : '')
+  }, [canPromoteToRoot, entity?.parent_entity_id, open, sortedParentOptions])
 
   const selectedParent =
     sortedParentOptions.find((option) => option.id === newParentId) ?? null
   const isUnchanged = Boolean(
-    entity && selectedParent && entity.parent_entity_id === selectedParent.id
+    entity &&
+      ((isPromoteToRoot && entity.parent_entity_id == null) ||
+        (selectedParent && entity.parent_entity_id === selectedParent.id))
   )
+  const canConfirm =
+    Boolean(entity) &&
+    hasMoveTargets &&
+    !isUnchanged &&
+    (isPromoteToRoot || selectedParent != null)
 
   return (
     <AppConfirmDialog
@@ -79,22 +97,20 @@ export function MoveEntityDialog({
       }}
       title="Move entity"
       confirmVariant="default"
-      confirmLabel="Move entity"
-      confirmLabelPending="Moving..."
-      confirmDisabled={
-        !entity || !selectedParent || isUnchanged || sortedParentOptions.length === 0
-      }
+      confirmLabel={isPromoteToRoot ? 'Promote to root' : 'Move entity'}
+      confirmLabelPending={isPromoteToRoot ? 'Promoting...' : 'Moving...'}
+      confirmDisabled={!canConfirm}
       isPending={moveEntityMutation.isPending}
       errorMessage={errorMessage}
       onConfirm={async () => {
-        if (!entity || !selectedParent) {
+        if (!entity || !canConfirm) {
           return
         }
 
         try {
           const movedEntity = await moveEntityMutation.mutateAsync({
             entityId: entity.id,
-            newParentId: selectedParent.id,
+            newParentId: isPromoteToRoot ? null : selectedParent!.id,
           })
           onMoved?.(movedEntity)
           onOpenChange(false)
@@ -116,16 +132,16 @@ export function MoveEntityDialog({
               </Badge>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Choose a new parent in the current hierarchy. Descendants move with
-              this entity.
+              Choose a new parent in the hierarchy, or promote this entity to an
+              organization root. Descendants move with it.
             </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="move-entity-parent">New parent</Label>
-            {sortedParentOptions.length === 0 ? (
+            {!hasMoveTargets ? (
               <p className="text-sm text-muted-foreground">
-                No valid parent targets are available in this scope.
+                No valid move targets are available for this entity.
               </p>
             ) : (
               <Select
@@ -146,6 +162,11 @@ export function MoveEntityDialog({
                   <SelectValue placeholder="Select a parent entity" />
                 </SelectTrigger>
                 <SelectContent align="start" alignItemWithTrigger={false}>
+                  {canPromoteToRoot ? (
+                    <SelectItem value={PROMOTE_TO_ROOT_VALUE}>
+                      Organization root (no parent)
+                    </SelectItem>
+                  ) : null}
                   {sortedParentOptions.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
                       {option.display_name}

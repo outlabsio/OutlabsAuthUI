@@ -8,13 +8,13 @@ Restart point for the entity hierarchy surface.
 - Create root / create child with type and class constraints from parent governance + settings
 - Edit entity details and root governance
 - Move non-root entities to a new parent in the current scope (`POST /entities/{id}/move`)
+- Promote non-root entities to organization root (`new_parent_id: null` via the same move route)
 - Archive entities via `DELETE /entities/{id}` (backend soft-archives to `archived`, with required cascade when active children exist)
 - Members, invite, membership lifecycle (via shared membership dialogs)
 - Create/edit entity-scoped roles from entity context
 
 ## Known gaps
 
-- Promote-to-root (`new_parent_id: null`) is not exposed in the move dialog
 - No dedicated entity audit timeline
 - Admin create-user with password remains invite-only from this console
 

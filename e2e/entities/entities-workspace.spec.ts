@@ -719,6 +719,65 @@ test.describe('Entities Workspace', () => {
     ).toBeVisible()
   })
 
+  test('admin can promote a child entity to an organization root', async ({ page }) => {
+    test.setTimeout(90_000)
+
+    const rootEntity = buildEntitySeed('playwright-promote-root')
+    const regionEntity = buildEntitySeed('playwright-promote-region')
+
+    await gotoEntitiesWorkspace(page)
+    await page.getByRole('button', { name: 'Create root' }).click()
+
+    const rootDialog = page.getByRole('dialog', { name: 'Create root entity' })
+    await expect(rootDialog).toBeVisible()
+    await typeIntoBaseUiField(rootDialog, 'System name', rootEntity.systemName)
+    await typeIntoBaseUiField(rootDialog, 'Display name', rootEntity.displayName)
+    await selectAllowedChildClass(rootDialog, 'Structural')
+    await typeIntoBaseUiTagField(rootDialog, 'Allowed child types', ['region'])
+    await rootDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(rootDialog).toBeHidden()
+    await expect(page.getByRole('heading', { name: rootEntity.displayName })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page.getByRole('button', { name: 'Create child' }).click()
+    const regionDialog = page.getByRole('dialog', {
+      name: `Create child entity under ${rootEntity.displayName}`,
+    })
+    await expect(regionDialog).toBeVisible()
+    await typeIntoBaseUiField(regionDialog, 'System name', regionEntity.systemName)
+    await typeIntoBaseUiField(regionDialog, 'Display name', regionEntity.displayName)
+    await selectAllowedChildClass(regionDialog, 'Access group')
+    await typeIntoBaseUiTagField(regionDialog, 'Allowed child types', ['team'])
+    await regionDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(regionDialog).toBeHidden()
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page
+      .getByRole('tabpanel', { name: 'Child entities' })
+      .getByRole('button', { name: new RegExp(regionEntity.displayName, 'i') })
+      .click()
+    await expect(page.getByRole('heading', { name: regionEntity.displayName })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Move entity' }).click()
+    const moveDialog = page.getByRole('dialog', { name: 'Move entity' })
+    await expect(moveDialog).toBeVisible()
+    await moveDialog.getByRole('combobox', { name: 'New parent' }).click()
+    await page
+      .getByRole('option', { name: 'Organization root (no parent)', exact: true })
+      .click()
+    await moveDialog.getByRole('button', { name: 'Promote to root' }).click()
+    await expect(moveDialog).toBeHidden()
+
+    await expect(page.getByRole('heading', { name: regionEntity.displayName })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Root governance' })).toBeVisible()
+    await expect(page.getByText('Root entity', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Move entity' })).toHaveCount(0)
+
+    const rootScope = page.getByRole('combobox', { name: 'Root scope' })
+    await expect(rootScope).toBeVisible()
+    await expect(rootScope).toHaveValue(regionEntity.displayName)
+  })
+
   test('admin can invite a member from members and access and verify it in users', async ({
     page,
   }) => {

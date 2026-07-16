@@ -669,7 +669,9 @@ export function EntitiesPage({
                 canCreateRootEntities={canCreateRootEntities}
                 canCreateChildEntities={canCreateEntities && Boolean(activeEntity)}
                 canEditEntities={canEditEntities}
-                canMoveEntities={canEditEntities && moveParentOptions.length > 0}
+                canMoveEntities={
+                  canEditEntities && Boolean(activeEntity?.parent_entity_id)
+                }
                 canDeleteEntities={canDeleteEntities}
                 canCreateRoles={canCreateRoles}
                 canUpdateRoles={canUpdateRoles}
@@ -814,7 +816,16 @@ export function EntitiesPage({
         onOpenChange={setMoveEntityDialogOpen}
         entity={activeEntity}
         parentOptions={moveParentOptions}
+        canPromoteToRoot={canEditEntities}
         onMoved={(movedEntity) => {
+          if (!movedEntity.parent_entity_id && isSuperuser) {
+            onSearchChange({
+              ...search,
+              scopeRootId: movedEntity.id,
+            })
+            return
+          }
+
           onEntitySelect(movedEntity.id)
         }}
       />
