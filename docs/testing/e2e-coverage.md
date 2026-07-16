@@ -53,6 +53,7 @@ with auth routes under `/v1`.
   - admin create-user with password
   - direct account role assignment/removal
   - orphaned users discovery after membership revoke
+  - entity-context permission check on user details
   - retained delete and restore
   - read-only auditor coverage
   - read-only team-lead coverage with invite/create gating

@@ -19,6 +19,7 @@ Implemented on the frontend:
 - Direct role assignment
 - Direct role removal
 - Effective permissions view
+- Entity-context permission check dialog (`POST /permissions/check`)
 
 Implemented in the backend and already used by the frontend:
 

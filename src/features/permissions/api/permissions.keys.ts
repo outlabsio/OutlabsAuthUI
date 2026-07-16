@@ -11,4 +11,5 @@ export const permissionsKeys = {
     [...permissionsKeys.all, permissionId, 'condition-groups'] as const,
   conditions: (permissionId: string) =>
     [...permissionsKeys.all, permissionId, 'conditions'] as const,
+  check: () => [...permissionsKeys.all, 'check'] as const,
 }

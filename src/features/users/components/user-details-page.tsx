@@ -55,6 +55,7 @@ import { DeleteUserDialog } from '@/features/users/components/delete-user-dialog
 import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog';
 import { EditDirectRoleMembershipDialog } from '@/features/users/components/edit-direct-role-membership-dialog';
 import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog';
+import { PermissionCheckDialog } from '@/features/users/components/permission-check-dialog';
 import { ResetUserPasswordDialog } from '@/features/users/components/reset-user-password-dialog';
 import {
   getUserApiKeysQueryOptions,
@@ -505,6 +506,8 @@ export function UserDetailsPage({
       entityId: null,
       lockEntity: false,
     });
+  const [permissionCheckDialogOpen, setPermissionCheckDialogOpen] =
+    useState(false);
   const profileForm = useForm<UpdateUserProfileFormValues>({
     resolver: zodResolver(updateUserProfileSchema),
     defaultValues: {
@@ -561,6 +564,7 @@ export function UserDetailsPage({
   const canRemoveMemberships =
     membershipRolesFeatureEnabled &&
     actorPermissions.allows(['membership:delete', 'membership:delete_tree']);
+  const canCheckPermissions = actorPermissions.allows(['permission:check']);
   const membershipRoleQueries = useQueries({
     queries: (membershipsQuery.data ?? []).map((membership) => ({
       ...getRolesForEntityQueryOptions(membership.entity_id, { limit: 100 }),
@@ -1903,8 +1907,22 @@ export function UserDetailsPage({
                   label: 'Explain permissions section',
                   title: 'Permissions',
                   content:
-                    'This is the resolved permission set after direct roles, memberships, inheritance, and other grant paths are combined.',
+                    'This is the resolved permission set after direct roles, memberships, inheritance, and other grant paths are combined. Use Check permissions to evaluate specific names in global or entity context.',
                 }}
+                action={
+                  canCheckPermissions ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setPermissionCheckDialogOpen(true);
+                      }}
+                    >
+                      Check permissions
+                    </Button>
+                  ) : undefined
+                }
               >
                 {userPermissionsQuery.isError ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
@@ -2239,6 +2257,17 @@ export function UserDetailsPage({
           lockEntity={membershipAccessDialogState.lockEntity}
           canManageMembershipAccess={canManageMembershipAccess}
           canRemoveMemberships={canRemoveMemberships}
+        />
+      ) : null}
+
+      {canCheckPermissions ? (
+        <PermissionCheckDialog
+          open={permissionCheckDialogOpen}
+          onOpenChange={setPermissionCheckDialogOpen}
+          userId={userId}
+          userLabel={user.email}
+          entities={entitiesQuery.data?.items ?? []}
+          entityHierarchyEnabled={membershipRolesFeatureEnabled}
         />
       ) : null}
     </AppPage>

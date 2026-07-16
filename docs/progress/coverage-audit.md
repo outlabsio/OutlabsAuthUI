@@ -46,6 +46,7 @@ optional product gaps, not required console parity unless a mount depends on the
 - [x] Patch direct role membership validity windows (`PATCH /users/{id}/role-memberships/{membership_id}`)
 - [x] Admin manage another user’s personal API keys from user details (list + revoke)
 - [x] Orphaned users discovery (`GET /users/orphaned`) in the Users workspace
+- [x] Entity-context permission check (`POST /permissions/check`) on user details
 
 ### P2 / optional auth shell
 

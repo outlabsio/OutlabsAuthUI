@@ -725,6 +725,34 @@ test.describe('Users Workspace', () => {
     await expect(keyCard.getByRole('button', { name: 'Revoke' })).toHaveCount(0)
   })
 
+  test('admin can check a user permission in entity context', async ({ page }) => {
+    await gotoUsersWorkspace(page)
+    await openUserDetails(page, 'agent@sf.acme.com')
+    await openUserAccessTab(page)
+
+    await page.getByRole('button', { name: 'Check permissions' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Check permissions' })
+    await expect(dialog).toBeVisible()
+
+    await dialog.getByLabel('Add a permission to check').fill('Lead Read')
+    await page.getByRole('option', { name: /Lead Read/i }).first().click()
+    await expect(dialog.getByText('lead:read', { exact: true })).toBeVisible()
+
+    await dialog.getByLabel('Entity context for permission check').fill('SF Residential')
+    await page
+      .getByRole('option', { name: /SF Residential Team/i })
+      .first()
+      .click()
+
+    await dialog.getByRole('button', { name: 'Run check' }).click()
+    await expect(dialog.getByText('All granted', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Granted', { exact: true })).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+  })
+
   test('admin can discover orphaned users and open them for reassignment', async ({
     page,
   }) => {

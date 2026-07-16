@@ -106,3 +106,15 @@ export type DeletePermissionConditionInput = {
   permissionId: string
   conditionId: string
 }
+
+export type CheckPermissionsInput = {
+  userId: string
+  permissions: string[]
+  entityId?: string
+}
+
+export type CheckPermissionsResponse = {
+  user_id: string
+  has_all_permissions: boolean
+  results: Record<string, boolean>
+}
