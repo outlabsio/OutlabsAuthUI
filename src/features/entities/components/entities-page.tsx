@@ -9,7 +9,7 @@ import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import {
   getEntityDescendantsQueryOptions,
@@ -43,7 +43,6 @@ import type {
   EntityMember,
   EntitiesPageSearch,
 } from '@/features/entities/types/entities.types'
-import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 const entityMembersPageSize = 50
@@ -78,10 +77,6 @@ type RoleDialogState = {
   open: boolean
   mode: 'create' | 'edit'
   role: Role | null
-}
-
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
 }
 
 function uniqueEntities(entities: Array<Entity | null | undefined>) {
@@ -135,19 +130,15 @@ export function EntitiesPage({
   onEntitySelect,
   onMemberSelect,
 }: EntitiesPageProps) {
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
-  const isSuperuser = Boolean(sessionUser?.is_superuser)
+  const actorPermissions = useActorPermissions()
+  const sessionUser = actorPermissions.sessionUser
+  const isSuperuser = actorPermissions.isSuperuser
   const [rootScopeSearchValue, setRootScopeSearchValue] = useState('')
   const deferredRootScopeSearchValue = useDeferredValue(rootScopeSearchValue)
   const normalizedRootScopeSearchValue = deferredRootScopeSearchValue.trim()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const entityHierarchyEnabled =
     authConfigQuery.data?.features.entity_hierarchy ?? false
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
-    enabled: Boolean(sessionUser?.id),
-  })
   const rootEntitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
       page: 1,
@@ -163,37 +154,30 @@ export function EntitiesPage({
     enabled: entityHierarchyEnabled && Boolean(selectedEntityId),
   })
 
-  const actorPermissionNames = useMemo(
-    () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
-  const hasActorPermission = (candidates: string[]) =>
-    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
-
-  const canCreateEntities = hasActorPermission([
+  const canCreateEntities = actorPermissions.hasAny([
     'entity:create',
     'entity:create_tree',
     'entity:create_all',
   ])
-  const canEditEntities = hasActorPermission([
+  const canEditEntities = actorPermissions.hasAny([
     'entity:update',
     'entity:update_tree',
     'entity:update_all',
   ])
-  const canDeleteEntities = hasActorPermission([
+  const canDeleteEntities = actorPermissions.hasAny([
     'entity:delete',
     'entity:delete_tree',
     'entity:delete_all',
   ])
-  const canReadMembers = hasActorPermission(['membership:read'])
-  const canCreateMemberships = hasActorPermission(['membership:create'])
-  const canUpdateMemberships = hasActorPermission(['membership:update'])
-  const canRemoveMemberships = hasActorPermission(['membership:delete'])
+  const canReadMembers = actorPermissions.has('membership:read')
+  const canCreateMemberships = actorPermissions.has('membership:create')
+  const canUpdateMemberships = actorPermissions.has('membership:update')
+  const canRemoveMemberships = actorPermissions.has('membership:delete')
   const canManageExistingMemberships = canUpdateMemberships || canRemoveMemberships
-  const canInviteMembers = hasActorPermission(['user:create'])
-  const canReadRoles = hasActorPermission(['role:read'])
-  const canCreateRoles = hasActorPermission(['role:create'])
-  const canUpdateRoles = hasActorPermission(['role:update'])
+  const canInviteMembers = actorPermissions.has('user:create')
+  const canReadRoles = actorPermissions.has('role:read')
+  const canCreateRoles = actorPermissions.has('role:create')
+  const canUpdateRoles = actorPermissions.has('role:update')
   const canCreateRootEntities = Boolean(isSuperuser && canCreateEntities)
 
   const fetchedRootOptions = useMemo(
@@ -444,8 +428,7 @@ export function EntitiesPage({
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false)
 
   const pageError =
-    sessionQuery.error ??
-    actorPermissionsQuery.error ??
+    actorPermissions.error ??
     authConfigQuery.error ??
     (isSuperuser ? rootEntitiesQuery.error : null) ??
     activeRootQuery.error ??
@@ -469,8 +452,7 @@ export function EntitiesPage({
     : null
 
   const isPageLoading =
-    sessionQuery.isPending ||
-    actorPermissionsQuery.isPending ||
+    actorPermissions.isPending ||
     authConfigQuery.isPending ||
     (Boolean(activeRootId) &&
       ((activeRootQuery.isPending && !activeRootQuery.data) ||

@@ -36,7 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options';
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query';
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions';
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options';
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options';
 import { getUserMembershipsQueryOptions } from '@/features/memberships/api/memberships.query-options';
@@ -419,10 +419,6 @@ function groupPermissionsByResource(permissionSources: UserPermissionSource[]) {
     }));
 }
 
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate));
-}
-
 export function UserDetailsPage({
   userId,
   initialTab,
@@ -434,7 +430,8 @@ export function UserDetailsPage({
     useState<UserDetailsTab>(initialTab ?? 'details');
   const [auditEventsPage, setAuditEventsPage] = useState(1);
   const [membershipHistoryPage, setMembershipHistoryPage] = useState(1);
-  const sessionQuery = useSessionQuery();
+  const actorPermissions = useActorPermissions();
+  const sessionUser = actorPermissions.sessionUser;
   const authConfigQuery = useQuery(getAuthConfigQueryOptions());
   const membershipRolesFeatureEnabled =
     authConfigQuery.data?.features.entity_hierarchy === true;
@@ -469,10 +466,6 @@ export function UserDetailsPage({
     ...getUserMembershipsQueryOptions(userId, { includeInactive: true }),
     enabled: membershipRolesFeatureEnabled,
   });
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
-    enabled: Boolean(sessionQuery.data?.id),
-  });
   const personalApiKeysFeatureEnabled =
     authConfigQuery.data?.features.api_keys === true;
   const userApiKeysQuery = useQuery({
@@ -480,7 +473,7 @@ export function UserDetailsPage({
     enabled:
       personalApiKeysFeatureEnabled &&
       activeDetailsTab === 'access' &&
-      Boolean(sessionQuery.data?.id),
+      Boolean(sessionUser?.id),
   });
   const updateUserMutation = useUpdateUserMutation();
   const updateUserStatusMutation = useUpdateUserStatusMutation();
@@ -538,62 +531,36 @@ export function UserDetailsPage({
     () => new Map(entityOptions.map((entity) => [entity.id, entity])),
     [entityOptions],
   );
-  const actorPermissionNames = useMemo(
-    () =>
-      new Set(
-        (actorPermissionsQuery.data ?? []).map((item) => item.permission.name),
-      ),
-    [actorPermissionsQuery.data],
-  );
   const pageError = userQuery.error ?? authConfigQuery.error;
   const directRolesFeatureEnabled = true;
-  const isActorSuperuser = sessionQuery.data?.is_superuser === true;
-  const canReadScopedRoleCatalog = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser ||
-      hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree'])
-    : isActorSuperuser;
-  const canAssignDirectRoles = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser ||
-      (directRolesFeatureEnabled &&
-        actorPermissionNames.has('user:update') &&
-        hasAnyPermission(actorPermissionNames, ['role:read', 'role:read_tree']))
-    : isActorSuperuser && directRolesFeatureEnabled;
-  const canUpdateUsers = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser || actorPermissionNames.has('user:update')
-    : isActorSuperuser;
-  const canDeleteUsers = actorPermissionsQuery.isSuccess
-    ? isActorSuperuser || actorPermissionNames.has('user:delete')
-    : isActorSuperuser;
+  const canReadScopedRoleCatalog = actorPermissions.allows([
+    'role:read',
+    'role:read_tree',
+  ]);
+  const canAssignDirectRoles =
+    directRolesFeatureEnabled &&
+    actorPermissions.allows(['user:update']) &&
+    actorPermissions.allows(['role:read', 'role:read_tree']);
+  const canUpdateUsers = actorPermissions.allows(['user:update']);
+  const canDeleteUsers = actorPermissions.allows(['user:delete']);
   const canRemoveDirectRoles = canUpdateUsers;
   const canEditDirectRoleWindows = canUpdateUsers;
   const canReadUserApiKeys =
-    personalApiKeysFeatureEnabled &&
-    (actorPermissionsQuery.isSuccess
-      ? isActorSuperuser || actorPermissionNames.has('user:read')
-      : isActorSuperuser);
+    personalApiKeysFeatureEnabled && actorPermissions.allows(['user:read']);
   const canRevokeUserApiKeys = canReadUserApiKeys && canUpdateUsers;
   const canManageMembershipAccess =
     membershipRolesFeatureEnabled &&
-    (actorPermissionsQuery.isSuccess
-      ? isActorSuperuser ||
-        hasAnyPermission(actorPermissionNames, [
-          'membership:create',
-          'membership:create_tree',
-        ]) ||
-        hasAnyPermission(actorPermissionNames, [
-          'membership:update',
-          'membership:update_tree',
-        ])
-      : isActorSuperuser);
+    (actorPermissions.allows([
+      'membership:create',
+      'membership:create_tree',
+    ]) ||
+      actorPermissions.allows([
+        'membership:update',
+        'membership:update_tree',
+      ]));
   const canRemoveMemberships =
     membershipRolesFeatureEnabled &&
-    (actorPermissionsQuery.isSuccess
-      ? isActorSuperuser ||
-        hasAnyPermission(actorPermissionNames, [
-          'membership:delete',
-          'membership:delete_tree',
-        ])
-      : isActorSuperuser);
+    actorPermissions.allows(['membership:delete', 'membership:delete_tree']);
   const membershipRoleQueries = useQueries({
     queries: (membershipsQuery.data ?? []).map((membership) => ({
       ...getRolesForEntityQueryOptions(membership.entity_id, { limit: 100 }),
@@ -624,11 +591,11 @@ export function UserDetailsPage({
   const canRestoreUser = canUpdateUsers && user?.status === 'deleted';
   const canDeleteThisUser =
     canDeleteUsers &&
-    sessionQuery.data?.id !== userId &&
+    sessionUser?.id !== userId &&
     user?.status !== 'deleted';
-  const isSelfUser = sessionQuery.data?.id === userId;
+  const isSelfUser = sessionUser?.id === userId;
   const canManageSuperuserAccess =
-    isActorSuperuser && user?.status !== 'deleted';
+    actorPermissions.isSuperuser && user?.status !== 'deleted';
   const canChangeSuperuserAccess =
     canManageSuperuserAccess && !(isSelfUser && user?.is_superuser);
   const nextSuperuserValue = !(user?.is_superuser ?? false);
@@ -1190,7 +1157,7 @@ export function UserDetailsPage({
                       </Badge>
                     </div>
 
-                    {!isActorSuperuser ? (
+                    {!actorPermissions.isSuperuser ? (
                       <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
                         Your account can view this flag, but only superusers can
                         change it.
@@ -1238,7 +1205,7 @@ export function UserDetailsPage({
                   }
                 >
                   <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                    {sessionQuery.data?.id === userId
+                    {sessionUser?.id === userId
                       ? 'You cannot delete your own account from this screen.'
                       : user.status === 'deleted'
                         ? 'This account is already deleted. The identity is retained so you can review history and restore it later if needed.'

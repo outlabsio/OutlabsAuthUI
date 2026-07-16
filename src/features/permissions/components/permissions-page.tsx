@@ -9,7 +9,7 @@ import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import {
   getPermissionConditionGroupsQueryOptions,
   getPermissionConditionsQueryOptions,
@@ -30,7 +30,6 @@ import {
   sortPermissionsForCatalog,
 } from '@/features/permissions/utils/permissions-display'
 import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
-import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 type PermissionsPageProps = {
@@ -40,23 +39,14 @@ type PermissionsPageProps = {
   onPermissionSelect: (permissionId?: string) => void
 }
 
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
-}
-
 export function PermissionsPage({
   selectedPermissionId,
   search,
   onSearchChange,
   onPermissionSelect,
 }: PermissionsPageProps) {
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
+  const actorPermissions = useActorPermissions()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
-    enabled: Boolean(sessionUser?.id),
-  })
   const permissionsQuery = useQuery(
     getPermissionsQueryOptions({
       page: 1,
@@ -77,20 +67,11 @@ export function PermissionsPage({
     enabled: Boolean(selectedPermissionId),
   })
 
-  const actorPermissionNames = useMemo(
-    () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
-  const isSuperuser = Boolean(sessionUser?.is_superuser)
-  const canReadPermissions =
-    isSuperuser || hasAnyPermission(actorPermissionNames, ['permission:read'])
-  const canCreatePermissions =
-    isSuperuser || hasAnyPermission(actorPermissionNames, ['permission:create'])
-  const canUpdatePermissions =
-    isSuperuser || hasAnyPermission(actorPermissionNames, ['permission:update'])
-  const canDeletePermissions =
-    isSuperuser || hasAnyPermission(actorPermissionNames, ['permission:delete'])
-  const canReadRoles = isSuperuser || hasAnyPermission(actorPermissionNames, ['role:read'])
+  const canReadPermissions = actorPermissions.has('permission:read')
+  const canCreatePermissions = actorPermissions.has('permission:create')
+  const canUpdatePermissions = actorPermissions.has('permission:update')
+  const canDeletePermissions = actorPermissions.has('permission:delete')
+  const canReadRoles = actorPermissions.has('role:read')
   const abacEnabled = authConfigQuery.data?.features.abac ?? false
 
   const rolesQuery = useQuery({
@@ -102,8 +83,7 @@ export function PermissionsPage({
   })
 
   const pageError =
-    sessionQuery.error ??
-    actorPermissionsQuery.error ??
+    actorPermissions.error ??
     authConfigQuery.error ??
     permissionsQuery.error
   const permissionDetailErrorMessage = permissionDetailQuery.error
@@ -188,7 +168,7 @@ export function PermissionsPage({
     search.tag ?? '',
   ].join(':')
 
-  if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
+  if (actorPermissions.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading permissions workspace" />
   }
 
@@ -343,7 +323,9 @@ export function PermissionsPage({
         }
         mode={permissionDialogState.mode}
         permission={permissionDialogState.permission}
-        canCreateSystemPermissions={isSuperuser && canCreatePermissions}
+        canCreateSystemPermissions={
+          actorPermissions.isSuperuser && canCreatePermissions
+        }
         onSuccess={(permission) => {
           onPermissionSelect(permission.id)
         }}

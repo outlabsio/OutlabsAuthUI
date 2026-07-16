@@ -50,11 +50,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  getAuthConfigQueryOptions,
-  getMyPermissionsQueryOptions,
-} from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import {
   getEntityApiKeysQueryOptions,
   getIntegrationPrincipalApiKeysQueryOptions,
@@ -168,10 +165,6 @@ function describeKeyPermissions(apiKey: ApiKey, principal?: IntegrationPrincipal
   return principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? []
 }
 
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
-}
-
 function buildOwnerOptions(
   members: Array<{
     user_id: string
@@ -199,8 +192,8 @@ function buildOwnerOptions(
 }
 
 export function ApiKeysPage() {
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
+  const actorPermissions = useActorPermissions()
+  const sessionUser = actorPermissions.sessionUser
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const authConfig = authConfigQuery.data
   const apiKeysEnabled = authConfig?.features.api_keys ?? false
@@ -210,39 +203,35 @@ export function ApiKeysPage() {
     apiKeysEnabled &&
     (authConfig.features.system_api_keys ?? false)
   const supportsSystemKeysWorkspace = enterpriseEnabled || simpleGlobalKeysEnabled
-  const actorPermissionsQuery = useQuery({
-    ...getMyPermissionsQueryOptions(),
-    enabled: Boolean(sessionUser?.id),
-  })
 
-  const actorPermissionNames = useMemo(
-    () => new Set(actorPermissionsQuery.data ?? []),
-    [actorPermissionsQuery.data]
-  )
-
-  const canReadApiKeys =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:read', 'api_key:read_tree', 'api_key:read_all'])
-  const canCreateApiKeys =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:create', 'api_key:create_tree', 'api_key:create_all'])
-  const canUpdateApiKeys =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['api_key:update', 'api_key:update_tree', 'api_key:update_all'])
-  const canDeleteApiKeys =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, [
-      'api_key:delete',
-      'api_key:delete_tree',
-      'api_key:delete_all',
-      'api_key:revoke',
-    ])
-  const canReadEntities =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['entity:read', 'entity:read_tree', 'entity:read_all'])
+  const canReadApiKeys = actorPermissions.hasAny([
+    'api_key:read',
+    'api_key:read_tree',
+    'api_key:read_all',
+  ])
+  const canCreateApiKeys = actorPermissions.hasAny([
+    'api_key:create',
+    'api_key:create_tree',
+    'api_key:create_all',
+  ])
+  const canUpdateApiKeys = actorPermissions.hasAny([
+    'api_key:update',
+    'api_key:update_tree',
+    'api_key:update_all',
+  ])
+  const canDeleteApiKeys = actorPermissions.hasAny([
+    'api_key:delete',
+    'api_key:delete_tree',
+    'api_key:delete_all',
+    'api_key:revoke',
+  ])
+  const canReadEntities = actorPermissions.hasAny([
+    'entity:read',
+    'entity:read_tree',
+    'entity:read_all',
+  ])
   const canManagePlatformPrincipals =
-    Boolean(sessionUser?.is_superuser) ||
-    (simpleGlobalKeysEnabled && canReadApiKeys)
+    actorPermissions.isSuperuser || (simpleGlobalKeysEnabled && canReadApiKeys)
 
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
@@ -528,9 +517,9 @@ export function ApiKeysPage() {
     return 'Owner details unavailable'
   }
 
-  const pageError = sessionQuery.error ?? actorPermissionsQuery.error ?? authConfigQuery.error
+  const pageError = actorPermissions.error ?? authConfigQuery.error
 
-  if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
+  if (actorPermissions.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title={loadingTitle} />
   }
 

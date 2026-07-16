@@ -10,17 +10,14 @@ import { AppPage } from '@/components/app/app-page'
 import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { CreateUserDialog } from '@/features/users/components/create-user-dialog'
 import { InviteUserDialog } from '@/features/users/components/invite-user-dialog'
 import { UsersFilters } from '@/features/users/components/users-filters'
 import { UsersTable } from '@/features/users/components/users-table'
-import {
-  getUserPermissionsQueryOptions,
-  getUsersQueryOptions,
-} from '@/features/users/api/users.query-options'
+import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
 import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation'
 import type { UsersPageSearch } from '@/features/users/types/users.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
@@ -30,10 +27,6 @@ type UsersPageProps = {
   onFiltersChange: (next: Omit<UsersPageSearch, 'page'>) => void
   onPageChange: (page: number) => void
   onUserSelect: (userId: string) => void
-}
-
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
 }
 
 export function UsersPage({
@@ -50,13 +43,8 @@ export function UsersPage({
       desc: false,
     },
   ])
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
+  const actorPermissions = useActorPermissions()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
-    enabled: Boolean(sessionUser?.id),
-  })
   const usersQuery = useQuery(
     getUsersQueryOptions({
       page: filters.page,
@@ -67,14 +55,8 @@ export function UsersPage({
     })
   )
   const resendInviteMutation = useResendInviteMutation()
-  const actorPermissionNames = useMemo(
-    () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
   const entityHierarchyEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
-  const canReadEntities =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['entity:read', 'entity:read_tree'])
+  const canReadEntities = actorPermissions.hasAny(['entity:read', 'entity:read_tree'])
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions(),
     enabled: canReadEntities && entityHierarchyEnabled,
@@ -85,16 +67,13 @@ export function UsersPage({
   )
 
   const pageError =
-    sessionQuery.error ??
-    actorPermissionsQuery.error ??
+    actorPermissions.error ??
     usersQuery.error ??
     authConfigQuery.error ??
     entitiesQuery.error
 
   const authConfig = authConfigQuery.data
-  const canCreateUsers =
-    Boolean(sessionUser?.is_superuser) ||
-    hasAnyPermission(actorPermissionNames, ['user:create'])
+  const canCreateUsers = actorPermissions.has('user:create')
   const canInviteUsers =
     (authConfig?.features.invitations ?? false) && canCreateUsers
   const showStatusFilter = authConfig?.features.user_status ?? true
@@ -142,7 +121,7 @@ export function UsersPage({
     </div>
   )
 
-  if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
+  if (actorPermissions.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading users workspace" />
   }
 
@@ -209,7 +188,7 @@ export function UsersPage({
         onOpenChange={setIsCreateDialogOpen}
         entities={entitiesQuery.data?.items ?? []}
         entityHierarchyEnabled={entityHierarchyEnabled}
-        canCreateSuperusers={Boolean(sessionUser?.is_superuser)}
+        canCreateSuperusers={actorPermissions.isSuperuser}
         onCreated={(user) => {
           onUserSelect(user.id)
         }}
@@ -220,7 +199,7 @@ export function UsersPage({
         entities={entitiesQuery.data?.items ?? []}
         entityHierarchyEnabled={entityHierarchyEnabled}
         contextAwareRoles={authConfig?.features.context_aware_roles ?? false}
-        canInviteSuperusers={Boolean(sessionUser?.is_superuser)}
+        canInviteSuperusers={actorPermissions.isSuperuser}
       />
     </>
   )

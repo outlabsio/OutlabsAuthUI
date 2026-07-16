@@ -8,7 +8,7 @@ import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { DeleteRoleDialog } from '@/features/roles/components/delete-role-dialog'
@@ -22,17 +22,12 @@ import {
 import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
 import { buildRolePermissionOptions } from '@/features/roles/utils/build-role-permission-options'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
-import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 type RoleDetailsPageProps = {
   roleId: string
   onBack: () => void
   onDeleted: () => void
-}
-
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
 }
 
 function resolvePermissionOptions(
@@ -58,13 +53,9 @@ export function RoleDetailsPage({
   onBack,
   onDeleted,
 }: RoleDetailsPageProps) {
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
+  const actorPermissions = useActorPermissions()
+  const sessionUser = actorPermissions.sessionUser
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
-    enabled: Boolean(sessionUser?.id),
-  })
   const roleQuery = useQuery(getRoleQueryOptions(roleId))
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions({
@@ -87,22 +78,14 @@ export function RoleDetailsPage({
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  const actorPermissionNames = useMemo(
-    () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
-  const isSuperuser = Boolean(sessionUser?.is_superuser)
-  const hasActorPermission = (candidates: string[]) =>
-    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
-  const canReadRoles = hasActorPermission(['role:read'])
-  const canUpdateRoles = hasActorPermission(['role:update'])
-  const canDeleteRoles = hasActorPermission(['role:delete'])
+  const canReadRoles = actorPermissions.has('role:read')
+  const canUpdateRoles = actorPermissions.has('role:update')
+  const canDeleteRoles = actorPermissions.has('role:delete')
   const abacEnabled = authConfigQuery.data?.features.abac ?? false
 
   const pageError =
-    sessionQuery.error ??
+    actorPermissions.error ??
     authConfigQuery.error ??
-    actorPermissionsQuery.error ??
     roleQuery.error
   const entities = entitiesQuery.data?.items ?? []
   const permissionOptions = useMemo(
@@ -114,7 +97,7 @@ export function RoleDetailsPage({
     [authConfigQuery.data?.available_permissions, permissionsCatalogQuery.data?.items]
   )
 
-  if (sessionQuery.isPending || authConfigQuery.isPending || actorPermissionsQuery.isPending) {
+  if (actorPermissions.isPending || authConfigQuery.isPending) {
     return (
       <AppLoadingState
         title="Loading role"
@@ -216,7 +199,7 @@ export function RoleDetailsPage({
         role={role}
         entities={entities}
         permissionOptions={permissionOptions}
-        canCreateGlobalRoles={isSuperuser && canUpdateRoles}
+        canCreateGlobalRoles={actorPermissions.isSuperuser && canUpdateRoles}
         onSuccess={() => {
           setEditDialogOpen(false)
         }}

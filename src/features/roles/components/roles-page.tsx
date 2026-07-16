@@ -10,7 +10,7 @@ import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { AppToolbar } from '@/components/app/app-toolbar'
 import { Button } from '@/components/ui/button'
-import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
+import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { RoleFormDialog } from '@/features/roles/components/role-form-dialog'
@@ -25,17 +25,12 @@ import {
   sortRolesForCatalog,
 } from '@/features/roles/utils/role-display'
 import { buildRolePermissionOptions } from '@/features/roles/utils/build-role-permission-options'
-import { getUserPermissionsQueryOptions } from '@/features/users/api/users.query-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
 type RolesPageProps = {
   search: RolesPageSearch
   onSearchChange: (next: RolesPageSearch) => void
   onRoleSelect: (roleId: string) => void
-}
-
-function hasAnyPermission(permissionNames: Set<string>, candidates: string[]) {
-  return candidates.some((candidate) => permissionNames.has(candidate))
 }
 
 export function RolesPage({
@@ -49,13 +44,9 @@ export function RolesPage({
       desc: false,
     },
   ])
-  const sessionQuery = useSessionQuery()
-  const sessionUser = sessionQuery.data ?? null
+  const actorPermissions = useActorPermissions()
+  const sessionUser = actorPermissions.sessionUser
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const actorPermissionsQuery = useQuery({
-    ...getUserPermissionsQueryOptions(sessionUser?.id ?? ''),
-    enabled: Boolean(sessionUser?.id),
-  })
   const rolesQuery = useInfiniteQuery(
     getInfiniteRolesQueryOptions({
       limit: 40,
@@ -79,19 +70,11 @@ export function RolesPage({
     enabled: Boolean(sessionUser?.id),
   })
 
-  const actorPermissionNames = useMemo(
-    () => new Set((actorPermissionsQuery.data ?? []).map((item) => item.permission.name)),
-    [actorPermissionsQuery.data]
-  )
-  const isSuperuser = Boolean(sessionUser?.is_superuser)
-  const hasActorPermission = (candidates: string[]) =>
-    isSuperuser || hasAnyPermission(actorPermissionNames, candidates)
-  const canReadRoles = hasActorPermission(['role:read'])
-  const canCreateRoles = hasActorPermission(['role:create'])
+  const canReadRoles = actorPermissions.has('role:read')
+  const canCreateRoles = actorPermissions.has('role:create')
 
   const pageError =
-    sessionQuery.error ??
-    actorPermissionsQuery.error ??
+    actorPermissions.error ??
     authConfigQuery.error ??
     rolesQuery.error
   const allRoles = useMemo(
@@ -215,7 +198,7 @@ export function RolesPage({
     </div>
   )
 
-  if (sessionQuery.isPending || actorPermissionsQuery.isPending || authConfigQuery.isPending) {
+  if (actorPermissions.isPending || authConfigQuery.isPending) {
     return <AppLoadingState title="Loading roles workspace" />
   }
 
@@ -299,7 +282,7 @@ export function RolesPage({
         mode="create"
         entities={entities}
         permissionOptions={permissionOptions}
-        canCreateGlobalRoles={isSuperuser && canCreateRoles}
+        canCreateGlobalRoles={actorPermissions.isSuperuser && canCreateRoles}
         onSuccess={(role) => {
           onRoleSelect(role.id)
         }}
