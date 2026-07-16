@@ -60,6 +60,7 @@ export const usersKeys = {
       { includeInactive: options?.includeInactive ?? false },
     ] as const,
   apiKeys: (userId: string) => [...usersKeys.all, 'api-keys', userId] as const,
+  sessions: (userId: string) => [...usersKeys.all, 'sessions', userId] as const,
   permissions: (userId: string) => [...usersKeys.all, 'permissions', userId] as const,
   invite: () => [...usersKeys.all, 'invite'] as const,
   create: () => [...usersKeys.all, 'create'] as const,

@@ -3,6 +3,7 @@ import type { AuthConfig } from '@/features/auth/types/auth.types'
 export type WorkspaceKey =
   | 'account'
   | 'apiKeys'
+  | 'audit'
   | 'dashboard'
   | 'entities'
   | 'permissions'
@@ -10,6 +11,7 @@ export type WorkspaceKey =
   | 'settings'
   | 'systemApiKeys'
   | 'users'
+
 
 export function isWorkspaceVisible(
   workspace: WorkspaceKey,

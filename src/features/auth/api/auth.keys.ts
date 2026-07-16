@@ -12,4 +12,5 @@ export const authKeys = {
   myPermissions: () => [...authKeys.all, 'my-permissions'] as const,
   resetPassword: () => [...authKeys.all, 'reset-password'] as const,
   session: () => [...authKeys.all, 'session'] as const,
+  startOAuthLogin: () => [...authKeys.all, 'start-oauth-login'] as const,
 }

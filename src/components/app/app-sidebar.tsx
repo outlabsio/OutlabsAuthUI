@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   LogOut,
+  ScrollText,
   Settings,
   Shield,
   ShieldCheck,
@@ -66,6 +67,7 @@ type NavigationItem = {
   to:
     | typeof routes.app.dashboard
     | typeof routes.app.apiKeys
+    | typeof routes.app.audit
     | typeof routes.app.systemApiKeys
     | typeof routes.app.settings
     | typeof routes.app.users
@@ -116,6 +118,12 @@ const navigationGroups: Array<{
         title: 'Users',
         to: routes.app.users,
         icon: Users,
+      },
+      {
+        key: 'audit',
+        title: 'Audit',
+        to: routes.app.audit,
+        icon: ScrollText,
       },
       {
         key: 'permissions',

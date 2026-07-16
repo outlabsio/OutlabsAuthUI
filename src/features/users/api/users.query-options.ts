@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 
 import { getOrphanedUsers } from '@/features/users/api/get-orphaned-users'
 import { getUserApiKeys } from '@/features/users/api/get-user-api-keys'
+import { getUserSessions } from '@/features/users/api/get-user-sessions'
 import { getUserAuditEvents } from '@/features/users/api/get-user-audit-events'
 import { getUserMembershipHistory } from '@/features/users/api/get-user-membership-history'
 import { getUser } from '@/features/users/api/get-user'
@@ -86,5 +87,12 @@ export function getUserApiKeysQueryOptions(userId: string) {
   return queryOptions({
     queryKey: usersKeys.apiKeys(userId),
     queryFn: () => getUserApiKeys(userId),
+  })
+}
+
+export function getUserSessionsQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: usersKeys.sessions(userId),
+    queryFn: () => getUserSessions(userId),
   })
 }

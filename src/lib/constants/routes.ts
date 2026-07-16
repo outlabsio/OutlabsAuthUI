@@ -7,11 +7,13 @@ export const routes = {
     accessCode: '/auth/access-code',
     resetPassword: '/auth/reset-password',
     acceptInvite: '/auth/accept-invite',
+    oauthCallback: '/auth/oauth/callback',
   },
   app: {
     account: '/app/account',
     dashboard: '/app/dashboard',
     apiKeys: '/app/api-keys',
+    audit: '/app/audit',
     settings: '/app/settings',
     systemApiKeys: '/app/users/api-keys',
     users: '/app/users',
@@ -24,3 +26,4 @@ export const routes = {
     entityDetail: '/app/entities/$entityId',
   },
 } as const
+

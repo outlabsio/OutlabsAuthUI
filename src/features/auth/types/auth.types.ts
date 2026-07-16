@@ -17,12 +17,16 @@ export type MagicLinkVerifyInput = {
 }
 
 export type AccessCodeRequestInput = {
-  email: string
+  email?: string
+  phone?: string
+  channel?: 'email' | 'whatsapp' | 'sms'
   redirect_url?: string | null
 }
 
 export type AccessCodeVerifyInput = {
-  email: string
+  email?: string
+  phone?: string
+  channel?: 'email' | 'whatsapp' | 'sms'
   code: string
 }
 

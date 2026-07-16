@@ -24,12 +24,14 @@ import { Route as AppRolesRouteImport } from './routes/app/roles'
 import { Route as AppPermissionsRouteImport } from './routes/app/permissions'
 import { Route as AppEntitiesRouteImport } from './routes/app/entities'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
+import { Route as AppAuditRouteImport } from './routes/app/audit'
 import { Route as AppApiKeysRouteImport } from './routes/app/api-keys'
 import { Route as AppAccountRouteImport } from './routes/app/account'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users.index'
 import { Route as AppRolesIndexRouteImport } from './routes/app/roles.index'
 import { Route as AppPermissionsIndexRouteImport } from './routes/app/permissions.index'
 import { Route as AppEntitiesIndexRouteImport } from './routes/app/entities.index'
+import { Route as AuthOauthCallbackRouteImport } from './routes/auth/oauth.callback'
 import { Route as AppUsersApiKeysRouteImport } from './routes/app/users.api-keys'
 import { Route as AppUsersUserIdRouteImport } from './routes/app/users.$userId'
 import { Route as AppRolesRoleIdRouteImport } from './routes/app/roles.$roleId'
@@ -111,6 +113,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApiKeysRoute = AppApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
@@ -140,6 +147,11 @@ const AppEntitiesIndexRoute = AppEntitiesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppEntitiesRoute,
+} as any)
+const AuthOauthCallbackRoute = AuthOauthCallbackRouteImport.update({
+  id: '/oauth/callback',
+  path: '/oauth/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AppUsersApiKeysRoute = AppUsersApiKeysRouteImport.update({
   id: '/api-keys',
@@ -174,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/app/account': typeof AppAccountRoute
   '/app/api-keys': typeof AppApiKeysRoute
+  '/app/audit': typeof AppAuditRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/permissions': typeof AppPermissionsRouteWithChildren
@@ -191,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/users/api-keys': typeof AppUsersApiKeysRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
@@ -202,6 +216,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/app/account': typeof AppAccountRoute
   '/app/api-keys': typeof AppApiKeysRoute
+  '/app/audit': typeof AppAuditRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/settings': typeof AppSettingsRoute
   '/auth/accept-invite': typeof AuthAcceptInviteRoute
@@ -215,6 +230,7 @@ export interface FileRoutesByTo {
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/users/api-keys': typeof AppUsersApiKeysRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/app/entities': typeof AppEntitiesIndexRoute
   '/app/permissions': typeof AppPermissionsIndexRoute
   '/app/roles': typeof AppRolesIndexRoute
@@ -227,6 +243,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/app/account': typeof AppAccountRoute
   '/app/api-keys': typeof AppApiKeysRoute
+  '/app/audit': typeof AppAuditRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/entities': typeof AppEntitiesRouteWithChildren
   '/app/permissions': typeof AppPermissionsRouteWithChildren
@@ -244,6 +261,7 @@ export interface FileRoutesById {
   '/app/roles/$roleId': typeof AppRolesRoleIdRoute
   '/app/users/$userId': typeof AppUsersUserIdRoute
   '/app/users/api-keys': typeof AppUsersApiKeysRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/app/entities/': typeof AppEntitiesIndexRoute
   '/app/permissions/': typeof AppPermissionsIndexRoute
   '/app/roles/': typeof AppRolesIndexRoute
@@ -257,6 +275,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/account'
     | '/app/api-keys'
+    | '/app/audit'
     | '/app/dashboard'
     | '/app/entities'
     | '/app/permissions'
@@ -274,6 +293,7 @@ export interface FileRouteTypes {
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/users/api-keys'
+    | '/auth/oauth/callback'
     | '/app/entities/'
     | '/app/permissions/'
     | '/app/roles/'
@@ -285,6 +305,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/account'
     | '/app/api-keys'
+    | '/app/audit'
     | '/app/dashboard'
     | '/app/settings'
     | '/auth/accept-invite'
@@ -298,6 +319,7 @@ export interface FileRouteTypes {
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/users/api-keys'
+    | '/auth/oauth/callback'
     | '/app/entities'
     | '/app/permissions'
     | '/app/roles'
@@ -309,6 +331,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app/account'
     | '/app/api-keys'
+    | '/app/audit'
     | '/app/dashboard'
     | '/app/entities'
     | '/app/permissions'
@@ -326,6 +349,7 @@ export interface FileRouteTypes {
     | '/app/roles/$roleId'
     | '/app/users/$userId'
     | '/app/users/api-keys'
+    | '/auth/oauth/callback'
     | '/app/entities/'
     | '/app/permissions/'
     | '/app/roles/'
@@ -445,6 +469,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/audit': {
+      id: '/app/audit'
+      path: '/audit'
+      fullPath: '/app/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/api-keys': {
       id: '/app/api-keys'
       path: '/api-keys'
@@ -486,6 +517,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/entities/'
       preLoaderRoute: typeof AppEntitiesIndexRouteImport
       parentRoute: typeof AppEntitiesRoute
+    }
+    '/auth/oauth/callback': {
+      id: '/auth/oauth/callback'
+      path: '/oauth/callback'
+      fullPath: '/auth/oauth/callback'
+      preLoaderRoute: typeof AuthOauthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/app/users/api-keys': {
       id: '/app/users/api-keys'
@@ -586,6 +624,7 @@ const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppApiKeysRoute: typeof AppApiKeysRoute
+  AppAuditRoute: typeof AppAuditRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntitiesRoute: typeof AppEntitiesRouteWithChildren
   AppPermissionsRoute: typeof AppPermissionsRouteWithChildren
@@ -597,6 +636,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppApiKeysRoute: AppApiKeysRoute,
+  AppAuditRoute: AppAuditRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEntitiesRoute: AppEntitiesRouteWithChildren,
   AppPermissionsRoute: AppPermissionsRouteWithChildren,
@@ -614,6 +654,7 @@ interface AuthRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthMagicLinkRoute: typeof AuthMagicLinkRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthOauthCallbackRoute: typeof AuthOauthCallbackRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -623,6 +664,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthMagicLinkRoute: AuthMagicLinkRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
+  AuthOauthCallbackRoute: AuthOauthCallbackRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
