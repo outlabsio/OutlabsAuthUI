@@ -7,6 +7,7 @@ import { CalendarClock, Layers3 } from 'lucide-react'
 
 import { AppCheckboxCards, AppRadioCards } from '@/components/app/app-choice-cards'
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -728,10 +729,12 @@ export function EntityFormDialog({
                         <FieldError errors={[form.formState.errors.entityClass]} />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor={hasConstrainedChildTypeOptions ? undefined : 'entity-type'}>
-                          Entity type
-                        </Label>
+                      <AppFormField
+                        label="Entity type"
+                        htmlFor={hasConstrainedChildTypeOptions ? undefined : 'entity-type'}
+                        description={entityTypeGuidance ?? undefined}
+                        errors={[form.formState.errors.entityType]}
+                      >
                         {hasConstrainedChildTypeOptions ? (
                           <Controller
                             control={form.control}
@@ -786,15 +789,11 @@ export function EntityFormDialog({
                             {...form.register('entityType')}
                           />
                         )}
-                        {entityTypeGuidance ? (
-                          <p className="text-xs text-muted-foreground">
-                            {entityTypeGuidance}
-                          </p>
-                        ) : null}
-                        {canShowEntityTypeSuggestions &&
-                        (defaultChildTypeOptions.length > 0 ||
-                          siblingSuggestedTypeOptions.length > 0) ? (
-                          <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
+                      </AppFormField>
+                      {canShowEntityTypeSuggestions &&
+                      (defaultChildTypeOptions.length > 0 ||
+                        siblingSuggestedTypeOptions.length > 0) ? (
+                        <div className="space-y-3 rounded-xl border bg-muted/10 p-3">
                             {defaultChildTypeOptions.length > 0 ? (
                               <div className="space-y-2">
                                 <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -847,26 +846,29 @@ export function EntityFormDialog({
                             ) : null}
                           </div>
                         ) : null}
-                        <FieldError errors={[form.formState.errors.entityType]} />
-                      </div>
 
                     </div>
 
                     <div className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-name">System name</Label>
+                        <AppFormField
+                          label="System name"
+                          htmlFor="entity-name"
+                          errors={[form.formState.errors.name]}
+                        >
                           <Input
                             id="entity-name"
                             disabled={isPending}
                             placeholder="acme-west"
                             {...form.register('name')}
                           />
-                          <FieldError errors={[form.formState.errors.name]} />
-                        </div>
+                        </AppFormField>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-slug">Slug</Label>
+                        <AppFormField
+                          label="Slug"
+                          htmlFor="entity-slug"
+                          errors={[form.formState.errors.slug]}
+                        >
                           <Input
                             id="entity-slug"
                             disabled={isPending}
@@ -877,23 +879,23 @@ export function EntityFormDialog({
                               },
                             })}
                           />
-                          <FieldError errors={[form.formState.errors.slug]} />
-                        </div>
+                        </AppFormField>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-display-name">Display name</Label>
+                      <AppFormField
+                        label="Display name"
+                        htmlFor="entity-display-name"
+                        errors={[form.formState.errors.displayName]}
+                      >
                         <Input
                           id="entity-display-name"
                           disabled={isPending}
                           placeholder="Acme West"
                           {...form.register('displayName')}
                         />
-                        <FieldError errors={[form.formState.errors.displayName]} />
-                      </div>
+                      </AppFormField>
 
-                      <div className="space-y-2">
-                        <Label>Status</Label>
+                      <AppFormField label="Status" errors={[form.formState.errors.status]}>
                         <Controller
                           control={form.control}
                           name="status"
@@ -926,11 +928,13 @@ export function EntityFormDialog({
                             </ToggleGroup>
                           )}
                         />
-                        <FieldError errors={[form.formState.errors.status]} />
-                      </div>
+                      </AppFormField>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-description">Description</Label>
+                      <AppFormField
+                        label="Description"
+                        htmlFor="entity-description"
+                        errors={[form.formState.errors.description]}
+                      >
                         <Textarea
                           id="entity-description"
                           rows={4}
@@ -938,25 +942,25 @@ export function EntityFormDialog({
                           placeholder="What this entity governs, owns, or represents."
                           {...form.register('description')}
                         />
-                        <FieldError errors={[form.formState.errors.description]} />
-                      </div>
+                      </AppFormField>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="entity-display-name">Display name</Label>
+                    <AppFormField
+                      label="Display name"
+                      htmlFor="entity-display-name"
+                      errors={[form.formState.errors.displayName]}
+                    >
                       <Input
                         id="entity-display-name"
                         disabled={isPending}
                         placeholder="Acme West"
                         {...form.register('displayName')}
                       />
-                      <FieldError errors={[form.formState.errors.displayName]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2">
-                      <Label>Status</Label>
+                    <AppFormField label="Status" errors={[form.formState.errors.status]}>
                       <Controller
                         control={form.control}
                         name="status"
@@ -989,11 +993,13 @@ export function EntityFormDialog({
                           </ToggleGroup>
                         )}
                       />
-                      <FieldError errors={[form.formState.errors.status]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="entity-description">Description</Label>
+                    <AppFormField
+                      label="Description"
+                      htmlFor="entity-description"
+                      errors={[form.formState.errors.description]}
+                    >
                       <Textarea
                         id="entity-description"
                         rows={4}
@@ -1001,8 +1007,7 @@ export function EntityFormDialog({
                         placeholder="What this entity governs, owns, or represents."
                         {...form.register('description')}
                       />
-                      <FieldError errors={[form.formState.errors.description]} />
-                    </div>
+                    </AppFormField>
                   </div>
                 )}
 
@@ -1018,8 +1023,11 @@ export function EntityFormDialog({
                       </p>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-valid-from">Valid from</Label>
+                      <AppFormField
+                        label="Valid from"
+                        htmlFor="entity-valid-from"
+                        errors={[form.formState.errors.validFrom]}
+                      >
                         <Controller
                           control={form.control}
                           name="validFrom"
@@ -1034,9 +1042,12 @@ export function EntityFormDialog({
                             />
                           )}
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="entity-valid-until">Valid until</Label>
+                      </AppFormField>
+                      <AppFormField
+                        label="Valid until"
+                        htmlFor="entity-valid-until"
+                        errors={[form.formState.errors.validUntil]}
+                      >
                         <Controller
                           control={form.control}
                           name="validUntil"
@@ -1051,8 +1062,7 @@ export function EntityFormDialog({
                             />
                           )}
                         />
-                        <FieldError errors={[form.formState.errors.validUntil]} />
-                      </div>
+                      </AppFormField>
                     </div>
                   </div>
                 </section>
@@ -1086,10 +1096,12 @@ export function EntityFormDialog({
                       </div>
 
                       <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-allowed-child-types">
-                            Allowed child types
-                          </Label>
+                        <AppFormField
+                          label="Allowed child types"
+                          htmlFor="entity-allowed-child-types"
+                          description="Add one type at a time. Commas and line breaks also work when pasting."
+                          errors={[form.formState.errors.allowedChildTypes]}
+                        >
                           <Controller
                             control={form.control}
                             name="allowedChildTypes"
@@ -1105,15 +1117,13 @@ export function EntityFormDialog({
                               />
                             )}
                           />
-                          <p className="text-xs text-muted-foreground">
-                            Add one type at a time. Commas and line breaks also work when
-                            pasting.
-                          </p>
-                          <FieldError errors={[form.formState.errors.allowedChildTypes]} />
-                        </div>
+                        </AppFormField>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="entity-max-members">Max members</Label>
+                        <AppFormField
+                          label="Max members"
+                          htmlFor="entity-max-members"
+                          errors={[form.formState.errors.maxMembers]}
+                        >
                           <Input
                             id="entity-max-members"
                             inputMode="numeric"
@@ -1121,17 +1131,14 @@ export function EntityFormDialog({
                             placeholder="Unlimited"
                             {...form.register('maxMembers')}
                           />
-                          <FieldError errors={[form.formState.errors.maxMembers]} />
-                        </div>
+                        </AppFormField>
                       </div>
                     </div>
                   </section>
                 ) : null}
 
                 {submitErrorMessage ? (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-                    {submitErrorMessage}
-                  </div>
+                  <FieldError>{submitErrorMessage}</FieldError>
                 ) : null}
               </div>
             </div>

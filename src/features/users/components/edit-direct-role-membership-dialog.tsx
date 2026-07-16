@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller, useForm } from 'react-hook-form'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,8 +15,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FieldError } from '@/components/ui/field'
-import { Label } from '@/components/ui/label'
 import { useUpdateUserRoleMembershipMutation } from '@/features/users/hooks/use-update-user-role-membership-mutation'
+import {
+  type EditDirectRoleMembershipFormValues,
+  editDirectRoleMembershipSchema,
+} from '@/features/users/schemas/direct-role-assignment.schema'
 import type { UserRoleMembership } from '@/features/users/types/users.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -44,36 +51,51 @@ export function EditDirectRoleMembershipDialog({
   membership,
   canEdit,
 }: EditDirectRoleMembershipDialogProps) {
-  const [validFrom, setValidFrom] = useState('')
-  const [validUntil, setValidUntil] = useState('')
   const updateMembershipMutation = useUpdateUserRoleMembershipMutation()
+  const syncedMembershipKeyRef = useRef<string | null>(null)
+  const form = useForm<EditDirectRoleMembershipFormValues>({
+    resolver: zodResolver(editDirectRoleMembershipSchema),
+    defaultValues: {
+      validFrom: '',
+      validUntil: '',
+    },
+  })
 
   useEffect(() => {
     if (!open || !membership) {
+      if (!open) {
+        syncedMembershipKeyRef.current = null
+      }
       return
     }
 
-    setValidFrom(toPickerValue(membership.valid_from))
-    setValidUntil(toPickerValue(membership.valid_until))
-  }, [membership, open])
+    const membershipKey = `${membership.id}:${membership.valid_from ?? ''}:${membership.valid_until ?? ''}`
+    if (syncedMembershipKeyRef.current === membershipKey) {
+      return
+    }
+
+    syncedMembershipKeyRef.current = membershipKey
+    form.reset({
+      validFrom: toPickerValue(membership.valid_from),
+      validUntil: toPickerValue(membership.valid_until),
+    })
+    updateMembershipMutation.reset()
+  }, [form, membership, open, updateMembershipMutation])
 
   const submitError = updateMembershipMutation.error
     ? getApiErrorMessage(
         updateMembershipMutation.error,
-        'The direct role window could not be updated.',
+        'The direct role window could not be updated.'
       )
     : null
-  const validityError =
-    validFrom &&
-    validUntil &&
-    new Date(validUntil).getTime() < new Date(validFrom).getTime()
-      ? 'Valid until must be after valid from.'
-      : null
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      setValidFrom('')
-      setValidUntil('')
+      syncedMembershipKeyRef.current = null
+      form.reset({
+        validFrom: '',
+        validUntil: '',
+      })
       updateMembershipMutation.reset()
     }
 
@@ -101,10 +123,8 @@ export function EditDirectRoleMembershipDialog({
 
         <form
           className="space-y-4"
-          onSubmit={async (event) => {
-            event.preventDefault()
-
-            if (!canEdit || !membership || validityError) {
+          onSubmit={form.handleSubmit(async (values) => {
+            if (!canEdit || !membership) {
               return
             }
 
@@ -112,41 +132,59 @@ export function EditDirectRoleMembershipDialog({
               await updateMembershipMutation.mutateAsync({
                 userId,
                 membershipId: membership.id,
-                valid_from: validFrom ? new Date(validFrom).toISOString() : null,
-                valid_until: validUntil
-                  ? new Date(validUntil).toISOString()
+                valid_from: values.validFrom
+                  ? new Date(values.validFrom).toISOString()
+                  : null,
+                valid_until: values.validUntil
+                  ? new Date(values.validUntil).toISOString()
                   : null,
               })
               handleDialogOpenChange(false)
             } catch {
               return
             }
-          }}
+          })}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-direct-role-valid-from">Valid from</Label>
-              <AppDateTimePicker
-                id="edit-direct-role-valid-from"
-                value={validFrom}
-                onChange={setValidFrom}
-                disabled={!canEdit || updateMembershipMutation.isPending}
-                placeholder="Always on"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-direct-role-valid-until">Valid until</Label>
-              <AppDateTimePicker
-                id="edit-direct-role-valid-until"
-                value={validUntil}
-                onChange={setValidUntil}
-                disabled={!canEdit || updateMembershipMutation.isPending}
-                placeholder="Open ended"
-              />
-            </div>
+            <Controller
+              name="validFrom"
+              control={form.control}
+              render={({ field }) => (
+                <AppFormField
+                  label="Valid from"
+                  htmlFor="edit-direct-role-valid-from"
+                >
+                  <AppDateTimePicker
+                    id="edit-direct-role-valid-from"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    disabled={!canEdit || updateMembershipMutation.isPending}
+                    placeholder="Always on"
+                  />
+                </AppFormField>
+              )}
+            />
+            <Controller
+              name="validUntil"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <AppFormField
+                  label="Valid until"
+                  htmlFor="edit-direct-role-valid-until"
+                  errors={[fieldState.error]}
+                >
+                  <AppDateTimePicker
+                    id="edit-direct-role-valid-until"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    disabled={!canEdit || updateMembershipMutation.isPending}
+                    placeholder="Open ended"
+                  />
+                </AppFormField>
+              )}
+            />
           </div>
 
-          {validityError ? <FieldError>{validityError}</FieldError> : null}
           {submitError ? <FieldError>{submitError}</FieldError> : null}
 
           <DialogFooter>
@@ -162,8 +200,7 @@ export function EditDirectRoleMembershipDialog({
               disabled={
                 !canEdit ||
                 !membership ||
-                updateMembershipMutation.isPending ||
-                Boolean(validityError)
+                updateMembershipMutation.isPending
               }
             >
               {updateMembershipMutation.isPending

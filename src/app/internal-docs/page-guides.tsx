@@ -65,11 +65,45 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
           'Check API Keys for your own machine credentials and rotation history.',
           'Check System API Keys for enterprise-managed integrations and incident-response revoke.',
           'Check Settings when entity type defaults or root constraints are involved.',
+          'Check Audit when you need a cross-user retained event search.',
         ],
       },
     ],
     footerNote:
       'Use the page guide for deep context and the small info icons for quick definitions without leaving your current flow.',
+  },
+  {
+    pathPrefix: '/app/audit',
+    label: 'Audit',
+    title: 'Audit guide',
+    description:
+      'The Audit workspace searches retained high-signal account events across users. Use it to investigate who did what, to whom, and in which entity context.',
+    quickFacts: [
+      { label: 'Best for', value: 'Cross-user investigation and incident review' },
+      { label: 'Primary focus', value: 'Filtered retained audit events' },
+      {
+        label: 'Next step',
+        value: 'Open a subject or actor in Users, or an entity in Entities',
+      },
+    ],
+    sections: [
+      {
+        title: 'How to filter',
+        description:
+          'Apply category, event type, subject, actor, entity, and occurred-at bounds. Filters sync into the URL so deep links from Users History and Entity Activity keep working.',
+        bullets: [
+          'Open in Audit from a user History tab filters by subject.',
+          'Open as actor from a user History tab filters by actor.',
+          'Entity Activity deep-links with entity ID prefilled.',
+          'Clickable actor, subject, and entity IDs on event cards re-apply filters.',
+        ],
+      },
+      {
+        title: 'Reading an event',
+        description:
+          'Each card shows a summary. Expand event details for source, request, IP, and JSON before/after/metadata payloads when present.',
+      },
+    ],
   },
   {
     pathPrefix: '/app/account',
@@ -385,15 +419,25 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
     label: 'Settings',
     title: 'Settings guide',
     description:
-      'The Settings workspace exposes backend-managed configuration that affects entity creation defaults and root constraints.',
+      'Settings separates deploy-time runtime capabilities from mutable entity-type vocabulary owned by the auth backend.',
     quickFacts: [
-      { label: 'Best for', value: 'Entity type defaults' },
-      { label: 'Primary focus', value: 'Per-class root rules and child-type baselines' },
-      { label: 'Write access', value: 'Superuser only' },
+      { label: 'Best for', value: 'Capability inspection + entity type defaults' },
+      { label: 'Primary focus', value: '/auth/config snapshot and /config/entity-types' },
+      { label: 'Write access', value: 'Entity types: superuser only' },
     ],
     sections: [
       {
-        title: 'What this controls',
+        title: 'Runtime capabilities',
+        description:
+          'The read-only panel mirrors GET /auth/config: preset, enabled features, and advertised sign-in methods.',
+        bullets: [
+          'These values change with host deploy / environment configuration, not this console.',
+          'Provider credentials and transport secrets stay in the host secret manager.',
+          'Use this panel to confirm what the mounted backend actually advertises.',
+        ],
+      },
+      {
+        title: 'Entity type configuration',
         description:
           'These settings shape the entity types operators can create and the suggested child types for new branches.',
         bullets: [
@@ -405,9 +449,9 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
       {
         title: 'Operational safety',
         description:
-          'Small configuration changes can affect future entity creation across the whole backend.',
+          'Small entity-type changes can affect future entity creation across the whole backend.',
         bullets: [
-          'Treat this as backend configuration, not feature-local UI state.',
+          'Treat entity types as backend configuration, not feature-local UI state.',
           'Read-only sessions can inspect the current config, but only superusers can save.',
           'Normalize the preview before saving so the backend receives clean arrays.',
         ],

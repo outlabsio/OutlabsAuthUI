@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, RefreshCcw, Trash2 } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
@@ -256,9 +257,11 @@ export function PersonalApiKeysPage() {
   if (!(authConfigQuery.data?.features.api_keys ?? true)) {
     return (
       <AppPage title="API Keys" hideTitle padded>
-        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-          The current backend preset does not advertise API key support.
-        </div>
+        <AppEmptyState
+          title="API keys unavailable"
+          description="The current backend preset does not advertise API key support."
+          compact
+        />
       </AppPage>
     )
   }
@@ -303,9 +306,11 @@ export function PersonalApiKeysPage() {
               </CardHeader>
               <CardContent>
                 {personalKeys.length === 0 ? (
-                  <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                    No personal API keys exist yet.
-                  </div>
+                  <AppEmptyState
+                    title="No personal API keys"
+                    description="No personal API keys exist yet."
+                    compact
+                  />
                 ) : (
                   <Table>
                     <TableHeader>
@@ -377,9 +382,11 @@ export function PersonalApiKeysPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {!activeKey ? (
-                  <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                    Select a personal key to review its scopes, entity anchor, and lifecycle details.
-                  </div>
+                  <AppEmptyState
+                    title="No key selected"
+                    description="Select a personal key to review its scopes, entity anchor, and lifecycle details."
+                    compact
+                  />
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">

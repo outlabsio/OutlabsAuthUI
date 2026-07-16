@@ -14,7 +14,7 @@ import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { DataTableColumnHeader } from '@/components/ui/data-table-column-header'
+import { AppDataTableColumnHeader } from '@/components/app/app-data-table-column-header'
 import {
   Table,
   TableBody,
@@ -90,7 +90,7 @@ export function RolesTable({
       {
         id: 'role',
         accessorFn: (role) => `${role.display_name} ${role.name}`.toLowerCase(),
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
+        header: ({ column }) => <AppDataTableColumnHeader column={column} title="Role" />,
         cell: ({ row }) => {
           const role = row.original
 
@@ -123,7 +123,7 @@ export function RolesTable({
         accessorFn: (role) =>
           `${getRoleTypeLabel(role)} ${getRoleDefinitionLabel(role)} ${getRoleBlastRadiusLabel(role)}`.toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Applicability" />
+          <AppDataTableColumnHeader column={column} title="Applicability" />
         ),
         cell: ({ row }) => {
           const role = row.original
@@ -145,7 +145,7 @@ export function RolesTable({
         accessorFn: (role) =>
           `${role.is_auto_assigned ? 'auto' : 'manual'} ${getRoleAssignmentRuleLabel(role)} ${getRoleOperationalSummary(role)}`.toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Assignment" />
+          <AppDataTableColumnHeader column={column} title="Assignment" />
         ),
         cell: ({ row }) => {
           const role = row.original
@@ -170,7 +170,7 @@ export function RolesTable({
         id: 'footprint',
         accessorFn: (role) => role.permissions.length,
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Permission footprint" />
+          <AppDataTableColumnHeader column={column} title="Permission footprint" />
         ),
         cell: ({ row }) => {
           const role = row.original

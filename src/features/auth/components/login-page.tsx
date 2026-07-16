@@ -1,9 +1,8 @@
 import { useEffect } from 'react'
 
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -18,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { AuthCard } from '@/features/auth/components/auth-card'
 import { useLoginMutation } from '@/features/auth/hooks/use-login-mutation'
+import { useStartOAuthLoginMutation } from '@/features/auth/hooks/use-start-oauth-login-mutation'
 import { loginSchema } from '@/features/auth/schemas/login.schema'
 import type { LoginCredentials } from '@/features/auth/types/auth.types'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
@@ -26,6 +26,24 @@ import { routes } from '@/lib/constants/routes'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 import { cn } from '@/lib/utils/cn'
 
+function oauthErrorMessage(code?: string) {
+  switch (code) {
+    case 'unknown_account':
+      return 'No console account exists for that Google email. Ask an admin to invite you first.'
+    case 'inactive':
+      return 'That account is not active yet. Accept your invite or contact an admin.'
+    case 'invalid_state':
+      return 'Google sign-in expired. Please try again.'
+    case 'account_exists':
+      return 'That Google account could not be linked automatically. Sign in another way, then link Google from Account.'
+    case 'provider':
+    case 'auth':
+      return 'Google sign-in failed. Please try again or use another method.'
+    default:
+      return code ? 'Google sign-in failed. Please try again.' : null
+  }
+}
+
 type LoginPageProps = {
   className?: string
 }
@@ -33,8 +51,10 @@ type LoginPageProps = {
 export function LoginPage({ className }: LoginPageProps) {
   const runtimeConfig = getRuntimeConfig()
   const navigate = useNavigate()
+  const { oauth_error: oauthError } = useSearch({ from: '/auth/login' })
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const loginMutation = useLoginMutation()
+  const googleLoginMutation = useStartOAuthLoginMutation()
   const form = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -46,6 +66,7 @@ export function LoginPage({ className }: LoginPageProps) {
   const submitError = loginMutation.error
     ? getAuthErrorMessage(loginMutation.error, 'Unable to sign in.')
     : null
+  const oauthBanner = oauthErrorMessage(oauthError)
 
   const emailField = form.register('email')
   const passwordField = form.register('password')
@@ -101,6 +122,11 @@ export function LoginPage({ className }: LoginPageProps) {
           })}
         >
           <FieldGroup>
+            {oauthBanner ? (
+              <Field>
+                <FieldError>{oauthBanner}</FieldError>
+              </Field>
+            ) : null}
             <Field>
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
@@ -159,32 +185,44 @@ export function LoginPage({ className }: LoginPageProps) {
               </Button>
               {submitError ? <FieldError>{submitError}</FieldError> : null}
             </Field>
+            <FieldSeparator>or</FieldSeparator>
+            <Field>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={googleLoginMutation.isPending}
+                onClick={() => {
+                  googleLoginMutation.mutate('google')
+                }}
+              >
+                {googleLoginMutation.isPending
+                  ? 'Opening Google…'
+                  : 'Continue with Google'}
+              </Button>
+            </Field>
             {passwordlessEnabled ? (
-              <>
-                <FieldSeparator>or</FieldSeparator>
-                <div className="grid gap-2">
-                  {magicLinkEnabled ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link to={routes.auth.magicLink} />}
-                    >
-                      Email me a sign-in link
-                    </Button>
-                  ) : null}
-                  {accessCodeEnabled ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link to={routes.auth.accessCode} />}
-                    >
-                      Email me a sign-in code
-                    </Button>
-                  ) : null}
-                </div>
-              </>
+              <div className="grid gap-2">
+                {magicLinkEnabled ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link to={routes.auth.magicLink} />}
+                  >
+                    Email me a sign-in link
+                  </Button>
+                ) : null}
+                {accessCodeEnabled ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link to={routes.auth.accessCode} />}
+                  >
+                    Email me a sign-in code
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <Link

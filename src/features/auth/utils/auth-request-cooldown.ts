@@ -13,7 +13,8 @@ type StoredAuthRequestCooldown = {
 
 type UseAuthRequestCooldownOptions = {
   defaultDurationSeconds?: number
-  email: string | null | undefined
+  /** Email or E.164 phone used as the cooldown key. */
+  identifier: string | null | undefined
   kind: AuthRequestCooldownKind
 }
 
@@ -23,12 +24,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function normalizeEmail(email: string | null | undefined) {
-  return email?.trim().toLowerCase() ?? ''
+function normalizeIdentifier(identifier: string | null | undefined) {
+  return identifier?.trim().toLowerCase() ?? ''
 }
 
-function getStorageKey(kind: AuthRequestCooldownKind, email: string) {
-  return `${cooldownStoragePrefix}.${kind}.${encodeURIComponent(email)}`
+function getStorageKey(kind: AuthRequestCooldownKind, identifier: string) {
+  return `${cooldownStoragePrefix}.${kind}.${encodeURIComponent(identifier)}`
 }
 
 function readStoredCooldown(key: string): StoredAuthRequestCooldown | null {
@@ -156,13 +157,17 @@ export function formatCooldown(seconds: number) {
 
 export function useAuthRequestCooldown({
   defaultDurationSeconds = DEFAULT_AUTH_REQUEST_COOLDOWN_SECONDS,
-  email,
+  identifier,
   kind,
 }: UseAuthRequestCooldownOptions) {
-  const normalizedEmail = useMemo(() => normalizeEmail(email), [email])
+  const normalizedIdentifier = useMemo(
+    () => normalizeIdentifier(identifier),
+    [identifier]
+  )
   const storageKey = useMemo(
-    () => (normalizedEmail ? getStorageKey(kind, normalizedEmail) : null),
-    [kind, normalizedEmail]
+    () =>
+      normalizedIdentifier ? getStorageKey(kind, normalizedIdentifier) : null,
+    [kind, normalizedIdentifier]
   )
   const [now, setNow] = useState(() => Date.now())
   const cooldown = storageKey ? readStoredCooldown(storageKey) : null

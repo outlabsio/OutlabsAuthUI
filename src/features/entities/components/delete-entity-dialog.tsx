@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { AppConfirmDialog } from '@/components/app/app-confirm-dialog'
+import { AppStatusCallout } from '@/components/app/app-status-callout'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -90,21 +91,26 @@ export function DeleteEntityDialog({
             </p>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm">
-            <div className="font-medium text-destructive">Destructive action</div>
-            <p className="text-destructive/90">
-              Archiving sets status to archived, removes closure links, and
-              retires memberships, role links, and entity API credentials for
-              this node.
-            </p>
-            {hasChildren ? (
-              <p className="text-destructive/90">
-                This entity has {childCount} direct child
-                {childCount === 1 ? '' : 'ren'}. Cascade archive is required to
-                continue.
+          <AppStatusCallout
+            color="warning"
+            appearance="soft"
+            title="Destructive action"
+          >
+            <div className="space-y-2">
+              <p>
+                Archiving sets status to archived, removes closure links, and
+                retires memberships, role links, and entity API credentials for
+                this node.
               </p>
-            ) : null}
-          </div>
+              {hasChildren ? (
+                <p>
+                  This entity has {childCount} direct child
+                  {childCount === 1 ? '' : 'ren'}. Cascade archive is required to
+                  continue.
+                </p>
+              ) : null}
+            </div>
+          </AppStatusCallout>
 
           {hasChildren ? (
             <div className="flex items-start gap-3 rounded-2xl border px-4 py-3">

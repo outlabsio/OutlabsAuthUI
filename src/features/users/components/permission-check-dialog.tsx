@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -263,12 +264,12 @@ export function PermissionCheckDialog({
           ) : null}
 
           {checkPermissionsMutation.error ? (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <AppErrorState compact>
               {getApiErrorMessage(
                 checkPermissionsMutation.error,
                 'The permission check could not be completed.'
               )}
-            </div>
+            </AppErrorState>
           ) : null}
 
           {result ? (

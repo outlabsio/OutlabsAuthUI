@@ -14,7 +14,7 @@ import { AppStatusBadge } from '@/components/app/app-status-badge'
 import type { AppStatusTone } from '@/components/app/app-status'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DataTableColumnHeader } from '@/components/ui/data-table-column-header'
+import { AppDataTableColumnHeader } from '@/components/app/app-data-table-column-header'
 import {
   Table,
   TableBody,
@@ -98,7 +98,7 @@ export function OrphanedUsersTable({
         id: 'user',
         accessorFn: (item) => getUserDisplayName(item.user).toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="User" />
+          <AppDataTableColumnHeader column={column} title="User" />
         ),
         cell: ({ row }) => {
           const user = row.original.user
@@ -121,7 +121,7 @@ export function OrphanedUsersTable({
         id: 'access',
         accessorFn: (item) => item.user.status,
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Access" />
+          <AppDataTableColumnHeader column={column} title="Access" />
         ),
         cell: ({ row }) => {
           const user = row.original.user
@@ -151,7 +151,7 @@ export function OrphanedUsersTable({
         accessorFn: (item) =>
           `${item.last_entity_name ?? ''}:${item.last_membership_event_type ?? ''}`.toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Last membership" />
+          <AppDataTableColumnHeader column={column} title="Last membership" />
         ),
         cell: ({ row }) => {
           const item = row.original

@@ -1,8 +1,12 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
+import { type Resolver, useForm } from 'react-hook-form'
 import { ChevronRight } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +30,10 @@ import { MembershipAccessDialogFooter } from '@/features/memberships/components/
 import { MembershipAccessRolesPanel } from '@/features/memberships/components/membership-access-roles-panel'
 import { MembershipLifecyclePanel } from '@/features/memberships/components/membership-lifecycle-panel'
 import { useMembershipAccessActions } from '@/features/memberships/hooks/use-membership-access-actions'
+import {
+  membershipAccessFormSchema,
+  type MembershipAccessFormValues,
+} from '@/features/memberships/schemas/membership-access.schema'
 import type { UserMembership } from '@/features/memberships/types/memberships.types'
 import {
   formatMembershipToken,
@@ -61,6 +69,20 @@ function formatDateTime(value?: string | null, fallback = 'Not set') {
   }).format(new Date(value))
 }
 
+function getMembershipFormValues(
+  entityId: string,
+  membership?: UserMembership | null
+): MembershipAccessFormValues {
+  return {
+    entityId,
+    roleIds: membership?.role_ids ?? [],
+    status: membership?.status === 'suspended' ? 'suspended' : 'active',
+    validFrom: toDateTimeLocalValue(membership?.valid_from),
+    validUntil: toDateTimeLocalValue(membership?.valid_until),
+    reason: membership?.revocation_reason ?? '',
+  }
+}
+
 export function MembershipAccessDialog({
   open,
   onOpenChange,
@@ -76,24 +98,23 @@ export function MembershipAccessDialog({
   const initialMembership =
     memberships.find((membership) => membership.entity_id === initialDialogEntityId) ??
     null
-  const [selectedEntityId, setSelectedEntityId] = useState(initialDialogEntityId)
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>(
-    () => initialMembership?.role_ids ?? []
-  )
-  const [selectedStatus, setSelectedStatus] = useState<'active' | 'suspended'>(
-    initialMembership?.status === 'suspended' ? 'suspended' : 'active'
-  )
-  const [validFrom, setValidFrom] = useState(
-    toDateTimeLocalValue(initialMembership?.valid_from)
-  )
-  const [validUntil, setValidUntil] = useState(
-    toDateTimeLocalValue(initialMembership?.valid_until)
-  )
-  const [reason, setReason] = useState(initialMembership?.revocation_reason ?? '')
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const membershipActions = useMembershipAccessActions()
+  const resolver = zodResolver(
+    membershipAccessFormSchema
+  ) as Resolver<MembershipAccessFormValues>
+  const form = useForm<MembershipAccessFormValues>({
+    resolver,
+    defaultValues: getMembershipFormValues(initialDialogEntityId, initialMembership),
+  })
 
   const entityOptions = useMemo(() => buildEntityOptions(entities), [entities])
+  const selectedEntityId = form.watch('entityId')
+  const selectedRoleIds = form.watch('roleIds')
+  const selectedStatus = form.watch('status')
+  const validFrom = form.watch('validFrom') ?? ''
+  const validUntil = form.watch('validUntil') ?? ''
+  const reason = form.watch('reason') ?? ''
   const selectedEntity =
     entityOptions.find((entityOption) => entityOption.id === selectedEntityId) ?? null
   const existingMembership =
@@ -130,30 +151,22 @@ export function MembershipAccessDialog({
     'The entity access could not be created.'
   )
 
-  function applyMembershipState(membership?: UserMembership | null) {
-    setSelectedRoleIds(membership?.role_ids ?? [])
-    setSelectedStatus(membership?.status === 'suspended' ? 'suspended' : 'active')
-    setValidFrom(toDateTimeLocalValue(membership?.valid_from))
-    setValidUntil(toDateTimeLocalValue(membership?.valid_until))
-    setReason(membership?.revocation_reason ?? '')
-    setShowRemoveConfirm(false)
-  }
-
   function handleEntitySelection(nextEntityId: string) {
-    setSelectedEntityId(nextEntityId)
-    applyMembershipState(
+    const membership =
       memberships.find((membership) => membership.entity_id === nextEntityId) ?? null
-    )
+
+    form.reset(getMembershipFormValues(nextEntityId, membership))
+    setShowRemoveConfirm(false)
   }
 
   const wasOpenRef = useRef(false)
   const resetDialogState = useEffectEvent(() => {
     const nextEntityId = initialEntityId ?? ''
-
-    setSelectedEntityId(nextEntityId)
-    applyMembershipState(
+    const membership =
       memberships.find((membership) => membership.entity_id === nextEntityId) ?? null
-    )
+
+    form.reset(getMembershipFormValues(nextEntityId, membership))
+    setShowRemoveConfirm(false)
     membershipActions.reset()
   })
 
@@ -176,10 +189,8 @@ export function MembershipAccessDialog({
     onOpenChange(nextOpen)
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!canManageMembershipAccess || !selectedEntityId) {
+  async function handleSubmit(values: MembershipAccessFormValues) {
+    if (!canManageMembershipAccess) {
       return
     }
 
@@ -187,12 +198,12 @@ export function MembershipAccessDialog({
       await membershipActions.saveMembership(
         {
           userId,
-          entityId: selectedEntityId,
-          roleIds: selectedRoleIds,
-          status: selectedStatus,
-          validFrom,
-          validUntil,
-          reason,
+          entityId: values.entityId,
+          roleIds: values.roleIds,
+          status: values.status,
+          validFrom: values.validFrom,
+          validUntil: values.validUntil,
+          reason: values.reason,
         },
         { isUpdate: Boolean(existingMembership) }
       )
@@ -254,7 +265,10 @@ export function MembershipAccessDialog({
             </div>
           </DialogHeader>
 
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={form.handleSubmit(handleSubmit)}
+          >
             <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
               <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border">
                 <div className="border-b px-4 py-4">
@@ -393,19 +407,41 @@ export function MembershipAccessDialog({
                           reason={reason}
                           helperMessage={accessWindowStateMessage}
                           disabled={!canManageMembershipAccess}
-                          validUntilError={null}
+                          validUntilError={form.formState.errors.validUntil?.message ?? null}
                           reasonLabel="Lifecycle note"
                           reasonPlaceholder="Optional note for suspension, restoration, or timing context"
-                          onStatusChange={setSelectedStatus}
-                          onValidFromChange={setValidFrom}
-                          onValidUntilChange={setValidUntil}
-                          onReasonChange={setReason}
+                          onStatusChange={(nextStatus) => {
+                            form.setValue('status', nextStatus, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
+                          onValidFromChange={(value) => {
+                            form.setValue('validFrom', value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
+                          onValidUntilChange={(value) => {
+                            form.setValue('validUntil', value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
+                          onReasonChange={(value) => {
+                            form.setValue('reason', value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
                         />
                       </div>
                     ) : (
-                      <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        Choose an entity to configure scoped access.
-                      </div>
+                      <AppEmptyState
+                        title="Choose an entity to configure scoped access."
+                        compact
+                        className="min-h-40"
+                      />
                     )}
                   </div>
                 </div>
@@ -425,14 +461,14 @@ export function MembershipAccessDialog({
                   isLoading={rolesQuery.isPending}
                   error={rolesQuery.error}
                   onRoleToggle={(roleId, checked) => {
-                    setSelectedRoleIds((currentRoleIds) => {
-                      if (checked) {
-                        return [...currentRoleIds, roleId]
-                      }
+                    const nextRoleIds = checked
+                      ? [...selectedRoleIds, roleId]
+                      : selectedRoleIds.filter(
+                          (currentRoleId) => currentRoleId !== roleId
+                        )
 
-                      return currentRoleIds.filter(
-                        (currentRoleId) => currentRoleId !== roleId
-                      )
+                    form.setValue('roleIds', nextRoleIds, {
+                      shouldDirty: true,
                     })
                   }}
                 />
@@ -441,9 +477,7 @@ export function MembershipAccessDialog({
 
             {submitErrorMessage ? (
               <div className="px-6 pb-4">
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  {submitErrorMessage}
-                </div>
+                <AppErrorState compact>{submitErrorMessage}</AppErrorState>
               </div>
             ) : null}
 

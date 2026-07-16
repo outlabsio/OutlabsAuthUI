@@ -1,4 +1,5 @@
 import { AppConfirmDialog } from '@/components/app/app-confirm-dialog'
+import { AppStatusCallout } from '@/components/app/app-status-callout'
 import { Badge } from '@/components/ui/badge'
 import { useDeleteRoleMutation } from '@/features/roles/hooks/use-delete-role-mutation'
 import type { Role } from '@/features/roles/types/roles.types'
@@ -72,15 +73,16 @@ export function DeleteRoleDialog({
             </p>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm">
-            <div className="font-medium text-destructive">Blast radius</div>
-            <p className="text-destructive/90">
-              {getRoleBlastRadiusLabel(role)}
-            </p>
-            <p className="text-destructive/90">
-              Deleting this role removes it from future assignment and can revoke existing role links across direct users and entity memberships.
-            </p>
-          </div>
+          <AppStatusCallout color="warning" appearance="soft" title="Blast radius">
+            <div className="space-y-2">
+              <p>{getRoleBlastRadiusLabel(role)}</p>
+              <p>
+                Deleting this role removes it from future assignment and can
+                revoke existing role links across direct users and entity
+                memberships.
+              </p>
+            </div>
+          </AppStatusCallout>
         </div>
       ) : null}
     </AppConfirmDialog>

@@ -84,7 +84,7 @@ export function MagicLinkPage() {
     name: 'email',
   })
   const cooldown = useAuthRequestCooldown({
-    email: requestedEmail ?? emailValue,
+    identifier: requestedEmail ?? emailValue,
     kind: 'magic-link',
   })
 

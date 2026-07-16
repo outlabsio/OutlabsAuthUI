@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { type Resolver, useForm } from 'react-hook-form'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +17,6 @@ import {
 } from '@/components/ui/dialog'
 import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useInviteUserMutation } from '@/features/users/hooks/use-invite-user-mutation'
 import { entitiesKeys } from '@/features/entities/api/entities.keys'
 import {
@@ -147,8 +148,12 @@ export function EntityMemberInviteDialog({
                 </section>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="entity-member-invite-email">Email</Label>
+                  <AppFormField
+                    className="sm:col-span-2"
+                    label="Email"
+                    htmlFor="entity-member-invite-email"
+                    errors={[form.formState.errors.email]}
+                  >
                     <Input
                       id="entity-member-invite-email"
                       type="email"
@@ -156,30 +161,33 @@ export function EntityMemberInviteDialog({
                       placeholder="person@example.com"
                       {...form.register('email')}
                     />
-                    <FieldError errors={[form.formState.errors.email]} />
-                  </div>
+                  </AppFormField>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="entity-member-invite-first-name">First name</Label>
+                  <AppFormField
+                    label="First name"
+                    htmlFor="entity-member-invite-first-name"
+                    errors={[form.formState.errors.firstName]}
+                  >
                     <Input
                       id="entity-member-invite-first-name"
                       disabled={inviteMutation.isPending || !canInviteMembers}
                       placeholder="First name"
                       {...form.register('firstName')}
                     />
-                    <FieldError errors={[form.formState.errors.firstName]} />
-                  </div>
+                  </AppFormField>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="entity-member-invite-last-name">Last name</Label>
+                  <AppFormField
+                    label="Last name"
+                    htmlFor="entity-member-invite-last-name"
+                    errors={[form.formState.errors.lastName]}
+                  >
                     <Input
                       id="entity-member-invite-last-name"
                       disabled={inviteMutation.isPending || !canInviteMembers}
                       placeholder="Last name"
                       {...form.register('lastName')}
                     />
-                    <FieldError errors={[form.formState.errors.lastName]} />
-                  </div>
+                  </AppFormField>
                 </div>
 
                 <section className="rounded-xl border p-4">
@@ -207,15 +215,14 @@ export function EntityMemberInviteDialog({
                 </section>
 
                 {!canInviteMembers ? (
-                  <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                    Your account cannot invite users into this entity.
-                  </div>
+                  <AppEmptyState
+                    title="Your account cannot invite users into this entity."
+                    compact
+                  />
                 ) : null}
 
                 {submitErrorMessage ? (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-                    {submitErrorMessage}
-                  </div>
+                  <FieldError>{submitErrorMessage}</FieldError>
                 ) : null}
               </div>
             </div>

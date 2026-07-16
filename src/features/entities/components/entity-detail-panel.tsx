@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { ArrowRight, FolderTree, ShieldPlus, UserPlus, Users } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppSection } from '@/components/app/app-section'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,7 @@ import {
   CardContent,
 } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EntityActivityPanel } from '@/features/entities/components/entity-activity-panel'
 import { EntityMembersTable } from '@/features/entities/components/entity-members-table'
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
 import {
@@ -81,6 +83,7 @@ type EntityContextTab =
   | 'children'
   | 'roles'
   | 'members'
+  | 'activity'
 
 function CompactDetailList({
   title,
@@ -395,7 +398,7 @@ export function EntityDetailPanel({
           label: 'Explain entity context tabs',
           title: 'Entity context',
           content:
-            'Use these tabs to inspect stable configuration, the immediate child branch, the local role catalog, and member access without stacking separate sections down the page.',
+            'Use these tabs to inspect stable configuration, the immediate child branch, the local role catalog, member access, and retained entity activity without stacking separate sections down the page.',
         }}
         action={entityContextAction}
       >
@@ -403,13 +406,14 @@ export function EntityDetailPanel({
           value={activeContextTab}
           onValueChange={(value) => {
             if (
-                  value === 'configuration' ||
-                  value === 'governance' ||
-                  value === 'children' ||
-                  value === 'roles' ||
-                  value === 'members'
-                ) {
-                  setActiveContextTab(value)
+              value === 'configuration' ||
+              value === 'governance' ||
+              value === 'children' ||
+              value === 'roles' ||
+              value === 'members' ||
+              value === 'activity'
+            ) {
+              setActiveContextTab(value)
             }
           }}
           className="space-y-4"
@@ -422,6 +426,7 @@ export function EntityDetailPanel({
             <TabsTrigger value="children">Child entities</TabsTrigger>
             <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="members">Members and access</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="configuration" className="pt-1">
@@ -570,25 +575,25 @@ export function EntityDetailPanel({
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                No direct child entities yet.
-              </div>
+              <AppEmptyState
+                title="No child entities"
+                description="No direct child entities yet."
+                compact
+              />
             )}
           </TabsContent>
 
           <TabsContent value="roles" className="pt-1">
             {!canReadRoles ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Your account cannot inspect entity role catalogs.
-              </div>
+              <AppEmptyState
+                title="Roles unavailable"
+                description="Your account cannot inspect entity role catalogs."
+                compact
+              />
             ) : rolesErrorMessage ? (
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {rolesErrorMessage}
-              </div>
+              <AppErrorState compact>{rolesErrorMessage}</AppErrorState>
             ) : rolesLoading ? (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                Loading roles…
-              </div>
+              <AppEmptyState title="Loading roles…" compact />
             ) : (
               <div className="h-[28rem] min-h-[24rem] max-h-[60svh] min-w-0">
                 <RolesTable
@@ -616,6 +621,13 @@ export function EntityDetailPanel({
               canLoadMoreMembers={canLoadMoreMembers}
               onLoadMoreMembers={onLoadMoreMembers}
               onManageMember={onManageMember}
+            />
+          </TabsContent>
+
+          <TabsContent value="activity" className="pt-1">
+            <EntityActivityPanel
+              entityId={entity.id}
+              entityDisplayName={entity.display_name}
             />
           </TabsContent>
         </Tabs>

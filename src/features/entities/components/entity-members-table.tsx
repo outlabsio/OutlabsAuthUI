@@ -2,6 +2,8 @@ import { useDeferredValue, useMemo, useState } from 'react'
 
 import { Search } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -129,26 +131,20 @@ export function EntityMembersTable({
 
   if (!canReadMembers) {
     return (
-      <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-        Your account cannot read memberships in this entity.
-      </div>
+      <AppEmptyState
+        title="Members unavailable"
+        description="Your account cannot read memberships in this entity."
+        compact
+      />
     )
   }
 
   if (membersErrorMessage) {
-    return (
-      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        {membersErrorMessage}
-      </div>
-    )
+    return <AppErrorState compact>{membersErrorMessage}</AppErrorState>
   }
 
   if (membersLoading) {
-    return (
-      <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-        Loading entity members…
-      </div>
-    )
+    return <AppEmptyState title="Loading entity members…" compact />
   }
 
   return (
@@ -293,11 +289,15 @@ export function EntityMembersTable({
           </Table>
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          {members.length === 0
-            ? 'No memberships have been attached to this entity yet.'
-            : 'No loaded members matched the current search or status filter.'}
-        </div>
+        <AppEmptyState
+          title={members.length === 0 ? 'No members' : 'No matching members'}
+          description={
+            members.length === 0
+              ? 'No memberships have been attached to this entity yet.'
+              : 'No loaded members matched the current search or status filter.'
+          }
+          compact
+        />
       )}
 
       {canLoadMoreMembers ? (

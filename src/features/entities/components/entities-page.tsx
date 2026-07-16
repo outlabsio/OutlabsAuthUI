@@ -4,10 +4,10 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { Building2, FolderTree } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useActorPermissions } from '@/features/auth/hooks/use-actor-permissions'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
@@ -544,40 +544,31 @@ export function EntitiesPage({
         shellAction={shellAction}
       >
         {pageErrorMessage ? (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {pageErrorMessage}
-          </div>
+          <AppErrorState>{pageErrorMessage}</AppErrorState>
         ) : !activeRootId ? (
-          <Card className="flex min-h-[40svh] items-center justify-center border border-dashed border-border/80 bg-card/80">
-            <CardContent className="max-w-lg space-y-4 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-accent text-accent-foreground">
-                <Building2 className="size-7" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold tracking-tight">No entity scope available</h2>
-                <p className="text-sm text-muted-foreground">
-                  This account does not currently resolve to a root entity.
-                </p>
-              </div>
-              {canCreateRootEntities ? (
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setEntityFormDialogState({
-                        open: true,
-                        mode: 'create',
-                        entity: null,
-                        parentEntity: null,
-                      })
-                    }}
-                  >
-                    Create root entity
-                  </Button>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+          <AppEmptyState
+            className="min-h-[40svh]"
+            title="No entity scope available"
+            description="This account does not currently resolve to a root entity."
+            icon={<Building2 className="size-7" />}
+            action={
+              canCreateRootEntities ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setEntityFormDialogState({
+                      open: true,
+                      mode: 'create',
+                      entity: null,
+                      parentEntity: null,
+                    })
+                  }}
+                >
+                  Create root entity
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <div
             className={

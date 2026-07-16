@@ -3,8 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
-import { z } from 'zod'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppFormField } from '@/components/app/app-form-field'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,6 +30,10 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateIntegrationPrincipalMutation } from '@/features/api-keys/hooks/use-create-integration-principal-mutation'
 import { useUpdateIntegrationPrincipalMutation } from '@/features/api-keys/hooks/use-update-integration-principal-mutation'
+import {
+  integrationPrincipalFormSchema,
+  type IntegrationPrincipalFormValues,
+} from '@/features/api-keys/schemas/integration-principal-form.schema'
 import type {
   IntegrationPrincipal,
   IntegrationPrincipalScopeKind,
@@ -37,16 +43,6 @@ import { getRolesForEntityQueryOptions, getRolesQueryOptions } from '@/features/
 import type { Role } from '@/features/roles/types/roles.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
-
-const integrationPrincipalFormSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required.').max(200),
-  description: z.string().trim().max(1000),
-  roleIds: z.array(z.string()),
-  status: z.enum(['active', 'inactive']),
-  inheritFromTree: z.boolean(),
-})
-
-type IntegrationPrincipalFormValues = z.infer<typeof integrationPrincipalFormSchema>
 
 type IntegrationPrincipalFormDialogProps = {
   open: boolean
@@ -223,19 +219,24 @@ export function IntegrationPrincipalFormDialog({
         >
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="integration-principal-name">Name</Label>
+              <AppFormField
+                label="Name"
+                htmlFor="integration-principal-name"
+                errors={[form.formState.errors.name]}
+              >
                 <Input
                   id="integration-principal-name"
                   placeholder="Scraping Workers"
                   disabled={isPending}
                   {...form.register('name')}
                 />
-                <FieldError errors={[form.formState.errors.name]} />
-              </div>
+              </AppFormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="integration-principal-description">Description</Label>
+              <AppFormField
+                label="Description"
+                htmlFor="integration-principal-description"
+                errors={[form.formState.errors.description]}
+              >
                 <Textarea
                   id="integration-principal-description"
                   rows={3}
@@ -243,8 +244,7 @@ export function IntegrationPrincipalFormDialog({
                   disabled={isPending}
                   {...form.register('description')}
                 />
-                <FieldError errors={[form.formState.errors.description]} />
-              </div>
+              </AppFormField>
             </div>
 
             <div className="space-y-3">
@@ -263,12 +263,14 @@ export function IntegrationPrincipalFormDialog({
               </div>
 
               {mode === 'edit' ? (
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Controller
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
+                <Controller
+                  control={form.control}
+                  name="status"
+                  render={({ field, fieldState }) => (
+                    <AppFormField
+                      label="Status"
+                      errors={[fieldState.error]}
+                    >
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -282,10 +284,9 @@ export function IntegrationPrincipalFormDialog({
                           <SelectItem value="inactive">Inactive</SelectItem>
                         </SelectContent>
                       </Select>
-                    )}
-                  />
-                  <FieldError errors={[form.formState.errors.status]} />
-                </div>
+                    </AppFormField>
+                  )}
+                />
               ) : null}
 
               {scopeKind === 'entity' ? (
@@ -325,13 +326,14 @@ export function IntegrationPrincipalFormDialog({
             </div>
 
             {rolesQuery.isLoading ? (
-              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                Loading available roles…
-              </div>
+              <AppEmptyState title="Loading available roles…" compact />
             ) : rolesQuery.isError ? (
-              <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {getApiErrorMessage(rolesQuery.error, 'The role catalog could not be loaded.')}
-              </div>
+              <AppErrorState compact>
+                {getApiErrorMessage(
+                  rolesQuery.error,
+                  'The role catalog could not be loaded.'
+                )}
+              </AppErrorState>
             ) : (
               <div className="h-[min(42svh,25rem)] min-h-72">
                 <AssignableRolesTable
@@ -429,11 +431,7 @@ export function IntegrationPrincipalFormDialog({
             </div>
           </div>
 
-          {submitError ? (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {submitError}
-            </div>
-          ) : null}
+          {submitError ? <FieldError>{submitError}</FieldError> : null}
         </form>
 
         <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">

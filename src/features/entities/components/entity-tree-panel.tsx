@@ -6,6 +6,7 @@ import {
   Search,
 } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -482,28 +483,20 @@ export function EntityTreePanel({
               ))}
             </SidebarMenu>
           ) : (
-            <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed border-sidebar-border px-5 py-10 text-center">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-sidebar-foreground">
-                  No entities matched this filter.
-                </div>
-                <p className="text-sm text-sidebar-foreground/70">
-                  Clear the hierarchy search to see the full scope again.
-                </p>
-              </div>
-            </div>
+            <AppEmptyState
+              className="min-h-full border-sidebar-border"
+              title="No entities matched this filter"
+              description="Clear the hierarchy search to see the full scope again."
+              compact
+            />
           )
         ) : (
-          <div className="flex min-h-full items-center justify-center rounded-2xl border border-dashed border-sidebar-border px-5 py-10 text-center">
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-sidebar-foreground">
-                No entity scope is available yet.
-              </div>
-              <p className="text-sm text-sidebar-foreground/70">
-                Pick or create a root entity to start building the hierarchy.
-              </p>
-            </div>
-          </div>
+          <AppEmptyState
+            className="min-h-full border-sidebar-border"
+            title="No entity scope is available yet"
+            description="Pick or create a root entity to start building the hierarchy."
+            compact
+          />
         )}
       </SidebarContent>
     </div>

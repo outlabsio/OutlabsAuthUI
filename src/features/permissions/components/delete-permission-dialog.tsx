@@ -1,4 +1,5 @@
 import { AppConfirmDialog } from '@/components/app/app-confirm-dialog'
+import { AppStatusCallout } from '@/components/app/app-status-callout'
 import { Badge } from '@/components/ui/badge'
 import { useDeletePermissionMutation } from '@/features/permissions/hooks/use-delete-permission-mutation'
 import type { Permission } from '@/features/permissions/types/permissions.types'
@@ -78,19 +79,21 @@ export function DeletePermissionDialog({
             </p>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm">
-            <div className="font-medium text-destructive">Blast radius</div>
-            <p className="text-destructive/90">{getPermissionOperationalSummary(permission)}</p>
-            <p className="text-destructive/90">
-              Deleting this permission removes it from the catalog and strips it from any linked roles.
-            </p>
-            {linkedRolesCount > 0 ? (
-              <p className="text-destructive/90">
-                The current workspace can see {linkedRolesCount} role
-                {linkedRolesCount === 1 ? '' : 's'} using this permission.
+          <AppStatusCallout color="warning" appearance="soft" title="Blast radius">
+            <div className="space-y-2">
+              <p>{getPermissionOperationalSummary(permission)}</p>
+              <p>
+                Deleting this permission removes it from the catalog and strips
+                it from any linked roles.
               </p>
-            ) : null}
-          </div>
+              {linkedRolesCount > 0 ? (
+                <p>
+                  The current workspace can see {linkedRolesCount} role
+                  {linkedRolesCount === 1 ? '' : 's'} using this permission.
+                </p>
+              ) : null}
+            </div>
+          </AppStatusCallout>
         </div>
       ) : null}
     </AppConfirmDialog>

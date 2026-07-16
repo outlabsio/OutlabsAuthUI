@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { AppConfirmDialog } from '@/components/app/app-confirm-dialog';
+import { AppErrorState } from '@/components/app/app-error-state';
 import { AppPage } from '@/components/app/app-page';
 import { AppStatusBadge } from '@/components/app/app-status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,11 +43,14 @@ import {
   getUserPermissionsQueryOptions,
   getUserQueryOptions,
   getUserRoleMembershipsQueryOptions,
+  getUserSessionsQueryOptions,
 } from '@/features/users/api/users.query-options';
 import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation';
 import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation';
 import { useRestoreUserMutation } from '@/features/users/hooks/use-restore-user-mutation';
+import { useRevokeAllUserSessionsMutation } from '@/features/users/hooks/use-revoke-all-user-sessions-mutation';
 import { useRevokeUserApiKeyMutation } from '@/features/users/hooks/use-revoke-user-api-key-mutation';
+import { useRevokeUserSessionMutation } from '@/features/users/hooks/use-revoke-user-session-mutation';
 import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation';
 import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation';
 import { useUpdateUserSuperuserMutation } from '@/features/users/hooks/use-update-user-superuser-mutation';
@@ -137,6 +141,10 @@ export function UserDetailsPage({
       activeDetailsTab === 'access' &&
       Boolean(sessionUser?.id),
   });
+  const userSessionsQuery = useQuery({
+    ...getUserSessionsQueryOptions(userId),
+    enabled: activeDetailsTab === 'access' && Boolean(sessionUser?.id),
+  });
   const updateUserMutation = useUpdateUserMutation();
   const updateUserStatusMutation = useUpdateUserStatusMutation();
   const updateUserSuperuserMutation = useUpdateUserSuperuserMutation();
@@ -145,6 +153,8 @@ export function UserDetailsPage({
   const restoreUserMutation = useRestoreUserMutation();
   const removeRoleMutation = useRemoveRoleFromUserMutation();
   const revokeUserApiKeyMutation = useRevokeUserApiKeyMutation();
+  const revokeUserSessionMutation = useRevokeUserSessionMutation();
+  const revokeAllUserSessionsMutation = useRevokeAllUserSessionsMutation();
   const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false);
   const [editingDirectRoleMembership, setEditingDirectRoleMembership] =
     useState<UserRoleMembership | null>(null);
@@ -213,6 +223,8 @@ export function UserDetailsPage({
   const canReadUserApiKeys =
     personalApiKeysFeatureEnabled && actorPermissions.allows(['user:read']);
   const canRevokeUserApiKeys = canReadUserApiKeys && canUpdateUsers;
+  const canReadUserSessions = actorPermissions.allows(['user:read']);
+  const canRevokeUserSessions = canReadUserSessions && canUpdateUsers;
   const canManageMembershipAccess =
     membershipRolesFeatureEnabled &&
     (actorPermissions.allows([
@@ -361,12 +373,12 @@ export function UserDetailsPage({
           </Button>
         }
       >
-        <div className="max-w-xl rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <AppErrorState className="max-w-xl">
           {getApiErrorMessage(
             pageError,
             'The selected user could not be loaded.',
           )}
-        </div>
+        </AppErrorState>
       </AppPage>
     );
   }
@@ -524,17 +536,22 @@ export function UserDetailsPage({
             canRemoveDirectRoles={canRemoveDirectRoles}
             canReadUserApiKeys={canReadUserApiKeys}
             canRevokeUserApiKeys={canRevokeUserApiKeys}
+            canReadUserSessions={canReadUserSessions}
+            canRevokeUserSessions={canRevokeUserSessions}
             canCheckPermissions={canCheckPermissions}
             entityById={entityById}
             membershipRoleById={membershipRoleById}
             membershipsQuery={membershipsQuery}
             directRoleMembershipsQuery={directRoleMembershipsQuery}
             userApiKeysQuery={userApiKeysQuery}
+            userSessionsQuery={userSessionsQuery}
             userPermissionsQuery={userPermissionsQuery}
             groupedPermissions={groupedPermissions}
             updateMembershipMutation={updateMembershipMutation}
             removeRoleMutation={removeRoleMutation}
             revokeUserApiKeyMutation={revokeUserApiKeyMutation}
+            revokeUserSessionMutation={revokeUserSessionMutation}
+            revokeAllUserSessionsMutation={revokeAllUserSessionsMutation}
             removeRoleError={removeRoleError}
             confirmingDirectRoleId={confirmingDirectRoleId}
             setConfirmingDirectRoleId={setConfirmingDirectRoleId}
@@ -549,6 +566,7 @@ export function UserDetailsPage({
 
         <TabsContent value="history" className="pt-1">
           <UserDetailsHistoryTab
+            userId={user.id}
             activityTrackingFeatureEnabled={activityTrackingFeatureEnabled}
             membershipRolesFeatureEnabled={membershipRolesFeatureEnabled}
             auditEventsPage={auditEventsPage}

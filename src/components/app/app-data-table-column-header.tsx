@@ -4,17 +4,17 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 
-type DataTableColumnHeaderProps<TData, TValue> = {
+type AppDataTableColumnHeaderProps<TData, TValue> = {
   column: Column<TData, TValue>
   title: string
   className?: string
 }
 
-export function DataTableColumnHeader<TData, TValue>({
+export function AppDataTableColumnHeader<TData, TValue>({
   column,
   title,
   className,
-}: DataTableColumnHeaderProps<TData, TValue>) {
+}: AppDataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>
   }

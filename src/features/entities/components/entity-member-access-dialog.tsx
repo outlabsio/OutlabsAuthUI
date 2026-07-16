@@ -7,6 +7,7 @@ import { ChevronRight, Search, UserRoundPlus } from 'lucide-react'
 
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
+import { AppErrorState } from '@/components/app/app-error-state'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -511,9 +512,7 @@ export function EntityMemberAccessDialog({
                 />
 
                 {submitErrorMessage ? (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-                    {submitErrorMessage}
-                  </div>
+                  <AppErrorState compact>{submitErrorMessage}</AppErrorState>
                 ) : null}
               </div>
             </div>

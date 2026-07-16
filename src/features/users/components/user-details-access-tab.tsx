@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 
 import { AppEmptyState } from '@/components/app/app-empty-state';
+import { AppErrorState } from '@/components/app/app-error-state';
 import { AppStatusBadge } from '@/components/app/app-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,8 +19,12 @@ import {
   formatRoleToken,
 } from '@/features/roles/utils/role-display';
 import { DetailSection } from '@/features/users/components/user-details-section';
+import { UserSessionsPanel } from '@/features/users/components/user-sessions-panel';
 import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation';
+import { useRevokeAllUserSessionsMutation } from '@/features/users/hooks/use-revoke-all-user-sessions-mutation';
 import { useRevokeUserApiKeyMutation } from '@/features/users/hooks/use-revoke-user-api-key-mutation';
+import { useRevokeUserSessionMutation } from '@/features/users/hooks/use-revoke-user-session-mutation';
+import type { UserSession } from '@/features/users/types/user-session.types';
 import type {
   UserPermissionSource,
   UserRoleMembership,
@@ -45,17 +50,24 @@ type UserDetailsAccessTabProps = {
   canRemoveDirectRoles: boolean;
   canReadUserApiKeys: boolean;
   canRevokeUserApiKeys: boolean;
+  canReadUserSessions: boolean;
+  canRevokeUserSessions: boolean;
   canCheckPermissions: boolean;
   entityById: Map<string, EntityOption>;
   membershipRoleById: Map<string, Role>;
   membershipsQuery: UseQueryResult<UserMembership[]>;
   directRoleMembershipsQuery: UseQueryResult<UserRoleMembership[]>;
   userApiKeysQuery: UseQueryResult<ApiKey[]>;
+  userSessionsQuery: UseQueryResult<UserSession[]>;
   userPermissionsQuery: UseQueryResult<UserPermissionSource[]>;
   groupedPermissions: GroupedPermission[];
   updateMembershipMutation: ReturnType<typeof useUpdateMembershipMutation>;
   removeRoleMutation: ReturnType<typeof useRemoveRoleFromUserMutation>;
   revokeUserApiKeyMutation: ReturnType<typeof useRevokeUserApiKeyMutation>;
+  revokeUserSessionMutation: ReturnType<typeof useRevokeUserSessionMutation>;
+  revokeAllUserSessionsMutation: ReturnType<
+    typeof useRevokeAllUserSessionsMutation
+  >;
   removeRoleError: string | null;
   confirmingDirectRoleId: string | null;
   setConfirmingDirectRoleId: (
@@ -85,17 +97,22 @@ export function UserDetailsAccessTab({
   canRemoveDirectRoles,
   canReadUserApiKeys,
   canRevokeUserApiKeys,
+  canReadUserSessions,
+  canRevokeUserSessions,
   canCheckPermissions,
   entityById,
   membershipRoleById,
   membershipsQuery,
   directRoleMembershipsQuery,
   userApiKeysQuery,
+  userSessionsQuery,
   userPermissionsQuery,
   groupedPermissions,
   updateMembershipMutation,
   removeRoleMutation,
   revokeUserApiKeyMutation,
+  revokeUserSessionMutation,
+  revokeAllUserSessionsMutation,
   removeRoleError,
   confirmingDirectRoleId,
   setConfirmingDirectRoleId,
@@ -142,21 +159,21 @@ export function UserDetailsAccessTab({
                       compact
                     />
                   ) : membershipsQuery.isError ? (
-                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                    <AppErrorState>
                       {getApiErrorMessage(
                         membershipsQuery.error,
                         'The user memberships could not be loaded.',
                       )}
-                    </div>
+                    </AppErrorState>
                   ) : membershipsQuery.data && membershipsQuery.data.length > 0 ? (
                     <div className="space-y-3">
                       {updateMembershipMutation.error ? (
-                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                        <AppErrorState compact>
                           {getApiErrorMessage(
                             updateMembershipMutation.error,
                             'The membership access could not be updated.',
                           )}
-                        </div>
+                        </AppErrorState>
                       ) : null}
                       {membershipsQuery.data.map((membership) => {
                         const entity = entityById.get(membership.entity_id);
@@ -304,9 +321,11 @@ export function UserDetailsAccessTab({
                       })}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                      This user does not currently belong to any entity memberships.
-                    </div>
+                    <AppEmptyState
+                      title="No entity memberships"
+                      description="This user does not currently belong to any entity memberships."
+                      compact
+                    />
                   )}
                 </DetailSection>
 
@@ -334,19 +353,17 @@ export function UserDetailsAccessTab({
                   }
                 >
                   {directRoleMembershipsQuery.isError ? (
-                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                    <AppErrorState>
                       {getApiErrorMessage(
                         directRoleMembershipsQuery.error,
                         'The direct role assignments could not be loaded.',
                       )}
-                    </div>
+                    </AppErrorState>
                   ) : directRoleMembershipsQuery.data &&
                     directRoleMembershipsQuery.data.length > 0 ? (
                     <div className="space-y-3">
                       {removeRoleError ? (
-                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                          {removeRoleError}
-                        </div>
+                        <AppErrorState compact>{removeRoleError}</AppErrorState>
                       ) : null}
                       {directRoleMembershipsQuery.data.map((membership) => {
                         const role = membership.role;
@@ -527,11 +544,36 @@ export function UserDetailsAccessTab({
                       })}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                      No direct roles are currently assigned to this account.
-                    </div>
+                    <AppEmptyState
+                      title="No direct roles"
+                      description="No direct roles are currently assigned to this account."
+                      compact
+                    />
                   )}
                 </DetailSection>
+
+                {canReadUserSessions ? (
+                  <UserSessionsPanel
+                    canRevoke={canRevokeUserSessions}
+                    sessionsQuery={userSessionsQuery}
+                    isRevokingSession={revokeUserSessionMutation.isPending}
+                    isRevokingAll={revokeAllUserSessionsMutation.isPending}
+                    revokingSessionId={
+                      revokeUserSessionMutation.variables?.sessionId ?? null
+                    }
+                    onRevokeSession={async (sessionId) => {
+                      await revokeUserSessionMutation.mutateAsync({
+                        userId,
+                        sessionId,
+                      })
+                    }}
+                    onRevokeAll={async () => {
+                      await revokeAllUserSessionsMutation.mutateAsync({
+                        userId,
+                      })
+                    }}
+                  />
+                ) : null}
 
                 {canReadUserApiKeys ? (
                   <DetailSection
@@ -544,16 +586,14 @@ export function UserDetailsAccessTab({
                     }}
                   >
                     {userApiKeysQuery.isError ? (
-                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                      <AppErrorState>
                         {getApiErrorMessage(
                           userApiKeysQuery.error,
                           'The personal API keys could not be loaded.',
                         )}
-                      </div>
+                      </AppErrorState>
                     ) : userApiKeysQuery.isPending ? (
-                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        Loading personal API keys…
-                      </div>
+                      <AppEmptyState title="Loading personal API keys…" compact />
                     ) : userApiKeysQuery.data &&
                       userApiKeysQuery.data.length > 0 ? (
                       <div className="space-y-3">
@@ -679,9 +719,11 @@ export function UserDetailsAccessTab({
                         ))}
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                        This account has no personal API keys.
-                      </div>
+                      <AppEmptyState
+                        title="No personal API keys"
+                        description="This account has no personal API keys."
+                        compact
+                      />
                     )}
                   </DetailSection>
                 ) : null}
@@ -711,12 +753,12 @@ export function UserDetailsAccessTab({
                 }
               >
                 {userPermissionsQuery.isError ? (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                  <AppErrorState>
                     {getApiErrorMessage(
                       userPermissionsQuery.error,
                       'The effective permission set could not be loaded.',
                     )}
-                  </div>
+                  </AppErrorState>
                 ) : groupedPermissions.length > 0 ? (
                   <div className="space-y-4">
                     {groupedPermissions.map((group) => (
@@ -759,9 +801,11 @@ export function UserDetailsAccessTab({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                    No effective permissions are currently resolved for this user.
-                  </div>
+                  <AppEmptyState
+                    title="No effective permissions"
+                    description="No effective permissions are currently resolved for this user."
+                    compact
+                  />
                 )}
               </DetailSection>
             </div>

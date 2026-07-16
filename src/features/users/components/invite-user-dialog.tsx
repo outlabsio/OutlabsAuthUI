@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { ChevronRight, Shield } from 'lucide-react'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -214,8 +215,11 @@ export function InviteUserDialog({
           >
             <div className="grid min-h-0 flex-1 gap-6 overflow-hidden px-6 py-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
               <div className="flex min-h-0 flex-col gap-5 pr-1">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email</Label>
+                <AppFormField
+                  label="Email"
+                  htmlFor="invite-email"
+                  errors={[form.formState.errors.email]}
+                >
                   <Input
                     id="invite-email"
                     type="email"
@@ -225,12 +229,14 @@ export function InviteUserDialog({
                     disabled={inviteMutation.isPending}
                     {...emailField}
                   />
-                  <FieldError errors={[form.formState.errors.email]} />
-                </div>
+                </AppFormField>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-first-name">First name</Label>
+                  <AppFormField
+                    label="First name"
+                    htmlFor="invite-first-name"
+                    errors={[form.formState.errors.firstName]}
+                  >
                     <Input
                       id="invite-first-name"
                       placeholder="First name"
@@ -238,10 +244,12 @@ export function InviteUserDialog({
                       disabled={inviteMutation.isPending}
                       {...firstNameField}
                     />
-                    <FieldError errors={[form.formState.errors.firstName]} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-last-name">Last name</Label>
+                  </AppFormField>
+                  <AppFormField
+                    label="Last name"
+                    htmlFor="invite-last-name"
+                    errors={[form.formState.errors.lastName]}
+                  >
                     <Input
                       id="invite-last-name"
                       placeholder="Last name"
@@ -249,8 +257,7 @@ export function InviteUserDialog({
                       disabled={inviteMutation.isPending}
                       {...lastNameField}
                     />
-                    <FieldError errors={[form.formState.errors.lastName]} />
-                  </div>
+                  </AppFormField>
                 </div>
 
                 {canInviteSuperusers ? (

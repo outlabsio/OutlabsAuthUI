@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
+import { Controller, useForm } from 'react-hook-form'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,10 +19,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { FieldError } from '@/components/ui/field'
-import { Label } from '@/components/ui/label'
 import { getRolesQueryOptions } from '@/features/roles/api/roles.query-options'
 import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
 import { useAssignRoleToUserMutation } from '@/features/users/hooks/use-assign-role-to-user-mutation'
+import {
+  type DirectRoleAssignmentFormValues,
+  directRoleAssignmentSchema,
+} from '@/features/users/schemas/direct-role-assignment.schema'
 import type { Role } from '@/features/roles/types/roles.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
 
@@ -38,14 +44,32 @@ export function DirectRoleAssignmentDialog({
   assignedRoles,
   canAssignDirectRoles,
 }: DirectRoleAssignmentDialogProps) {
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
-  const [validFrom, setValidFrom] = useState('')
-  const [validUntil, setValidUntil] = useState('')
   const assignRoleMutation = useAssignRoleToUserMutation()
+  const form = useForm<DirectRoleAssignmentFormValues>({
+    resolver: zodResolver(directRoleAssignmentSchema),
+    defaultValues: {
+      roleIds: [],
+      validFrom: '',
+      validUntil: '',
+    },
+  })
   const rolesQuery = useQuery({
     ...getRolesQueryOptions({ limit: 100 }),
     enabled: open && canAssignDirectRoles,
   })
+
+  useEffect(() => {
+    if (open) {
+      return
+    }
+
+    form.reset({
+      roleIds: [],
+      validFrom: '',
+      validUntil: '',
+    })
+    assignRoleMutation.reset()
+  }, [assignRoleMutation, form, open])
 
   const assignedRoleIds = useMemo(
     () => assignedRoles.map((role) => role.id),
@@ -58,29 +82,15 @@ export function DirectRoleAssignmentDialog({
         .sort((left, right) => left.display_name.localeCompare(right.display_name)),
     [rolesQuery.data?.items]
   )
+  const selectedRoleIds = form.watch('roleIds')
   const submitError = assignRoleMutation.error
     ? getApiErrorMessage(
         assignRoleMutation.error,
         'The selected direct roles could not be assigned.'
       )
     : null
-  const validityError =
-    validFrom && validUntil && new Date(validUntil).getTime() < new Date(validFrom).getTime()
-      ? 'Valid until must be after valid from.'
-      : null
-
-  function resetDialogState() {
-    setSelectedRoleIds([])
-    setValidFrom('')
-    setValidUntil('')
-    assignRoleMutation.reset()
-  }
 
   function handleDialogOpenChange(nextOpen: boolean) {
-    if (!nextOpen) {
-      resetDialogState()
-    }
-
     onOpenChange(nextOpen)
   }
 
@@ -106,24 +116,22 @@ export function DirectRoleAssignmentDialog({
 
           <form
             className="flex min-h-0 flex-1 flex-col"
-            onSubmit={async (event) => {
-              event.preventDefault()
-
-              if (
-                !canAssignDirectRoles ||
-                selectedRoleIds.length === 0 ||
-                validityError
-              ) {
+            onSubmit={form.handleSubmit(async (values) => {
+              if (!canAssignDirectRoles) {
                 return
               }
 
               try {
-                for (const roleId of selectedRoleIds) {
+                for (const roleId of values.roleIds) {
                   await assignRoleMutation.mutateAsync({
                     userId,
                     roleId,
-                    valid_from: validFrom ? new Date(validFrom).toISOString() : undefined,
-                    valid_until: validUntil ? new Date(validUntil).toISOString() : undefined,
+                    valid_from: values.validFrom
+                      ? new Date(values.validFrom).toISOString()
+                      : undefined,
+                    valid_until: values.validUntil
+                      ? new Date(values.validUntil).toISOString()
+                      : undefined,
                   })
                 }
 
@@ -131,7 +139,7 @@ export function DirectRoleAssignmentDialog({
               } catch {
                 return
               }
-            }}
+            })}
           >
             <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
               {!canAssignDirectRoles ? (
@@ -166,58 +174,79 @@ export function DirectRoleAssignmentDialog({
                       </AppInfoPopover>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="direct-role-valid-from">Valid from</Label>
-                        <AppDateTimePicker
-                          id="direct-role-valid-from"
-                          value={validFrom}
-                          onChange={setValidFrom}
-                          disabled={assignRoleMutation.isPending}
-                          placeholder="Pick a start date"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="direct-role-valid-until">Valid until</Label>
-                        <AppDateTimePicker
-                          id="direct-role-valid-until"
-                          value={validUntil}
-                          onChange={setValidUntil}
-                          disabled={assignRoleMutation.isPending}
-                          placeholder="Pick an end date"
-                        />
-                      </div>
+                      <Controller
+                        name="validFrom"
+                        control={form.control}
+                        render={({ field }) => (
+                          <AppFormField
+                            label="Valid from"
+                            htmlFor="direct-role-valid-from"
+                          >
+                            <AppDateTimePicker
+                              id="direct-role-valid-from"
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              disabled={assignRoleMutation.isPending}
+                              placeholder="Pick a start date"
+                            />
+                          </AppFormField>
+                        )}
+                      />
+                      <Controller
+                        name="validUntil"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <AppFormField
+                            label="Valid until"
+                            htmlFor="direct-role-valid-until"
+                            errors={[fieldState.error]}
+                          >
+                            <AppDateTimePicker
+                              id="direct-role-valid-until"
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              disabled={assignRoleMutation.isPending}
+                              placeholder="Pick an end date"
+                            />
+                          </AppFormField>
+                        )}
+                      />
                     </div>
-                    {validityError ? (
-                      <div className="mt-4">
-                        <FieldError>{validityError}</FieldError>
-                      </div>
-                    ) : null}
                   </div>
 
-                  <AssignableRolesTable
-                    roles={availableRoles}
-                    selectedRoleIds={selectedRoleIds}
-                    lockedRoleIds={assignedRoleIds}
-                    lockedRoleLabel="Assigned"
-                    onRoleToggle={(roleId, checked) => {
-                      const nextRoleIds = checked
-                        ? [...selectedRoleIds, roleId]
-                        : selectedRoleIds.filter(
-                            (selectedRoleId) => selectedRoleId !== roleId
-                          )
+                  <Controller
+                    name="roleIds"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <div className="space-y-2">
+                        <AssignableRolesTable
+                          roles={availableRoles}
+                          selectedRoleIds={field.value}
+                          lockedRoleIds={assignedRoleIds}
+                          lockedRoleLabel="Assigned"
+                          onRoleToggle={(roleId, checked) => {
+                            const nextRoleIds = checked
+                              ? [...field.value, roleId]
+                              : field.value.filter(
+                                  (selectedRoleId) => selectedRoleId !== roleId
+                                )
 
-                      setSelectedRoleIds(nextRoleIds)
-                    }}
-                    disabled={assignRoleMutation.isPending}
-                    emptyMessage="No direct account roles are available for this backend."
-                    searchPlaceholder="Search direct roles"
-                    toolbarActions={
-                      assignedRoleIds.length > 0 ? (
-                        <Badge variant="secondary">
-                          {assignedRoleIds.length} already assigned
-                        </Badge>
-                      ) : null
-                    }
+                            field.onChange(nextRoleIds)
+                          }}
+                          disabled={assignRoleMutation.isPending}
+                          emptyMessage="No direct account roles are available for this backend."
+                          searchPlaceholder="Search direct roles"
+                          toolbarActions={
+                            assignedRoleIds.length > 0 ? (
+                              <Badge variant="secondary">
+                                {assignedRoleIds.length} already assigned
+                              </Badge>
+                            ) : null
+                          }
+                        />
+                        <FieldError errors={[fieldState.error]} />
+                      </div>
+                    )}
                   />
                 </div>
               ) : (
@@ -235,24 +264,23 @@ export function DirectRoleAssignmentDialog({
             </div>
 
             <DialogFooter className="mt-0 shrink-0 !mx-0 !mb-0 rounded-b-[inherit] px-6 py-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleDialogOpenChange(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    !canAssignDirectRoles ||
-                    assignRoleMutation.isPending ||
-                    selectedRoleIds.length === 0 ||
-                    Boolean(validityError)
-                  }
-                >
-                  {assignRoleMutation.isPending ? 'Assigning roles...' : 'Assign roles'}
-                </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDialogOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  !canAssignDirectRoles ||
+                  assignRoleMutation.isPending ||
+                  selectedRoleIds.length === 0
+                }
+              >
+                {assignRoleMutation.isPending ? 'Assigning roles...' : 'Assign roles'}
+              </Button>
             </DialogFooter>
           </form>
         </div>

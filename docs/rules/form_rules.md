@@ -334,11 +334,22 @@ Examples:
 - spacing/alignment shell
 - field group shell
 
-Recommended base wrapper:
+### Approved field shell
 
-- `app-form-field.tsx`
+Use **shadcn `Field` composition** (`Field` / `FieldLabel` / `FieldDescription` / `FieldError` / `FieldGroup`) or the thin app wrapper `AppFormField` in `components/app/app-form-field.tsx`.
+
+Do **not** invent a third pattern of `Label` + `div.space-y-2` in new forms. Auth/account already follow `Field*`; new admin forms should too (via `Field*` or `AppFormField`).
+
+Also approved:
+
 - `app-tags-input.tsx` for list-of-string fields that would otherwise become CSV textareas
 - `app-choice-cards.tsx` for small enum fields that read better as selectable cards than selects or plain checkbox stacks
+
+### Form-level / action error presentation
+
+- **In-form submit errors** (next to the field stack): `FieldError` with children (auth/account pattern)
+- **Section or dialog action failures** outside the field stack: `AppErrorState` with `compact`
+- **Read-only / capability notices** (not failures): `AppStatusCallout` (`neutral` / `warning`), never a destructive error box
 
 ### Feature layer
 

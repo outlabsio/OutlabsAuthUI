@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 
 import { AppCheckboxCards } from '@/components/app/app-choice-cards'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppTagsInput } from '@/components/app/app-tags-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -159,10 +160,12 @@ export function EntityRootGovernanceDialog({
                     </div>
 
                     <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="root-governance-allowed-child-types">
-                          Allowed child types
-                        </Label>
+                      <AppFormField
+                        label="Allowed child types"
+                        htmlFor="root-governance-allowed-child-types"
+                        description="Add one type at a time. Commas and line breaks also work when pasting. Leave empty to fall back to the platform child-type defaults."
+                        errors={[form.formState.errors.allowedChildTypes]}
+                      >
                         <Controller
                           control={form.control}
                           name="allowedChildTypes"
@@ -178,15 +181,13 @@ export function EntityRootGovernanceDialog({
                             />
                           )}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Add one type at a time. Commas and line breaks also work when pasting.
-                          Leave empty to fall back to the platform child-type defaults.
-                        </p>
-                        <FieldError errors={[form.formState.errors.allowedChildTypes]} />
-                      </div>
+                      </AppFormField>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="root-governance-max-members">Default member cap</Label>
+                      <AppFormField
+                        label="Default member cap"
+                        htmlFor="root-governance-max-members"
+                        errors={[form.formState.errors.maxMembers]}
+                      >
                         <Input
                           id="root-governance-max-members"
                           inputMode="numeric"
@@ -194,8 +195,7 @@ export function EntityRootGovernanceDialog({
                           placeholder="Unlimited"
                           {...form.register('maxMembers')}
                         />
-                        <FieldError errors={[form.formState.errors.maxMembers]} />
-                      </div>
+                      </AppFormField>
                     </div>
                   </div>
                 </section>
@@ -210,47 +210,51 @@ export function EntityRootGovernanceDialog({
                   </div>
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="root-governance-child-name-pattern">
-                        System-name pattern
-                      </Label>
+                    <AppFormField
+                      label="System-name pattern"
+                      htmlFor="root-governance-child-name-pattern"
+                      errors={[form.formState.errors.childNamePattern]}
+                    >
                       <Input
                         id="root-governance-child-name-pattern"
                         disabled={updateEntityMutation.isPending}
                         placeholder="^(east|west)_[a-z0-9_]+$"
                         {...form.register('childNamePattern')}
                       />
-                      <FieldError errors={[form.formState.errors.childNamePattern]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="root-governance-child-display-name-pattern">
-                        Display-name pattern
-                      </Label>
+                    <AppFormField
+                      label="Display-name pattern"
+                      htmlFor="root-governance-child-display-name-pattern"
+                      errors={[form.formState.errors.childDisplayNamePattern]}
+                    >
                       <Input
                         id="root-governance-child-display-name-pattern"
                         disabled={updateEntityMutation.isPending}
                         placeholder="^(East|West) .+$"
                         {...form.register('childDisplayNamePattern')}
                       />
-                      <FieldError errors={[form.formState.errors.childDisplayNamePattern]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="root-governance-child-slug-pattern">Slug pattern</Label>
+                    <AppFormField
+                      label="Slug pattern"
+                      htmlFor="root-governance-child-slug-pattern"
+                      errors={[form.formState.errors.childSlugPattern]}
+                    >
                       <Input
                         id="root-governance-child-slug-pattern"
                         disabled={updateEntityMutation.isPending}
                         placeholder="^(east|west)-[a-z0-9-]+$"
                         {...form.register('childSlugPattern')}
                       />
-                      <FieldError errors={[form.formState.errors.childSlugPattern]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="root-governance-child-naming-guidance">
-                        Operator guidance
-                      </Label>
+                    <AppFormField
+                      label="Operator guidance"
+                      htmlFor="root-governance-child-naming-guidance"
+                      className="sm:col-span-2"
+                      errors={[form.formState.errors.childNamingGuidance]}
+                    >
                       <Textarea
                         id="root-governance-child-naming-guidance"
                         rows={3}
@@ -258,15 +262,12 @@ export function EntityRootGovernanceDialog({
                         placeholder="Use East/West prefixes for branch naming."
                         {...form.register('childNamingGuidance')}
                       />
-                      <FieldError errors={[form.formState.errors.childNamingGuidance]} />
-                    </div>
+                    </AppFormField>
                   </div>
                 </section>
 
                 {submitErrorMessage ? (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-                    {submitErrorMessage}
-                  </div>
+                  <FieldError>{submitErrorMessage}</FieldError>
                 ) : null}
               </div>
             </div>

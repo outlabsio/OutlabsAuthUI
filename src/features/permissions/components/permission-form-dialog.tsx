@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { KeyRound, ShieldCheck, Sparkles } from 'lucide-react'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -260,38 +261,42 @@ export function PermissionFormDialog({
                   </div>
                   <div className="mt-4 space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="permission-resource">Resource</Label>
-                        <Controller
-                          control={form.control}
-                          name="resource"
-                          render={({ field }) => (
+                      <Controller
+                        control={form.control}
+                        name="resource"
+                        render={({ field, fieldState }) => (
+                          <AppFormField
+                            label="Resource"
+                            htmlFor="permission-resource"
+                            errors={[fieldState.error]}
+                          >
                             <Input
                               {...field}
                               id="permission-resource"
                               disabled={isPending || mode === 'edit'}
                               placeholder="lead"
                             />
-                          )}
-                        />
-                        <FieldError errors={[form.formState.errors.resource]} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="permission-action">Action</Label>
-                        <Controller
-                          control={form.control}
-                          name="action"
-                          render={({ field }) => (
+                          </AppFormField>
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name="action"
+                        render={({ field, fieldState }) => (
+                          <AppFormField
+                            label="Action"
+                            htmlFor="permission-action"
+                            errors={[fieldState.error]}
+                          >
                             <Input
                               {...field}
                               id="permission-action"
                               disabled={isPending || mode === 'edit'}
                               placeholder="create"
                             />
-                          )}
-                        />
-                        <FieldError errors={[form.formState.errors.action]} />
-                      </div>
+                          </AppFormField>
+                        )}
+                      />
                     </div>
 
                     <div className="rounded-2xl border bg-background/80 px-4 py-3">
@@ -304,12 +309,15 @@ export function PermissionFormDialog({
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="permission-display-name">Display name</Label>
-                    <Controller
-                      control={form.control}
-                      name="displayName"
-                      render={({ field }) => (
+                  <Controller
+                    control={form.control}
+                    name="displayName"
+                    render={({ field, fieldState }) => (
+                      <AppFormField
+                        label="Display name"
+                        htmlFor="permission-display-name"
+                        errors={[fieldState.error]}
+                      >
                         <Input
                           {...field}
                           id="permission-display-name"
@@ -320,17 +328,19 @@ export function PermissionFormDialog({
                             field.onChange(event)
                           }}
                         />
-                      )}
-                    />
-                    <FieldError errors={[form.formState.errors.displayName]} />
-                  </div>
+                      </AppFormField>
+                    )}
+                  />
 
-                  <div className="space-y-2">
-                    <Label htmlFor="permission-description">How should admins use this permission?</Label>
-                    <Controller
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
+                  <Controller
+                    control={form.control}
+                    name="description"
+                    render={({ field, fieldState }) => (
+                      <AppFormField
+                        label="How should admins use this permission?"
+                        htmlFor="permission-description"
+                        errors={[fieldState.error]}
+                      >
                         <Textarea
                           {...field}
                           id="permission-description"
@@ -338,26 +348,19 @@ export function PermissionFormDialog({
                           disabled={isPending || isEditingSystemPermission}
                           placeholder="Describe the specific capability this permission unlocks."
                         />
-                      )}
-                    />
-                    <FieldError errors={[form.formState.errors.description]} />
-                  </div>
+                      </AppFormField>
+                    )}
+                  />
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="permission-tags">Tags</Label>
-                      <AppInfoPopover
-                        label="Explain permission tags"
-                        title="Tags"
+                  <Controller
+                    control={form.control}
+                    name="tagsText"
+                    render={({ field }) => (
+                      <AppFormField
+                        label="Tags"
+                        htmlFor="permission-tags"
+                        description="Tags are only for discoverability and review. They do not change runtime behavior."
                       >
-                        Tags are only for discoverability and review. They do not change runtime
-                        behavior.
-                      </AppInfoPopover>
-                    </div>
-                    <Controller
-                      control={form.control}
-                      name="tagsText"
-                      render={({ field }) => (
                         <Textarea
                           {...field}
                           id="permission-tags"
@@ -365,9 +368,9 @@ export function PermissionFormDialog({
                           disabled={isPending || isEditingSystemPermission}
                           placeholder="admin, crm, custom"
                         />
-                      )}
-                    />
-                  </div>
+                      </AppFormField>
+                    )}
+                  />
                 </div>
               </div>
 
@@ -521,9 +524,7 @@ export function PermissionFormDialog({
                 </div>
 
                 {submitErrorMessage ? (
-                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                    {submitErrorMessage}
-                  </div>
+                  <FieldError>{submitErrorMessage}</FieldError>
                 ) : null}
               </div>
             </div>

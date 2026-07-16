@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { Compass, Network, Orbit, ShieldCheck, Sparkles } from 'lucide-react'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -433,18 +434,23 @@ export function RoleFormDialog({
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="role-display-name">Display name</Label>
+                    <AppFormField
+                      label="Display name"
+                      htmlFor="role-display-name"
+                      errors={[form.formState.errors.displayName]}
+                    >
                       <Input
                         id="role-display-name"
                         disabled={isPending || isEditingSystemRole}
                         {...form.register('displayName')}
                       />
-                      <FieldError errors={[form.formState.errors.displayName]} />
-                    </div>
+                    </AppFormField>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="role-name">System name</Label>
+                    <AppFormField
+                      label="System name"
+                      htmlFor="role-name"
+                      errors={[form.formState.errors.name]}
+                    >
                       <Input
                         id="role-name"
                         disabled={isPending || mode === 'edit' || isEditingSystemRole}
@@ -454,12 +460,14 @@ export function RoleFormDialog({
                           },
                         })}
                       />
-                      <FieldError errors={[form.formState.errors.name]} />
-                    </div>
+                    </AppFormField>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="role-description">How should admins use this role?</Label>
+                  <AppFormField
+                    label="How should admins use this role?"
+                    htmlFor="role-description"
+                    errors={[form.formState.errors.description]}
+                  >
                     <Textarea
                       id="role-description"
                       rows={4}
@@ -467,15 +475,13 @@ export function RoleFormDialog({
                       placeholder="Describe when this role should be assigned and what operational responsibility it carries."
                       {...form.register('description')}
                     />
-                    <FieldError errors={[form.formState.errors.description]} />
-                  </div>
+                  </AppFormField>
 
-                  <div className="space-y-2">
-                    <Label>Lifecycle</Label>
-                    <Controller
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
+                  <Controller
+                    control={form.control}
+                    name="status"
+                    render={({ field, fieldState }) => (
+                      <AppFormField label="Lifecycle" errors={[fieldState.error]}>
                         <Select
                           value={field.value}
                           onValueChange={(nextValue) => {
@@ -501,9 +507,9 @@ export function RoleFormDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      )}
-                    />
-                  </div>
+                      </AppFormField>
+                    )}
+                  />
                 </div>
 
                 <div className="space-y-4 rounded-3xl border bg-background/90 p-5">
@@ -519,12 +525,14 @@ export function RoleFormDialog({
                   </div>
 
                   {roleType === 'root' ? (
-                    <div className="space-y-2">
-                      <Label>Owning organization</Label>
-                      <Controller
-                        control={form.control}
-                        name="rootEntityId"
-                        render={({ field }) => (
+                    <Controller
+                      control={form.control}
+                      name="rootEntityId"
+                      render={({ field, fieldState }) => (
+                        <AppFormField
+                          label="Owning organization"
+                          errors={[fieldState.error]}
+                        >
                           <Select
                             value={field.value || 'none'}
                             onValueChange={(nextValue) => {
@@ -556,39 +564,40 @@ export function RoleFormDialog({
                               ))}
                             </SelectContent>
                           </Select>
-                        )}
-                      />
-                      <FieldError errors={[form.formState.errors.rootEntityId]} />
-                    </div>
+                        </AppFormField>
+                      )}
+                    />
                   ) : null}
 
                   {roleType === 'entity' ? (
                     <>
-                      <div className="space-y-2">
-                        <Label>Defining entity</Label>
-                        <Controller
-                          control={form.control}
-                          name="scopeEntityId"
-                          render={({ field }) => (
-                          <Select
-                            value={field.value || 'none'}
-                            onValueChange={(nextValue) => {
-                              form.setValue(
-                                'scopeEntityId',
-                                nextValue === 'none' ? '' : String(nextValue),
-                                {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                }
-                              )
-                            }}
-                            disabled={
-                              isPending ||
-                              mode === 'edit' ||
-                              isEditingSystemRole ||
-                              lockScopeEntityId
-                            }
+                      <Controller
+                        control={form.control}
+                        name="scopeEntityId"
+                        render={({ field, fieldState }) => (
+                          <AppFormField
+                            label="Defining entity"
+                            errors={[fieldState.error]}
                           >
+                            <Select
+                              value={field.value || 'none'}
+                              onValueChange={(nextValue) => {
+                                form.setValue(
+                                  'scopeEntityId',
+                                  nextValue === 'none' ? '' : String(nextValue),
+                                  {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  }
+                                )
+                              }}
+                              disabled={
+                                isPending ||
+                                mode === 'edit' ||
+                                isEditingSystemRole ||
+                                lockScopeEntityId
+                              }
+                            >
                               <SelectTrigger>
                                 <SelectValue placeholder="Pick the entity that defines this role" />
                               </SelectTrigger>
@@ -601,10 +610,9 @@ export function RoleFormDialog({
                                 ))}
                               </SelectContent>
                             </Select>
-                          )}
-                        />
-                        <FieldError errors={[form.formState.errors.scopeEntityId]} />
-                      </div>
+                          </AppFormField>
+                        )}
+                      />
 
                       <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm">
                         <div className="font-medium">Derived root organization</div>
@@ -614,12 +622,11 @@ export function RoleFormDialog({
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Scope mode</Label>
-                          <Controller
-                            control={form.control}
-                            name="scope"
-                            render={({ field }) => (
+                        <Controller
+                          control={form.control}
+                          name="scope"
+                          render={({ field, fieldState }) => (
+                            <AppFormField label="Scope mode" errors={[fieldState.error]}>
                               <Select
                                 value={field.value}
                                 onValueChange={(nextValue) => {
@@ -638,9 +645,9 @@ export function RoleFormDialog({
                                   <SelectItem value="entity_only">Entity only</SelectItem>
                                 </SelectContent>
                               </Select>
-                            )}
-                          />
-                        </div>
+                            </AppFormField>
+                          )}
+                        />
                         <div className="space-y-2">
                           <Label>Auto-assigned</Label>
                           <div className="flex min-h-10 items-center justify-between rounded-2xl border px-4">
@@ -792,9 +799,7 @@ export function RoleFormDialog({
                 </div>
 
                 {submitErrorMessage ? (
-                  <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3">
-                    <FieldError>{submitErrorMessage}</FieldError>
-                  </div>
+                  <FieldError>{submitErrorMessage}</FieldError>
                 ) : null}
 
                 {isEditingSystemRole ? (

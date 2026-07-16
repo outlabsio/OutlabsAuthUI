@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { Shield } from 'lucide-react'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -133,8 +134,11 @@ export function CreateUserDialog({
             }
           })}
         >
-          <div className="space-y-2">
-            <Label htmlFor="create-user-email">Email</Label>
+          <AppFormField
+            label="Email"
+            htmlFor="create-user-email"
+            errors={[form.formState.errors.email]}
+          >
             <Input
               id="create-user-email"
               type="email"
@@ -144,12 +148,14 @@ export function CreateUserDialog({
               disabled={createUserMutation.isPending}
               {...emailField}
             />
-            <FieldError errors={[form.formState.errors.email]} />
-          </div>
+          </AppFormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="create-user-first-name">First name</Label>
+            <AppFormField
+              label="First name"
+              htmlFor="create-user-first-name"
+              errors={[form.formState.errors.firstName]}
+            >
               <Input
                 id="create-user-first-name"
                 placeholder="First name"
@@ -157,10 +163,12 @@ export function CreateUserDialog({
                 disabled={createUserMutation.isPending}
                 {...firstNameField}
               />
-              <FieldError errors={[form.formState.errors.firstName]} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-user-last-name">Last name</Label>
+            </AppFormField>
+            <AppFormField
+              label="Last name"
+              htmlFor="create-user-last-name"
+              errors={[form.formState.errors.lastName]}
+            >
               <Input
                 id="create-user-last-name"
                 placeholder="Last name"
@@ -168,12 +176,14 @@ export function CreateUserDialog({
                 disabled={createUserMutation.isPending}
                 {...lastNameField}
               />
-              <FieldError errors={[form.formState.errors.lastName]} />
-            </div>
+            </AppFormField>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="create-user-password">Password</Label>
+          <AppFormField
+            label="Password"
+            htmlFor="create-user-password"
+            errors={[form.formState.errors.password]}
+          >
             <Input
               id="create-user-password"
               type="password"
@@ -182,11 +192,13 @@ export function CreateUserDialog({
               disabled={createUserMutation.isPending}
               {...passwordField}
             />
-            <FieldError errors={[form.formState.errors.password]} />
-          </div>
+          </AppFormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="create-user-confirm-password">Confirm password</Label>
+          <AppFormField
+            label="Confirm password"
+            htmlFor="create-user-confirm-password"
+            errors={[form.formState.errors.confirmPassword]}
+          >
             <Input
               id="create-user-confirm-password"
               type="password"
@@ -195,8 +207,7 @@ export function CreateUserDialog({
               disabled={createUserMutation.isPending}
               {...confirmPasswordField}
             />
-            <FieldError errors={[form.formState.errors.confirmPassword]} />
-          </div>
+          </AppFormField>
 
           {canCreateSuperusers ? (
             <Controller
@@ -239,17 +250,12 @@ export function CreateUserDialog({
               name="rootEntityId"
               control={form.control}
               render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="create-user-root-entity">Root organization</Label>
-                    <AppInfoPopover
-                      label="Explain create user root organization"
-                      title="Root organization"
-                    >
-                      Optional. Assigns the account to a root entity. Must be a
-                      top-level organization, not a nested region or office.
-                    </AppInfoPopover>
-                  </div>
+                <AppFormField
+                  label="Root organization"
+                  htmlFor="create-user-root-entity"
+                  description="Optional. Assigns the account to a top-level organization, not a nested region or office."
+                  errors={[fieldState.error]}
+                >
                   <Combobox
                     items={rootEntityOptions}
                     itemToStringValue={(item) =>
@@ -289,15 +295,12 @@ export function CreateUserDialog({
                       </ComboboxList>
                     </ComboboxContent>
                   </Combobox>
-                  <FieldError errors={[fieldState.error]} />
-                </div>
+                </AppFormField>
               )}
             />
           ) : null}
 
-          {submitError ? (
-            <p className="text-sm text-destructive">{submitError}</p>
-          ) : null}
+          {submitError ? <FieldError>{submitError}</FieldError> : null}
         </form>
 
         <DialogFooter>

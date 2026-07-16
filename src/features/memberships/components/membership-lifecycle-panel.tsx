@@ -1,9 +1,8 @@
 import { CalendarClock } from 'lucide-react'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
+import { AppFormField } from '@/components/app/app-form-field'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
-import { FieldError } from '@/components/ui/field'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -77,8 +76,7 @@ export function MembershipLifecyclePanel({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{statusLabel}</Label>
+            <AppFormField label={statusLabel}>
               <Select
                 value={status}
                 onValueChange={(nextValue) => {
@@ -97,10 +95,12 @@ export function MembershipLifecyclePanel({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </AppFormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="membership-lifecycle-reason">{reasonLabel}</Label>
+            <AppFormField
+              label={reasonLabel}
+              htmlFor="membership-lifecycle-reason"
+            >
               <Textarea
                 id="membership-lifecycle-reason"
                 rows={2}
@@ -111,12 +111,14 @@ export function MembershipLifecyclePanel({
                   onReasonChange(event.target.value)
                 }}
               />
-            </div>
+            </AppFormField>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="membership-lifecycle-valid-from">Valid from</Label>
+            <AppFormField
+              label="Valid from"
+              htmlFor="membership-lifecycle-valid-from"
+            >
               <AppDateTimePicker
                 id="membership-lifecycle-valid-from"
                 value={validFrom}
@@ -124,9 +126,14 @@ export function MembershipLifecyclePanel({
                 disabled={disabled}
                 placeholder="Pick a start date"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="membership-lifecycle-valid-until">Valid until</Label>
+            </AppFormField>
+            <AppFormField
+              label="Valid until"
+              htmlFor="membership-lifecycle-valid-until"
+              errors={
+                validUntilError ? [{ message: validUntilError }] : undefined
+              }
+            >
               <AppDateTimePicker
                 id="membership-lifecycle-valid-until"
                 value={validUntil}
@@ -134,10 +141,8 @@ export function MembershipLifecyclePanel({
                 disabled={disabled}
                 placeholder="Pick an end date"
               />
-            </div>
+            </AppFormField>
           </div>
-
-          {validUntilError ? <FieldError>{validUntilError}</FieldError> : null}
         </div>
       </div>
     </section>

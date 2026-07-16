@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm, useWatch } from 'react-hook-form'
-import { z } from 'zod'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,7 +32,11 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-create-system-integration-api-key-mutation'
 import { useUpdateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-update-system-integration-api-key-mutation'
-import { apiKeyRateLimitPerMinuteSchema } from '@/features/api-keys/schemas/api-key-form.schema'
+import {
+  systemIntegrationApiKeyFormSchema,
+  type SystemIntegrationApiKeyFormInput,
+  type SystemIntegrationApiKeyFormValues,
+} from '@/features/api-keys/schemas/system-integration-api-key-form.schema'
 import type {
   ApiKey,
   CreateApiKeyResponse,
@@ -49,28 +53,6 @@ import { RolePermissionsPicker } from '@/features/roles/components/role-permissi
 import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
-
-const systemIntegrationApiKeyFormSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required.').max(200),
-  description: z.string().trim().max(1000),
-  accessMode: z.enum(['full', 'restricted']),
-  selectedScopes: z.array(z.string()),
-  ipWhitelistText: z.string(),
-  prefixType: z.string().trim().min(1, 'Prefix type is required.'),
-  rateLimitPerMinute: apiKeyRateLimitPerMinuteSchema,
-  expiresInDays: z.union([
-    z.literal(''),
-    z.coerce
-      .number()
-      .int('Enter a whole number of days.')
-      .min(1, 'Expiration must be at least 1 day.')
-      .max(3650, 'Expiration is too far in the future.'),
-  ]),
-  status: z.enum(['active', 'suspended']),
-})
-
-type SystemIntegrationApiKeyFormValues = z.infer<typeof systemIntegrationApiKeyFormSchema>
-type SystemIntegrationApiKeyFormInput = z.input<typeof systemIntegrationApiKeyFormSchema>
 
 type SystemIntegrationApiKeyFormDialogProps = {
   open: boolean
@@ -310,19 +292,26 @@ export function SystemIntegrationApiKeyFormDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="system-api-key-name">Name</Label>
+            <AppFormField
+              className="sm:col-span-2"
+              label="Name"
+              htmlFor="system-api-key-name"
+              errors={[form.formState.errors.name]}
+            >
               <Input
                 id="system-api-key-name"
                 placeholder="Scraping Worker Key"
                 disabled={isPending}
                 {...form.register('name')}
               />
-              <FieldError errors={[form.formState.errors.name]} />
-            </div>
+            </AppFormField>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="system-api-key-description">Description</Label>
+            <AppFormField
+              className="sm:col-span-2"
+              label="Description"
+              htmlFor="system-api-key-description"
+              errors={[form.formState.errors.description]}
+            >
               <Textarea
                 id="system-api-key-description"
                 rows={3}
@@ -330,8 +319,7 @@ export function SystemIntegrationApiKeyFormDialog({
                 disabled={isPending}
                 {...form.register('description')}
               />
-              <FieldError errors={[form.formState.errors.description]} />
-            </div>
+            </AppFormField>
 
             <div className="space-y-3 sm:col-span-2">
               <div className="space-y-1">
@@ -447,8 +435,11 @@ export function SystemIntegrationApiKeyFormDialog({
             </div>
 
             {mode === 'create' ? (
-              <div className="space-y-2">
-                <Label htmlFor="system-api-key-expires-days">Expires in days</Label>
+              <AppFormField
+                label="Expires in days"
+                htmlFor="system-api-key-expires-days"
+                errors={[form.formState.errors.expiresInDays]}
+              >
                 <Input
                   id="system-api-key-expires-days"
                   type="number"
@@ -457,8 +448,7 @@ export function SystemIntegrationApiKeyFormDialog({
                   disabled={isPending}
                   {...form.register('expiresInDays')}
                 />
-                <FieldError errors={[form.formState.errors.expiresInDays]} />
-              </div>
+              </AppFormField>
             ) : (
               <div className="space-y-2">
                 <Label>Lifecycle</Label>
@@ -485,18 +475,25 @@ export function SystemIntegrationApiKeyFormDialog({
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="system-api-key-prefix-type">Prefix type</Label>
+            <AppFormField
+              label="Prefix type"
+              htmlFor="system-api-key-prefix-type"
+              errors={[form.formState.errors.prefixType]}
+            >
               <Input
                 id="system-api-key-prefix-type"
                 disabled={isPending || mode === 'edit'}
                 {...form.register('prefixType')}
               />
-              <FieldError errors={[form.formState.errors.prefixType]} />
-            </div>
+            </AppFormField>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="system-api-key-ip-whitelist">IP whitelist</Label>
+            <AppFormField
+              className="sm:col-span-2"
+              label="IP whitelist"
+              htmlFor="system-api-key-ip-whitelist"
+              description="Separate addresses or CIDR blocks with commas or new lines."
+              errors={[form.formState.errors.ipWhitelistText]}
+            >
               <Textarea
                 id="system-api-key-ip-whitelist"
                 rows={3}
@@ -504,18 +501,10 @@ export function SystemIntegrationApiKeyFormDialog({
                 disabled={isPending}
                 {...form.register('ipWhitelistText')}
               />
-              <div className="text-xs text-muted-foreground">
-                Separate addresses or CIDR blocks with commas or new lines.
-              </div>
-              <FieldError errors={[form.formState.errors.ipWhitelistText]} />
-            </div>
+            </AppFormField>
           </div>
 
-          {submitError ? (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {submitError}
-            </div>
-          ) : null}
+          {submitError ? <FieldError>{submitError}</FieldError> : null}
         </form>
 
         <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
+import { AppFormField } from '@/components/app/app-form-field'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -242,19 +243,24 @@ export function ApiKeyFormDialog({
           <div className="space-y-5">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="api-key-name">Name</Label>
+                <AppFormField
+                  label="Name"
+                  htmlFor="api-key-name"
+                  errors={[form.formState.errors.name]}
+                >
                   <Input
                     id="api-key-name"
                     placeholder="Reporting automation key"
                     disabled={isPending}
                     {...form.register('name')}
                   />
-                  <FieldError errors={[form.formState.errors.name]} />
-                </div>
+                </AppFormField>
 
-                <div className="space-y-2">
-                  <Label htmlFor="api-key-description">Description</Label>
+                <AppFormField
+                  label="Description"
+                  htmlFor="api-key-description"
+                  errors={[form.formState.errors.description]}
+                >
                   <Textarea
                     id="api-key-description"
                     rows={3}
@@ -262,43 +268,44 @@ export function ApiKeyFormDialog({
                     disabled={isPending}
                     {...form.register('description')}
                   />
-                  <FieldError errors={[form.formState.errors.description]} />
-                </div>
+                </AppFormField>
               </div>
 
               <div className="space-y-4">
                 {entityHierarchyEnabled ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="api-key-entity">Anchor entity</Label>
-                    <Controller
-                      control={form.control}
-                      name="entityId"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value || '__none__'}
-                          onValueChange={(value) => {
-                            field.onChange(value === '__none__' ? '' : value)
-                          }}
-                          disabled={isPending}
-                        >
-                          <SelectTrigger id="api-key-entity" className="w-full">
-                            <SelectValue>{selectedEntityLabel}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">No entity anchor</SelectItem>
-                            {entityOptions.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.pathLabel}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <div className="text-xs text-muted-foreground">
-                      Leave unset for an unanchored personal key.
-                    </div>
-                    <FieldError errors={[form.formState.errors.entityId]} />
+                  <div className="space-y-4">
+                    <AppFormField
+                      label="Anchor entity"
+                      htmlFor="api-key-entity"
+                      description="Leave unset for an unanchored personal key."
+                      errors={[form.formState.errors.entityId]}
+                    >
+                      <Controller
+                        control={form.control}
+                        name="entityId"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value || '__none__'}
+                            onValueChange={(value) => {
+                              field.onChange(value === '__none__' ? '' : value)
+                            }}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger id="api-key-entity" className="w-full">
+                              <SelectValue>{selectedEntityLabel}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">No entity anchor</SelectItem>
+                              {entityOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.pathLabel}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </AppFormField>
 
                     <Controller
                       control={form.control}
@@ -369,8 +376,11 @@ export function ApiKeyFormDialog({
                 </div>
 
                 {mode === 'create' ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="api-key-expires-days">Expires in days</Label>
+                  <AppFormField
+                    label="Expires in days"
+                    htmlFor="api-key-expires-days"
+                    errors={[form.formState.errors.expiresInDays]}
+                  >
                     <Input
                       id="api-key-expires-days"
                       type="number"
@@ -379,7 +389,7 @@ export function ApiKeyFormDialog({
                       disabled={isPending}
                       {...form.register('expiresInDays')}
                     />
-                  </div>
+                  </AppFormField>
                 ) : (
                   <div className="space-y-2">
                     <Label>Lifecycle</Label>
@@ -405,31 +415,31 @@ export function ApiKeyFormDialog({
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="api-key-prefix-type">Prefix type</Label>
+                <AppFormField
+                  label="Prefix type"
+                  htmlFor="api-key-prefix-type"
+                  errors={[form.formState.errors.prefixType]}
+                >
                   <Input
                     id="api-key-prefix-type"
                     disabled={isPending || mode === 'edit'}
                     {...form.register('prefixType')}
                   />
-                </div>
+                </AppFormField>
               </div>
               <div className="text-xs text-muted-foreground">
                 Keep compact numeric settings left-aligned. Use 0 or Unlimited for trusted keys.
               </div>
               <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
-              <FieldError errors={[form.formState.errors.expiresInDays]} />
               <FieldError errors={[form.formState.errors.status]} />
-              <FieldError errors={[form.formState.errors.prefixType]} />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="api-key-ip-whitelist">IP whitelist</Label>
-                <div className="text-xs text-muted-foreground">
-                  Separate addresses or CIDR blocks with commas or new lines.
-                </div>
-              </div>
+            <AppFormField
+              label="IP whitelist"
+              htmlFor="api-key-ip-whitelist"
+              description="Separate addresses or CIDR blocks with commas or new lines."
+              errors={[form.formState.errors.ipWhitelistText]}
+            >
               <Textarea
                 id="api-key-ip-whitelist"
                 rows={3}
@@ -437,8 +447,7 @@ export function ApiKeyFormDialog({
                 disabled={isPending}
                 {...form.register('ipWhitelistText')}
               />
-              <FieldError errors={[form.formState.errors.ipWhitelistText]} />
-            </div>
+            </AppFormField>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
@@ -539,11 +548,7 @@ export function ApiKeyFormDialog({
             </div>
           </div>
 
-          {submitErrorMessage ? (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {submitErrorMessage}
-            </div>
-          ) : null}
+          {submitErrorMessage ? <FieldError>{submitErrorMessage}</FieldError> : null}
         </form>
 
         <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">

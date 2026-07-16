@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
+import { AppFormField } from '@/components/app/app-form-field';
+import { AppStatusCallout } from '@/components/app/app-status-callout';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +15,6 @@ import {
 } from '@/components/ui/dialog';
 import { FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useDeleteUserMutation } from '@/features/users/hooks/use-delete-user-mutation';
 import {
   createDeleteUserSchema,
@@ -85,15 +86,16 @@ export function DeleteUserDialog({
             }
           })}
         >
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AppStatusCallout color="warning" appearance="soft" compact>
             This soft-deletes the account, blocks future sign-in, and preserves
             the audit trail.
-          </div>
+          </AppStatusCallout>
 
-          <div className="space-y-2">
-            <Label htmlFor="delete-user-confirm-email">
-              Type {userEmail} to confirm
-            </Label>
+          <AppFormField
+            label={`Type ${userEmail} to confirm`}
+            htmlFor="delete-user-confirm-email"
+            errors={[form.formState.errors.email]}
+          >
             <Input
               id="delete-user-confirm-email"
               type="email"
@@ -101,13 +103,10 @@ export function DeleteUserDialog({
               disabled={deleteUserMutation.isPending}
               {...form.register('email')}
             />
-            <FieldError errors={[form.formState.errors.email]} />
-          </div>
+          </AppFormField>
 
           {submitError ? (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {submitError}
-            </div>
+            <FieldError>{submitError}</FieldError>
           ) : null}
         </form>
 

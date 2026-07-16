@@ -1,20 +1,17 @@
 import { useEffect } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 
+import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
+import { AppSection } from '@/components/app/app-section'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { AppStatusCallout } from '@/components/app/app-status-callout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import {
   Field,
   FieldDescription,
@@ -24,10 +21,15 @@ import {
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { getMySessionsQueryOptions } from '@/features/account/api/account.query-options'
 import { useChangeCurrentUserPasswordMutation } from '@/features/account/hooks/use-change-current-user-password-mutation'
 import { useConfirmPhoneVerificationMutation } from '@/features/account/hooks/use-confirm-phone-verification-mutation'
 import { useRequestPhoneVerificationMutation } from '@/features/account/hooks/use-request-phone-verification-mutation'
+import { useRevokeAllMySessionsMutation } from '@/features/account/hooks/use-revoke-all-my-sessions-mutation'
+import { useRevokeMySessionMutation } from '@/features/account/hooks/use-revoke-my-session-mutation'
 import { useUpdateCurrentUserMutation } from '@/features/account/hooks/use-update-current-user-mutation'
+import { LinkedAccountsCard } from '@/features/account/components/linked-accounts-card'
+import { UserSessionsPanel } from '@/features/users/components/user-sessions-panel'
 import {
   changeAccountPasswordSchema,
   type ChangeAccountPasswordFormValues,
@@ -80,10 +82,13 @@ function getStatusTone(status: SessionUser['status']): AppStatusTone {
 
 export function AccountPage() {
   const sessionQuery = useSessionQuery()
+  const sessionsQuery = useQuery(getMySessionsQueryOptions())
   const updateProfileMutation = useUpdateCurrentUserMutation()
   const changePasswordMutation = useChangeCurrentUserPasswordMutation()
   const requestPhoneVerificationMutation = useRequestPhoneVerificationMutation()
   const confirmPhoneVerificationMutation = useConfirmPhoneVerificationMutation()
+  const revokeMySessionMutation = useRevokeMySessionMutation()
+  const revokeAllMySessionsMutation = useRevokeAllMySessionsMutation()
   const profileForm = useForm<UpdateAccountProfileFormValues>({
     resolver: zodResolver(updateAccountProfileSchema),
     defaultValues: {
@@ -154,13 +159,13 @@ export function AccountPage() {
 
   if (sessionQuery.isError || !sessionUser) {
     return (
-      <AppPage title="Account" padded>
-        <AppStatusCallout tone="error" role="alert">
+      <AppPage title="Account" hideTitle padded>
+        <AppErrorState>
           {getApiErrorMessage(
             sessionQuery.error,
             'The current account session could not be loaded.'
           )}
-        </AppStatusCallout>
+        </AppErrorState>
       </AppPage>
     )
   }
@@ -175,21 +180,14 @@ export function AccountPage() {
   const confirmPasswordField = passwordForm.register('confirmPassword')
 
   return (
-    <AppPage
-      title="Account"
-      padded
-      description="Manage your own profile, session-facing lifecycle state, and password using the current self-service backend endpoints."
-    >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card className="border border-border/70">
-          <CardHeader className="gap-3">
-            <div className="space-y-2">
-              <CardTitle className="text-xl">Session snapshot</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                This card reflects the current <code>/users/me</code> response that
-                drives the app shell.
-              </p>
-            </div>
+    <AppPage title="Account" hideTitle padded>
+      <div className="space-y-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <AppSection
+            title="Session snapshot"
+            description="Reflects the current /users/me response that drives the app shell."
+            contentClassName="space-y-5"
+          >
             <div className="flex flex-wrap gap-2">
               <AppStatusBadge tone={getStatusTone(sessionUser.status)}>
                 {formatStatusLabel(sessionUser.status)}
@@ -208,8 +206,7 @@ export function AccountPage() {
                 <Badge variant="outline">Superuser</Badge>
               ) : null}
             </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
+
             {sessionUser.locked_until ? (
               <AppStatusCallout tone="warning">
                 A temporary lockout is active until{' '}
@@ -281,21 +278,13 @@ export function AccountPage() {
                 </dd>
               </div>
             </dl>
-          </CardContent>
-        </Card>
+          </AppSection>
 
-        <div className="grid gap-4">
-          <Card className="border border-border/70">
-            <CardHeader className="gap-3">
-              <div className="space-y-2">
-                <CardTitle className="text-xl">Self-service profile</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Update the same identity fields available through
-                  <code> PATCH /users/me</code>.
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent>
+          <div className="grid gap-4">
+            <AppSection
+              title="Self-service profile"
+              description="Update the same identity fields available through PATCH /users/me."
+            >
               <form
                 className="space-y-5"
                 onSubmit={profileForm.handleSubmit(async (values) => {
@@ -506,20 +495,12 @@ export function AccountPage() {
                   </FieldGroup>
                 </form>
               ) : null}
-            </CardContent>
-          </Card>
+            </AppSection>
 
-          <Card className="border border-border/70">
-            <CardHeader className="gap-3">
-              <div className="space-y-2">
-                <CardTitle className="text-xl">Password</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Change your password through <code>/users/me/change-password</code>{' '}
-                  without using the admin reset flow.
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent>
+            <AppSection
+              title="Password"
+              description="Change your password through /users/me/change-password without using the admin reset flow."
+            >
               <form
                 className="space-y-5"
                 onSubmit={passwordForm.handleSubmit(async (values) => {
@@ -629,8 +610,27 @@ export function AccountPage() {
                   </Field>
                 </FieldGroup>
               </form>
-            </CardContent>
-          </Card>
+            </AppSection>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <UserSessionsPanel
+            title="Active sessions"
+            description="Sign out other devices by revoking their refresh-token sessions. Revoking all sessions will also end this browser session after the next refresh."
+            canRevoke
+            sessionsQuery={sessionsQuery}
+            isRevokingSession={revokeMySessionMutation.isPending}
+            isRevokingAll={revokeAllMySessionsMutation.isPending}
+            revokingSessionId={revokeMySessionMutation.variables ?? null}
+            onRevokeSession={async (sessionId) => {
+              await revokeMySessionMutation.mutateAsync(sessionId)
+            }}
+            onRevokeAll={async () => {
+              await revokeAllMySessionsMutation.mutateAsync()
+            }}
+          />
+          <LinkedAccountsCard />
         </div>
       </div>
     </AppPage>

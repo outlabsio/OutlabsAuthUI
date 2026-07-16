@@ -14,7 +14,7 @@ import { AppStatusBadge } from '@/components/app/app-status-badge'
 import type { AppStatusTone } from '@/components/app/app-status'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DataTableColumnHeader } from '@/components/ui/data-table-column-header'
+import { AppDataTableColumnHeader } from '@/components/app/app-data-table-column-header'
 import {
   Table,
   TableBody,
@@ -147,7 +147,7 @@ export function UsersTable({
         id: 'user',
         accessorFn: (user) => getUserDisplayName(user).toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="User" />
+          <AppDataTableColumnHeader column={column} title="User" />
         ),
         cell: ({ row }) => {
           const user = row.original
@@ -170,7 +170,7 @@ export function UsersTable({
         id: 'access',
         accessorFn: (user) => `${user.status}:${getScopeLabel(user)}`.toLowerCase(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Access" />
+          <AppDataTableColumnHeader column={column} title="Access" />
         ),
         cell: ({ row }) => {
           const user = row.original
@@ -200,7 +200,7 @@ export function UsersTable({
         id: 'activity',
         accessorFn: getLastLoginSortValue,
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Activity" />
+          <AppDataTableColumnHeader column={column} title="Activity" />
         ),
         cell: ({ row }) => {
           const user = row.original

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, ShieldAlert } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppPage } from '@/components/app/app-page'
@@ -399,9 +400,11 @@ export function ApiKeysPage() {
   if (!apiKeysEnabled) {
     return (
       <AppPage title={pageTitle} hideTitle padded>
-        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-          The current backend preset does not advertise API key support.
-        </div>
+        <AppEmptyState
+          title="API keys unavailable"
+          description="The current backend preset does not advertise API key support."
+          compact
+        />
       </AppPage>
     )
   }
@@ -409,9 +412,11 @@ export function ApiKeysPage() {
   if (!supportsSystemKeysWorkspace) {
     return (
       <AppPage title={pageTitle} hideTitle padded>
-        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-          System integration keys are not available for the current backend preset.
-        </div>
+        <AppEmptyState
+          title="System keys unavailable"
+          description="System integration keys are not available for the current backend preset."
+          compact
+        />
       </AppPage>
     )
   }
@@ -419,9 +424,11 @@ export function ApiKeysPage() {
   if (!canReadApiKeys) {
     return (
       <AppPage title={pageTitle} hideTitle padded>
-        <div className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-          Insufficient permissions. You need API key read access to use this workspace.
-        </div>
+        <AppEmptyState
+          title="Insufficient permissions"
+          description="You need API key read access to use this workspace."
+          compact
+        />
       </AppPage>
     )
   }

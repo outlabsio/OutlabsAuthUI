@@ -30,6 +30,7 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from '@/components/ui/input-otp'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { AuthCard } from '@/features/auth/components/auth-card'
 import { AuthRequestCooldownNote } from '@/features/auth/components/auth-request-cooldown-note'
@@ -37,11 +38,16 @@ import { AuthStatusCard } from '@/features/auth/components/auth-status-card'
 import { useRequestAccessCodeMutation } from '@/features/auth/hooks/use-request-access-code-mutation'
 import { useVerifyAccessCodeMutation } from '@/features/auth/hooks/use-verify-access-code-mutation'
 import {
+  type AccessCodeChannel,
   type AccessCodeRequestFormValues,
   type AccessCodeVerifyFormValues,
   accessCodeRequestSchema,
   accessCodeVerifySchema,
 } from '@/features/auth/schemas/access-code.schema'
+import type {
+  AccessCodeRequestInput,
+  AccessCodeVerifyInput,
+} from '@/features/auth/types/auth.types'
 import { getAuthErrorMessage } from '@/features/auth/utils/auth-error-message'
 import {
   formatCooldown,
@@ -81,6 +87,61 @@ function buildRedirectUrl(redirect?: string) {
   return `${window.location.origin}${getSafeRedirectTarget(redirect)}`
 }
 
+function buildAccessCodeRequestInput(
+  values: AccessCodeRequestFormValues,
+  redirect?: string
+): AccessCodeRequestInput {
+  if (values.channel === 'whatsapp' || values.channel === 'sms') {
+    return {
+      phone: values.phone,
+      channel: values.channel,
+      redirect_url: buildRedirectUrl(redirect),
+    }
+  }
+
+  return {
+    email: values.email,
+    channel: 'email',
+    redirect_url: buildRedirectUrl(redirect),
+  }
+}
+
+function buildAccessCodeVerifyInput(
+  values: AccessCodeVerifyFormValues
+): AccessCodeVerifyInput {
+  if (values.channel === 'whatsapp' || values.channel === 'sms') {
+    return {
+      phone: values.phone,
+      channel: values.channel,
+      code: values.code,
+    }
+  }
+
+  return {
+    email: values.email,
+    channel: 'email',
+    code: values.code,
+  }
+}
+
+function getIdentifierLabel(channel: AccessCodeChannel) {
+  if (channel === 'whatsapp') {
+    return 'WhatsApp number'
+  }
+  if (channel === 'sms') {
+    return 'SMS number'
+  }
+  return 'email address'
+}
+
+function getFieldError(
+  errors: Record<string, unknown>,
+  name: string
+) {
+  const error = errors[name]
+  return error && typeof error === 'object' ? error : undefined
+}
+
 export function AccessCodePage() {
   const { mode, redirect } = useSearch({
     from: '/auth/access-code',
@@ -88,33 +149,53 @@ export function AccessCodePage() {
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const requestAccessCodeMutation = useRequestAccessCodeMutation()
   const verifyAccessCodeMutation = useVerifyAccessCodeMutation()
-  const [requestedEmail, setRequestedEmail] = useState<string | null>(null)
+  const [channel, setChannel] = useState<AccessCodeChannel>('email')
+  const [requestedIdentifier, setRequestedIdentifier] = useState<string | null>(
+    null
+  )
   const [isEnteringCode, setIsEnteringCode] = useState(mode === 'verify')
   const requestForm = useForm<AccessCodeRequestFormValues>({
     resolver: zodResolver(accessCodeRequestSchema),
     defaultValues: {
+      channel: 'email',
       email: '',
     },
   })
   const verifyForm = useForm<AccessCodeVerifyFormValues>({
     resolver: zodResolver(accessCodeVerifySchema),
     defaultValues: {
+      channel: 'email',
       email: '',
       code: '',
     },
   })
   const requestEmailField = requestForm.register('email')
+  const requestPhoneField = requestForm.register('phone')
   const verifyEmailField = verifyForm.register('email')
+  const verifyPhoneField = verifyForm.register('phone')
   const requestEmailValue = useWatch({
     control: requestForm.control,
     name: 'email',
+  })
+  const requestPhoneValue = useWatch({
+    control: requestForm.control,
+    name: 'phone',
   })
   const verifyEmailValue = useWatch({
     control: verifyForm.control,
     name: 'email',
   })
+  const verifyPhoneValue = useWatch({
+    control: verifyForm.control,
+    name: 'phone',
+  })
+  const activeIdentifier =
+    requestedIdentifier ||
+    (channel === 'email'
+      ? (verifyEmailValue ?? requestEmailValue)
+      : (verifyPhoneValue ?? requestPhoneValue))
   const cooldown = useAuthRequestCooldown({
-    email: requestedEmail || verifyEmailValue || requestEmailValue,
+    identifier: activeIdentifier,
     kind: 'access-code',
   })
 
@@ -126,7 +207,9 @@ export function AccessCodePage() {
   const requestSubmitError = requestAccessCodeMutation.error
     ? getApiErrorMessage(
         requestAccessCodeMutation.error,
-        'Unable to request an access code.'
+        channel === 'sms'
+          ? 'SMS sign-in is not configured on this backend yet.'
+          : 'Unable to request an access code.'
       )
     : null
 
@@ -137,22 +220,54 @@ export function AccessCodePage() {
       )
     : null
 
-  async function requestCode(email: string) {
+  function switchChannel(nextChannel: AccessCodeChannel) {
+    if (nextChannel === channel) {
+      return
+    }
+
+    setChannel(nextChannel)
+    setRequestedIdentifier(null)
+    requestAccessCodeMutation.reset()
+    verifyAccessCodeMutation.reset()
+
+    if (nextChannel === 'email') {
+      requestForm.reset({ channel: 'email', email: '' })
+      verifyForm.reset({ channel: 'email', email: '', code: '' })
+      return
+    }
+
+    requestForm.reset({ channel: nextChannel, phone: '' })
+    verifyForm.reset({ channel: nextChannel, phone: '', code: '' })
+  }
+
+  async function requestCode(values: AccessCodeRequestFormValues) {
     if (cooldown.isCoolingDown) {
       return
     }
 
+    const identifier =
+      values.channel === 'email' ? values.email : values.phone
+
     try {
-      await requestAccessCodeMutation.mutateAsync({
-        email,
-        redirect_url: buildRedirectUrl(redirect),
-      })
-      setRequestedEmail(email)
+      await requestAccessCodeMutation.mutateAsync(
+        buildAccessCodeRequestInput(values, redirect)
+      )
+      setChannel(values.channel)
+      setRequestedIdentifier(identifier)
       setIsEnteringCode(true)
-      verifyForm.reset({
-        email,
-        code: '',
-      })
+      if (values.channel === 'email') {
+        verifyForm.reset({
+          channel: 'email',
+          email: values.email,
+          code: '',
+        })
+      } else {
+        verifyForm.reset({
+          channel: values.channel,
+          phone: values.phone,
+          code: '',
+        })
+      }
       cooldown.startCooldown()
     } catch (error) {
       const retryAfterSeconds = getRetryAfterSeconds(error)
@@ -167,7 +282,7 @@ export function AccessCodePage() {
     return (
       <AuthStatusCard
         title="Access codes unavailable"
-        description="This workspace is not accepting email code sign-ins right now."
+        description="This workspace is not accepting sign-in codes right now."
         actions={
           <Button nativeButton={false} render={<Link to={routes.auth.login} />}>
             Back to sign in
@@ -178,19 +293,18 @@ export function AccessCodePage() {
   }
 
   if (isEnteringCode) {
-    const lockedEmail = requestedEmail != null
-    const verificationEmail = requestedEmail ?? verifyEmailValue
-    const canResendCode = Boolean(verificationEmail)
+    const lockedIdentifier = requestedIdentifier != null
+    const verificationIdentifier = requestedIdentifier ?? activeIdentifier
+    const canResendCode = Boolean(verificationIdentifier)
 
     return (
       <form
         className="w-[calc(100vw-2rem)] min-w-0 max-w-[23.5rem]"
         onSubmit={verifyForm.handleSubmit(async (values) => {
           try {
-            await verifyAccessCodeMutation.mutateAsync({
-              email: requestedEmail ?? values.email,
-              code: values.code,
-            })
+            await verifyAccessCodeMutation.mutateAsync(
+              buildAccessCodeVerifyInput(values)
+            )
             window.location.assign(getSafeRedirectTarget(redirect))
           } catch {
             return
@@ -201,38 +315,88 @@ export function AccessCodePage() {
           <CardHeader>
             <CardTitle>Verify your login</CardTitle>
             <CardDescription>
-              {verificationEmail
-                ? 'Enter the verification code we sent to your email address: '
-                : 'Enter your email address and the verification code we sent you.'}
-              {verificationEmail ? (
-                <span className="font-medium">{verificationEmail}</span>
+              {verificationIdentifier
+                ? `Enter the verification code we sent to your ${getIdentifierLabel(channel)}: `
+                : `Enter your ${getIdentifierLabel(channel)} and the verification code we sent you.`}
+              {verificationIdentifier ? (
+                <span className="font-medium">{verificationIdentifier}</span>
               ) : null}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
-              {!lockedEmail ? (
-                <Field>
-                  <FieldLabel htmlFor="access-code-verify-email">
-                    Email address
-                  </FieldLabel>
-                  <Input
-                    id="access-code-verify-email"
-                    type="email"
-                    autoComplete="email"
-                    aria-invalid={Boolean(verifyForm.formState.errors.email)}
-                    disabled={verifyAccessCodeMutation.isPending}
-                    {...verifyEmailField}
-                    onChange={(event) => {
-                      if (verifyAccessCodeMutation.error) {
-                        verifyAccessCodeMutation.reset()
-                      }
+              {!lockedIdentifier ? (
+                channel === 'email' ? (
+                  <Field>
+                    <FieldLabel htmlFor="access-code-verify-email">
+                      Email address
+                    </FieldLabel>
+                    <Input
+                      id="access-code-verify-email"
+                      type="email"
+                      autoComplete="email"
+                      aria-invalid={Boolean(
+                        getFieldError(
+                          verifyForm.formState.errors as Record<string, unknown>,
+                          'email'
+                        )
+                      )}
+                      disabled={verifyAccessCodeMutation.isPending}
+                      {...verifyEmailField}
+                      onChange={(event) => {
+                        if (verifyAccessCodeMutation.error) {
+                          verifyAccessCodeMutation.reset()
+                        }
 
-                      verifyEmailField.onChange(event)
-                    }}
-                  />
-                  <FieldError errors={[verifyForm.formState.errors.email]} />
-                </Field>
+                        verifyEmailField.onChange(event)
+                      }}
+                    />
+                    <FieldError
+                      errors={[
+                        getFieldError(
+                          verifyForm.formState.errors as Record<string, unknown>,
+                          'email'
+                        ),
+                      ]}
+                    />
+                  </Field>
+                ) : (
+                  <Field>
+                    <FieldLabel htmlFor="access-code-verify-phone">
+                      {channel === 'sms' ? 'SMS number' : 'WhatsApp number'}
+                    </FieldLabel>
+                    <Input
+                      id="access-code-verify-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      placeholder="+15551234567"
+                      aria-invalid={Boolean(
+                        getFieldError(
+                          verifyForm.formState.errors as Record<string, unknown>,
+                          'phone'
+                        )
+                      )}
+                      disabled={verifyAccessCodeMutation.isPending}
+                      {...verifyPhoneField}
+                      onChange={(event) => {
+                        if (verifyAccessCodeMutation.error) {
+                          verifyAccessCodeMutation.reset()
+                        }
+
+                        verifyPhoneField.onChange(event)
+                      }}
+                    />
+                    <FieldError
+                      errors={[
+                        getFieldError(
+                          verifyForm.formState.errors as Record<string, unknown>,
+                          'phone'
+                        ),
+                      ]}
+                    />
+                  </Field>
+                )
               ) : null}
               <Field>
                 <div className="flex items-center justify-between">
@@ -249,8 +413,20 @@ export function AccessCodePage() {
                       cooldown.isCoolingDown
                     }
                     onClick={() => {
-                      if (verificationEmail) {
-                        void requestCode(verificationEmail)
+                      if (!verificationIdentifier) {
+                        return
+                      }
+
+                      if (channel === 'email') {
+                        void requestCode({
+                          channel: 'email',
+                          email: verificationIdentifier,
+                        })
+                      } else {
+                        void requestCode({
+                          channel,
+                          phone: verificationIdentifier,
+                        })
                       }
                     }}
                   >
@@ -365,8 +541,8 @@ export function AccessCodePage() {
 
   return (
     <AuthCard
-      title="Email sign-in code"
-      description="Enter your email and we will send a one-time code if the account exists."
+      title="Sign-in code"
+      description="Choose email, WhatsApp, or SMS. We send a one-time code if the account exists and the number is verified. SMS requires a configured SMS host."
       footer={
         <div className="text-sm text-muted-foreground">
           Already have a code?{' '}
@@ -374,14 +550,23 @@ export function AccessCodePage() {
             type="button"
             className="underline underline-offset-4 transition-colors hover:text-primary"
             onClick={() => {
-              setRequestedEmail(null)
+              setRequestedIdentifier(null)
               setIsEnteringCode(true)
               requestAccessCodeMutation.reset()
               verifyAccessCodeMutation.reset()
-              verifyForm.reset({
-                email: requestEmailValue ?? '',
-                code: '',
-              })
+              if (channel === 'email') {
+                verifyForm.reset({
+                  channel: 'email',
+                  email: requestEmailValue ?? '',
+                  code: '',
+                })
+              } else {
+                verifyForm.reset({
+                  channel,
+                  phone: requestPhoneValue ?? '',
+                  code: '',
+                })
+              }
             }}
           >
             Enter it here
@@ -391,29 +576,114 @@ export function AccessCodePage() {
     >
       <form
         onSubmit={requestForm.handleSubmit(async (values) => {
-          await requestCode(values.email)
+          await requestCode(values)
         })}
       >
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="access-code-email">Email</FieldLabel>
-            <Input
-              id="access-code-email"
-              type="email"
-              autoComplete="email"
-              aria-invalid={Boolean(requestForm.formState.errors.email)}
-              disabled={requestAccessCodeMutation.isPending}
-              {...requestEmailField}
-              onChange={(event) => {
-                if (requestAccessCodeMutation.error) {
-                  requestAccessCodeMutation.reset()
-                }
+            <FieldLabel>Send code via</FieldLabel>
+            <ToggleGroup
+              aria-label="Access code channel"
+              className="w-full"
+              variant="outline"
+              value={[channel]}
+              onValueChange={(nextValue) => {
+                const [selected] = nextValue
 
-                requestEmailField.onChange(event)
+                if (
+                  selected === 'email' ||
+                  selected === 'whatsapp' ||
+                  selected === 'sms'
+                ) {
+                  switchChannel(selected)
+                }
               }}
-            />
-            <FieldError errors={[requestForm.formState.errors.email]} />
+            >
+              <ToggleGroupItem className="flex-1" value="email">
+                Email
+              </ToggleGroupItem>
+              <ToggleGroupItem className="flex-1" value="whatsapp">
+                WhatsApp
+              </ToggleGroupItem>
+              <ToggleGroupItem className="flex-1" value="sms">
+                SMS
+              </ToggleGroupItem>
+            </ToggleGroup>
           </Field>
+          {channel === 'email' ? (
+            <Field>
+              <FieldLabel htmlFor="access-code-email">Email</FieldLabel>
+              <Input
+                id="access-code-email"
+                type="email"
+                autoComplete="email"
+                aria-invalid={Boolean(
+                  getFieldError(
+                    requestForm.formState.errors as Record<string, unknown>,
+                    'email'
+                  )
+                )}
+                disabled={requestAccessCodeMutation.isPending}
+                {...requestEmailField}
+                onChange={(event) => {
+                  if (requestAccessCodeMutation.error) {
+                    requestAccessCodeMutation.reset()
+                  }
+
+                  requestEmailField.onChange(event)
+                }}
+              />
+              <FieldError
+                errors={[
+                  getFieldError(
+                    requestForm.formState.errors as Record<string, unknown>,
+                    'email'
+                  ),
+                ]}
+              />
+            </Field>
+          ) : (
+            <Field>
+              <FieldLabel htmlFor="access-code-phone">
+                {channel === 'sms' ? 'SMS number' : 'WhatsApp number'}
+              </FieldLabel>
+              <Input
+                id="access-code-phone"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                placeholder="+15551234567"
+                aria-invalid={Boolean(
+                  getFieldError(
+                    requestForm.formState.errors as Record<string, unknown>,
+                    'phone'
+                  )
+                )}
+                disabled={requestAccessCodeMutation.isPending}
+                {...requestPhoneField}
+                onChange={(event) => {
+                  if (requestAccessCodeMutation.error) {
+                    requestAccessCodeMutation.reset()
+                  }
+
+                  requestPhoneField.onChange(event)
+                }}
+              />
+              <FieldDescription>
+                {channel === 'sms'
+                  ? 'SMS delivery depends on host configuration. Use the verified E.164 number on your account.'
+                  : 'Use the verified E.164 number on your account.'}
+              </FieldDescription>
+              <FieldError
+                errors={[
+                  getFieldError(
+                    requestForm.formState.errors as Record<string, unknown>,
+                    'phone'
+                  ),
+                ]}
+              />
+            </Field>
+          )}
           <Field>
             <Button
               type="submit"

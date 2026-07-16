@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { KeyRound, RefreshCcw, Trash2 } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
@@ -230,13 +231,17 @@ export function ApiKeysIntegrationsPanel({
                   </Card>
 
                   {effectiveScopeKind === 'platform_global' && !canManagePlatformPrincipals ? (
-                    <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                      {platformGlobalUnavailableMessage}
-                    </div>
+                    <AppEmptyState
+                      title="Platform accounts unavailable"
+                      description={platformGlobalUnavailableMessage}
+                      compact
+                    />
                   ) : effectiveScopeKind === 'entity' && !effectiveSelectedEntityId ? (
-                    <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                      Select an entity to load service accounts.
-                    </div>
+                    <AppEmptyState
+                      title="Select an entity"
+                      description="Select an entity to load service accounts."
+                      compact
+                    />
                   ) : (
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
                       <Card>
@@ -279,9 +284,11 @@ export function ApiKeysIntegrationsPanel({
                               )}
                             </AppErrorState>
                           ) : integrationPrincipals.length === 0 ? (
-                            <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                              No service accounts match the current scope and search.
-                            </div>
+                            <AppEmptyState
+                              title="No service accounts"
+                              description="No service accounts match the current scope and search."
+                              compact
+                            />
                           ) : (
                             <Table>
                               <TableHeader>
@@ -358,9 +365,11 @@ export function ApiKeysIntegrationsPanel({
                           </CardHeader>
                           <CardContent className="space-y-4">
                             {!activePrincipal ? (
-                              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                Select a service account from the table to inspect its details.
-                              </div>
+                              <AppEmptyState
+                                title="No account selected"
+                                description="Select a service account from the table to inspect its details."
+                                compact
+                              />
                             ) : (
                               <>
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -523,9 +532,11 @@ export function ApiKeysIntegrationsPanel({
                           </CardHeader>
                           <CardContent className="space-y-4">
                             {!activePrincipal ? (
-                              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                Select a service account to load its keys.
-                              </div>
+                              <AppEmptyState
+                                title="No account selected"
+                                description="Select a service account to load its keys."
+                                compact
+                              />
                             ) : principalKeysQuery.isLoading ? (
                               <AppLoadingState title="Loading machine keys" />
                             ) : principalKeysQuery.isError ? (
@@ -536,9 +547,11 @@ export function ApiKeysIntegrationsPanel({
                                 )}
                               </AppErrorState>
                             ) : principalKeys.length === 0 ? (
-                              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                No keys exist for this service account yet.
-                              </div>
+                              <AppEmptyState
+                                title="No machine keys"
+                                description="No keys exist for this service account yet."
+                                compact
+                              />
                             ) : (
                               <>
                                 <Table>

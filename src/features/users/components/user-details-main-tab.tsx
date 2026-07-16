@@ -2,6 +2,8 @@ import { Controller, type UseFormReturn } from 'react-hook-form';
 import { KeyRound, Shield } from 'lucide-react';
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker';
+import { AppErrorState } from '@/components/app/app-error-state';
+import { AppStatusCallout } from '@/components/app/app-status-callout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
@@ -199,15 +201,13 @@ export function UserDetailsMainTab({
                       <FieldError errors={[profileForm.formState.errors.phone]} />
                     </div>
                     {!canUpdateUsers ? (
-                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                      <AppStatusCallout color="neutral" appearance="soft" compact>
                         Your account can view this profile, but it cannot update user
                         details.
-                      </div>
+                      </AppStatusCallout>
                     ) : null}
                     {profileError ? (
-                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                        {profileError}
-                      </div>
+                      <FieldError>{profileError}</FieldError>
                     ) : null}
                   </form>
                 </DetailSection>
@@ -385,33 +385,25 @@ export function UserDetailsMainTab({
                         <FieldError errors={[statusForm.formState.errors.reason]} />
                       </div>
                       {user.status === 'deleted' ? (
-                        <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                        <AppStatusCallout color="neutral" appearance="soft" compact>
                           Deleted users cannot change status here. Restore is
                           identity-only, so memberships, direct roles, refresh
                           tokens, and API keys stay revoked until you grant access
                           again.
-                        </div>
+                        </AppStatusCallout>
                       ) : null}
                       {!canUpdateUsers ? (
-                        <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                        <AppStatusCallout color="neutral" appearance="soft" compact>
                           Your account can view this status, but it cannot change
                           account access.
-                        </div>
+                        </AppStatusCallout>
                       ) : null}
-                      {statusError ? (
-                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                          {statusError}
-                        </div>
-                      ) : null}
+                      {statusError ? <FieldError>{statusError}</FieldError> : null}
                       {resendInviteError ? (
-                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                          {resendInviteError}
-                        </div>
+                        <AppErrorState compact>{resendInviteError}</AppErrorState>
                       ) : null}
                       {restoreUserError ? (
-                        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                          {restoreUserError}
-                        </div>
+                        <AppErrorState compact>{restoreUserError}</AppErrorState>
                       ) : null}
                     </form>
                   </DetailSection>
@@ -465,26 +457,24 @@ export function UserDetailsMainTab({
                     </div>
 
                     {!isSuperuserActor ? (
-                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                      <AppStatusCallout color="neutral" appearance="soft" compact>
                         Your account can view this flag, but only superusers can
                         change it.
-                      </div>
+                      </AppStatusCallout>
                     ) : null}
                     {isSelfUser && user.is_superuser ? (
-                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                      <AppStatusCallout color="neutral" appearance="soft" compact>
                         You cannot revoke your own superuser access from this
                         screen.
-                      </div>
+                      </AppStatusCallout>
                     ) : null}
                     {user.status === 'deleted' ? (
-                      <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                      <AppStatusCallout color="neutral" appearance="soft" compact>
                         Restore this user before changing superuser access.
-                      </div>
+                      </AppStatusCallout>
                     ) : null}
                     {superuserAccessError ? (
-                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                        {superuserAccessError}
-                      </div>
+                      <AppErrorState compact>{superuserAccessError}</AppErrorState>
                     ) : null}
                   </div>
                 </DetailSection>
@@ -511,13 +501,13 @@ export function UserDetailsMainTab({
                     </Button>
                   }
                 >
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  <AppStatusCallout color="warning" appearance="soft" compact>
                     {sessionUserId === userId
                       ? 'You cannot delete your own account from this screen.'
                       : user.status === 'deleted'
                         ? 'This account is already deleted. The identity is retained so you can review history and restore it later if needed.'
                         : 'Deleting the account soft-removes access, preserves historical records, and takes the user out of active sign-in flows.'}
-                  </div>
+                  </AppStatusCallout>
                 </DetailSection>
               </div>
 

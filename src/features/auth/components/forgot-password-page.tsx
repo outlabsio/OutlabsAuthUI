@@ -42,7 +42,7 @@ export function ForgotPasswordPage() {
     name: 'email',
   })
   const cooldown = useAuthRequestCooldown({
-    email: requestedEmail ?? emailValue,
+    identifier: requestedEmail ?? emailValue,
     kind: 'forgot-password',
   })
 

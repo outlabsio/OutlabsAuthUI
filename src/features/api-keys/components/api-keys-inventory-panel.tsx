@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 
+import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
@@ -102,9 +103,11 @@ export function ApiKeysInventoryPanel({
   return (
     <>
                   {!effectiveSelectedEntityId ? (
-                    <div className="rounded-2xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                      Select an entity to load key inventory.
-                    </div>
+                    <AppEmptyState
+                      title="Select an entity"
+                      description="Select an entity to load key inventory."
+                      compact
+                    />
                   ) : (
                     <>
                       <Card>
@@ -241,9 +244,11 @@ export function ApiKeysInventoryPanel({
                                 )}
                               </AppErrorState>
                             ) : inventoryKeys.length === 0 ? (
-                              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                No keys match the current entity inventory filters.
-                              </div>
+                              <AppEmptyState
+                                title="No matching keys"
+                                description="No keys match the current entity inventory filters."
+                                compact
+                              />
                             ) : (
                               <Table>
                                 <TableHeader>
@@ -332,9 +337,11 @@ export function ApiKeysInventoryPanel({
                           </CardHeader>
                           <CardContent className="space-y-4">
                             {!activeInventoryKey ? (
-                              <div className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-                                Select a key to inspect its current inventory state.
-                              </div>
+                              <AppEmptyState
+                                title="No key selected"
+                                description="Select a key to inspect its current inventory state."
+                                compact
+                              />
                             ) : (
                               <>
                                 <div className="grid gap-3 sm:grid-cols-2">

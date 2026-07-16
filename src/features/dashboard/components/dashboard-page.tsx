@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
+import { listEnabledAuthFeatures } from '@/features/auth/utils/auth-config-labels'
 import { routes } from '@/lib/constants/routes'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 import {
@@ -101,22 +102,11 @@ const workspaceCards: Array<{
   },
 ]
 
-const capabilityLabels = [
-  ['entity_hierarchy', 'Entity hierarchy'],
-  ['context_aware_roles', 'Context-aware roles'],
-  ['abac', 'ABAC'],
-  ['tree_permissions', 'Tree permissions'],
-  ['api_keys', 'API keys'],
-  ['user_status', 'User status'],
-  ['activity_tracking', 'Activity tracking'],
-  ['invitations', 'Invitations'],
-] as const
-
 export function DashboardPage() {
   const runtimeConfig = getRuntimeConfig()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const enabledCapabilities = authConfigQuery.data
-    ? capabilityLabels.filter(([key]) => authConfigQuery.data.features[key])
+    ? listEnabledAuthFeatures(authConfigQuery.data.features)
     : []
 
   return (
