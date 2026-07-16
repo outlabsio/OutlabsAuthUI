@@ -11,6 +11,7 @@ export type User = {
   last_name?: string | null
   status: UserStatusValue
   email_verified: boolean
+  phone_verified?: boolean
   is_superuser: boolean
   avatar_url?: string | null
   phone?: string | null
@@ -107,6 +108,7 @@ export type UpdateUserInput = {
   email?: string
   first_name?: string
   last_name?: string
+  phone?: string | null
 }
 
 export type UpdateUserStatusInput = {

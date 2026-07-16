@@ -175,6 +175,7 @@ export function UserDetailsPage({
       firstName: '',
       lastName: '',
       email: '',
+      phone: '',
     },
   });
   const statusForm = useForm<UpdateUserStatusFormValues>({
@@ -317,6 +318,7 @@ export function UserDetailsPage({
       firstName: user.first_name ?? '',
       lastName: user.last_name ?? '',
       email: user.email,
+      phone: user.phone ?? '',
     });
     statusForm.reset({
       status:

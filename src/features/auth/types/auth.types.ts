@@ -50,6 +50,7 @@ export type SessionUser = {
   last_name?: string | null
   status: 'active' | 'invited' | 'suspended' | 'banned' | 'deleted'
   email_verified: boolean
+  phone_verified?: boolean
   is_superuser?: boolean
   avatar_url?: string | null
   phone?: string | null

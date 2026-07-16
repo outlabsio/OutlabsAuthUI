@@ -82,6 +82,7 @@ export function AccountPage() {
       firstName: '',
       lastName: '',
       email: '',
+      phone: '',
     },
   })
   const passwordForm = useForm<ChangeAccountPasswordFormValues>({
@@ -104,6 +105,7 @@ export function AccountPage() {
       firstName: sessionUser.first_name ?? '',
       lastName: sessionUser.last_name ?? '',
       email: sessionUser.email,
+      phone: sessionUser.phone ?? '',
     })
   }, [profileForm, sessionUser])
 
@@ -140,6 +142,7 @@ export function AccountPage() {
   const firstNameField = profileForm.register('firstName')
   const lastNameField = profileForm.register('lastName')
   const emailField = profileForm.register('email')
+  const phoneField = profileForm.register('phone')
   const currentPasswordField = passwordForm.register('currentPassword')
   const newPasswordField = passwordForm.register('newPassword')
   const confirmPasswordField = passwordForm.register('confirmPassword')
@@ -167,6 +170,13 @@ export function AccountPage() {
               <Badge variant={sessionUser.email_verified ? 'secondary' : 'outline'}>
                 {sessionUser.email_verified ? 'Email verified' : 'Email unverified'}
               </Badge>
+              {sessionUser.phone ? (
+                <Badge variant={sessionUser.phone_verified ? 'secondary' : 'outline'}>
+                  {sessionUser.phone_verified
+                    ? 'WhatsApp phone verified'
+                    : 'WhatsApp phone unverified'}
+                </Badge>
+              ) : null}
               {sessionUser.is_superuser ? (
                 <Badge variant="outline">Superuser</Badge>
               ) : null}
@@ -267,12 +277,14 @@ export function AccountPage() {
                       email: values.email,
                       first_name: values.firstName,
                       last_name: values.lastName,
+                      phone: values.phone.trim() ? values.phone.trim() : null,
                     })
 
                     profileForm.reset({
                       firstName: updatedUser.first_name ?? '',
                       lastName: updatedUser.last_name ?? '',
                       email: updatedUser.email,
+                      phone: updatedUser.phone ?? '',
                     })
                   } catch {
                     return
@@ -335,6 +347,30 @@ export function AccountPage() {
                       still land on a unique live identity.
                     </FieldDescription>
                     <FieldError errors={[profileForm.formState.errors.email]} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="account-phone">WhatsApp phone</FieldLabel>
+                    <Input
+                      id="account-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="+15551234567"
+                      disabled={updateProfileMutation.isPending}
+                      {...phoneField}
+                      onChange={(event) => {
+                        if (updateProfileMutation.error) {
+                          updateProfileMutation.reset()
+                        }
+
+                        phoneField.onChange(event)
+                      }}
+                    />
+                    <FieldDescription>
+                      Optional E.164 number used as a delivery destination for
+                      access codes. Changing it clears phone verification until a
+                      host verification flow re-confirms it.
+                    </FieldDescription>
+                    <FieldError errors={[profileForm.formState.errors.phone]} />
                   </Field>
                   <Field>
                     <Button

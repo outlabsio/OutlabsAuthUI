@@ -135,6 +135,7 @@ export function UserDetailsMainTab({
                           email: values.email.trim(),
                           first_name: values.firstName.trim() || undefined,
                           last_name: values.lastName.trim() || undefined,
+                          phone: values.phone.trim() ? values.phone.trim() : null,
                         });
                       } catch {
                         return;
@@ -177,6 +178,25 @@ export function UserDetailsMainTab({
                         {...profileForm.register('email')}
                       />
                       <FieldError errors={[profileForm.formState.errors.email]} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="user-detail-phone">WhatsApp phone</Label>
+                      <Input
+                        id="user-detail-phone"
+                        type="tel"
+                        placeholder="+15551234567"
+                        disabled={!canUpdateUsers || updateUserMutation.isPending}
+                        {...profileForm.register('phone')}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Optional E.164 delivery number for access codes.
+                        {user.phone
+                          ? user.phone_verified
+                            ? ' Currently verified.'
+                            : ' Currently unverified.'
+                          : ''}
+                      </p>
+                      <FieldError errors={[profileForm.formState.errors.phone]} />
                     </div>
                     {!canUpdateUsers ? (
                       <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
