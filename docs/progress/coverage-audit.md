@@ -68,13 +68,12 @@ optional product gaps, not required console parity unless a mount depends on the
 - [x] Deduplicate actor-permission helpers across workspace pages (`useActorPermissions` + `hasAnyPermission`)
 - [x] E2E matrix hygiene (settings + API-key persona suites documented)
 - [x] Unify membership access dialogs (`MembershipAccessDialog` / `EntityMemberAccessDialog` shared actions/footer/roles panel)
-- [ ] Split mega workspace pages (`user-details-page`, `api-keys-page`) into section components
+- [x] Split mega workspace pages (`user-details-page`, `api-keys-page`) into section/tab components
 
 ## Remaining work (priority order)
 
-1. Split mega workspace pages into tab/section components
-2. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
-3. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
+1. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
+2. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
 
 ## Related docs
 
