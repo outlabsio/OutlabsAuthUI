@@ -8,11 +8,9 @@ import { ChevronRight, Search, UserRoundPlus } from 'lucide-react'
 import { AppInfoPopover } from '@/components/app/app-info-popover'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -20,12 +18,11 @@ import { FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { MembershipAccessDialogFooter } from '@/features/memberships/components/membership-access-dialog-footer'
 import { MembershipLifecyclePanel } from '@/features/memberships/components/membership-lifecycle-panel'
+import { useMembershipAccessActions } from '@/features/memberships/hooks/use-membership-access-actions'
 import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
 import type { User } from '@/features/users/types/users.types'
-import { useCreateMembershipMutation } from '@/features/memberships/hooks/use-create-membership-mutation'
-import { useRemoveMembershipMutation } from '@/features/memberships/hooks/use-remove-membership-mutation'
-import { useUpdateMembershipMutation } from '@/features/memberships/hooks/use-update-membership-mutation'
 import {
   entityMemberAccessSchema,
   type EntityMemberAccessFormValues,
@@ -33,14 +30,13 @@ import {
 import type { Entity, EntityMember } from '@/features/entities/types/entities.types'
 import { getEntityStatusTone } from '@/features/entities/utils/entity-display'
 import type { Role } from '@/features/roles/types/roles.types'
-import {
-  AssignableRolesTable,
-} from '@/features/roles/components/assignable-roles-table'
+import { AssignableRolesTable } from '@/features/roles/components/assignable-roles-table'
 import { filterAssignableRoles } from '@/features/roles/utils/filter-assignable-roles'
 import {
   formatMembershipToken,
   getMembershipStatusTone,
 } from '@/features/memberships/utils/membership-display'
+import { toDateTimeLocalValue } from '@/features/memberships/utils/membership-datetime'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
 import { cn } from '@/lib/utils/cn'
@@ -81,20 +77,6 @@ function getUserDisplayName(user: User) {
   return displayName || user.email
 }
 
-function toDateTimeLocalValue(value?: string | null) {
-  if (!value) {
-    return ''
-  }
-
-  const date = new Date(value)
-  const offset = date.getTimezoneOffset()
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16)
-}
-
-function toIsoValue(value?: string) {
-  return value ? new Date(value).toISOString() : null
-}
-
 export function EntityMemberAccessDialog({
   open,
   onOpenChange,
@@ -112,9 +94,7 @@ export function EntityMemberAccessDialog({
   const [roleSearchValue, setRoleSearchValue] = useState('')
   const [showSelectedRolesOnly, setShowSelectedRolesOnly] = useState(false)
   const [confirmRemoval, setConfirmRemoval] = useState(false)
-  const createMembershipMutation = useCreateMembershipMutation()
-  const updateMembershipMutation = useUpdateMembershipMutation()
-  const removeMembershipMutation = useRemoveMembershipMutation()
+  const membershipActions = useMembershipAccessActions()
   const canManageMembershipAccess = existingMember
     ? canUpdateMemberships
     : canCreateMemberships
@@ -143,9 +123,7 @@ export function EntityMemberAccessDialog({
     setRoleSearchValue('')
     setShowSelectedRolesOnly(false)
     setConfirmRemoval(false)
-    createMembershipMutation.reset()
-    updateMembershipMutation.reset()
-    removeMembershipMutation.reset()
+    membershipActions.reset()
   })
 
   useEffect(() => {
@@ -210,22 +188,11 @@ export function EntityMemberAccessDialog({
       }),
     [availableRoles, roleSearchValue, selectedRoleIds, showSelectedRolesOnly]
   )
-  const isPending =
-    createMembershipMutation.isPending ||
-    updateMembershipMutation.isPending ||
-    removeMembershipMutation.isPending
-  const submitError =
-    createMembershipMutation.error ??
-    updateMembershipMutation.error ??
-    removeMembershipMutation.error
-  const submitErrorMessage = submitError
-    ? getApiErrorMessage(
-        submitError,
-        existingMember
-          ? 'The entity access could not be updated.'
-          : 'The member could not be added to this entity.'
-      )
-    : null
+  const isPending = membershipActions.isPending
+  const submitErrorMessage = membershipActions.getSubmitErrorMessage(
+    Boolean(existingMember),
+    'The member could not be added to this entity.'
+  )
 
   function handleRoleToggle(roleId: string, checked: boolean) {
     const nextRoleIds = checked
@@ -239,28 +206,18 @@ export function EntityMemberAccessDialog({
 
   async function handleSubmit(values: EntityMemberAccessFormValues) {
     try {
-      if (existingMember) {
-        await updateMembershipMutation.mutateAsync({
-          userId: existingMember.user_id,
+      await membershipActions.saveMembership(
+        {
+          userId: existingMember?.user_id ?? values.userId,
           entityId: entity.id,
           roleIds: values.roleIds,
           status: values.status,
-          validFrom: toIsoValue(values.validFrom),
-          validUntil: toIsoValue(values.validUntil),
-          reason: values.reason?.trim() || null,
-        })
-      } else {
-        await createMembershipMutation.mutateAsync({
-          userId: values.userId,
-          entityId: entity.id,
-          roleIds: values.roleIds,
-          status: values.status,
-          validFrom: toIsoValue(values.validFrom),
-          validUntil: toIsoValue(values.validUntil),
-          reason: values.reason?.trim() || null,
-        })
-      }
-
+          validFrom: values.validFrom,
+          validUntil: values.validUntil,
+          reason: values.reason,
+        },
+        { isUpdate: Boolean(existingMember) }
+      )
       onOpenChange(false)
     } catch {
       return
@@ -273,7 +230,7 @@ export function EntityMemberAccessDialog({
     }
 
     try {
-      await removeMembershipMutation.mutateAsync({
+      await membershipActions.removeMembership({
         userId: existingMember.user_id,
         entityId: entity.id,
       })
@@ -562,66 +519,22 @@ export function EntityMemberAccessDialog({
             </div>
             </div>
 
-            <DialogFooter className="mx-0 mb-0 mt-auto flex-col gap-4 rounded-none border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                {existingMember && canRemoveMemberships ? (
-                  confirmRemoval ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        disabled={isPending}
-                        onClick={() => setConfirmRemoval(false)}
-                      >
-                        Keep membership
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        disabled={isPending}
-                        onClick={() => {
-                          void handleRemoveMembership()
-                        }}
-                      >
-                        {isPending ? 'Removing…' : 'Confirm removal'}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={isPending}
-                      onClick={() => setConfirmRemoval(true)}
-                    >
-                      Remove membership
-                    </Button>
-                  )
-                ) : null}
-              </div>
-
-              <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => onOpenChange(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isPending || !canManageMembershipAccess}
-                >
-                  {isPending
-                    ? existingMember
-                      ? 'Saving…'
-                      : 'Adding…'
-                    : existingMember
-                      ? 'Save access'
-                      : 'Add member'}
-                </Button>
-              </div>
-            </DialogFooter>
+            <MembershipAccessDialogFooter
+              canRemove={Boolean(existingMember && canRemoveMemberships)}
+              confirmRemoval={confirmRemoval}
+              isPending={isPending}
+              isRemoving={membershipActions.isRemoving}
+              submitLabel={existingMember ? 'Save access' : 'Add member'}
+              pendingSubmitLabel={existingMember ? 'Saving…' : 'Adding…'}
+              submitDisabled={isPending || !canManageMembershipAccess}
+              onCancel={() => {
+                onOpenChange(false)
+              }}
+              onConfirmRemovalChange={setConfirmRemoval}
+              onRemove={() => {
+                void handleRemoveMembership()
+              }}
+            />
           </form>
         </div>
       </DialogContent>
