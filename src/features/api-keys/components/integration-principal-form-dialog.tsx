@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -26,11 +26,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
-import {
-  createIntegrationPrincipal,
-  updateIntegrationPrincipal,
-} from '@/features/api-keys/api/integration-principals'
+import { useCreateIntegrationPrincipalMutation } from '@/features/api-keys/hooks/use-create-integration-principal-mutation'
+import { useUpdateIntegrationPrincipalMutation } from '@/features/api-keys/hooks/use-update-integration-principal-mutation'
 import type {
   IntegrationPrincipal,
   IntegrationPrincipalScopeKind,
@@ -40,7 +37,6 @@ import { getRolesForEntityQueryOptions, getRolesQueryOptions } from '@/features/
 import type { Role } from '@/features/roles/types/roles.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
-import { withMutationToast } from '@/lib/query/mutation-toast'
 
 const integrationPrincipalFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(200),
@@ -81,7 +77,6 @@ export function IntegrationPrincipalFormDialog({
   onCreated,
   onUpdated,
 }: IntegrationPrincipalFormDialogProps) {
-  const queryClient = useQueryClient()
   const [showSelectedOnly, setShowSelectedOnly] = useState(false)
   const form = useForm<IntegrationPrincipalFormValues>({
     resolver: zodResolver(integrationPrincipalFormSchema),
@@ -149,79 +144,20 @@ export function IntegrationPrincipalFormDialog({
     [roleById, selectedRoleIds]
   )
 
-  const mutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: async (values: IntegrationPrincipalFormValues) => {
-      const trimmedName = values.name.trim()
-      const trimmedDescription = values.description.trim() || null
-      const hasRoleSelection = values.roleIds.length > 0
-      const hasLegacyPermissions = legacyDirectPermissions.length > 0
+  const createMutation = useCreateIntegrationPrincipalMutation({ skipErrorToast: true })
+  const updateMutation = useUpdateIntegrationPrincipalMutation({ skipErrorToast: true })
+  const activeMutation = mode === 'create' ? createMutation : updateMutation
 
-      if (!hasRoleSelection && !hasLegacyPermissions) {
-        form.setError('roleIds', {
-          message: 'Assign at least one role to define the service-account envelope.',
-        })
-        throw new Error('role selection required')
-      }
-
-      if (mode === 'create') {
-        return createIntegrationPrincipal({
-          scopeKind,
-          entityId,
-          name: trimmedName,
-          description: trimmedDescription,
-          role_ids: values.roleIds,
-          allowed_scopes: [],
-          inherit_from_tree: scopeKind === 'entity' ? values.inheritFromTree : false,
-        })
-      }
-
-      if (!principal) {
-        throw new Error('integration principal missing')
-      }
-
-      return updateIntegrationPrincipal({
-        scopeKind,
-        entityId,
-        principalId: principal.id,
-        name: trimmedName,
-        description: trimmedDescription,
-        status: values.status,
-        role_ids: values.roleIds,
-        inherit_from_tree: scopeKind === 'entity' ? values.inheritFromTree : false,
-      })
-    },
-    meta: withMutationToast({
-      error:
-        mode === 'create'
-          ? 'The service account could not be created.'
-          : 'The service account could not be updated.',
-      success: mode === 'create' ? 'Service account created.' : 'Service account updated.',
-      skipErrorToast: true,
-    }),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-
-      if (mode === 'create') {
-        onCreated(result)
-      } else {
-        onUpdated(result)
-      }
-    },
-  })
-
-  const submitError = mutation.error
+  const submitError = activeMutation.error
     ? getApiErrorMessage(
-        mutation.error,
+        activeMutation.error,
         mode === 'create'
           ? 'The service account could not be created.'
           : 'The service account could not be updated.'
       )
     : null
 
-  const isPending = mutation.isPending
+  const isPending = activeMutation.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -236,8 +172,50 @@ export function IntegrationPrincipalFormDialog({
           id="integration-principal-form"
           className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
+            const trimmedName = values.name.trim()
+            const trimmedDescription = values.description.trim() || null
+            const hasRoleSelection = values.roleIds.length > 0
+            const hasLegacyPermissions = legacyDirectPermissions.length > 0
+
+            if (!hasRoleSelection && !hasLegacyPermissions) {
+              form.setError('roleIds', {
+                message: 'Assign at least one role to define the service-account envelope.',
+              })
+              return
+            }
+
             try {
-              await mutation.mutateAsync(values)
+              if (mode === 'create') {
+                const result = await createMutation.mutateAsync({
+                  scopeKind,
+                  entityId,
+                  name: trimmedName,
+                  description: trimmedDescription,
+                  role_ids: values.roleIds,
+                  allowed_scopes: [],
+                  inherit_from_tree:
+                    scopeKind === 'entity' ? values.inheritFromTree : false,
+                })
+                onCreated(result)
+                return
+              }
+
+              if (!principal) {
+                return
+              }
+
+              const result = await updateMutation.mutateAsync({
+                scopeKind,
+                entityId,
+                principalId: principal.id,
+                name: trimmedName,
+                description: trimmedDescription,
+                status: values.status,
+                role_ids: values.roleIds,
+                inherit_from_tree:
+                  scopeKind === 'entity' ? values.inheritFromTree : false,
+              })
+              onUpdated(result)
             } catch {
               return
             }

@@ -16,7 +16,7 @@ Restart point for the entity hierarchy surface.
 ## Known gaps
 
 - No dedicated entity audit timeline
-- Admin create-user with password remains invite-only from this console
+- Entity-context member provisioning is invite-only here; admin create-user with password lives on the Users workspace
 
 ## Backend contracts used
 

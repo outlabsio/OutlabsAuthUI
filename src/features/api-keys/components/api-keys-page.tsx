@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, RefreshCcw, ShieldAlert, Trash2 } from 'lucide-react'
 
 import { AppErrorState } from '@/components/app/app-error-state'
@@ -55,20 +55,17 @@ import {
   getMyPermissionsQueryOptions,
 } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
-import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
 import {
   getEntityApiKeysQueryOptions,
   getIntegrationPrincipalApiKeysQueryOptions,
   getIntegrationPrincipalsQueryOptions,
 } from '@/features/api-keys/api/api-keys.query-options'
-import { deleteEntityApiKey } from '@/features/api-keys/api/delete-entity-api-key'
-import {
-  deleteIntegrationPrincipal,
-  deleteSystemIntegrationApiKey,
-  rotateSystemIntegrationApiKey,
-} from '@/features/api-keys/api/integration-principals'
 import { IntegrationPrincipalFormDialog } from '@/features/api-keys/components/integration-principal-form-dialog'
 import { SystemIntegrationApiKeyFormDialog } from '@/features/api-keys/components/system-integration-api-key-form-dialog'
+import { useDeleteEntityApiKeyMutation } from '@/features/api-keys/hooks/use-delete-entity-api-key-mutation'
+import { useDeleteIntegrationPrincipalMutation } from '@/features/api-keys/hooks/use-delete-integration-principal-mutation'
+import { useDeleteSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-delete-system-integration-api-key-mutation'
+import { useRotateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-rotate-system-integration-api-key-mutation'
 import type {
   ApiKey,
   ApiKeyKind,
@@ -86,7 +83,6 @@ import { getRolesForEntityQueryOptions, getRolesQueryOptions } from '@/features/
 import type { Role } from '@/features/roles/types/roles.types'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { getApiErrorMessage } from '@/lib/api/errors'
-import { withMutationToast } from '@/lib/query/mutation-toast'
 
 type TabValue = 'integrations' | 'inventory'
 type InventoryKeyKindFilter = 'all' | ApiKeyKind
@@ -203,7 +199,6 @@ function buildOwnerOptions(
 }
 
 export function ApiKeysPage() {
-  const queryClient = useQueryClient()
   const sessionQuery = useSessionQuery()
   const sessionUser = sessionQuery.data ?? null
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
@@ -485,94 +480,10 @@ export function ApiKeysPage() {
     [inventoryPrincipalsQuery.data?.items]
   )
 
-  const archivePrincipalMutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: (principal: IntegrationPrincipal) =>
-      deleteIntegrationPrincipal({
-        scopeKind: principal.scope_kind,
-        entityId: principal.scope_kind === 'entity' ? principal.anchor_entity_id ?? undefined : undefined,
-        principalId: principal.id,
-      }),
-    meta: withMutationToast({
-      error: 'The integration principal could not be archived.',
-      success: 'Integration principal archived.',
-    }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-    },
-  })
-
-  const rotateSystemKeyMutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: (apiKey: ApiKey) => {
-      if (!activePrincipal) {
-        throw new Error('integration principal missing')
-      }
-
-      return rotateSystemIntegrationApiKey({
-        scopeKind: effectiveScopeKind,
-        entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
-        principalId: activePrincipal.id,
-        keyId: apiKey.id,
-      })
-    },
-    meta: withMutationToast({
-      error: 'The system integration key could not be rotated.',
-      success: 'System integration key rotated.',
-    }),
-    onSuccess: (createdKey) => {
-      setSelectedPrincipalKeyId(createdKey.id)
-      openSecretDialog(createdKey)
-      void queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-    },
-  })
-
-  const revokeSystemKeyMutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: (apiKey: ApiKey) => {
-      if (!activePrincipal) {
-        throw new Error('integration principal missing')
-      }
-
-      return deleteSystemIntegrationApiKey({
-        scopeKind: effectiveScopeKind,
-        entityId: effectiveScopeKind === 'entity' ? effectiveSelectedEntityId : undefined,
-        principalId: activePrincipal.id,
-        keyId: apiKey.id,
-      })
-    },
-    meta: withMutationToast({
-      error: 'The system integration key could not be revoked.',
-      success: 'System integration key revoked.',
-    }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-    },
-  })
-
-  const revokeInventoryKeyMutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: (apiKey: ApiKey) =>
-      deleteEntityApiKey({
-        entityId: effectiveSelectedEntityId,
-        keyId: apiKey.id,
-      }),
-    meta: withMutationToast({
-      error: 'The API key could not be revoked.',
-      success: 'API key revoked.',
-    }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-    },
-  })
+  const archivePrincipalMutation = useDeleteIntegrationPrincipalMutation()
+  const rotateSystemKeyMutation = useRotateSystemIntegrationApiKeyMutation()
+  const revokeSystemKeyMutation = useDeleteSystemIntegrationApiKeyMutation()
+  const revokeInventoryKeyMutation = useDeleteEntityApiKeyMutation()
 
   function openSecretDialog(apiKey: CreateApiKeyResponse) {
     setSecretCopied(false)
@@ -1841,7 +1752,14 @@ export function ApiKeysPage() {
                 }
 
                 try {
-                  await archivePrincipalMutation.mutateAsync(archivePrincipalTarget)
+                  await archivePrincipalMutation.mutateAsync({
+                    scopeKind: archivePrincipalTarget.scope_kind,
+                    entityId:
+                      archivePrincipalTarget.scope_kind === 'entity'
+                        ? archivePrincipalTarget.anchor_entity_id ?? undefined
+                        : undefined,
+                    principalId: archivePrincipalTarget.id,
+                  })
                   setArchivePrincipalTarget(null)
                 } catch {
                   return
@@ -1871,12 +1789,22 @@ export function ApiKeysPage() {
               type="button"
               disabled={rotateSystemKeyMutation.isPending || !rotateTarget}
               onClick={async () => {
-                if (!rotateTarget) {
+                if (!rotateTarget || !activePrincipal) {
                   return
                 }
 
                 try {
-                  await rotateSystemKeyMutation.mutateAsync(rotateTarget)
+                  const createdKey = await rotateSystemKeyMutation.mutateAsync({
+                    scopeKind: effectiveScopeKind,
+                    entityId:
+                      effectiveScopeKind === 'entity'
+                        ? effectiveSelectedEntityId
+                        : undefined,
+                    principalId: activePrincipal.id,
+                    keyId: rotateTarget.id,
+                  })
+                  setSelectedPrincipalKeyId(createdKey.id)
+                  openSecretDialog(createdKey)
                   setRotateTarget(null)
                 } catch {
                   return
@@ -1914,10 +1842,28 @@ export function ApiKeysPage() {
                 }
 
                 try {
-                  if (activeTab === 'integrations' && deleteTarget.owner_type === 'integration_principal') {
-                    await revokeSystemKeyMutation.mutateAsync(deleteTarget)
+                  if (
+                    activeTab === 'integrations' &&
+                    deleteTarget.owner_type === 'integration_principal'
+                  ) {
+                    if (!activePrincipal) {
+                      return
+                    }
+
+                    await revokeSystemKeyMutation.mutateAsync({
+                      scopeKind: effectiveScopeKind,
+                      entityId:
+                        effectiveScopeKind === 'entity'
+                          ? effectiveSelectedEntityId
+                          : undefined,
+                      principalId: activePrincipal.id,
+                      keyId: deleteTarget.id,
+                    })
                   } else {
-                    await revokeInventoryKeyMutation.mutateAsync(deleteTarget)
+                    await revokeInventoryKeyMutation.mutateAsync({
+                      entityId: effectiveSelectedEntityId,
+                      keyId: deleteTarget.id,
+                    })
                   }
 
                   setDeleteTarget(null)

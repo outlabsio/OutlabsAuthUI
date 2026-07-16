@@ -59,8 +59,8 @@ optional product gaps, not required console parity unless a mount depends on the
 ## Architecture follow-ups
 
 - [x] Align `/app/api-keys` with `redirectIfWorkspaceHidden`
-- Split `integration-principals.ts` into verb-based API files
-- Extract system API key mutations into feature hooks (match personal-key pattern)
+- [x] Split `integration-principals.ts` into verb-based API files + shared path helpers
+- [x] Extract system API key / integration-principal mutations into feature hooks
 - Deduplicate actor-permission helpers across workspace pages
 
 ## Related docs

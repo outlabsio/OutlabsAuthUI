@@ -4,10 +4,8 @@ import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
 import { getGrantableScopes } from '@/features/api-keys/api/get-grantable-scopes'
 import { getApiKeys } from '@/features/api-keys/api/get-api-keys'
 import { getMyApiKeys } from '@/features/api-keys/api/get-my-api-keys'
-import {
-  getIntegrationPrincipalApiKeys,
-  getIntegrationPrincipals,
-} from '@/features/api-keys/api/integration-principals'
+import { getIntegrationPrincipalApiKeys } from '@/features/api-keys/api/get-integration-principal-api-keys'
+import { getIntegrationPrincipals } from '@/features/api-keys/api/get-integration-principals'
 import type {
   GetGrantableScopesInput,
   ListIntegrationPrincipalApiKeysParams,

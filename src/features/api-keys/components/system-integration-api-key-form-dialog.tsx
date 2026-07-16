@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -31,11 +30,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
-import {
-  createSystemIntegrationApiKey,
-  updateSystemIntegrationApiKey,
-} from '@/features/api-keys/api/integration-principals'
+import { useCreateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-create-system-integration-api-key-mutation'
+import { useUpdateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-update-system-integration-api-key-mutation'
 import { apiKeyRateLimitPerMinuteSchema } from '@/features/api-keys/schemas/api-key-form.schema'
 import type {
   ApiKey,
@@ -53,7 +49,6 @@ import { RolePermissionsPicker } from '@/features/roles/components/role-permissi
 import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
 import { formatRoleToken } from '@/features/roles/utils/role-display'
 import { getApiErrorMessage } from '@/lib/api/errors'
-import { withMutationToast } from '@/lib/query/mutation-toast'
 
 const systemIntegrationApiKeyFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required.').max(200),
@@ -117,7 +112,6 @@ export function SystemIntegrationApiKeyFormDialog({
   onCreated,
   onUpdated,
 }: SystemIntegrationApiKeyFormDialogProps) {
-  const queryClient = useQueryClient()
   const [showSelectedOnly, setShowSelectedOnly] = useState(false)
   const [visiblePermissionCount, setVisiblePermissionCount] = useState(0)
   const principalAllowedScopes = useMemo(
@@ -183,91 +177,24 @@ export function SystemIntegrationApiKeyFormDialog({
   })
   const rateLimitUnlimited = isUnlimitedApiKeyRateLimit(rateLimitPerMinute)
 
-  const mutation = useMutation({
-    mutationKey: apiKeysKeys.all,
-    mutationFn: async (values: SystemIntegrationApiKeyFormValues) => {
-      if (!principal) {
-        throw new Error('integration principal missing')
-      }
-
-      const scopes = values.accessMode === 'full' ? [] : values.selectedScopes
-
-      if (values.accessMode === 'restricted' && scopes.length === 0) {
-        form.setError('selectedScopes', {
-          message: 'Choose at least one permission or use full access.',
-        })
-        throw new Error('restricted scopes required')
-      }
-
-      const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
-
-      if (mode === 'create') {
-        return createSystemIntegrationApiKey({
-          scopeKind,
-          entityId,
-          principalId: principal.id,
-          name: values.name.trim(),
-          description: values.description.trim() || null,
-          scopes,
-          prefix_type: values.prefixType.trim(),
-          ip_whitelist: ipWhitelist.length > 0 ? ipWhitelist : undefined,
-          rate_limit_per_minute: values.rateLimitPerMinute,
-          expires_in_days:
-            values.expiresInDays === '' ? undefined : Number(values.expiresInDays),
-        })
-      }
-
-      if (!apiKey) {
-        throw new Error('system integration key missing')
-      }
-
-      return updateSystemIntegrationApiKey({
-        scopeKind,
-        entityId,
-        principalId: principal.id,
-        keyId: apiKey.id,
-        name: values.name.trim(),
-        description: values.description.trim() || null,
-        scopes,
-        ip_whitelist: ipWhitelist,
-        rate_limit_per_minute: values.rateLimitPerMinute,
-        status: values.status,
-      })
-    },
-    meta: withMutationToast({
-      error:
-        mode === 'create'
-          ? 'The machine API key could not be created.'
-          : 'The machine API key could not be updated.',
-      success:
-        mode === 'create'
-          ? 'Machine API key created.'
-          : 'Machine API key updated.',
-      skipErrorToast: true,
-    }),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
-
-      if (mode === 'create') {
-        onCreated(result as CreateApiKeyResponse)
-      } else {
-        onUpdated(result as ApiKey)
-      }
-    },
+  const createMutation = useCreateSystemIntegrationApiKeyMutation({
+    skipErrorToast: true,
   })
+  const updateMutation = useUpdateSystemIntegrationApiKeyMutation({
+    skipErrorToast: true,
+  })
+  const activeMutation = mode === 'create' ? createMutation : updateMutation
 
-  const submitError = mutation.error
+  const submitError = activeMutation.error
     ? getApiErrorMessage(
-        mutation.error,
+        activeMutation.error,
         mode === 'create'
           ? 'The machine API key could not be created.'
           : 'The machine API key could not be updated.'
       )
     : null
 
-  const isPending = mutation.isPending
+  const isPending = activeMutation.isPending
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setShowSelectedOnly(false)
@@ -293,8 +220,59 @@ export function SystemIntegrationApiKeyFormDialog({
           id="system-integration-api-key-form"
           className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
           onSubmit={form.handleSubmit(async (values) => {
+            if (!principal) {
+              return
+            }
+
+            const scopes = values.accessMode === 'full' ? [] : values.selectedScopes
+
+            if (values.accessMode === 'restricted' && scopes.length === 0) {
+              form.setError('selectedScopes', {
+                message: 'Choose at least one permission or use full access.',
+              })
+              return
+            }
+
+            const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
+
             try {
-              await mutation.mutateAsync(values)
+              if (mode === 'create') {
+                const result = await createMutation.mutateAsync({
+                  scopeKind,
+                  entityId,
+                  principalId: principal.id,
+                  name: values.name.trim(),
+                  description: values.description.trim() || null,
+                  scopes,
+                  prefix_type: values.prefixType.trim(),
+                  ip_whitelist: ipWhitelist.length > 0 ? ipWhitelist : undefined,
+                  rate_limit_per_minute: values.rateLimitPerMinute,
+                  expires_in_days:
+                    values.expiresInDays === ''
+                      ? undefined
+                      : Number(values.expiresInDays),
+                })
+                onCreated(result)
+                return
+              }
+
+              if (!apiKey) {
+                return
+              }
+
+              const result = await updateMutation.mutateAsync({
+                scopeKind,
+                entityId,
+                principalId: principal.id,
+                keyId: apiKey.id,
+                name: values.name.trim(),
+                description: values.description.trim() || null,
+                scopes,
+                ip_whitelist: ipWhitelist,
+                rate_limit_per_minute: values.rateLimitPerMinute,
+                status: values.status,
+              })
+              onUpdated(result)
             } catch {
               return
             }

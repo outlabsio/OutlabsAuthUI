@@ -105,7 +105,7 @@ enterprise-only validation pass.
 - `e2e/app/app-shell-simple-rbac.spec.ts`
   - dashboard `/auth/config` auto-detection for `SimpleRBAC`
   - enterprise-only workspace hiding driven by backend feature flags
-  - direct-route redirects for settings, entities, and system API keys
+  - direct-route redirects for settings, entities, personal API keys, and system API keys
   - shared workspace smoke coverage for account, personal API keys, users, roles, and permissions
   - user-details degradation coverage when entity hierarchy is unavailable
 
