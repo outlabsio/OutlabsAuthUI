@@ -3,6 +3,11 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { authPersonas } from '../support/auth-personas'
+import {
+  skipIfPasswordlessCaptureDisabled,
+  waitForCapturedAccessCode,
+  waitForCapturedMagicLink,
+} from '../support/passwordless-capture'
 
 const emptyStorageState = {
   cookies: [],
@@ -518,5 +523,58 @@ test.describe('Auth Flow', () => {
     await expect(
       page.getByRole('button', { name: 'Back to sign in' })
     ).toBeVisible()
+  })
+
+  test('live magic-link request completes via fixture token capture', async ({
+    page,
+  }) => {
+    await skipIfPasswordlessCaptureDisabled('magic-link')
+
+    const email = authPersonas.admin.email
+
+    await page.goto('/auth/magic-link')
+    await page.locator('#magic-link-email').fill(email)
+    await page.getByRole('button', { name: 'Send sign-in link' }).click()
+    await expect(
+      page.getByRole('heading', {
+        name: 'Check your email',
+      })
+    ).toBeVisible()
+
+    const captured = await waitForCapturedMagicLink(email)
+    await page.goto(captured.magic_link_url)
+
+    await expect(page).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+    await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBeTruthy()
+  })
+
+  test('live access-code request completes via fixture code capture', async ({
+    page,
+  }) => {
+    await skipIfPasswordlessCaptureDisabled('access-code')
+
+    const email = authPersonas.admin.email
+
+    await page.goto('/auth/access-code')
+    await page.locator('#access-code-email').fill(email)
+    await page.getByRole('button', { name: 'Send sign-in code' }).click()
+    await expect(page.getByText('Verify your login')).toBeVisible()
+
+    const captured = await waitForCapturedAccessCode(email)
+    await page.locator('#access-code-code').fill(captured.code)
+    await page.getByRole('button', { name: 'Verify' }).click()
+
+    await expect(page).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+    await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBeTruthy()
   })
 })

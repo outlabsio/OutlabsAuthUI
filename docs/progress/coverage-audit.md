@@ -21,7 +21,7 @@ optional product gaps, not required console parity unless a mount depends on the
 | Domain | Status | Notes |
 |---|---|---|
 | Password login / forgot / reset | Covered | |
-| Magic link / access code | Covered | Feature-flagged from `/auth/config` |
+| Magic link / access code | Covered | Feature-flagged from `/auth/config`; live capture E2E against enterprise fixture |
 | Accept invite | Covered | UI covered; live token round-trip blocked on fixture capture |
 | Server logout | Covered | `POST /auth/logout` with refresh revoke + local clear |
 | Account self-service | Covered | Profile + password |
@@ -58,7 +58,7 @@ optional product gaps, not required console parity unless a mount depends on the
 - [ ] Live invite-accept E2E — **blocked** on enterprise fixture invite-token capture (`/dev/auth/invite/latest` mirroring magic-link capture). Do not depend on live mail.
 - [ ] Real invite email E2E against a live mail path (optional ops; prefer fixture capture above)
 - [x] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
-- [ ] Live passwordless E2E via `/dev/auth/magic-link/latest` and `/dev/auth/access-code/latest`
+- [x] Live passwordless E2E via `/dev/auth/magic-link/latest` and `/dev/auth/access-code/latest`
 
 ## Architecture follow-ups
 
@@ -72,11 +72,10 @@ optional product gaps, not required console parity unless a mount depends on the
 
 ## Remaining work (priority order)
 
-1. Live passwordless E2E via fixture capture endpoints
-2. Unify membership access dialogs into a shared form shell
-3. Split mega workspace pages into tab/section components
-4. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
-5. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
+1. Unify membership access dialogs into a shared form shell
+2. Split mega workspace pages into tab/section components
+3. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
+4. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
 
 ## Related docs
 
