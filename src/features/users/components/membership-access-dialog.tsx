@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
@@ -184,7 +184,8 @@ export function MembershipAccessDialog({
     )
   }
 
-  function resetDialogState() {
+  const wasOpenRef = useRef(false)
+  const resetDialogState = useEffectEvent(() => {
     const nextEntityId = initialEntityId ?? ''
 
     setSelectedEntityId(nextEntityId)
@@ -194,7 +195,20 @@ export function MembershipAccessDialog({
     createMembershipMutation.reset()
     updateMembershipMutation.reset()
     removeMembershipMutation.reset()
-  }
+  })
+
+  useEffect(() => {
+    const justOpened = open && !wasOpenRef.current
+    wasOpenRef.current = open
+
+    if (!justOpened) {
+      return
+    }
+
+    // Rehydrate from the latest membership list on each open.
+    // Closing right after a save can otherwise snapshot stale lifecycle fields.
+    resetDialogState()
+  }, [open])
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {

@@ -54,7 +54,7 @@ optional product gaps, not required console parity unless a mount depends on the
 ### Ops validation
 
 - [ ] Real invite email E2E against a live mail path
-- [ ] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
+- [x] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
 
 ## Architecture follow-ups
 

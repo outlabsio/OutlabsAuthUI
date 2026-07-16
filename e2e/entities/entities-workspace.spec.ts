@@ -103,6 +103,10 @@ async function setEntityDialogDateTime({
     .first()
     .click()
 
+  // Calendar month/year portal can linger and intercept the time control.
+  await page.keyboard.press('Escape')
+  await expect(field.getByRole('combobox', { name: 'Select time' })).toBeVisible()
+
   await field.getByRole('combobox', { name: 'Select time' }).click()
   await page.getByRole('option', { name: timeLabel, exact: true }).click()
 }
@@ -421,17 +425,47 @@ test.describe('Entities Workspace', () => {
       optionName: 'Active',
     })
     await typeIntoBaseUiField(manageDialog, 'Lifecycle note', updatedReason)
+
+    const windowEnd = new Date()
+    windowEnd.setUTCMonth(windowEnd.getUTCMonth() + 2)
+    const endYear = windowEnd.getUTCFullYear()
+    const endMonth = windowEnd.getUTCMonth() + 1
+    const endDay = Math.min(15, windowEnd.getUTCDate())
+
+    await setEntityDialogDateTime({
+      dialog: manageDialog,
+      page,
+      buttonId: 'membership-lifecycle-valid-until',
+      year: endYear,
+      month: endMonth,
+      day: endDay,
+      timeLabel: '12:00 PM',
+    })
     await manageDialog.getByRole('button', { name: 'Save access' }).click()
     await expect(manageDialog).toBeHidden()
 
     await expect(membershipCard.getByText('Active', { exact: true }).first()).toBeVisible()
     await expect(membershipCard.getByText(updatedReason, { exact: true })).toBeVisible()
+    await expect(membershipCard.getByText('Always on', { exact: true })).toHaveCount(0)
+    await expect(membershipCard.getByText(/->/)).toBeVisible()
+
+    await membershipCard.getByRole('button', { name: 'Manage access' }).click()
+    await expect(manageDialog).toBeVisible()
+    await manageDialog
+      .locator('#membership-lifecycle-valid-until')
+      .locator('xpath=ancestor::div[contains(@class,"space-y-2")][1]')
+      .getByRole('button', { name: 'Clear date' })
+      .click()
+    await manageDialog.getByRole('button', { name: 'Save access' }).click()
+    await expect(manageDialog).toBeHidden()
+    await expect(membershipCard.getByText('Always on', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Back to entity' }).click()
     await expect(page).toHaveURL(/\/app\/entities(?:\/[^?]+)?(?:\?.*)?$/)
     await expect(page.getByRole('heading', { name: officeEntity.displayName })).toBeVisible()
     await page.getByRole('tab', { name: 'Members and access' }).click()
     await expect(memberRow.getByText('Active', { exact: true }).first()).toBeVisible()
+    await expect(memberRow.getByText('Until Open-ended', { exact: true })).toBeVisible()
   })
 
   test('admin can inspect the hierarchy and edit an entity description before restoring it', async ({
