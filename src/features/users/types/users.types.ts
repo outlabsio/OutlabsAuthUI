@@ -37,10 +37,32 @@ export type UserListStatusFilter =
   | 'banned'
   | 'deleted'
 
+export type UsersListView = 'all' | 'orphaned'
+
 export type UsersPageSearch = {
   page: number
   search?: string
   status?: UserListStatusFilter
+  rootEntityId?: string
+  view?: UsersListView
+}
+
+export type OrphanedUser = {
+  user: User
+  active_membership_count: number
+  total_membership_count: number
+  last_membership_event_type?: string | null
+  last_membership_event_at?: string | null
+  last_entity_id?: string | null
+  last_entity_name?: string | null
+}
+
+export type OrphanedUsersListResponse = PaginatedResponse<OrphanedUser>
+
+export type OrphanedUsersListFilters = {
+  page: number
+  limit?: number
+  search?: string
   rootEntityId?: string
 }
 

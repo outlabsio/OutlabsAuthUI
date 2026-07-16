@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 
+import { getOrphanedUsers } from '@/features/users/api/get-orphaned-users'
 import { getUserApiKeys } from '@/features/users/api/get-user-api-keys'
 import { getUserAuditEvents } from '@/features/users/api/get-user-audit-events'
 import { getUserMembershipHistory } from '@/features/users/api/get-user-membership-history'
@@ -12,6 +13,7 @@ import { usersKeys } from '@/features/users/api/users.keys'
 import type {
   GetUserAuditEventsParams,
   GetUserMembershipHistoryParams,
+  OrphanedUsersListFilters,
   UsersListFilters,
 } from '@/features/users/types/users.types'
 
@@ -19,6 +21,13 @@ export function getUsersQueryOptions(filters: UsersListFilters) {
   return queryOptions({
     queryKey: usersKeys.list(filters),
     queryFn: () => getUsers(filters),
+  })
+}
+
+export function getOrphanedUsersQueryOptions(filters: OrphanedUsersListFilters) {
+  return queryOptions({
+    queryKey: usersKeys.orphanedList(filters),
+    queryFn: () => getOrphanedUsers(filters),
   })
 }
 

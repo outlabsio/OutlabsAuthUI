@@ -25,7 +25,7 @@ optional product gaps, not required console parity unless a mount depends on the
 | Accept invite | Covered | |
 | Server logout | Covered | `POST /auth/logout` with refresh revoke + local clear |
 | Account self-service | Covered | Profile + password |
-| Users admin | Covered | Invite, create-with-password, status, roles, memberships, history, audit |
+| Users admin | Covered | Invite, create-with-password, status, roles, memberships, orphaned discovery, history, audit |
 | Roles / permissions / ABAC | Covered | |
 | Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete |
 | Personal API keys | Covered | Self-service + admin list/revoke on user details |
@@ -45,6 +45,7 @@ optional product gaps, not required console parity unless a mount depends on the
 - [x] Admin create-user with password (`POST /users/`)
 - [x] Patch direct role membership validity windows (`PATCH /users/{id}/role-memberships/{membership_id}`)
 - [x] Admin manage another user’s personal API keys from user details (list + revoke)
+- [x] Orphaned users discovery (`GET /users/orphaned`) in the Users workspace
 
 ### P2 / optional auth shell
 

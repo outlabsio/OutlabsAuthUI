@@ -21,7 +21,11 @@ import {
 } from '@/components/ui/select'
 import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import { Input } from '@/components/ui/input'
-import type { UserListStatusFilter, UsersPageSearch } from '@/features/users/types/users.types'
+import type {
+  UserListStatusFilter,
+  UsersListView,
+  UsersPageSearch,
+} from '@/features/users/types/users.types'
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value'
 
 type UsersFiltersProps = {
@@ -29,6 +33,7 @@ type UsersFiltersProps = {
   entityOptions: EntityOption[]
   showStatusFilter: boolean
   showEntityFilter: boolean
+  showOrphanedView: boolean
   onApply: (next: Omit<UsersPageSearch, 'page'>) => void
   onReset: () => void
 }
@@ -49,38 +54,56 @@ const statusSelectItems = [
   ...statusOptions,
 ]
 
+const viewSelectItems = [
+  { label: 'All users', value: 'all' },
+  { label: 'Orphaned', value: 'orphaned' },
+]
+
 export function UsersFilters({
   filters,
   entityOptions,
   showStatusFilter,
   showEntityFilter,
+  showOrphanedView,
   onApply,
   onReset,
 }: UsersFiltersProps) {
   const [search, setSearch] = useState(filters.search ?? '')
   const [status, setStatus] = useState<string>(filters.status ?? 'all')
   const [rootEntityId, setRootEntityId] = useState(filters.rootEntityId)
+  const [view, setView] = useState<UsersListView>(filters.view ?? 'all')
   const debouncedSearch = useDebouncedValue(search)
   const hasMountedRef = useRef(false)
+  const isOrphanedView = view === 'orphaned'
 
   const selectedEntity =
     entityOptions.find((option) => option.id === rootEntityId) ?? null
-  const hasDraftFilters = Boolean(search.trim() || status !== 'all' || rootEntityId)
+  const hasDraftFilters = Boolean(
+    search.trim() ||
+      status !== 'all' ||
+      rootEntityId ||
+      (showOrphanedView && view !== 'all')
+  )
 
   function buildFilters(next?: {
     search?: string
     status?: string
     rootEntityId?: string
+    view?: UsersListView
   }) {
     const nextSearch = next?.search ?? search
-    const nextStatus = next?.status ?? status
+    const nextView = next?.view ?? view
+    const nextStatus =
+      nextView === 'orphaned' ? 'all' : (next?.status ?? status)
     const nextRootEntityId =
       next && 'rootEntityId' in next ? next.rootEntityId : rootEntityId
 
     return {
       search: nextSearch.trim() || undefined,
-      status: nextStatus === 'all' ? undefined : (nextStatus as UserListStatusFilter),
+      status:
+        nextStatus === 'all' ? undefined : (nextStatus as UserListStatusFilter),
       rootEntityId: nextRootEntityId,
+      view: nextView === 'all' ? undefined : nextView,
     }
   }
 
@@ -118,7 +141,38 @@ export function UsersFilters({
           className="pl-9"
         />
       </div>
-      {showStatusFilter ? (
+      {showOrphanedView ? (
+        <div className="w-full shrink-0 sm:w-40">
+          <Select
+            items={viewSelectItems}
+            value={view}
+            onValueChange={(value) => {
+              const nextView = (value ?? 'all') as UsersListView
+              setView(nextView)
+              if (nextView === 'orphaned') {
+                setStatus('all')
+              }
+              onApply(
+                buildFilters({
+                  view: nextView,
+                  status: nextView === 'orphaned' ? 'all' : status,
+                })
+              )
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label="Filter by user list view">
+              <SelectValue placeholder="View" />
+            </SelectTrigger>
+            <SelectContent align="start" alignItemWithTrigger={false}>
+              <SelectGroup>
+                <SelectItem value="all">All users</SelectItem>
+                <SelectItem value="orphaned">Orphaned</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+      {showStatusFilter && !isOrphanedView ? (
         <div className="w-full shrink-0 sm:w-40">
           <Select
             items={statusSelectItems}
@@ -196,6 +250,7 @@ export function UsersFilters({
               setSearch('')
               setStatus('all')
               setRootEntityId(undefined)
+              setView('all')
               onReset()
             }}
           >

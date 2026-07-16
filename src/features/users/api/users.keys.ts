@@ -1,9 +1,15 @@
-import type { UsersListFilters } from '@/features/users/types/users.types'
+import type {
+  OrphanedUsersListFilters,
+  UsersListFilters,
+} from '@/features/users/types/users.types'
 
 export const usersKeys = {
   all: ['users'] as const,
   lists: () => [...usersKeys.all, 'list'] as const,
   list: (filters: UsersListFilters) => [...usersKeys.lists(), filters] as const,
+  orphanedLists: () => [...usersKeys.all, 'orphaned'] as const,
+  orphanedList: (filters: OrphanedUsersListFilters) =>
+    [...usersKeys.orphanedLists(), filters] as const,
   detail: (userId: string) => [...usersKeys.all, 'detail', userId] as const,
   roles: (userId: string) => [...usersKeys.all, 'roles', userId] as const,
   auditEventsRoot: (userId: string) => [...usersKeys.all, 'audit-events', userId] as const,

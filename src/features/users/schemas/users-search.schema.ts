@@ -10,6 +10,8 @@ export const userStatusFilterSchema = z.enum([
   'deleted',
 ])
 
+export const usersListViewSchema = z.enum(['all', 'orphaned'])
+
 export const usersSearchSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   search: z
@@ -23,6 +25,7 @@ export const usersSearchSchema = z.object({
     .trim()
     .optional()
     .transform((value) => value || undefined),
+  view: usersListViewSchema.optional().catch(undefined),
 })
 
 export function parseUsersSearch(search: unknown): UsersPageSearch {

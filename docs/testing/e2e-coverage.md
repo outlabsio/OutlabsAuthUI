@@ -52,6 +52,7 @@ with auth routes under `/v1`.
   - invite and resend invite
   - admin create-user with password
   - direct account role assignment/removal
+  - orphaned users discovery after membership revoke
   - retained delete and restore
   - read-only auditor coverage
   - read-only team-lead coverage with invite/create gating

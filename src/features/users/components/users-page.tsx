@@ -15,9 +15,13 @@ import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
 import { CreateUserDialog } from '@/features/users/components/create-user-dialog'
 import { InviteUserDialog } from '@/features/users/components/invite-user-dialog'
+import { OrphanedUsersTable } from '@/features/users/components/orphaned-users-table'
 import { UsersFilters } from '@/features/users/components/users-filters'
 import { UsersTable } from '@/features/users/components/users-table'
-import { getUsersQueryOptions } from '@/features/users/api/users.query-options'
+import {
+  getOrphanedUsersQueryOptions,
+  getUsersQueryOptions,
+} from '@/features/users/api/users.query-options'
 import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation'
 import type { UsersPageSearch } from '@/features/users/types/users.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
@@ -45,17 +49,29 @@ export function UsersPage({
   ])
   const actorPermissions = useActorPermissions()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
-  const usersQuery = useQuery(
-    getUsersQueryOptions({
+  const entityHierarchyEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
+  const isOrphanedView = entityHierarchyEnabled && filters.view === 'orphaned'
+  const usersQuery = useQuery({
+    ...getUsersQueryOptions({
       page: filters.page,
       limit: 20,
       search: filters.search,
       status: filters.status,
       rootEntityId: filters.rootEntityId,
-    })
-  )
+    }),
+    enabled: !isOrphanedView,
+  })
+  const orphanedUsersQuery = useQuery({
+    ...getOrphanedUsersQueryOptions({
+      page: filters.page,
+      limit: 20,
+      search: filters.search,
+      rootEntityId: filters.rootEntityId,
+    }),
+    enabled: isOrphanedView,
+  })
+  const activeListQuery = isOrphanedView ? orphanedUsersQuery : usersQuery
   const resendInviteMutation = useResendInviteMutation()
-  const entityHierarchyEnabled = authConfigQuery.data?.features.entity_hierarchy ?? false
   const canReadEntities = actorPermissions.hasAny(['entity:read', 'entity:read_tree'])
   const entitiesQuery = useQuery({
     ...getEntitiesQueryOptions(),
@@ -68,7 +84,7 @@ export function UsersPage({
 
   const pageError =
     actorPermissions.error ??
-    usersQuery.error ??
+    activeListQuery.error ??
     authConfigQuery.error ??
     entitiesQuery.error
 
@@ -82,7 +98,7 @@ export function UsersPage({
   const invitedUsers = users.filter((user) => user.status === 'invited').length
   const adminUsers = users.filter((user) => user.is_superuser).length
   const verifiedUsers = users.filter((user) => user.email_verified).length
-  const filtersKey = `${filters.search ?? ''}:${filters.status ?? ''}:${filters.rootEntityId ?? ''}`
+  const filtersKey = `${filters.search ?? ''}:${filters.status ?? ''}:${filters.rootEntityId ?? ''}:${filters.view ?? 'all'}`
   const shellAction =
     canCreateUsers || canInviteUsers ? (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -104,7 +120,17 @@ export function UsersPage({
         ) : null}
       </div>
     ) : undefined
-  const usersSummary = (
+  const usersSummary = isOrphanedView ? (
+    <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
+      <span>
+        <span className="font-medium text-foreground">
+          {orphanedUsersQuery.data?.total ?? 0}
+        </span>{' '}
+        orphaned users
+      </span>
+      <span>No active entity memberships</span>
+    </div>
+  ) : (
     <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
       <span>
         <span className="font-medium text-foreground">{usersQuery.data?.total ?? 0}</span> users
@@ -157,6 +183,7 @@ export function UsersPage({
               entityOptions={entityOptions}
               showStatusFilter={showStatusFilter}
               showEntityFilter={showEntityFilter}
+              showOrphanedView={entityHierarchyEnabled}
               onApply={onFiltersChange}
               onReset={() => {
                 onFiltersChange({})
@@ -165,23 +192,38 @@ export function UsersPage({
           </AppToolbar>
         }
       >
-        <UsersTable
-          users={usersQuery.data?.items ?? []}
-          page={usersQuery.data?.page ?? filters.page}
-          pages={usersQuery.data?.pages ?? 1}
-          total={usersQuery.data?.total ?? 0}
-          isLoading={usersQuery.isPending}
-          isRefreshing={usersQuery.isFetching && !usersQuery.isPending}
-          canResendInvites={canInviteUsers}
-          resendInvitePendingUserId={resendInviteMutation.variables}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          onPageChange={onPageChange}
-          onResendInvite={(userId) => {
-            void resendInviteMutation.mutateAsync(userId)
-          }}
-          onSelectUser={onUserSelect}
-        />
+        {isOrphanedView ? (
+          <OrphanedUsersTable
+            items={orphanedUsersQuery.data?.items ?? []}
+            page={orphanedUsersQuery.data?.page ?? filters.page}
+            pages={orphanedUsersQuery.data?.pages ?? 1}
+            total={orphanedUsersQuery.data?.total ?? 0}
+            isLoading={orphanedUsersQuery.isPending}
+            isRefreshing={orphanedUsersQuery.isFetching && !orphanedUsersQuery.isPending}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            onPageChange={onPageChange}
+            onSelectUser={onUserSelect}
+          />
+        ) : (
+          <UsersTable
+            users={usersQuery.data?.items ?? []}
+            page={usersQuery.data?.page ?? filters.page}
+            pages={usersQuery.data?.pages ?? 1}
+            total={usersQuery.data?.total ?? 0}
+            isLoading={usersQuery.isPending}
+            isRefreshing={usersQuery.isFetching && !usersQuery.isPending}
+            canResendInvites={canInviteUsers}
+            resendInvitePendingUserId={resendInviteMutation.variables}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            onPageChange={onPageChange}
+            onResendInvite={(userId) => {
+              void resendInviteMutation.mutateAsync(userId)
+            }}
+            onSelectUser={onUserSelect}
+          />
+        )}
       </AppPage>
       <CreateUserDialog
         open={isCreateDialogOpen}

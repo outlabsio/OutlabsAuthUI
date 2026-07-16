@@ -224,10 +224,10 @@ async function createTemporaryUser(label = 'superuser-target') {
   return (await response.json()) as { id: string; email: string }
 }
 
-async function createTemporaryUserWithMembership() {
+async function createTemporaryUserWithMembership(label = 'retained-user') {
   const accessToken = await getAdminAccessToken()
   const timestamp = Date.now()
-  const email = `playwright-retained-user-${timestamp}@example.com`
+  const email = `playwright-${label}-${timestamp}@example.com`
 
   const createUserResponse = await fetch(`${e2eApiBaseURL}/v1/users/`, {
     method: 'POST',
@@ -292,7 +292,40 @@ async function createTemporaryUserWithMembership() {
     )
   }
 
+  return {
+    ...user,
+    entityId: teamEntity.id,
+    entityName: teamEntity.display_name,
+  }
+}
+
+async function createTemporaryOrphanedUser() {
+  const accessToken = await getAdminAccessToken()
+  const user = await createTemporaryUserWithMembership('orphaned-user')
+
+  const removeResponse = await fetch(
+    `${e2eApiBaseURL}/v1/memberships/${user.entityId}/${user.id}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  if (!removeResponse.ok) {
+    throw new Error(
+      `Unable to revoke temporary membership fixture: ${removeResponse.status}`
+    )
+  }
+
   return user
+}
+
+async function expectUsersViewParam(page: Page, viewValue: string | null) {
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('view'))
+    .toBe(viewValue)
 }
 
 async function updateSuperuserViaApi(userId: string, isSuperuser: boolean) {
@@ -690,6 +723,38 @@ test.describe('Users Workspace', () => {
 
     await expect(keyCard.getByText('Revoked', { exact: true })).toBeVisible()
     await expect(keyCard.getByRole('button', { name: 'Revoke' })).toHaveCount(0)
+  })
+
+  test('admin can discover orphaned users and open them for reassignment', async ({
+    page,
+  }) => {
+    const temporaryUser = await createTemporaryOrphanedUser()
+
+    await gotoUsersWorkspace(page)
+
+    await page.getByRole('combobox', { name: 'Filter by user list view' }).click()
+    await page.getByRole('option', { name: 'Orphaned' }).click()
+    await expectUsersViewParam(page, 'orphaned')
+
+    await page.getByPlaceholder('Search people by name or email').fill(temporaryUser.email)
+    await expectUsersSearchParam(page, temporaryUser.email)
+
+    const orphanRow = page
+      .locator('tbody tr')
+      .filter({
+        hasText: temporaryUser.email,
+      })
+      .first()
+    await expect(orphanRow).toBeVisible()
+    await expect(orphanRow.getByText('No active membership', { exact: true })).toBeVisible()
+    await expect(orphanRow.getByText(temporaryUser.entityName, { exact: true })).toBeVisible()
+    await expect(orphanRow.getByText(/Revoked/i)).toBeVisible()
+
+    await orphanRow.click()
+    await expect(page.getByText(temporaryUser.email, { exact: true }).first()).toBeVisible()
+    await openUserAccessTab(page)
+    await expect(page.getByRole('heading', { name: 'Entity memberships' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Assign entity' })).toBeVisible()
   })
 
   test('admin can retained-delete a user, review lifecycle history, and restore identity-only', async ({

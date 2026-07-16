@@ -7,6 +7,7 @@ This document is the restart point for the users surface. Update it whenever the
 Implemented on the frontend:
 
 - Users directory route at `/app/users`
+- Orphaned users discovery view (`view=orphaned`) via `GET /users/orphaned`
 - Dedicated user details route at `/app/users/$userId`
 - User profile editing
 - User status updates
@@ -22,6 +23,7 @@ Implemented on the frontend:
 Implemented in the backend and already used by the frontend:
 
 - `POST /v1/users/`
+- `GET /v1/users/orphaned`
 - `GET /v1/users/{id}`
 - `PATCH /v1/users/{id}`
 - `PATCH /v1/users/{id}/status`

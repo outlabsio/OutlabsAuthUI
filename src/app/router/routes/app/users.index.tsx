@@ -19,6 +19,7 @@ function UsersIndexRouteComponent() {
             search: next.search,
             status: next.status,
             rootEntityId: next.rootEntityId,
+            view: next.view,
           },
         })
       }}
