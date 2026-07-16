@@ -10,6 +10,7 @@ type MagicLinkCapture = {
 
 type AccessCodeCapture = {
   email: string
+  phone?: string | null
   code: string
   access_code_url: string
 }
@@ -40,10 +41,21 @@ function getCaptureDetail(payload: unknown) {
   return null
 }
 
-async function fetchCaptureEndpoint(path: string, email: string) {
-  const response = await fetch(
-    `${e2eApiBaseURL}${path}?email=${encodeURIComponent(email)}`
-  )
+async function fetchCaptureEndpoint(
+  path: string,
+  params: { email?: string; phone?: string }
+) {
+  const search = new URLSearchParams()
+
+  if (params.email) {
+    search.set('email', params.email)
+  }
+
+  if (params.phone) {
+    search.set('phone', params.phone)
+  }
+
+  const response = await fetch(`${e2eApiBaseURL}${path}?${search.toString()}`)
   const payload = (await response.json().catch(() => null)) as unknown
 
   return {
@@ -61,7 +73,9 @@ export async function skipIfPasswordlessCaptureDisabled(
     kind === 'magic-link'
       ? '/dev/auth/magic-link/latest'
       : '/dev/auth/access-code/latest'
-  const probe = await fetchCaptureEndpoint(path, 'capture-probe@example.com')
+  const probe = await fetchCaptureEndpoint(path, {
+    email: 'capture-probe@example.com',
+  })
 
   if (probe.status === 404 && probe.detail === 'Not found') {
     test.skip(
@@ -79,7 +93,7 @@ export async function waitForCapturedMagicLink(email: string) {
       async () => {
         const result = await fetchCaptureEndpoint(
           '/dev/auth/magic-link/latest',
-          email
+          { email }
         )
 
         if (result.status === 404 && result.detail === 'Not found') {
@@ -118,15 +132,19 @@ export async function waitForCapturedMagicLink(email: string) {
   return captured
 }
 
-export async function waitForCapturedAccessCode(email: string) {
+export async function waitForCapturedAccessCode(
+  identifier: { email: string } | { phone: string }
+) {
   let captured: AccessCodeCapture | null = null
+  const lookupLabel =
+    'email' in identifier ? identifier.email : identifier.phone
 
   await expect
     .poll(
       async () => {
         const result = await fetchCaptureEndpoint(
           '/dev/auth/access-code/latest',
-          email
+          identifier
         )
 
         if (result.status === 404 && result.detail === 'Not found') {
@@ -142,8 +160,19 @@ export async function waitForCapturedAccessCode(email: string) {
           return null
         }
 
+        if (
+          'phone' in identifier &&
+          String(record.phone ?? '') !== identifier.phone
+        ) {
+          return null
+        }
+
         captured = {
-          email: String(record.email ?? email),
+          email: String(record.email ?? ''),
+          phone:
+            typeof record.phone === 'string' || record.phone === null
+              ? record.phone
+              : null,
           code: record.code,
           access_code_url: String(record.access_code_url ?? ''),
         }
@@ -156,7 +185,7 @@ export async function waitForCapturedAccessCode(email: string) {
     .not.toBeNull()
 
   if (!captured) {
-    throw new Error(`No access code captured for ${email}`)
+    throw new Error(`No access code captured for ${lookupLabel}`)
   }
 
   return captured

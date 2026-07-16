@@ -86,7 +86,9 @@ async function setEntityDialogDateTime({
 }) {
   const field = dialog
     .locator(`#${buttonId}`)
-    .locator('xpath=ancestor::div[contains(@class,"space-y-2")][1]')
+    .locator(
+      'xpath=ancestor::div[@data-slot="field" or contains(@class,"space-y-2")][1]'
+    )
   const dateButton = field.locator(`#${buttonId}`)
 
   await dateButton.click()
@@ -453,7 +455,9 @@ test.describe('Entities Workspace', () => {
     await expect(manageDialog).toBeVisible()
     await manageDialog
       .locator('#membership-lifecycle-valid-until')
-      .locator('xpath=ancestor::div[contains(@class,"space-y-2")][1]')
+      .locator(
+        'xpath=ancestor::div[@data-slot="field" or contains(@class,"space-y-2")][1]'
+      )
       .getByRole('button', { name: 'Clear date' })
       .click()
     await manageDialog.getByRole('button', { name: 'Save access' }).click()
@@ -824,6 +828,35 @@ test.describe('Entities Workspace', () => {
     await expect(invitedRow).toBeVisible()
     await expect(invitedRow.getByText(/^invited$/i)).toBeVisible()
     await expect(invitedRow.getByText('ACME Realty', { exact: true })).toBeVisible()
+  })
+
+  test('admin can inspect entity activity and open filtered Audit', async ({ page }) => {
+    await gotoEntitiesWorkspace(page)
+    await selectEntityFromTree(page, 'San Francisco Office', 'San Francisco Office')
+
+    const entityMatch = page.url().match(/\/app\/entities\/([^/?#]+)/)
+    const entityId = entityMatch?.[1]
+    expect(entityId).toBeTruthy()
+
+    const auditRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes('/audit-events') &&
+        Boolean(entityId) &&
+        request.url().includes(`entity_id=${entityId}`)
+    )
+
+    await page.getByRole('tab', { name: 'Activity' }).click()
+    await expect(page.getByRole('tabpanel', { name: 'Activity' })).toBeVisible()
+    await auditRequest
+
+    await expect(
+      page.getByText(/Recent audit events tied to San Francisco Office|No entity activity/)
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Open in Audit' }).click()
+    await expect(page).toHaveURL(new RegExp(`/app/audit\\?.*entityId=${entityId}`))
+    await expect(page.locator('#audit-entity-id')).toHaveValue(entityId!)
+    await expect(page.getByText(/\d+ events/)).toBeVisible()
   })
 
   test.describe('Scoped admin UX', () => {

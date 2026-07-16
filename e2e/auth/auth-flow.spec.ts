@@ -8,6 +8,10 @@ import {
   waitForCapturedAccessCode,
   waitForCapturedMagicLink,
 } from '../support/passwordless-capture'
+import {
+  skipIfPhoneVerifyCaptureDisabled,
+  waitForCapturedPhoneVerifyCode,
+} from '../support/phone-verify-capture'
 
 const emptyStorageState = {
   cookies: [],
@@ -565,7 +569,7 @@ test.describe('Auth Flow', () => {
     await page.getByRole('button', { name: 'Send sign-in code' }).click()
     await expect(page.getByText('Verify your login')).toBeVisible()
 
-    const captured = await waitForCapturedAccessCode(email)
+    const captured = await waitForCapturedAccessCode({ email })
     await page.locator('#access-code-code').fill(captured.code)
     await page.getByRole('button', { name: 'Verify' }).click()
 
@@ -576,5 +580,66 @@ test.describe('Auth Flow', () => {
         page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
       )
       .toBeTruthy()
+  })
+
+  test('live WhatsApp access-code login completes via verified phone', async ({
+    page,
+  }) => {
+    await skipIfPasswordlessCaptureDisabled('access-code')
+    await skipIfPhoneVerifyCaptureDisabled()
+
+    const email = authPersonas.admin.email
+    const password = authPersonas.admin.password
+    const phone = `+1555${String(Date.now()).slice(-7)}`
+
+    await page.goto('/auth/login')
+    await signIn(page, email, password)
+    await expect(page).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+
+    await page.getByRole('button', { name: `Open account menu for ${email}` }).click()
+    await page.getByRole('menuitem', { name: 'Account' }).click()
+    await expect(page).toHaveURL(/\/app\/account$/)
+
+    await page.locator('#account-phone').fill(phone)
+    await page.getByRole('button', { name: 'Save profile' }).click()
+    await expect(
+      page.getByText('WhatsApp phone unverified', { exact: true })
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Send verification code' }).click()
+    const phoneVerify = await waitForCapturedPhoneVerifyCode(email, { phone })
+    await page.locator('#account-phone-verify-code').fill(phoneVerify.code)
+    await page.getByRole('button', { name: 'Verify phone' }).click()
+    await expect(
+      page.getByText('WhatsApp phone verified', { exact: true })
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: `Open account menu for ${email}` }).click()
+    await page.getByRole('menuitem', { name: 'Sign out' }).click()
+    await expectLoginPage(page)
+
+    await page.goto('/auth/access-code')
+    await page.getByRole('button', { name: 'WhatsApp' }).click()
+    await page.locator('#access-code-phone').fill(phone)
+    await page.getByRole('button', { name: 'Send sign-in code' }).click()
+    await expect(page.getByText('Verify your login')).toBeVisible()
+    await expect(page.getByText(phone, { exact: true })).toBeVisible()
+
+    const captured = await waitForCapturedAccessCode({ phone })
+    await page.locator('#access-code-code').fill(captured.code)
+    await page.getByRole('button', { name: 'Verify' }).click()
+
+    await expect(page).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem('outlabs-auth.access-token'))
+      )
+      .toBeTruthy()
+
+    await page.getByRole('button', { name: `Open account menu for ${email}` }).click()
+    await page.getByRole('menuitem', { name: 'Account' }).click()
+    await page.locator('#account-phone').fill('')
+    await page.getByRole('button', { name: 'Save profile' }).click()
+    await expect(page.locator('#account-phone')).toHaveValue('')
   })
 })

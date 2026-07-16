@@ -183,7 +183,9 @@ test.describe('Simple RBAC App Shell', () => {
     await page.goto('/app/api-keys')
     await expect(page).toHaveURL(/\/app\/api-keys$/)
     await expect(page.getByRole('button', { name: 'Open API Keys guide' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'API Keys' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'API Keys', exact: true })
+    ).toBeVisible()
     await expect(
       page.getByText(
         'SimpleRBAC exposes one admin-managed machine-credential model: platform-global service accounts with owned API keys.'

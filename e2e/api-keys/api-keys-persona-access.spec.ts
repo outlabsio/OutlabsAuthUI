@@ -51,7 +51,9 @@ async function gotoApiKeysWorkspace(page: Page) {
 
   await expect(page).toHaveURL(/\/app\/users\/api-keys(?:\?.*)?$/)
   await expect(page.getByRole('button', { name: 'Open System API Keys guide' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'System API Keys' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'System API Keys', exact: true })
+  ).toBeVisible()
 }
 
 async function getAccessToken(page: Page) {

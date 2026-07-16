@@ -7,8 +7,18 @@ const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 const reuseExistingServer =
   process.env.E2E_REUSE_EXISTING_SERVER === '0' ? false : !process.env.CI
 
+// Default enterprise pass excludes sibling-fixture specs. Set E2E_FIXTURE=simple
+// for the SimpleRBAC suite, or E2E_FIXTURE=all to disable filtering.
+const e2eFixture = (process.env.E2E_FIXTURE ?? 'enterprise').trim().toLowerCase()
+const enterpriseOnlyIgnore = [/simple-rbac/, /mounted-backend/]
+
 export default defineConfig({
   testDir: './e2e',
+  ...(e2eFixture === 'simple'
+    ? { testMatch: /simple-rbac/ }
+    : e2eFixture === 'all'
+      ? {}
+      : { testIgnore: enterpriseOnlyIgnore }),
   timeout: 45_000,
   expect: {
     timeout: 10_000,

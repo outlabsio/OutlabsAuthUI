@@ -44,7 +44,9 @@ async function gotoApiKeysWorkspace(page: Parameters<typeof test>[0]['page']) {
 
   await expect(page).toHaveURL(/\/app\/api-keys$/)
   await expect(page.getByRole('button', { name: 'Open API Keys guide' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'API Keys' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'API Keys', exact: true })
+  ).toBeVisible()
 }
 
 test.describe('Simple RBAC API Keys Workspace', () => {

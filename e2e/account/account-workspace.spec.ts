@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
-import { authPersonas } from '../support/auth-personas'
+import { authPersonas, e2eBaseURL } from '../support/auth-personas'
 import {
   skipIfPhoneVerifyCaptureDisabled,
   waitForCapturedPhoneVerifyCode,
@@ -76,6 +76,51 @@ test.describe('Account Workspace', () => {
     await page.getByRole('button', { name: 'Update password' }).click()
 
     await expect(page.getByText('Passwords must match.')).toBeVisible()
+  })
+
+  test('admin can view active sessions and linked accounts on account page', async ({
+    page,
+  }) => {
+    await openAccountWorkspace(page)
+
+    await expect(page.getByText('Active sessions', { exact: true })).toBeVisible()
+    await expect(page.getByText('Linked accounts', { exact: true })).toBeVisible()
+    await expect(
+      page
+        .getByRole('heading', { name: 'No linked accounts' })
+        .or(page.getByText(/Verified email|Unverified email/i))
+    ).toBeVisible()
+  })
+
+  test('Link Google completes via mocked associate authorize + linked callback', async ({
+    page,
+  }) => {
+    const linkedCallback = new URL('/app/account', e2eBaseURL)
+    linkedCallback.searchParams.set('linked', 'google')
+
+    await page.route('**/oauth-associate/google/authorize**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        json: {
+          authorization_url: linkedCallback.toString(),
+        },
+      })
+    })
+
+    await openAccountWorkspace(page)
+
+    const linkGoogle = page.getByRole('button', { name: 'Link Google' })
+    test.skip(
+      !(await linkGoogle.isVisible()),
+      'Link Google is unavailable when Google is already linked for this account.'
+    )
+
+    await linkGoogle.click()
+
+    await expect(page).toHaveURL(/\/app\/account(?:\?.*)?$/)
+    await expect(page.getByText('Google linked to your account.')).toBeVisible()
+    await expect(page).toHaveURL(/\/app\/account$/)
   })
 
   test('live phone verification completes via fixture code capture', async ({

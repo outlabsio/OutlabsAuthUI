@@ -4,7 +4,8 @@ This folder is the human-readable source of truth for this frontend.
 
 Start here:
 
-- Runtime configuration: [`runtime-configuration.md`](./runtime-configuration.md)
+- Runtime configuration (SPA target): [`runtime-configuration.md`](./runtime-configuration.md)
+- Auth config layers (deploy vs Settings vs host secrets): [`auth-config-layers.md`](./auth-config-layers.md)
 - Rules: [`rules/README.md`](./rules/README.md)
 - Progress: [`progress/README.md`](./progress/README.md)
 

@@ -12,11 +12,12 @@ Restart point for the entity hierarchy surface.
 - Archive entities via `DELETE /entities/{id}` (backend soft-archives to `archived`, with required cascade when active children exist)
 - Members, invite, membership lifecycle (via shared membership dialogs)
 - Create/edit entity-scoped roles from entity context
+- Activity tab via `GET /audit-events?entity_id=` + deep-link to Audit (`/app/audit?entityId=`)
 
 ## Known gaps
 
-- No dedicated entity audit timeline
 - Entity-context member provisioning is invite-only here; admin create-user with password lives on the Users workspace
+- No separate entity audit router (reuses cross-user `/audit-events`)
 
 ## Backend contracts used
 

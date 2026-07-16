@@ -23,15 +23,32 @@ with auth routes under `/v1`.
   - login flow
   - passwordless magic-link and access-code flows (mocked UI + live fixture capture)
   - auth bootstrap and route transitions
+- `e2e/auth/oauth-flow.spec.ts`
+  - invite-only `oauth_error` banner on login
+  - Continue with Google via mocked authorize → hash callback session finalize
+  - oauth callback recovery when tokens are missing
+  - opt-in live Google authorize boundary (`E2E_LIVE_GOOGLE=1`; backend must mount Google credentials; does not automate Google account UI)
 - `e2e/app/app-shell.spec.ts`
   - shell layout and persistent navigation
   - sign-out calls `POST /auth/logout` (204) and clears protected-route access
+- `e2e/app/workspace-pagination.spec.ts`
+  - Users list Next/Previous after seeding enough rows for page 2
+  - Audit pagination chrome present; Roles/Permissions workspace loads
 - `e2e/app/access-control.spec.ts`
   - low-privilege operational-user access boundaries across dashboard, account, API keys, users, roles, permissions, and entities
 - `e2e/account/account-workspace.spec.ts`
   - self profile update
   - password validation
+  - Link Google via mocked associate authorize → `?linked=google` toast + URL cleanup
   - live WhatsApp phone verify via `/dev/auth/phone-verify/latest`
+- `e2e/audit/audit-workspace.spec.ts`
+  - open Audit workspace (toolbar shell + page guide)
+  - filter by actor user ID + Reset
+  - date-range filters via URL deep-link (`occurred_from` / `occurred_to`)
+  - deep-link prefills `entityId` / `subjectUserId` / `actorUserId` from search params
+  - clickable actor/subject/entity IDs on event cards apply Audit filters
+  - expandable event details (before/after/metadata/context)
+  - empty state for unknown actor
 - `e2e/api-keys/api-keys-workspace.spec.ts`
   - create
   - edit lifecycle
@@ -58,10 +75,12 @@ with auth routes under `/v1`.
   - inspect and update profile details
   - invite and resend invite
   - live invite-accept via `/dev/auth/invite/latest` fixture capture
+  - opt-in live Mailgun invite acceptance (`E2E_LIVE_MAIL=1`) then accept-invite
   - admin create-user with password
   - direct account role assignment/removal
   - orphaned users discovery after membership revoke
   - entity-context permission check on user details
+  - History → Open in Audit (`subjectUserId`) and Open as actor (`actorUserId`)
   - retained delete and restore
   - read-only auditor coverage
   - read-only team-lead coverage with invite/create gating
@@ -78,6 +97,7 @@ with auth routes under `/v1`.
   - root-scoped and second-root persona isolation
   - east-admin read-only entity and membership boundaries inside the ACME root
   - selectors match current Base UI controls (Status toggle group, child-class checkboxes, locale-aware calendar caption)
+  - entity Activity tab loads `entity_id` audit events and deep-links into Audit
 
 ### Persona coverage
 
@@ -152,14 +172,38 @@ E2E_ADMIN_PASSWORD=Test123!! \
 bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 ```
 
+## Fixture orchestration
+
+Default `bun run test:e2e` targets the **enterprise** fixture and ignores
+`*simple-rbac*` / `*mounted-backend*` specs (`E2E_FIXTURE=enterprise`).
+
+Run both local example fixtures in one command (requires `:8004` and `:8003`):
+
+```bash
+bun run test:e2e:fixtures
+```
+
+That script runs the enterprise suite, then the SimpleRBAC suite on frontend
+port `3001` so Vite can start without colliding with an existing `:3000` server.
+
+- `bun run test:e2e:simple` — SimpleRBAC only (`E2E_FIXTURE=simple`)
+- `E2E_FIXTURE=all` — disable fixture path filtering (debug only)
+
+Mounted `/iam` discovery specs stay opt-in via explicit path + env overrides
+(see [`browser-testing.md`](./browser-testing.md)).
+
 ## Remaining Gaps
 
-The suite is broad, but still not mathematically exhaustive. Current notable gaps:
+The suite is broad, but still not mathematically exhaustive. Intentional limits:
 
-- no OAuth-provider browser coverage (product-deferred)
-- live invite-accept covered via fixture token capture (`/dev/auth/invite/latest`); optional live-mail path still not required
-- no bulk pagination stress run across every workspace
-- no second-fixture orchestration that runs enterprise and mounted-backend suites in one command
+- full live Google account UI / consent automation (won’t automate; use mocked flows + opt-in `E2E_LIVE_GOOGLE=1` authorize boundary)
+- pagination smoke covers Users + Audit chrome; not every workspace table under load
+
+Opt-in live paths (skip when unset; not console gaps):
+
+- invite-accept via fixture token capture (`/dev/auth/invite/latest`)
+- Mailgun invite: `E2E_LIVE_MAIL=1` plus `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` / `MAIL_RECIPIENT_OVERRIDE`
+- Google authorize: `E2E_LIVE_GOOGLE=1` plus enterprise `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 
 When adding new browser tests, update this matrix so the repo keeps an explicit
 record of what is covered and what is still intentionally missing.

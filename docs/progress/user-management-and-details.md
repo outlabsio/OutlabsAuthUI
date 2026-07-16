@@ -47,8 +47,8 @@ Important read-model notes:
 ## Known Gaps
 
 - Direct role membership validity windows are editable via `PATCH /users/{id}/role-memberships/{membership_id}` and the user-details “Edit window” dialog.
-- There is no admin session/device API yet for another user.
-- User-level audit timeline is available via `GET /users/{id}/audit-events` and is shown on the History tab. Broader cross-user audit search is still out of scope.
+- Admin and self session list/revoke is available (`GET/DELETE /users/me/sessions`, `GET/DELETE /users/{id}/sessions`). Shown on user details Access and Account.
+- User-level audit timeline is available via `GET /users/{id}/audit-events` (History tab). Cross-user search is available via `GET /audit-events` and the Audit workspace.
 - Personal API keys are self-service for create/rotate (`/api-keys`). Admins can list and revoke another user’s personal keys from user details Access (`GET/DELETE /users/{id}/api-keys...`). System/integration keys stay in the System API Keys workspace.
 - Open self-registration is intentionally not part of this console; new accounts are invited or created by an admin with a password.
 
@@ -60,7 +60,8 @@ Important read-model notes:
 - [x] Membership lifecycle round-trip covered in entities e2e: suspend on create, reactivate with reason, set/clear `valid_until`, and confirm user-details + members-table readback.
 - [x] Editable direct role membership windows (backend PATCH + user-details Edit window dialog).
 - [x] Admin list/revoke of another user’s personal API keys on user details.
-- [ ] Decide whether the next backend slice is `sessions/devices` or broader audit search.
+- [x] Admin/self sessions/devices list+revoke landed (chose sessions before broader audit).
+- [x] Cross-user audit search landed (`GET /audit-events` + `/app/audit`).
 
 ## Frontend Files To Recheck First
 

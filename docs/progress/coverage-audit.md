@@ -27,10 +27,11 @@ optional product gaps, not required console parity unless a mount depends on the
 | Account self-service | Covered | Profile + password + WhatsApp phone register/verify OTP |
 | Users admin | Covered | Invite, create-with-password, status, roles, memberships, orphaned discovery, history, audit, permission check |
 | Roles / permissions / ABAC | Covered | |
-| Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete |
+| Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete + Activity tab |
 | Personal API keys | Covered | Self-service + admin list/revoke on user details |
 | System / integration API keys | Covered | Managed in System API Keys workspace |
-| Settings | Narrow | Entity type config only (full mutable `/config` surface) |
+| Settings | Covered | Read-only Runtime capabilities from `/auth/config` + mutable entity-types |
+| Audit search | Covered | Filters + expandable before/after/metadata event inspector |
 
 ## Known gaps
 
@@ -51,12 +52,15 @@ optional product gaps, not required console parity unless a mount depends on the
 ### P2 / optional auth shell
 
 - [x] Self-registration UI deferred — dead `/auth/register` route constant removed; console is invite-only (admin create-user covers password provisioning)
-- [ ] OAuth login + account associate UI — deferred until a mount requires console OAuth
+- [x] OAuth linked-accounts list/unlink on Account (`GET/DELETE /users/me/social-accounts`)
+- [x] OAuth associate mount (Google) + Account “Link Google” (`GET /oauth-associate/google/authorize` → provider → callback → `/app/account?linked=google`)
+- [x] Invite-only console Google OAuth login (`GET /oauth/google/authorize` → callback → `/auth/oauth/callback#tokens`; unknown emails rejected)
+- [x] Separate `whatsapp_otp` / `sms_otp` challenge types (+ `delivery_channel`); WhatsApp + SMS enterprise host recipes (Twilio when configured)
 
 ### Ops validation
 
 - [x] Live invite-accept E2E via `/dev/auth/invite/latest` (fixture token capture; not live mail)
-- [ ] Real invite email E2E against a live mail path (optional ops; prefer fixture capture above)
+- [x] Opt-in live invite-mail E2E against Mailgun (`E2E_LIVE_MAIL=1` + Mailgun env + `MAIL_RECIPIENT_OVERRIDE`; polls Events API then accepts via fixture token)
 - [x] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
 - [x] Live passwordless E2E via `/dev/auth/magic-link/latest` and `/dev/auth/access-code/latest`
 
@@ -70,12 +74,38 @@ optional product gaps, not required console parity unless a mount depends on the
 - [x] Unify membership access dialogs (`MembershipAccessDialog` / `EntityMemberAccessDialog` shared actions/footer/roles panel)
 - [x] Split mega workspace pages (`user-details-page`, `api-keys-page`) into section/tab components
 
-## Remaining work (priority order)
+## Milestone status
 
-1. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit, WhatsApp-as-login
+**Sidecar console completeness: closed** for the current OutlabsAuth backend surface.
+
+All P0/P1 admin parity, P2 auth-shell, ops validation, and architecture follow-ups
+above are shipped. Form/shell hygiene and Settings honesty (Runtime capabilities +
+entity-types) are in place. See the shipped chronology in git history and the E2E
+matrix for regression coverage.
+
+### Explicitly out of scope (closed decisions)
+
+These were the last open “remaining” items. They are **not** unfinished UI work:
+
+1. **Typed runtime allowlist / feature-flag CRUD** — Won’t build.  
+   Backend `/config` only exposes typed `entity-types` today; `ConfigKeys.FEATURE_FLAGS`
+   is reserved “for future use” with no router. Free-form KV flags in this SPA would
+   violate [`auth-config-layers.md`](../auth-config-layers.md). Reopen only if the
+   backend ships a typed `/config/<key>` allowlist with precedence + audit.
+
+2. **Full live Google consent / account UI automation** — Won’t build.  
+   Flaky third-party UI automation. Covered by mocked login/associate flows plus
+   opt-in authorize-boundary checks (`E2E_LIVE_GOOGLE=1`). Manual provider smoke
+   when credentials are configured is enough.
+
+### Optional host ops (not console gaps)
+
+- Run live Mailgun invite E2E when Mailgun env is available (`E2E_LIVE_MAIL=1`)
+- Run live Google authorize E2E when Google env is mounted (`E2E_LIVE_GOOGLE=1`)
 
 ## Related docs
 
+- Auth config layers: [`../auth-config-layers.md`](../auth-config-layers.md)
 - User management details: [`user-management-and-details.md`](./user-management-and-details.md)
 - E2E matrix: [`../testing/e2e-coverage.md`](../testing/e2e-coverage.md)
-- Runtime config: [`../runtime-configuration.md`](../runtime-configuration.md)
+- Runtime config (SPA target): [`../runtime-configuration.md`](../runtime-configuration.md)

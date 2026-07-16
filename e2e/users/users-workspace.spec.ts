@@ -7,6 +7,10 @@ import {
   skipIfInviteCaptureDisabled,
   waitForCapturedInvite,
 } from '../support/invite-capture'
+import {
+  skipUnlessLiveMailgunInviteConfigured,
+  waitForMailgunInviteAccepted,
+} from '../support/mailgun-invite-capture'
 
 const usersPath = '/app/users'
 
@@ -139,7 +143,9 @@ async function setDialogDateTime({
 }) {
   const field = dialog
     .locator(`#${buttonId}`)
-    .locator('xpath=ancestor::div[contains(@class,"space-y-2")][1]')
+    .locator(
+      'xpath=ancestor::div[@data-slot="field" or contains(@class,"space-y-2")][1]'
+    )
   const dateButton = field.locator(`#${buttonId}`)
 
   await dateButton.click()
@@ -627,6 +633,51 @@ test.describe('Users Workspace', () => {
     }
   })
 
+  test('live invite mail is accepted by Mailgun then invite-accept works', async ({
+    page,
+    browser,
+  }) => {
+    skipUnlessLiveMailgunInviteConfigured()
+    await skipIfInviteCaptureDisabled()
+
+    const email = `playwright-live-mail-${Date.now()}@example.com`
+    const password = 'Testpass1!'
+
+    await gotoUsersWorkspace(page)
+    await page.getByRole('button', { name: 'Invite user' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Invite user' })
+    await expect(dialog).toBeVisible()
+    await dialog.locator('#invite-email').fill(email)
+    await dialog.locator('#invite-first-name').fill('Live')
+    await dialog.locator('#invite-last-name').fill('Mail')
+    await dialog.getByRole('button', { name: 'Send invite' }).click()
+    await expect(dialog).toBeHidden()
+
+    await waitForMailgunInviteAccepted(email)
+    const captured = await waitForCapturedInvite(email)
+    const inviteUrl = new URL(captured.invite_url)
+    const invitePath = `${inviteUrl.pathname}${inviteUrl.search}`
+
+    const guest = await browser.newContext({
+      baseURL: e2eBaseURL,
+    })
+    const guestPage = await guest.newPage()
+
+    try {
+      await guestPage.goto(invitePath)
+      await expect(
+        guestPage.getByRole('heading', { name: 'Accept your invitation' })
+      ).toBeVisible()
+      await guestPage.locator('#accept-invite-new-password').fill(password)
+      await guestPage.locator('#accept-invite-confirm-password').fill(password)
+      await guestPage.getByRole('button', { name: 'Accept invitation' }).click()
+      await expect(guestPage).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+    } finally {
+      await guest.close()
+    }
+  })
+
   test('admin can grant and revoke superuser access from user details', async ({
     page,
   }) => {
@@ -784,6 +835,31 @@ test.describe('Users Workspace', () => {
     await expect(keyCard.getByRole('button', { name: 'Revoke' })).toHaveCount(0)
   })
 
+  test('admin can list and revoke another user’s active sessions', async ({
+    page,
+  }) => {
+    await getPersonaAccessToken(
+      authPersonas.commercialAgent.email,
+      authPersonas.commercialAgent.password
+    )
+
+    await gotoUsersWorkspace(page)
+    await openUserDetails(page, authPersonas.commercialAgent.email)
+    await openUserAccessTab(page)
+
+    await expect(
+      page.getByRole('heading', { name: 'Active sessions' })
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Revoke all' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Revoke all' }).click()
+    await page.getByRole('button', { name: 'Confirm revoke all' }).click()
+
+    await expect(
+      page.getByText('No active sessions are stored for this account.')
+    ).toBeVisible()
+  })
+
   test('admin can check a user permission in entity context', async ({ page }) => {
     await gotoUsersWorkspace(page)
     await openUserDetails(page, 'agent@sf.acme.com')
@@ -842,6 +918,63 @@ test.describe('Users Workspace', () => {
     await openUserAccessTab(page)
     await expect(page.getByRole('heading', { name: 'Entity memberships' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Assign entity' })).toBeVisible()
+  })
+
+  test('admin can open Audit from user History with subject filter', async ({ page }) => {
+    await gotoUsersWorkspace(page)
+    await page
+      .getByPlaceholder('Search people by name or email')
+      .fill('manager@sf.acme.com')
+    await expectUsersSearchParam(page, 'manager@sf.acme.com')
+    await openUserDetails(page, 'manager@sf.acme.com')
+
+    const userMatch = page.url().match(/\/app\/users\/([^/?#]+)/)
+    const userId = userMatch?.[1]
+    expect(userId).toBeTruthy()
+
+    await openUserHistoryTab(page)
+    await expect(page.getByRole('button', { name: 'Open in Audit' })).toBeVisible()
+
+    const auditRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes('/audit-events') &&
+        Boolean(userId) &&
+        request.url().includes(`subject_user_id=${userId}`)
+    )
+
+    await page.getByRole('button', { name: 'Open in Audit' }).click()
+    await expect(page).toHaveURL(new RegExp(`/app/audit\\?.*subjectUserId=${userId}`))
+    await expect(page.locator('#audit-subject-user-id')).toHaveValue(userId!)
+    await auditRequest
+    await expect(page.getByText(/\d+ events/)).toBeVisible()
+  })
+
+  test('admin can open Audit from user History as actor', async ({ page }) => {
+    await gotoUsersWorkspace(page)
+    await page
+      .getByPlaceholder('Search people by name or email')
+      .fill('admin@acme.com')
+    await expectUsersSearchParam(page, 'admin@acme.com')
+    await openUserDetails(page, 'admin@acme.com')
+
+    const userMatch = page.url().match(/\/app\/users\/([^/?#]+)/)
+    const userId = userMatch?.[1]
+    expect(userId).toBeTruthy()
+
+    await openUserHistoryTab(page)
+
+    const auditRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes('/audit-events') &&
+        Boolean(userId) &&
+        request.url().includes(`actor_user_id=${userId}`)
+    )
+
+    await page.getByRole('button', { name: 'Open as actor' }).click()
+    await expect(page).toHaveURL(new RegExp(`/app/audit\\?.*actorUserId=${userId}`))
+    await expect(page.locator('#audit-actor-user-id')).toHaveValue(userId!)
+    await auditRequest
+    await expect(page.getByText(/\d+ events/)).toBeVisible()
   })
 
   test('admin can retained-delete a user, review lifecycle history, and restore identity-only', async ({

@@ -10,10 +10,12 @@ async function gotoSettingsWorkspace(page: Page) {
 
   await expect(page).toHaveURL(/\/app\/settings$/)
   await expect(page.getByRole('button', { name: 'Open Settings guide' })).toBeVisible()
+  await expect(page.getByText('Runtime capabilities', { exact: true })).toBeVisible()
   await expect(
-    page.getByRole('heading', {
-      name: 'Settings',
-    })
+    page.getByText(/Changed by host deploy \/ environment configuration/)
+  ).toBeVisible()
+  await expect(
+    page.getByText('Entity type configuration', { exact: true })
   ).toBeVisible()
 }
 

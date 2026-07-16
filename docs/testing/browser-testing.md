@@ -105,6 +105,14 @@ uv run uvicorn main:app --host localhost --port 8003
 
 `bun run test:e2e:simple` overrides the backend reseed script, admin credentials, and API base URL so the frontend can exercise the verified `SimpleRBAC` contract.
 
+To run **enterprise then SimpleRBAC** in one command (both backends must be up):
+
+```bash
+bun run test:e2e:fixtures
+```
+
+The SimpleRBAC pass uses frontend port `3001` so it can start while an enterprise Vite server remains on `:3000`. Default `bun run test:e2e` ignores `*simple-rbac*` and `*mounted-backend*` specs.
+
 Playwright global setup will, by default:
 
 - verify the frontend and backend are reachable

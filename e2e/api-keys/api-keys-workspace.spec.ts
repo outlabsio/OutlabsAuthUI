@@ -34,6 +34,7 @@ async function gotoPersonalApiKeysWorkspace(page: Parameters<typeof test>[0]['pa
   await expect(
     page.getByRole('heading', {
       name: 'API Keys',
+      exact: true,
     })
   ).toBeVisible()
 }
