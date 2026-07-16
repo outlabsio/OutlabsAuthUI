@@ -55,7 +55,7 @@ optional product gaps, not required console parity unless a mount depends on the
 
 ### Ops validation
 
-- [ ] Live invite-accept E2E — **blocked** on enterprise fixture invite-token capture (`/dev/auth/invite/latest` mirroring magic-link capture). Do not depend on live mail.
+- [x] Live invite-accept E2E via `/dev/auth/invite/latest` (fixture token capture; not live mail)
 - [ ] Real invite email E2E against a live mail path (optional ops; prefer fixture capture above)
 - [x] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
 - [x] Live passwordless E2E via `/dev/auth/magic-link/latest` and `/dev/auth/access-code/latest`
@@ -72,8 +72,7 @@ optional product gaps, not required console parity unless a mount depends on the
 
 ## Remaining work (priority order)
 
-1. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
-2. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
+1. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
 
 ## Related docs
 

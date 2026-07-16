@@ -56,6 +56,7 @@ with auth routes under `/v1`.
 - `e2e/users/users-workspace.spec.ts`
   - inspect and update profile details
   - invite and resend invite
+  - live invite-accept via `/dev/auth/invite/latest` fixture capture
   - admin create-user with password
   - direct account role assignment/removal
   - orphaned users discovery after membership revoke
@@ -155,7 +156,7 @@ bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 The suite is broad, but still not mathematically exhaustive. Current notable gaps:
 
 - no OAuth-provider browser coverage (product-deferred)
-- no live invite-accept E2E yet — blocked on enterprise fixture invite-token capture (`/dev/auth/invite/latest`), not live mail
+- live invite-accept covered via fixture token capture (`/dev/auth/invite/latest`); optional live-mail path still not required
 - no bulk pagination stress run across every workspace
 - no second-fixture orchestration that runs enterprise and mounted-backend suites in one command
 

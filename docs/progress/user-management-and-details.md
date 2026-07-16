@@ -56,7 +56,7 @@ Important read-model notes:
 
 - [x] Expose direct role memberships from the backend and use them in the user details page.
 - [x] Keep this document updated with the final direct-role lifecycle shape after that work lands.
-- [ ] Run a true end-to-end invite flow with a real invite token path: invite user, receive email, open accept-invite link, set password, and confirm the account lands in the expected status/state.
+- [x] Run a true end-to-end invite flow with a real invite token path: invite user, capture token via `/dev/auth/invite/latest`, open accept-invite link, set password, and land on the dashboard.
 - [x] Membership lifecycle round-trip covered in entities e2e: suspend on create, reactivate with reason, set/clear `valid_until`, and confirm user-details + members-table readback.
 - [x] Editable direct role membership windows (backend PATCH + user-details Edit window dialog).
 - [x] Admin list/revoke of another user’s personal API keys on user details.

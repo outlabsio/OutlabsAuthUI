@@ -1,8 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
-import { authPersonas, e2eApiBaseURL } from '../support/auth-personas'
+import { authPersonas, e2eApiBaseURL, e2eBaseURL } from '../support/auth-personas'
 import { typeIntoBaseUiField } from '../support/base-ui-text'
+import {
+  skipIfInviteCaptureDisabled,
+  waitForCapturedInvite,
+} from '../support/invite-capture'
 
 const usersPath = '/app/users'
 
@@ -565,6 +569,61 @@ test.describe('Users Workspace', () => {
       if (invitedUserId) {
         await updateSuperuserViaApi(invitedUserId, false)
       }
+    }
+  })
+
+  test('live invite-accept completes via fixture token capture', async ({
+    page,
+    browser,
+  }) => {
+    await skipIfInviteCaptureDisabled()
+
+    const email = `playwright-invite-accept-${Date.now()}@example.com`
+    const password = 'Testpass1!'
+
+    await gotoUsersWorkspace(page)
+    await page.getByRole('button', { name: 'Invite user' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Invite user' })
+    await expect(dialog).toBeVisible()
+    await dialog.locator('#invite-email').fill(email)
+    await dialog.locator('#invite-first-name').fill('Invite')
+    await dialog.locator('#invite-last-name').fill('Accept')
+    await dialog.getByRole('button', { name: 'Send invite' }).click()
+    await expect(dialog).toBeHidden()
+
+    const captured = await waitForCapturedInvite(email)
+    const inviteUrl = new URL(captured.invite_url)
+    const invitePath = `${inviteUrl.pathname}${inviteUrl.search}`
+
+    const guest = await browser.newContext({
+      baseURL: e2eBaseURL,
+    })
+    const guestPage = await guest.newPage()
+
+    try {
+      await guestPage.goto(invitePath)
+      await expect(
+        guestPage.getByRole('heading', { name: 'Accept your invitation' })
+      ).toBeVisible()
+
+      await guestPage.locator('#accept-invite-new-password').fill(password)
+      await guestPage.locator('#accept-invite-confirm-password').fill(password)
+      await guestPage.getByRole('button', { name: 'Accept invitation' }).click()
+
+      await expect(guestPage).toHaveURL(/\/app\/dashboard(?:\?.*)?$/)
+      await expect(
+        guestPage.getByText('Auth configuration snapshot')
+      ).toBeVisible()
+      await expect
+        .poll(() =>
+          guestPage.evaluate(() =>
+            localStorage.getItem('outlabs-auth.access-token')
+          )
+        )
+        .toBeTruthy()
+    } finally {
+      await guest.close()
     }
   })
 
