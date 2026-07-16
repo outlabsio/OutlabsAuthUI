@@ -22,15 +22,15 @@ optional product gaps, not required console parity unless a mount depends on the
 |---|---|---|
 | Password login / forgot / reset | Covered | |
 | Magic link / access code | Covered | Feature-flagged from `/auth/config` |
-| Accept invite | Covered | |
+| Accept invite | Covered | UI covered; live token round-trip blocked on fixture capture |
 | Server logout | Covered | `POST /auth/logout` with refresh revoke + local clear |
 | Account self-service | Covered | Profile + password |
-| Users admin | Covered | Invite, create-with-password, status, roles, memberships, orphaned discovery, history, audit |
+| Users admin | Covered | Invite, create-with-password, status, roles, memberships, orphaned discovery, history, audit, permission check |
 | Roles / permissions / ABAC | Covered | |
 | Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete |
 | Personal API keys | Covered | Self-service + admin list/revoke on user details |
 | System / integration API keys | Covered | Managed in System API Keys workspace |
-| Settings | Narrow | Entity type config only |
+| Settings | Narrow | Entity type config only (full mutable `/config` surface) |
 
 ## Known gaps
 
@@ -55,8 +55,10 @@ optional product gaps, not required console parity unless a mount depends on the
 
 ### Ops validation
 
-- [ ] Real invite email E2E against a live mail path
+- [ ] Live invite-accept E2E — **blocked** on enterprise fixture invite-token capture (`/dev/auth/invite/latest` mirroring magic-link capture). Do not depend on live mail.
+- [ ] Real invite email E2E against a live mail path (optional ops; prefer fixture capture above)
 - [x] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
+- [ ] Live passwordless E2E via `/dev/auth/magic-link/latest` and `/dev/auth/access-code/latest`
 
 ## Architecture follow-ups
 
@@ -64,6 +66,17 @@ optional product gaps, not required console parity unless a mount depends on the
 - [x] Split `integration-principals.ts` into verb-based API files + shared path helpers
 - [x] Extract system API key / integration-principal mutations into feature hooks
 - [x] Deduplicate actor-permission helpers across workspace pages (`useActorPermissions` + `hasAnyPermission`)
+- [x] E2E matrix hygiene (settings + API-key persona suites documented)
+- [ ] Unify membership access dialogs (`MembershipAccessDialog` / `EntityMemberAccessDialog`)
+- [ ] Split mega workspace pages (`user-details-page`, `api-keys-page`) into section components
+
+## Remaining work (priority order)
+
+1. Live passwordless E2E via fixture capture endpoints
+2. Unify membership access dialogs into a shared form shell
+3. Split mega workspace pages into tab/section components
+4. Invite-accept live E2E after backend fixture adds `/dev/auth/invite/latest`
+5. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit
 
 ## Related docs
 

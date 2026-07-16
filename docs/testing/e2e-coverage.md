@@ -21,7 +21,7 @@ with auth routes under `/v1`.
 
 - `e2e/auth/auth-flow.spec.ts`
   - login flow
-  - passwordless magic-link and access-code flows
+  - passwordless magic-link and access-code flows (mocked UI; live fixture capture in progress)
   - auth bootstrap and route transitions
 - `e2e/app/app-shell.spec.ts`
   - shell layout and persistent navigation
@@ -36,6 +36,12 @@ with auth routes under `/v1`.
   - edit lifecycle
   - rotate
   - revoke
+- `e2e/api-keys/api-keys-persona-access.spec.ts`
+  - auditor and low-privilege denial of system/integration API key management
+  - scoped persona boundaries for entity vs platform principals
+- `e2e/settings/settings-workspace.spec.ts`
+  - entity type defaults update
+  - read-only auditor cannot mutate settings
 - `e2e/permissions/permissions-workspace.spec.ts`
   - inspect system and custom permissions
   - create/edit/delete custom permissions
@@ -86,7 +92,7 @@ with auth routes under `/v1`.
 - `summitAdmin`
   - second-root isolation
 - `auditor`
-  - read-only roles and users
+  - read-only roles, users, settings, and API-key workspace denial
 - `teamLead`
   - users workspace read-only access without invite or mutation controls
 - `agent`
@@ -120,7 +126,10 @@ E2E_API_BASE_URL=http://localhost:8004 \
 E2E_AUTH_API_PREFIX=/v1 \
 E2E_RESET_BACKEND=0 \
 bunx playwright test \
+  e2e/auth/auth-flow.spec.ts \
   e2e/api-keys/api-keys-workspace.spec.ts \
+  e2e/api-keys/api-keys-persona-access.spec.ts \
+  e2e/settings/settings-workspace.spec.ts \
   e2e/permissions/permissions-workspace.spec.ts \
   e2e/roles/roles-workspace.spec.ts \
   e2e/users/users-workspace.spec.ts \
@@ -145,9 +154,9 @@ bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 
 The suite is broad, but still not mathematically exhaustive. Current notable gaps:
 
-- no OAuth-provider browser coverage
+- no OAuth-provider browser coverage (product-deferred)
+- no live invite-accept E2E yet — blocked on enterprise fixture invite-token capture (`/dev/auth/invite/latest`), not live mail
 - no bulk pagination stress run across every workspace
-- no enterprise API-key read-only persona coverage yet
 - no second-fixture orchestration that runs enterprise and mounted-backend suites in one command
 
 When adding new browser tests, update this matrix so the repo keeps an explicit
