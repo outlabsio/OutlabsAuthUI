@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useChangeCurrentUserPasswordMutation } from '@/features/account/hooks/use-change-current-user-password-mutation'
+import { useConfirmPhoneVerificationMutation } from '@/features/account/hooks/use-confirm-phone-verification-mutation'
+import { useRequestPhoneVerificationMutation } from '@/features/account/hooks/use-request-phone-verification-mutation'
 import { useUpdateCurrentUserMutation } from '@/features/account/hooks/use-update-current-user-mutation'
 import {
   changeAccountPasswordSchema,
@@ -34,6 +36,10 @@ import {
   updateAccountProfileSchema,
   type UpdateAccountProfileFormValues,
 } from '@/features/account/schemas/update-account-profile.schema'
+import {
+  type VerifyPhoneFormValues,
+  verifyPhoneSchema,
+} from '@/features/account/schemas/verify-phone.schema'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import type { SessionUser } from '@/features/auth/types/auth.types'
 import { getApiErrorMessage } from '@/lib/api/errors'
@@ -76,6 +82,8 @@ export function AccountPage() {
   const sessionQuery = useSessionQuery()
   const updateProfileMutation = useUpdateCurrentUserMutation()
   const changePasswordMutation = useChangeCurrentUserPasswordMutation()
+  const requestPhoneVerificationMutation = useRequestPhoneVerificationMutation()
+  const confirmPhoneVerificationMutation = useConfirmPhoneVerificationMutation()
   const profileForm = useForm<UpdateAccountProfileFormValues>({
     resolver: zodResolver(updateAccountProfileSchema),
     defaultValues: {
@@ -83,6 +91,12 @@ export function AccountPage() {
       lastName: '',
       email: '',
       phone: '',
+    },
+  })
+  const verifyPhoneForm = useForm<VerifyPhoneFormValues>({
+    resolver: zodResolver(verifyPhoneSchema),
+    defaultValues: {
+      code: '',
     },
   })
   const passwordForm = useForm<ChangeAccountPasswordFormValues>({
@@ -115,6 +129,18 @@ export function AccountPage() {
         'Your profile could not be updated.'
       )
     : null
+  const requestPhoneErrorMessage = requestPhoneVerificationMutation.error
+    ? getApiErrorMessage(
+        requestPhoneVerificationMutation.error,
+        'Unable to send a verification code.'
+      )
+    : null
+  const confirmPhoneErrorMessage = confirmPhoneVerificationMutation.error
+    ? getApiErrorMessage(
+        confirmPhoneVerificationMutation.error,
+        'Unable to verify this phone number.'
+      )
+    : null
   const passwordErrorMessage = changePasswordMutation.error
     ? getApiErrorMessage(
         changePasswordMutation.error,
@@ -143,6 +169,7 @@ export function AccountPage() {
   const lastNameField = profileForm.register('lastName')
   const emailField = profileForm.register('email')
   const phoneField = profileForm.register('phone')
+  const phoneVerifyCodeField = verifyPhoneForm.register('code')
   const currentPasswordField = passwordForm.register('currentPassword')
   const newPasswordField = passwordForm.register('newPassword')
   const confirmPasswordField = passwordForm.register('confirmPassword')
@@ -367,8 +394,8 @@ export function AccountPage() {
                     />
                     <FieldDescription>
                       Optional E.164 number used as a delivery destination for
-                      access codes. Changing it clears phone verification until a
-                      host verification flow re-confirms it.
+                      access codes. Changing it clears phone verification until you
+                      confirm a new code.
                     </FieldDescription>
                     <FieldError errors={[profileForm.formState.errors.phone]} />
                   </Field>
@@ -390,6 +417,95 @@ export function AccountPage() {
                   </Field>
                 </FieldGroup>
               </form>
+
+              {sessionUser.phone && !sessionUser.phone_verified ? (
+                <form
+                  className="mt-6 space-y-4 border-t border-border/60 pt-5"
+                  onSubmit={verifyPhoneForm.handleSubmit(async (values) => {
+                    try {
+                      await confirmPhoneVerificationMutation.mutateAsync({
+                        code: values.code.trim(),
+                      })
+                      verifyPhoneForm.reset({ code: '' })
+                    } catch {
+                      return
+                    }
+                  })}
+                >
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">Verify WhatsApp phone</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Send a one-time code to {sessionUser.phone}, then enter it
+                      below to mark the number verified for WhatsApp delivery.
+                    </p>
+                  </div>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="account-phone-verify-code">
+                        Verification code
+                      </FieldLabel>
+                      <Input
+                        id="account-phone-verify-code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        disabled={confirmPhoneVerificationMutation.isPending}
+                        {...phoneVerifyCodeField}
+                        onChange={(event) => {
+                          if (confirmPhoneVerificationMutation.error) {
+                            confirmPhoneVerificationMutation.reset()
+                          }
+                          phoneVerifyCodeField.onChange(event)
+                        }}
+                      />
+                      <FieldError
+                        errors={[verifyPhoneForm.formState.errors.code]}
+                      />
+                    </Field>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          requestPhoneVerificationMutation.isPending ||
+                          confirmPhoneVerificationMutation.isPending ||
+                          profileForm.formState.isDirty
+                        }
+                        onClick={() => {
+                          requestPhoneVerificationMutation.reset()
+                          void requestPhoneVerificationMutation.mutateAsync()
+                        }}
+                      >
+                        {requestPhoneVerificationMutation.isPending
+                          ? 'Sending code...'
+                          : 'Send verification code'}
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={
+                          confirmPhoneVerificationMutation.isPending ||
+                          requestPhoneVerificationMutation.isPending ||
+                          profileForm.formState.isDirty
+                        }
+                      >
+                        {confirmPhoneVerificationMutation.isPending
+                          ? 'Verifying...'
+                          : 'Verify phone'}
+                      </Button>
+                    </div>
+                    {profileForm.formState.isDirty ? (
+                      <FieldDescription>
+                        Save your profile before requesting a verification code.
+                      </FieldDescription>
+                    ) : null}
+                    {requestPhoneErrorMessage ? (
+                      <FieldError>{requestPhoneErrorMessage}</FieldError>
+                    ) : null}
+                    {confirmPhoneErrorMessage ? (
+                      <FieldError>{confirmPhoneErrorMessage}</FieldError>
+                    ) : null}
+                  </FieldGroup>
+                </form>
+              ) : null}
             </CardContent>
           </Card>
 

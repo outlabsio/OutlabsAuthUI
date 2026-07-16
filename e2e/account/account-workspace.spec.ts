@@ -1,6 +1,11 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
+import { authPersonas } from '../support/auth-personas'
+import {
+  skipIfPhoneVerifyCaptureDisabled,
+  waitForCapturedPhoneVerifyCode,
+} from '../support/phone-verify-capture'
 
 async function openAccountWorkspace(page: Page) {
   await page.goto('/app/dashboard')
@@ -71,5 +76,39 @@ test.describe('Account Workspace', () => {
     await page.getByRole('button', { name: 'Update password' }).click()
 
     await expect(page.getByText('Passwords must match.')).toBeVisible()
+  })
+
+  test('live phone verification completes via fixture code capture', async ({
+    page,
+  }) => {
+    await skipIfPhoneVerifyCaptureDisabled()
+
+    const phone = `+1555${String(Date.now()).slice(-7)}`
+    const email = authPersonas.admin.email
+
+    await openAccountWorkspace(page)
+
+    await page.locator('#account-phone').fill(phone)
+    await page.getByRole('button', { name: 'Save profile' }).click()
+    await expect(
+      page.getByText('WhatsApp phone unverified', { exact: true })
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Send verification code' }).click()
+    const captured = await waitForCapturedPhoneVerifyCode(email, { phone })
+
+    await page.locator('#account-phone-verify-code').fill(captured.code)
+    await page.getByRole('button', { name: 'Verify phone' }).click()
+
+    await expect(
+      page.getByText('WhatsApp phone verified', { exact: true })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Verify WhatsApp phone' })
+    ).toBeHidden()
+
+    await page.locator('#account-phone').fill('')
+    await page.getByRole('button', { name: 'Save profile' }).click()
+    await expect(page.locator('#account-phone')).toHaveValue('')
   })
 })

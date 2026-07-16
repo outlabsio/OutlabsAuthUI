@@ -24,7 +24,7 @@ optional product gaps, not required console parity unless a mount depends on the
 | Magic link / access code | Covered | Feature-flagged from `/auth/config`; live capture E2E against enterprise fixture |
 | Accept invite | Covered | UI covered; live token round-trip blocked on fixture capture |
 | Server logout | Covered | `POST /auth/logout` with refresh revoke + local clear |
-| Account self-service | Covered | Profile + password + optional WhatsApp phone (E.164) |
+| Account self-service | Covered | Profile + password + WhatsApp phone register/verify OTP |
 | Users admin | Covered | Invite, create-with-password, status, roles, memberships, orphaned discovery, history, audit, permission check |
 | Roles / permissions / ABAC | Covered | |
 | Entities hierarchy + members | Covered | Create/edit/status/move/promote-to-root/archive-delete |
@@ -72,8 +72,7 @@ optional product gaps, not required console parity unless a mount depends on the
 
 ## Remaining work (priority order)
 
-1. WhatsApp phone verification OTP (sets `phone_verified`) — backend + console UX
-2. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit, WhatsApp-as-login
+1. Deferred/blocked: OAuth UI, admin sessions/devices, entity/cross-user audit, WhatsApp-as-login
 
 ## Related docs
 

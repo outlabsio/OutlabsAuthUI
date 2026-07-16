@@ -31,6 +31,7 @@ with auth routes under `/v1`.
 - `e2e/account/account-workspace.spec.ts`
   - self profile update
   - password validation
+  - live WhatsApp phone verify via `/dev/auth/phone-verify/latest`
 - `e2e/api-keys/api-keys-workspace.spec.ts`
   - create
   - edit lifecycle
