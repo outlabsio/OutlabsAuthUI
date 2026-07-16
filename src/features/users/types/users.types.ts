@@ -71,6 +71,15 @@ export type InviteUserInput = {
   is_superuser?: boolean
 }
 
+export type CreateUserInput = {
+  email: string
+  password: string
+  first_name?: string
+  last_name?: string
+  is_superuser?: boolean
+  root_entity_id?: string
+}
+
 export type UpdateUserInput = {
   userId: string
   email?: string
@@ -101,6 +110,19 @@ export type AssignUserRoleInput = {
 export type RemoveUserRoleInput = {
   userId: string
   roleId: string
+}
+
+export type UpdateUserRoleMembershipInput = {
+  userId: string
+  membershipId: string
+  valid_from?: string | null
+  valid_until?: string | null
+  status?: string
+}
+
+export type RevokeUserApiKeyInput = {
+  userId: string
+  keyId: string
 }
 
 export type ResetUserPasswordInput = {

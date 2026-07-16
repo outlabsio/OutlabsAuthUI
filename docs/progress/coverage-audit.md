@@ -1,0 +1,70 @@
+# OutlabsAuthUI Coverage Audit
+
+This document is the restart point for sidecar completeness against the OutlabsAuth
+backend. Update it whenever a major management surface lands or a backend router
+gains capabilities the UI does not yet expose.
+
+## Product intent
+
+This SPA is the **generic OutlabsAuth management console** (sidecar UI):
+
+- Admin and operator workflows for users, roles, permissions, entities, and keys
+- Passwordless auth entry flows needed to reach that console
+- Invite-based account provisioning (not open self-registration)
+
+Self-registration (`POST /auth/register`) and OAuth provider UIs are backend
+capabilities that host apps may expose separately. They are tracked below as
+optional product gaps, not required console parity unless a mount depends on them.
+
+## Current coverage
+
+| Domain | Status | Notes |
+|---|---|---|
+| Password login / forgot / reset | Covered | |
+| Magic link / access code | Covered | Feature-flagged from `/auth/config` |
+| Accept invite | Covered | |
+| Server logout | Covered | `POST /auth/logout` with refresh revoke + local clear |
+| Account self-service | Covered | Profile + password |
+| Users admin | Covered | Invite, create-with-password, status, roles, memberships, history, audit |
+| Roles / permissions / ABAC | Covered | |
+| Entities hierarchy + members | Covered | Create/edit/status/move/archive-delete (cascade when needed) |
+| Personal API keys | Covered | Self-service + admin list/revoke on user details |
+| System / integration API keys | Covered | Managed in System API Keys workspace |
+| Settings | Narrow | Entity type config only |
+
+## Known gaps
+
+### P0 / security
+
+- [x] Wire `POST /auth/logout` into Sign out (refresh revoke; local session always cleared)
+
+### P1 / admin parity
+
+- [x] Entity move (`POST /entities/{id}/move`)
+- [x] Entity delete (`DELETE /entities/{id}`)
+- [x] Admin create-user with password (`POST /users/`)
+- [x] Patch direct role membership validity windows (`PATCH /users/{id}/role-memberships/{membership_id}`)
+- [x] Admin manage another user’s personal API keys from user details (list + revoke)
+
+### P2 / optional auth shell
+
+- [x] Self-registration UI deferred — dead `/auth/register` route constant removed; console is invite-only (admin create-user covers password provisioning)
+- [ ] OAuth login + account associate UI — deferred until a mount requires console OAuth
+
+### Ops validation
+
+- [ ] Real invite email E2E against a live mail path
+- [ ] Live membership lifecycle round-trip (`status`, `valid_from`, `valid_until`)
+
+## Architecture follow-ups
+
+- Split `integration-principals.ts` into verb-based API files
+- Extract system API key mutations into feature hooks (match personal-key pattern)
+- Align `/app/api-keys` with `redirectIfWorkspaceHidden`
+- Deduplicate actor-permission helpers across workspace pages
+
+## Related docs
+
+- User management details: [`user-management-and-details.md`](./user-management-and-details.md)
+- E2E matrix: [`../testing/e2e-coverage.md`](../testing/e2e-coverage.md)
+- Runtime config: [`../runtime-configuration.md`](../runtime-configuration.md)

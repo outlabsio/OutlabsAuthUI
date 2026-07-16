@@ -49,6 +49,8 @@ type EntityDetailPanelProps = {
   canCreateRootEntities: boolean
   canCreateChildEntities: boolean
   canEditEntities: boolean
+  canMoveEntities: boolean
+  canDeleteEntities: boolean
   canCreateRoles: boolean
   canUpdateRoles: boolean
   canAddMembers: boolean
@@ -61,6 +63,8 @@ type EntityDetailPanelProps = {
   onCreateRoot: () => void
   onCreateChild: () => void
   onEditEntity: () => void
+  onMoveEntity: () => void
+  onDeleteEntity: () => void
   onEditRootGovernance: () => void
   onRoleSelect: (roleId: string) => void
   onCreateRole: () => void
@@ -146,6 +150,8 @@ export function EntityDetailPanel({
   canCreateRootEntities,
   canCreateChildEntities,
   canEditEntities,
+  canMoveEntities,
+  canDeleteEntities,
   canCreateRoles,
   canUpdateRoles,
   canAddMembers,
@@ -158,6 +164,8 @@ export function EntityDetailPanel({
   onCreateRoot,
   onCreateChild,
   onEditEntity,
+  onMoveEntity,
+  onDeleteEntity,
   onEditRootGovernance,
   onRoleSelect,
   onCreateRole,
@@ -210,6 +218,16 @@ export function EntityDetailPanel({
       {canEditEntities && !(activeContextTab === 'governance' && canEditRootGovernance) ? (
         <Button type="button" variant="outline" onClick={onEditEntity}>
           Edit entity
+        </Button>
+      ) : null}
+      {canMoveEntities && !isRootEntity ? (
+        <Button type="button" variant="outline" onClick={onMoveEntity}>
+          Move entity
+        </Button>
+      ) : null}
+      {canDeleteEntities && entity.status !== 'archived' ? (
+        <Button type="button" variant="destructive" onClick={onDeleteEntity}>
+          Archive entity
         </Button>
       ) : null}
       {activeContextTab === 'governance' && canEditRootGovernance ? (

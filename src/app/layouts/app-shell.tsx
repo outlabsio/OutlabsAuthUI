@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils/cn'
 type AppShellProps = {
   email: string
   name: string
+  isLoggingOut?: boolean
   onLogout: () => void
   children: ReactNode
   className?: string
@@ -36,6 +37,7 @@ function formatSegment(segment: string) {
 export function AppShell({
   email,
   name,
+  isLoggingOut = false,
   onLogout,
   children,
   className,
@@ -62,6 +64,7 @@ export function AppShell({
             name,
             email,
           }}
+          isLoggingOut={isLoggingOut}
           onLogout={onLogout}
         />
         <SidebarInset className="min-h-0 overflow-hidden md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-0">

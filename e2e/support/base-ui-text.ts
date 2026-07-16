@@ -67,5 +67,8 @@ export async function typeIntoBaseUiTagField(
     await expect(container.getByText(value, { exact: true }).first()).toBeVisible()
   }
 
+  // Tag suggestion popovers can stay open and intercept later dialog clicks.
+  await container.page().keyboard.press('Escape')
+
   return control
 }

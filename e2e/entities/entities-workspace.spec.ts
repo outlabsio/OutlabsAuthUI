@@ -47,8 +47,24 @@ function buildEntitySeed(prefix: string) {
   }
 }
 
+const calendarMonthLabels = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
 function formatCalendarDay(year: number, month: number, day: number) {
-  return new Date(year, month - 1, day, 12, 0, 0).toLocaleDateString('en-US')
+  // Match CalendarDayButton's data-day formatting (runtime locale, not forced en-US).
+  return new Date(year, month - 1, day, 12, 0, 0).toLocaleDateString()
 }
 
 async function setEntityDialogDateTime({
@@ -74,15 +90,49 @@ async function setEntityDialogDateTime({
   const dateButton = field.locator(`#${buttonId}`)
 
   await dateButton.click()
-  await page.locator(`button[data-day="${formatCalendarDay(year, month, day)}"]`).first().click()
+
+  const calendar = page.getByRole('navigation', { name: 'Navigation bar' }).locator('..')
+  const monthCombobox = calendar.getByRole('combobox', { name: 'Choose the Month' })
+  const yearCombobox = calendar.getByRole('combobox', { name: 'Choose the Year' })
+
+  await monthCombobox.selectOption({ label: calendarMonthLabels[month - 1] })
+  await yearCombobox.selectOption({ label: String(year) })
+
+  await page
+    .locator(`button[data-day="${formatCalendarDay(year, month, day)}"]`)
+    .first()
+    .click()
+
   await field.getByRole('combobox', { name: 'Select time' }).click()
   await page.getByRole('option', { name: timeLabel, exact: true }).click()
+}
+
+async function selectEntityStatus(
+  dialog: Locator,
+  status: 'Active' | 'Inactive' | 'Archived'
+) {
+  await dialog
+    .getByRole('group', { name: 'Status' })
+    .getByRole('button', { name: status, exact: true })
+    .click()
+}
+
+async function selectAllowedChildClass(
+  dialog: Locator,
+  className: 'Structural' | 'Access group'
+) {
+  await dialog
+    .getByRole('group', { name: 'Allowed child classes' })
+    .getByRole('checkbox', { name: className, exact: true })
+    .click()
 }
 
 test.describe('Entities Workspace', () => {
   test('admin can create a configured root and descendant entities with constrained child options', async ({
     page,
   }) => {
+    test.setTimeout(90_000)
+
     const rootEntity = buildEntitySeed('playwright-root')
     const regionEntity = buildEntitySeed('playwright-region')
     const teamEntity = buildEntitySeed('playwright-team')
@@ -98,10 +148,7 @@ test.describe('Entities Workspace', () => {
     await expect(rootDialog.getByRole('combobox', { name: 'Entity type' })).toContainText(
       /organization/i
     )
-    await rootDialog
-      .getByRole('radiogroup', { name: 'Status' })
-      .getByRole('radio', { name: 'Inactive' })
-      .click()
+    await selectEntityStatus(rootDialog, 'Inactive')
     await typeIntoBaseUiField(rootDialog, 'Description', rootEntity.description)
     await setEntityDialogDateTime({
       dialog: rootDialog,
@@ -121,11 +168,7 @@ test.describe('Entities Workspace', () => {
       day: 28,
       timeLabel: '12:00 PM',
     })
-    await rootDialog
-      .getByRole('group', { name: 'Allowed child classes' })
-      .locator('label')
-      .filter({ hasText: /^Structural/ })
-      .click()
+    await selectAllowedChildClass(rootDialog, 'Structural')
     await typeIntoBaseUiTagField(rootDialog, 'Allowed child types', ['region'])
     await typeIntoBaseUiField(rootDialog, 'Max members', '22')
     await rootDialog.getByRole('button', { name: 'Create entity' }).click()
@@ -168,11 +211,7 @@ test.describe('Entities Workspace', () => {
     await typeIntoBaseUiField(regionDialog, 'System name', regionEntity.systemName)
     await typeIntoBaseUiField(regionDialog, 'Display name', regionEntity.displayName)
     await typeIntoBaseUiField(regionDialog, 'Description', regionEntity.description)
-    await regionDialog
-      .getByRole('group', { name: 'Allowed child classes' })
-      .locator('label')
-      .filter({ hasText: /^Access group/ })
-      .click()
+    await selectAllowedChildClass(regionDialog, 'Access group')
     await typeIntoBaseUiTagField(regionDialog, 'Allowed child types', ['team'])
     await typeIntoBaseUiField(regionDialog, 'Max members', '8')
     await regionDialog.getByRole('button', { name: 'Create entity' }).click()
@@ -534,6 +573,116 @@ test.describe('Entities Workspace', () => {
 
     await expect(editDialog).toBeHidden()
     await expect(createdRoleRow.getByText(updatedDescription)).toBeVisible()
+  })
+
+  test('admin can archive a root entity', async ({ page }) => {
+    const disposableRoot = buildEntitySeed('playwright-lifecycle-delete')
+
+    await gotoEntitiesWorkspace(page)
+    await page.getByRole('button', { name: 'Create root' }).click()
+
+    const disposableRootDialog = page.getByRole('dialog', { name: 'Create root entity' })
+    await expect(disposableRootDialog).toBeVisible()
+    await typeIntoBaseUiField(disposableRootDialog, 'System name', disposableRoot.systemName)
+    await typeIntoBaseUiField(disposableRootDialog, 'Display name', disposableRoot.displayName)
+    await disposableRootDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(disposableRootDialog).toBeHidden()
+    await expect(
+      page.getByRole('heading', { name: disposableRoot.displayName })
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Archive entity' }).click()
+    const deleteDialog = page.getByRole('dialog', { name: 'Archive entity' })
+    await expect(deleteDialog).toBeVisible()
+    await deleteDialog.getByRole('button', { name: 'Archive entity' }).click()
+    await expect(deleteDialog).toBeHidden()
+    await expect(page.getByRole('heading', { name: disposableRoot.displayName })).toBeVisible()
+    await expect(page.getByText('Archived').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Archive entity' })).toHaveCount(0)
+  })
+
+  test('admin can move a child entity under a new parent', async ({ page }) => {
+    test.setTimeout(90_000)
+
+    const rootEntity = buildEntitySeed('playwright-lifecycle-root')
+    const regionA = buildEntitySeed('playwright-lifecycle-region-a')
+    const regionB = buildEntitySeed('playwright-lifecycle-region-b')
+    const teamEntity = buildEntitySeed('playwright-lifecycle-team')
+
+    await gotoEntitiesWorkspace(page)
+    await page.getByRole('button', { name: 'Create root' }).click()
+
+    const rootDialog = page.getByRole('dialog', { name: 'Create root entity' })
+    await expect(rootDialog).toBeVisible()
+    await typeIntoBaseUiField(rootDialog, 'System name', rootEntity.systemName)
+    await typeIntoBaseUiField(rootDialog, 'Display name', rootEntity.displayName)
+    await selectAllowedChildClass(rootDialog, 'Structural')
+    await typeIntoBaseUiTagField(rootDialog, 'Allowed child types', ['region'])
+    await rootDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(rootDialog).toBeHidden()
+    await expect(page.getByRole('heading', { name: rootEntity.displayName })).toBeVisible()
+
+    async function createRegionChild(seed: ReturnType<typeof buildEntitySeed>) {
+      await page.getByRole('tab', { name: 'Child entities' }).click()
+      await page.getByRole('button', { name: 'Create child' }).click()
+      const regionDialog = page.getByRole('dialog', {
+        name: `Create child entity under ${rootEntity.displayName}`,
+      })
+      await expect(regionDialog).toBeVisible()
+      await typeIntoBaseUiField(regionDialog, 'System name', seed.systemName)
+      await typeIntoBaseUiField(regionDialog, 'Display name', seed.displayName)
+      await selectAllowedChildClass(regionDialog, 'Access group')
+      await typeIntoBaseUiTagField(regionDialog, 'Allowed child types', ['team'])
+      await regionDialog.getByRole('button', { name: 'Create entity' }).click()
+      await expect(regionDialog).toBeHidden()
+    }
+
+    await createRegionChild(regionA)
+    await createRegionChild(regionB)
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page
+      .getByRole('tabpanel', { name: 'Child entities' })
+      .getByRole('button', { name: new RegExp(regionA.displayName, 'i') })
+      .click()
+    await expect(page.getByRole('heading', { name: regionA.displayName })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page.getByRole('button', { name: 'Create child' }).click()
+    const teamDialog = page.getByRole('dialog', {
+      name: `Create child entity under ${regionA.displayName}`,
+    })
+    await expect(teamDialog).toBeVisible()
+    await typeIntoBaseUiField(teamDialog, 'System name', teamEntity.systemName)
+    await typeIntoBaseUiField(teamDialog, 'Display name', teamEntity.displayName)
+    await teamDialog.getByRole('button', { name: 'Create entity' }).click()
+    await expect(teamDialog).toBeHidden()
+
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await page
+      .getByRole('tabpanel', { name: 'Child entities' })
+      .getByRole('button', { name: new RegExp(teamEntity.displayName, 'i') })
+      .click()
+    await expect(page.getByRole('heading', { name: teamEntity.displayName })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Move entity' }).click()
+    const moveDialog = page.getByRole('dialog', { name: 'Move entity' })
+    await expect(moveDialog).toBeVisible()
+    await moveDialog.getByRole('combobox', { name: 'New parent' }).click()
+    await page.getByRole('option', { name: regionB.displayName, exact: true }).click()
+    await moveDialog.getByRole('button', { name: 'Move entity' }).click()
+    await expect(moveDialog).toBeHidden()
+
+    await expect(page.getByRole('heading', { name: teamEntity.displayName })).toBeVisible()
+    await expect(page.getByText(regionB.displayName).first()).toBeVisible()
+
+    await selectEntityFromTree(page, regionB.displayName, regionB.displayName)
+    await page.getByRole('tab', { name: 'Child entities' }).click()
+    await expect(
+      page
+        .getByRole('tabpanel', { name: 'Child entities' })
+        .getByRole('button', { name: new RegExp(teamEntity.displayName, 'i') })
+    ).toBeVisible()
   })
 
   test('admin can invite a member from members and access and verify it in users', async ({

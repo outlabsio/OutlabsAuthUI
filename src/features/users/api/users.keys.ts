@@ -53,8 +53,10 @@ export const usersKeys = {
       ...usersKeys.roleMemberships(userId),
       { includeInactive: options?.includeInactive ?? false },
     ] as const,
+  apiKeys: (userId: string) => [...usersKeys.all, 'api-keys', userId] as const,
   permissions: (userId: string) => [...usersKeys.all, 'permissions', userId] as const,
   invite: () => [...usersKeys.all, 'invite'] as const,
+  create: () => [...usersKeys.all, 'create'] as const,
   resendInvite: (userId: string) => [...usersKeys.all, 'resend-invite', userId] as const,
   restore: (userId: string) => [...usersKeys.all, 'restore', userId] as const,
 }

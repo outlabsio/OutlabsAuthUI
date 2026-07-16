@@ -2,7 +2,6 @@ export const routes = {
   home: '/',
   auth: {
     login: '/auth/login',
-    register: '/auth/register',
     forgotPassword: '/auth/forgot-password',
     magicLink: '/auth/magic-link',
     accessCode: '/auth/access-code',

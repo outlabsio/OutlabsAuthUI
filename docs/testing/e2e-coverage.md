@@ -25,6 +25,7 @@ with auth routes under `/v1`.
   - auth bootstrap and route transitions
 - `e2e/app/app-shell.spec.ts`
   - shell layout and persistent navigation
+  - sign-out calls `POST /auth/logout` (204) and clears protected-route access
 - `e2e/app/access-control.spec.ts`
   - low-privilege operational-user access boundaries across dashboard, account, API keys, users, roles, permissions, and entities
 - `e2e/account/account-workspace.spec.ts`
@@ -49,20 +50,24 @@ with auth routes under `/v1`.
 - `e2e/users/users-workspace.spec.ts`
   - inspect and update profile details
   - invite and resend invite
+  - admin create-user with password
   - direct account role assignment/removal
   - retained delete and restore
   - read-only auditor coverage
-  - read-only team-lead coverage with invite gating
+  - read-only team-lead coverage with invite/create gating
 - `e2e/entities/entities-workspace.spec.ts`
   - create root and nested child entities with constrained child types
   - validate lifecycle and governance inputs
   - edit entity details
+  - archive root entities via soft-delete
+  - move children to a new parent
   - switch root scope
   - create entity-scoped role from entity context
   - invite members from entity context
   - add a seeded user to a newly created child entity and manage that membership from the canonical user workspace
   - root-scoped and second-root persona isolation
   - east-admin read-only entity and membership boundaries inside the ACME root
+  - selectors match current Base UI controls (Status toggle group, child-class checkboxes, locale-aware calendar caption)
 
 ### Persona coverage
 

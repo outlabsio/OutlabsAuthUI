@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 
+import { getUserApiKeys } from '@/features/users/api/get-user-api-keys'
 import { getUserAuditEvents } from '@/features/users/api/get-user-audit-events'
 import { getUserMembershipHistory } from '@/features/users/api/get-user-membership-history'
 import { getUser } from '@/features/users/api/get-user'
@@ -69,5 +70,12 @@ export function getUserPermissionsQueryOptions(userId: string) {
   return queryOptions({
     queryKey: usersKeys.permissions(userId),
     queryFn: () => getUserPermissions(userId),
+  })
+}
+
+export function getUserApiKeysQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: usersKeys.apiKeys(userId),
+    queryFn: () => getUserApiKeys(userId),
   })
 }

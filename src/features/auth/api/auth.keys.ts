@@ -6,6 +6,7 @@ export const authKeys = {
   config: () => [...authKeys.all, 'config'] as const,
   forgotPassword: () => [...authKeys.all, 'forgot-password'] as const,
   login: () => [...authKeys.all, 'login'] as const,
+  logout: () => [...authKeys.all, 'logout'] as const,
   magicLinkRequest: () => [...authKeys.all, 'magic-link-request'] as const,
   magicLinkVerify: () => [...authKeys.all, 'magic-link-verify'] as const,
   myPermissions: () => [...authKeys.all, 'my-permissions'] as const,

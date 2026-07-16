@@ -9,6 +9,7 @@ import {
 import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppShell } from '@/app/layouts/app-shell'
 import { getSessionQueryOptions } from '@/features/auth/api/auth.query-options'
+import { useLogoutMutation } from '@/features/auth/hooks/use-logout-mutation'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import type { SessionUser } from '@/features/auth/types/auth.types'
 import { hasStoredAuthTokens } from '@/lib/api/auth-token'
@@ -31,6 +32,7 @@ function getUserDisplayName(user: SessionUser) {
 
 function AppLayout() {
   const sessionQuery = useSessionQuery()
+  const logoutMutation = useLogoutMutation()
 
   useEffect(() => {
     if (!(sessionQuery.error instanceof ApiError) || sessionQuery.error.status !== 401) {
@@ -83,8 +85,9 @@ function AppLayout() {
     <AppShell
       name={getUserDisplayName(user)}
       email={user.email}
+      isLoggingOut={logoutMutation.isPending}
       onLogout={() => {
-        expireAuthSession()
+        logoutMutation.mutate()
       }}
     >
       <Outlet />

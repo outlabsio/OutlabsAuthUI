@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from '../support/auth-fixture'
 import { authPersonas, e2eApiBaseURL } from '../support/auth-personas'
@@ -94,7 +94,108 @@ async function createTemporaryDirectRole() {
     throw new Error(`Unable to create direct role fixture: ${response.status}`)
   }
 
-  return (await response.json()) as { display_name: string }
+  return (await response.json()) as { id: string; display_name: string }
+}
+
+const calendarMonthLabels = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+function formatCalendarDay(year: number, month: number, day: number) {
+  return new Date(year, month - 1, day, 12, 0, 0).toLocaleDateString()
+}
+
+async function setDialogDateTime({
+  dialog,
+  page,
+  buttonId,
+  year,
+  month,
+  day,
+  timeLabel,
+}: {
+  dialog: Locator
+  page: Page
+  buttonId: string
+  year: number
+  month: number
+  day: number
+  timeLabel: string
+}) {
+  const field = dialog
+    .locator(`#${buttonId}`)
+    .locator('xpath=ancestor::div[contains(@class,"space-y-2")][1]')
+  const dateButton = field.locator(`#${buttonId}`)
+
+  await dateButton.click()
+
+  const calendar = page.getByRole('navigation', { name: 'Navigation bar' }).locator('..')
+  const monthCombobox = calendar.getByRole('combobox', { name: 'Choose the Month' })
+  const yearCombobox = calendar.getByRole('combobox', { name: 'Choose the Year' })
+
+  await monthCombobox.selectOption({ label: calendarMonthLabels[month - 1] })
+  await yearCombobox.selectOption({ label: String(year) })
+
+  await page
+    .locator(`button[data-day="${formatCalendarDay(year, month, day)}"]`)
+    .first()
+    .click()
+
+  // Calendar month/year portal can linger and intercept the time control.
+  await page.keyboard.press('Escape')
+  await expect(field.getByRole('combobox', { name: 'Select time' })).toBeVisible()
+
+  await field.getByRole('combobox', { name: 'Select time' }).click()
+  await page.getByRole('option', { name: timeLabel, exact: true }).click()
+}
+
+async function getPersonaAccessToken(email: string, password: string) {
+  const response = await fetch(`${e2eApiBaseURL}/v1/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to authenticate persona ${email}: ${response.status}`)
+  }
+
+  const payload = (await response.json()) as { access_token: string }
+  return payload.access_token
+}
+
+async function createPersonalApiKeyForPersona(email: string, password: string, name: string) {
+  const accessToken = await getPersonaAccessToken(email, password)
+  const response = await fetch(`${e2eApiBaseURL}/v1/api-keys`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      name,
+      scopes: ['lead:read'],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Unable to create personal API key fixture: ${response.status}`)
+  }
+
+  return (await response.json()) as { id: string; name: string }
 }
 
 async function createTemporaryUser(label = 'superuser-target') {
@@ -371,6 +472,33 @@ test.describe('Users Workspace', () => {
     ).toBeVisible()
   })
 
+  test('admin can create a user with a password and land on user details', async ({
+    page,
+  }) => {
+    const timestamp = Date.now()
+    const email = `playwright-create-user-${timestamp}@example.com`
+    const password = 'Testpass1!'
+
+    await gotoUsersWorkspace(page)
+    await expect(page.getByRole('button', { name: 'Create user' })).toBeVisible()
+    await page.getByRole('button', { name: 'Create user' }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Create user' })
+    await expect(dialog).toBeVisible()
+
+    await dialog.locator('#create-user-email').fill(email)
+    await dialog.locator('#create-user-first-name').fill('Playwright')
+    await dialog.locator('#create-user-last-name').fill('Created')
+    await dialog.locator('#create-user-password').fill(password)
+    await dialog.locator('#create-user-confirm-password').fill(password)
+    await dialog.getByRole('button', { name: 'Create user', exact: true }).click()
+
+    await expect(dialog).toBeHidden()
+    await expect(page).toHaveURL(/\/app\/users\/[^/?]+/)
+    await expect(page.getByText(email, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Playwright Created').first()).toBeVisible()
+  })
+
   test('admin can invite a user with superuser access', async ({ page }) => {
     const email = `playwright-super-invite-${Date.now()}@example.com`
     let invitedUserId: string | null = null
@@ -477,6 +605,91 @@ test.describe('Users Workspace', () => {
 
     await removeDirectRoleIfPresent(page, roleName)
     await expect(getDirectRoleCardByStatus(page, roleName, 'Revoked')).toBeVisible()
+  })
+
+  test('admin can edit a direct role membership validity window', async ({ page }) => {
+    const temporaryRole = await createTemporaryDirectRole()
+    const roleName = temporaryRole.display_name
+    const windowEnd = new Date()
+    windowEnd.setUTCMonth(windowEnd.getUTCMonth() + 2)
+    const endYear = windowEnd.getUTCFullYear()
+    const endMonth = windowEnd.getUTCMonth() + 1
+    const endDay = Math.min(15, windowEnd.getUTCDate())
+
+    await gotoUsersWorkspace(page)
+    await openUserDetails(page, 'commercial@sf.acme.com')
+    await openUserAccessTab(page)
+
+    await page.getByRole('button', { name: 'Assign direct role' }).click()
+    const assignDialog = page.getByRole('dialog', { name: 'Assign direct roles' })
+    await expect(assignDialog).toBeVisible()
+    await assignDialog.getByText(roleName, { exact: true }).first().click()
+    await assignDialog.getByRole('button', { name: 'Assign roles' }).click()
+    await expect(assignDialog).toBeHidden()
+
+    const roleCard = getDirectRoleCardByStatus(page, roleName, 'Active')
+    await expect(roleCard).toBeVisible()
+    await expect(roleCard.getByText('Always on', { exact: true })).toBeVisible()
+
+    await roleCard.getByRole('button', { name: 'Edit window' }).click()
+    const editDialog = page.getByRole('dialog', { name: /Edit role window/ })
+    await expect(editDialog).toBeVisible()
+
+    await setDialogDateTime({
+      dialog: editDialog,
+      page,
+      buttonId: 'edit-direct-role-valid-until',
+      year: endYear,
+      month: endMonth,
+      day: endDay,
+      timeLabel: '12:00 PM',
+    })
+    await editDialog.getByRole('button', { name: 'Save window' }).click()
+    await expect(editDialog).toBeHidden()
+
+    await expect(roleCard.getByText('Always on', { exact: true })).toHaveCount(0)
+    await expect(roleCard.getByText('Open ended', { exact: true })).toHaveCount(0)
+    await expect(roleCard.getByText(/->/)).toBeVisible()
+
+    await removeDirectRoleIfPresent(page, roleName)
+  })
+
+  test('admin can revoke another user’s personal API key from user details', async ({
+    page,
+  }) => {
+    const keyName = `Playwright User Key ${Date.now()}`
+    await createPersonalApiKeyForPersona(
+      authPersonas.commercialAgent.email,
+      authPersonas.commercialAgent.password,
+      keyName
+    )
+
+    await gotoUsersWorkspace(page)
+    await openUserDetails(page, authPersonas.commercialAgent.email)
+    await openUserAccessTab(page)
+
+    const apiKeysSection = page
+      .locator('div')
+      .filter({
+        has: page.getByRole('heading', { name: 'Personal API keys' }),
+      })
+      .first()
+    await expect(apiKeysSection.getByRole('heading', { name: 'Personal API keys' })).toBeVisible()
+
+    const keyCard = apiKeysSection
+      .locator('div.rounded-lg.border')
+      .filter({
+        has: page.getByText(keyName, { exact: true }),
+      })
+      .first()
+    await expect(keyCard).toBeVisible()
+    await expect(keyCard.getByText('Active', { exact: true })).toBeVisible()
+
+    await keyCard.getByRole('button', { name: 'Revoke' }).click()
+    await keyCard.getByRole('button', { name: 'Confirm revoke' }).click()
+
+    await expect(keyCard.getByText('Revoked', { exact: true })).toBeVisible()
+    await expect(keyCard.getByRole('button', { name: 'Revoke' })).toHaveCount(0)
   })
 
   test('admin can retained-delete a user, review lifecycle history, and restore identity-only', async ({
@@ -610,6 +823,7 @@ test.describe('Users Workspace', () => {
       await gotoUsersWorkspace(page)
 
       await expect(page.getByRole('button', { name: 'Invite user' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Create user' })).toHaveCount(0)
 
       await openUserDetails(page, 'agent@sf.acme.com')
 

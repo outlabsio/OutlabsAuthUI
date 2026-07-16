@@ -10,6 +10,7 @@ Implemented on the frontend:
 - Dedicated user details route at `/app/users/$userId`
 - User profile editing
 - User status updates
+- Invite user (email) and admin create-user with password (`POST /users/`)
 - Invite resend from the details page for invited users
 - Admin password reset dialog
 - User delete dialog with self-delete protection
@@ -20,6 +21,7 @@ Implemented on the frontend:
 
 Implemented in the backend and already used by the frontend:
 
+- `POST /v1/users/`
 - `GET /v1/users/{id}`
 - `PATCH /v1/users/{id}`
 - `PATCH /v1/users/{id}/status`
@@ -41,10 +43,11 @@ Important read-model notes:
 
 ## Known Gaps
 
-- There is still no API to edit an existing direct role membership in place. The UI can assign and revoke direct roles, but not patch the validity window of an existing assignment.
+- Direct role membership validity windows are editable via `PATCH /users/{id}/role-memberships/{membership_id}` and the user-details “Edit window” dialog.
 - There is no admin session/device API yet for another user.
-- There is no admin-readable audit timeline API yet for user-level events.
-- API keys are only available through current-user routes, not admin-manage-any-user routes.
+- User-level audit timeline is available via `GET /users/{id}/audit-events` and is shown on the History tab. Broader cross-user audit search is still out of scope.
+- Personal API keys are self-service for create/rotate (`/api-keys`). Admins can list and revoke another user’s personal keys from user details Access (`GET/DELETE /users/{id}/api-keys...`). System/integration keys stay in the System API Keys workspace.
+- Open self-registration is intentionally not part of this console; new accounts are invited or created by an admin with a password.
 
 ## Immediate Tasks
 
@@ -52,8 +55,9 @@ Important read-model notes:
 - [x] Keep this document updated with the final direct-role lifecycle shape after that work lands.
 - [ ] Run a true end-to-end invite flow with a real invite token path: invite user, receive email, open accept-invite link, set password, and confirm the account lands in the expected status/state.
 - [ ] Recheck membership lifecycle persistence live against the restarted backend by saving `status`, `valid_from`, and `valid_until` from the UI and confirming the round-trip reads back correctly.
-- [ ] If direct role windows must be editable, add a backend update route for direct role memberships before building more UI around that section.
-- [ ] Decide whether the next backend slice is `sessions/devices` or `audit timeline`.
+- [x] Editable direct role membership windows (backend PATCH + user-details Edit window dialog).
+- [x] Admin list/revoke of another user’s personal API keys on user details.
+- [ ] Decide whether the next backend slice is `sessions/devices` or broader audit search.
 
 ## Frontend Files To Recheck First
 

@@ -216,6 +216,16 @@ const pageGuides: AppPageGuideRegistryEntry[] = [
         ],
       },
       {
+        title: 'Provisioning paths',
+        description:
+          'Use invite when the person should set their own password from email. Use create user when an operator needs an immediately usable passworded account.',
+        bullets: [
+          'Invite creates an invited account and sends the accept-invite flow.',
+          'Create user calls admin `POST /users/` with a password and lands on the new account.',
+          'Both paths still require `user:create` (or superuser).',
+        ],
+      },
+      {
         title: 'How assignments work',
         description:
           'Users can receive access in two different ways, and those paths should be reviewed separately.',

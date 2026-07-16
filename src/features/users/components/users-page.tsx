@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import type { SortingState } from '@tanstack/react-table'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, UserRoundPlus } from 'lucide-react'
 
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
@@ -13,6 +13,7 @@ import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-option
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getEntitiesQueryOptions } from '@/features/entities/api/entities.query-options'
 import { buildEntityOptions } from '@/features/entities/utils/build-entity-options'
+import { CreateUserDialog } from '@/features/users/components/create-user-dialog'
 import { InviteUserDialog } from '@/features/users/components/invite-user-dialog'
 import { UsersFilters } from '@/features/users/components/users-filters'
 import { UsersTable } from '@/features/users/components/users-table'
@@ -42,6 +43,7 @@ export function UsersPage({
   onUserSelect,
 }: UsersPageProps) {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([
     {
       id: 'user',
@@ -90,10 +92,11 @@ export function UsersPage({
     entitiesQuery.error
 
   const authConfig = authConfigQuery.data
+  const canCreateUsers =
+    Boolean(sessionUser?.is_superuser) ||
+    hasAnyPermission(actorPermissionNames, ['user:create'])
   const canInviteUsers =
-    (authConfig?.features.invitations ?? false) &&
-    (Boolean(sessionUser?.is_superuser) ||
-      hasAnyPermission(actorPermissionNames, ['user:create']))
+    (authConfig?.features.invitations ?? false) && canCreateUsers
   const showStatusFilter = authConfig?.features.user_status ?? true
   const showEntityFilter = entityHierarchyEnabled && canReadEntities
   const users = usersQuery.data?.items ?? []
@@ -101,12 +104,27 @@ export function UsersPage({
   const adminUsers = users.filter((user) => user.is_superuser).length
   const verifiedUsers = users.filter((user) => user.email_verified).length
   const filtersKey = `${filters.search ?? ''}:${filters.status ?? ''}:${filters.rootEntityId ?? ''}`
-  const shellAction = canInviteUsers ? (
-    <Button type="button" className="shrink-0" onClick={() => setIsInviteDialogOpen(true)}>
-      <UserPlus className="size-4" />
-      Invite user
-    </Button>
-  ) : undefined
+  const shellAction =
+    canCreateUsers || canInviteUsers ? (
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {canCreateUsers ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            <UserRoundPlus className="size-4" />
+            Create user
+          </Button>
+        ) : null}
+        {canInviteUsers ? (
+          <Button type="button" onClick={() => setIsInviteDialogOpen(true)}>
+            <UserPlus className="size-4" />
+            Invite user
+          </Button>
+        ) : null}
+      </div>
+    ) : undefined
   const usersSummary = (
     <div className="hidden min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground xl:flex">
       <span>
@@ -186,6 +204,16 @@ export function UsersPage({
           onSelectUser={onUserSelect}
         />
       </AppPage>
+      <CreateUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        entities={entitiesQuery.data?.items ?? []}
+        entityHierarchyEnabled={entityHierarchyEnabled}
+        canCreateSuperusers={Boolean(sessionUser?.is_superuser)}
+        onCreated={(user) => {
+          onUserSelect(user.id)
+        }}
+      />
       <InviteUserDialog
         open={isInviteDialogOpen}
         onOpenChange={setIsInviteDialogOpen}

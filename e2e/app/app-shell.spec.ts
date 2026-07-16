@@ -90,7 +90,19 @@ test.describe('App Shell', () => {
     await openUserMenu(page, 'admin@acme.com')
 
     await expect(page.getByRole('menuitemcheckbox', { name: 'Dark mode' })).toBeVisible()
+
+    const logoutResponsePromise = page.waitForResponse((response) => {
+      return (
+        response.request().method() === 'POST' &&
+        response.url().includes('/auth/logout')
+      )
+    })
+
     await page.getByRole('menuitem', { name: 'Sign out' }).click()
+
+    const logoutResponse = await logoutResponsePromise
+    expect(logoutResponse.status()).toBe(204)
+
     await expect(page).toHaveURL(/\/auth\/login$/)
     await expect(
       page.getByRole('heading', {

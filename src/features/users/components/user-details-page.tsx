@@ -53,9 +53,11 @@ import {
 import type { Role } from '@/features/roles/types/roles.types';
 import { DeleteUserDialog } from '@/features/users/components/delete-user-dialog';
 import { DirectRoleAssignmentDialog } from '@/features/users/components/direct-role-assignment-dialog';
+import { EditDirectRoleMembershipDialog } from '@/features/users/components/edit-direct-role-membership-dialog';
 import { MembershipAccessDialog } from '@/features/users/components/membership-access-dialog';
 import { ResetUserPasswordDialog } from '@/features/users/components/reset-user-password-dialog';
 import {
+  getUserApiKeysQueryOptions,
   getUserAuditEventsQueryOptions,
   getUserMembershipHistoryQueryOptions,
   getUserPermissionsQueryOptions,
@@ -65,6 +67,7 @@ import {
 import { useRemoveRoleFromUserMutation } from '@/features/users/hooks/use-remove-role-from-user-mutation';
 import { useResendInviteMutation } from '@/features/users/hooks/use-resend-invite-mutation';
 import { useRestoreUserMutation } from '@/features/users/hooks/use-restore-user-mutation';
+import { useRevokeUserApiKeyMutation } from '@/features/users/hooks/use-revoke-user-api-key-mutation';
 import { useUpdateUserMutation } from '@/features/users/hooks/use-update-user-mutation';
 import { useUpdateUserStatusMutation } from '@/features/users/hooks/use-update-user-status-mutation';
 import { useUpdateUserSuperuserMutation } from '@/features/users/hooks/use-update-user-superuser-mutation';
@@ -82,6 +85,7 @@ import type {
   UserDetailsTab,
   UserMembershipHistoryEvent,
   UserPermissionSource,
+  UserRoleMembership,
   UserStatusUpdateValue,
   UserStatusValue,
 } from '@/features/users/types/users.types';
@@ -469,6 +473,15 @@ export function UserDetailsPage({
     ...getUserPermissionsQueryOptions(sessionQuery.data?.id ?? ''),
     enabled: Boolean(sessionQuery.data?.id),
   });
+  const personalApiKeysFeatureEnabled =
+    authConfigQuery.data?.features.api_keys === true;
+  const userApiKeysQuery = useQuery({
+    ...getUserApiKeysQueryOptions(userId),
+    enabled:
+      personalApiKeysFeatureEnabled &&
+      activeDetailsTab === 'access' &&
+      Boolean(sessionQuery.data?.id),
+  });
   const updateUserMutation = useUpdateUserMutation();
   const updateUserStatusMutation = useUpdateUserStatusMutation();
   const updateUserSuperuserMutation = useUpdateUserSuperuserMutation();
@@ -476,7 +489,13 @@ export function UserDetailsPage({
   const resendInviteMutation = useResendInviteMutation();
   const restoreUserMutation = useRestoreUserMutation();
   const removeRoleMutation = useRemoveRoleFromUserMutation();
+  const revokeUserApiKeyMutation = useRevokeUserApiKeyMutation();
   const [directRoleDialogOpen, setDirectRoleDialogOpen] = useState(false);
+  const [editingDirectRoleMembership, setEditingDirectRoleMembership] =
+    useState<UserRoleMembership | null>(null);
+  const [confirmingApiKeyId, setConfirmingApiKeyId] = useState<string | null>(
+    null,
+  );
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
   const [superuserConfirmOpen, setSuperuserConfirmOpen] = useState(false);
@@ -546,6 +565,13 @@ export function UserDetailsPage({
     ? isActorSuperuser || actorPermissionNames.has('user:delete')
     : isActorSuperuser;
   const canRemoveDirectRoles = canUpdateUsers;
+  const canEditDirectRoleWindows = canUpdateUsers;
+  const canReadUserApiKeys =
+    personalApiKeysFeatureEnabled &&
+    (actorPermissionsQuery.isSuccess
+      ? isActorSuperuser || actorPermissionNames.has('user:read')
+      : isActorSuperuser);
+  const canRevokeUserApiKeys = canReadUserApiKeys && canUpdateUsers;
   const canManageMembershipAccess =
     membershipRolesFeatureEnabled &&
     (actorPermissionsQuery.isSuccess
@@ -1610,6 +1636,19 @@ export function UserDetailsPage({
                                 <Badge variant="outline">
                                   {role.permissions.length} permissions
                                 </Badge>
+                                {canEditDirectRoleWindows &&
+                                membership.status === 'active' ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingDirectRoleMembership(membership);
+                                    }}
+                                  >
+                                    Edit window
+                                  </Button>
+                                ) : null}
                                 {canRemoveDirectRoles &&
                                 membership.status === 'active' ? (
                                   <Button
@@ -1736,6 +1775,159 @@ export function UserDetailsPage({
                     </div>
                   )}
                 </DetailSection>
+
+                {canReadUserApiKeys ? (
+                  <DetailSection
+                    title="Personal API keys"
+                    info={{
+                      label: 'Explain personal API keys section',
+                      title: 'Personal API keys',
+                      content:
+                        'These are personal keys owned by this account. Admins can review and revoke them here; key creation stays on the account self-service API keys page.',
+                    }}
+                  >
+                    {userApiKeysQuery.isError ? (
+                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+                        {getApiErrorMessage(
+                          userApiKeysQuery.error,
+                          'The personal API keys could not be loaded.',
+                        )}
+                      </div>
+                    ) : userApiKeysQuery.isPending ? (
+                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                        Loading personal API keys…
+                      </div>
+                    ) : userApiKeysQuery.data &&
+                      userApiKeysQuery.data.length > 0 ? (
+                      <div className="space-y-3">
+                        {userApiKeysQuery.data.map((apiKey) => (
+                          <div
+                            key={apiKey.id}
+                            className="rounded-lg border bg-muted/30 px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="font-medium">{apiKey.name}</div>
+                                  <Badge
+                                    variant={
+                                      apiKey.status === 'active'
+                                        ? 'secondary'
+                                        : apiKey.status === 'revoked'
+                                          ? 'destructive'
+                                          : 'outline'
+                                    }
+                                  >
+                                    {formatToken(apiKey.status)}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Prefix {apiKey.prefix}
+                                  {apiKey.scopes.length > 0
+                                    ? ` · ${apiKey.scopes.length} scopes`
+                                    : ' · unrestricted scopes'}
+                                </div>
+                              </div>
+                              {canRevokeUserApiKeys &&
+                              apiKey.status === 'active' ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={revokeUserApiKeyMutation.isPending}
+                                  onClick={() => {
+                                    setConfirmingApiKeyId((currentKeyId) =>
+                                      currentKeyId === apiKey.id
+                                        ? null
+                                        : apiKey.id,
+                                    );
+                                  }}
+                                >
+                                  Revoke
+                                </Button>
+                              ) : null}
+                            </div>
+                            <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                              <div className="rounded-lg border bg-background/70 px-3 py-2">
+                                <div className="font-medium text-foreground">
+                                  Created
+                                </div>
+                                <div className="mt-1">
+                                  {formatDateTime(apiKey.created_at, 'Unknown')}
+                                </div>
+                              </div>
+                              <div className="rounded-lg border bg-background/70 px-3 py-2">
+                                <div className="font-medium text-foreground">
+                                  Last used
+                                </div>
+                                <div className="mt-1">
+                                  {formatDateTime(apiKey.last_used_at, 'Never')}
+                                </div>
+                              </div>
+                              <div className="rounded-lg border bg-background/70 px-3 py-2">
+                                <div className="font-medium text-foreground">
+                                  Expires
+                                </div>
+                                <div className="mt-1">
+                                  {formatDateTime(apiKey.expires_at, 'Never')}
+                                </div>
+                              </div>
+                            </div>
+                            {confirmingApiKeyId === apiKey.id ? (
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Revoke this personal API key immediately?
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={revokeUserApiKeyMutation.isPending}
+                                    onClick={() => {
+                                      setConfirmingApiKeyId(null);
+                                    }}
+                                  >
+                                    Keep key
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={revokeUserApiKeyMutation.isPending}
+                                    onClick={async () => {
+                                      try {
+                                        await revokeUserApiKeyMutation.mutateAsync(
+                                          {
+                                            userId,
+                                            keyId: apiKey.id,
+                                          },
+                                        );
+                                        setConfirmingApiKeyId(null);
+                                      } catch {
+                                        return;
+                                      }
+                                    }}
+                                  >
+                                    {revokeUserApiKeyMutation.isPending &&
+                                    revokeUserApiKeyMutation.variables
+                                      ?.keyId === apiKey.id
+                                      ? 'Revoking…'
+                                      : 'Confirm revoke'}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                        This account has no personal API keys.
+                      </div>
+                    )}
+                  </DetailSection>
+                ) : null}
               </div>
 
               <DetailSection
@@ -2034,6 +2226,18 @@ export function UserDetailsPage({
           .filter((membership) => membership.status === 'active')
           .map((membership) => membership.role)}
         canAssignDirectRoles={canAssignDirectRoles}
+      />
+
+      <EditDirectRoleMembershipDialog
+        open={editingDirectRoleMembership != null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setEditingDirectRoleMembership(null);
+          }
+        }}
+        userId={userId}
+        membership={editingDirectRoleMembership}
+        canEdit={canEditDirectRoleWindows}
       />
 
       <ResetUserPasswordDialog

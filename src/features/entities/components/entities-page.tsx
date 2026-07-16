@@ -17,12 +17,14 @@ import {
   getEntityPathQueryOptions,
   getEntityQueryOptions,
 } from '@/features/entities/api/entities.query-options'
+import { DeleteEntityDialog } from '@/features/entities/components/delete-entity-dialog'
 import { EntityDetailPanel } from '@/features/entities/components/entity-detail-panel'
 import { EntityFormDialog } from '@/features/entities/components/entity-form-dialog'
 import { EntityMemberAccessDialog } from '@/features/entities/components/entity-member-access-dialog'
 import { EntityMemberInviteDialog } from '@/features/entities/components/entity-member-invite-dialog'
 import { EntityRootGovernanceDialog } from '@/features/entities/components/entity-root-governance-dialog'
 import { EntityTreePanel } from '@/features/entities/components/entity-tree-panel'
+import { MoveEntityDialog } from '@/features/entities/components/move-entity-dialog'
 import { getPermissionsQueryOptions } from '@/features/permissions/api/permissions.query-options'
 import { getRolesForEntityQueryOptions } from '@/features/roles/api/roles.query-options'
 import { RoleFormDialog } from '@/features/roles/components/role-form-dialog'
@@ -34,6 +36,7 @@ import {
   filterEntityTree,
   findEntityPath,
   flattenEntityTree,
+  type EntityTreeNode,
 } from '@/features/entities/utils/build-entity-tree'
 import type {
   Entity,
@@ -106,6 +109,25 @@ function countDescendants(
   }, 0)
 }
 
+function collectDescendantIds(node: EntityTreeNode | null) {
+  const descendantIds = new Set<string>()
+
+  if (!node) {
+    return descendantIds
+  }
+
+  function visit(currentNode: EntityTreeNode) {
+    currentNode.children.forEach((childNode) => {
+      descendantIds.add(childNode.id)
+      visit(childNode)
+    })
+  }
+
+  visit(node)
+
+  return descendantIds
+}
+
 export function EntitiesPage({
   selectedEntityId,
   search,
@@ -157,6 +179,11 @@ export function EntitiesPage({
     'entity:update',
     'entity:update_tree',
     'entity:update_all',
+  ])
+  const canDeleteEntities = hasActorPermission([
+    'entity:delete',
+    'entity:delete_tree',
+    'entity:delete_all',
   ])
   const canReadMembers = hasActorPermission(['membership:read'])
   const canCreateMemberships = hasActorPermission(['membership:create'])
@@ -392,12 +419,24 @@ export function EntitiesPage({
     role: null,
   })
   const [rootGovernanceDialogOpen, setRootGovernanceDialogOpen] = useState(false)
+  const [deleteEntityDialogOpen, setDeleteEntityDialogOpen] = useState(false)
+  const [moveEntityDialogOpen, setMoveEntityDialogOpen] = useState(false)
   const [selectedRoleState, setSelectedRoleState] = useState<{
     entityId: string | null
     roleId?: string
   }>({
     entityId: null,
   })
+  const moveParentOptions = useMemo(() => {
+    if (!activeEntity) {
+      return []
+    }
+
+    const excludedIds = collectDescendantIds(activeEntityNode)
+    excludedIds.add(activeEntity.id)
+
+    return scopeEntities.filter((entity) => !excludedIds.has(entity.id))
+  }, [activeEntity, activeEntityNode, scopeEntities])
   const selectedRoleId =
     selectedRoleState.entityId === activeEntityId
       ? selectedRoleState.roleId
@@ -630,6 +669,8 @@ export function EntitiesPage({
                 canCreateRootEntities={canCreateRootEntities}
                 canCreateChildEntities={canCreateEntities && Boolean(activeEntity)}
                 canEditEntities={canEditEntities}
+                canMoveEntities={canEditEntities && moveParentOptions.length > 0}
+                canDeleteEntities={canDeleteEntities}
                 canCreateRoles={canCreateRoles}
                 canUpdateRoles={canUpdateRoles}
                 canAddMembers={canCreateMemberships}
@@ -667,6 +708,12 @@ export function EntitiesPage({
                         ? activeEntityPath[activeEntityPath.length - 2]
                         : null,
                     })
+                }}
+                onMoveEntity={() => {
+                  setMoveEntityDialogOpen(true)
+                }}
+                onDeleteEntity={() => {
+                  setDeleteEntityDialogOpen(true)
                 }}
                 onEditRootGovernance={() => {
                   setRootGovernanceDialogOpen(true)
@@ -746,6 +793,30 @@ export function EntitiesPage({
         open={rootGovernanceDialogOpen}
         onOpenChange={setRootGovernanceDialogOpen}
         entity={activeEntity?.parent_entity_id == null ? activeEntity : null}
+      />
+
+      <DeleteEntityDialog
+        open={deleteEntityDialogOpen}
+        onOpenChange={setDeleteEntityDialogOpen}
+        entity={activeEntity}
+        childCount={directChildren.length}
+        onDeleted={(deletedEntity) => {
+          const parentEntityId = deletedEntity.parent_entity_id
+
+          if (parentEntityId) {
+            onEntitySelect(parentEntityId)
+          }
+        }}
+      />
+
+      <MoveEntityDialog
+        open={moveEntityDialogOpen}
+        onOpenChange={setMoveEntityDialogOpen}
+        entity={activeEntity}
+        parentOptions={moveParentOptions}
+        onMoved={(movedEntity) => {
+          onEntitySelect(movedEntity.id)
+        }}
       />
 
       {activeEntity ? (
