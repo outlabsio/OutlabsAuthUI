@@ -3,17 +3,19 @@ import { apiClient } from '@/lib/api/client'
 
 export function getUserRoleMemberships(
   userId: string,
-  options?: { includeInactive?: boolean }
+  filters?: { includeInactive?: boolean },
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams()
 
-  if (options?.includeInactive) {
+  if (filters?.includeInactive) {
     searchParams.set('include_inactive', 'true')
   }
 
   const query = searchParams.toString()
 
   return apiClient.get<UserRoleMembership[]>(
-    `/users/${userId}/role-memberships${query ? `?${query}` : ''}`
+    `/users/${userId}/role-memberships${query ? `?${query}` : ''}`,
+    { signal: options.signal }
   )
 }

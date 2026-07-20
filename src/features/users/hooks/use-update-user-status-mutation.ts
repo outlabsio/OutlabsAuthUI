@@ -9,7 +9,7 @@ export function useUpdateUserStatusMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: usersKeys.all,
+    mutationKey: usersKeys.update(),
     mutationFn: (input: UpdateUserStatusInput) => updateUserStatus(input),
     meta: withMutationToast({
       error: 'Unable to update account status.',
@@ -18,14 +18,9 @@ export function useUpdateUserStatusMutation() {
     onSuccess: async (user) => {
       queryClient.setQueryData(usersKeys.detail(user.id), user)
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.detail(user.id),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.lists(),
-        }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: usersKeys.lists(),
+      })
     },
   })
 }

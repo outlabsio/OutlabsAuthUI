@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 
@@ -32,6 +32,18 @@ const emptyFilters: AuditFilters = {
   occurredTo: '',
 }
 
+function getAuditSearchKey(search: AuditPageSearch) {
+  return [
+    search.actorUserId,
+    search.category,
+    search.entityId,
+    search.eventType,
+    search.occurredFrom,
+    search.occurredTo,
+    search.subjectUserId,
+  ].join('\u0000')
+}
+
 function toQueryIso(value: string) {
   const trimmed = value.trim()
   if (!trimmed) {
@@ -53,28 +65,20 @@ type AuditPageProps = {
 
 export function AuditPage({ search, onSearchChange }: AuditPageProps) {
   const actorPermissions = useActorPermissions()
+  const searchKey = getAuditSearchKey(search)
+  const [syncedSearchKey, setSyncedSearchKey] = useState(searchKey)
   const [draftFilters, setDraftFilters] = useState<AuditFilters>(() =>
-    auditSearchToFilters(search)
-  )
-  const [appliedFilters, setAppliedFilters] = useState<AuditFilters>(() =>
     auditSearchToFilters(search)
   )
   const [page, setPage] = useState(1)
 
-  useEffect(() => {
-    const next = auditSearchToFilters(search)
-    setDraftFilters(next)
-    setAppliedFilters(next)
+  if (searchKey !== syncedSearchKey) {
+    setSyncedSearchKey(searchKey)
+    setDraftFilters(auditSearchToFilters(search))
     setPage(1)
-  }, [
-    search.actorUserId,
-    search.category,
-    search.entityId,
-    search.eventType,
-    search.occurredFrom,
-    search.occurredTo,
-    search.subjectUserId,
-  ])
+  }
+
+  const appliedFilters = auditSearchToFilters(search)
 
   const canReadAudit = actorPermissions.has('user:read')
   const queryParams = {
@@ -180,13 +184,11 @@ export function AuditPage({ search, onSearchChange }: AuditPageProps) {
             filters={draftFilters}
             onChange={setDraftFilters}
             onApply={() => {
-              setAppliedFilters(draftFilters)
               setPage(1)
               onSearchChange(auditFiltersToSearch(draftFilters))
             }}
             onReset={() => {
               setDraftFilters(emptyFilters)
-              setAppliedFilters(emptyFilters)
               setPage(1)
               onSearchChange({})
             }}

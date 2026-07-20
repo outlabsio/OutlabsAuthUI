@@ -11,7 +11,10 @@ const defaultOrphanedUsersFilters: Required<
   limit: 20,
 }
 
-export async function getOrphanedUsers(filters: OrphanedUsersListFilters) {
+export async function getOrphanedUsers(
+  filters: OrphanedUsersListFilters,
+  options: { signal?: AbortSignal } = {}
+) {
   const resolvedFilters = {
     ...defaultOrphanedUsersFilters,
     ...filters,
@@ -31,6 +34,7 @@ export async function getOrphanedUsers(filters: OrphanedUsersListFilters) {
   }
 
   return apiClient.get<OrphanedUsersListResponse>(
-    `/users/orphaned?${searchParams.toString()}`
+    `/users/orphaned?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

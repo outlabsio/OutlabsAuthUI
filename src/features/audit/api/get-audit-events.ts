@@ -4,7 +4,10 @@ import type {
 } from '@/features/audit/types/audit.types'
 import { apiClient } from '@/lib/api/client'
 
-export function getAuditEvents(params: GetAuditEventsParams = {}) {
+export function getAuditEvents(
+  params: GetAuditEventsParams = {},
+  options: { signal?: AbortSignal } = {}
+) {
   const searchParams = new URLSearchParams({
     page: String(params.page ?? 1),
     limit: String(params.limit ?? 20),
@@ -39,6 +42,7 @@ export function getAuditEvents(params: GetAuditEventsParams = {}) {
   }
 
   return apiClient.get<AuditEventsResponse>(
-    `/audit-events?${searchParams.toString()}`
+    `/audit-events?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

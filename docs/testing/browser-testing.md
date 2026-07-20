@@ -80,6 +80,13 @@ Open the Playwright UI runner:
 bun run test:e2e:ui
 ```
 
+Run the accessibility smoke suite (`@axe-core/playwright` against
+`/auth/login`, `/app/users`, and the Invite user dialog):
+
+```bash
+bun run test:e2e:a11y
+```
+
 Run without resetting backend data first:
 
 ```bash
@@ -111,7 +118,7 @@ To run **enterprise then SimpleRBAC** in one command (both backends must be up):
 bun run test:e2e:fixtures
 ```
 
-The SimpleRBAC pass uses frontend port `3001` so it can start while an enterprise Vite server remains on `:3000`. Default `bun run test:e2e` ignores `*simple-rbac*` and `*mounted-backend*` specs.
+The SimpleRBAC pass uses frontend port `3001` so it can start while an enterprise Vite server remains on `:3000`. The SimpleRBAC example backend must allow that origin in CORS (same as enterprise: `http://localhost:3000` and `http://localhost:3001`). Backend resets clear ambient `DATABASE_URL` unless `E2E_DATABASE_URL` is set, so a shell pointed at the enterprise DB cannot seed the wrong fixture. Default `bun run test:e2e` ignores `*simple-rbac*` and `*mounted-backend*` specs.
 
 Playwright global setup will, by default:
 
@@ -195,6 +202,21 @@ E2E_ADMIN_EMAIL=admin@test.com \
 E2E_ADMIN_PASSWORD=Test123!! \
 bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
 ```
+
+## CI
+
+`.github/workflows/ci.yml` runs a `quality` job (typecheck, lint, architecture
+fixture lint, build) on every push to `main` and every pull request — this
+job has no backend dependency and always runs.
+
+The full Playwright E2E suite is **not** part of the default CI gate: it
+needs a live Enterprise RBAC backend (Postgres + uvicorn on `:8004`), which
+the shared runner doesn't stand up automatically today. An `e2e` job exists
+in the same workflow as a documented, opt-in path — it only runs when the
+workflow is manually dispatched with `run_e2e: true`, and the job's comments
+spell out the prerequisites (backend checkout, `DATABASE_URL`, seeding, port
+`8004`). Treat it as a template to finish wiring up, not a currently-green
+gate.
 
 ## Authoring Guidance
 

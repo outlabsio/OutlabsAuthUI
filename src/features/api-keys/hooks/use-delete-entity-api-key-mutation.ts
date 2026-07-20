@@ -17,7 +17,7 @@ export function useDeleteEntityApiKeyMutation() {
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
+        queryKey: apiKeysKeys.lists(),
       })
     },
   })

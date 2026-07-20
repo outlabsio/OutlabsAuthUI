@@ -1,0 +1,14 @@
+# Cloudflare Workers static assets headers.
+# See docs/security-session-posture.md for the rationale and required overrides.
+#
+# `connect-src *` below is a generic starting point because `apiBaseUrl` is
+# resolved at runtime per mount (see docs/runtime-configuration.md). Every
+# real deployment should override this file to pin `connect-src` to its
+# actual configured API origin instead of `*`.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src *; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

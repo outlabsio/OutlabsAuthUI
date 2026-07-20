@@ -188,14 +188,15 @@ Examples:
 
 ### Schema exports
 
-Use `PascalCase` with `Schema` suffix.
+Use `camelCase` with `Schema` suffix (see
+[`naming_conventions.md`](./naming_conventions.md#schemas) - code is canon).
 
 Examples:
 
-- `ProjectSchema`
-- `LoginSchema`
-- `ProjectFilterSchema`
-- `ProjectFormSchema`
+- `projectSchema`
+- `loginSchema`
+- `projectFilterSchema`
+- `projectFormSchema`
 
 ### Form value types
 
@@ -230,12 +231,12 @@ Put feature form schemas in `features/<feature>/schemas/`.
 Good:
 
 ```ts
-export const ProjectFormSchema = z.object({
+export const projectFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   status: z.enum(['draft', 'active', 'archived']),
 })
 
-export type ProjectFormValues = z.infer<typeof ProjectFormSchema>
+export type ProjectFormValues = z.infer<typeof projectFormSchema>
 ```
 
 ### Zod rules
@@ -274,7 +275,7 @@ React Hook Form is the default form-state layer.
 
 ```ts
 const form = useForm<ProjectFormValues>({
-  resolver: zodResolver(ProjectFormSchema),
+  resolver: zodResolver(projectFormSchema),
   defaultValues,
   mode: 'onSubmit',
 })
@@ -529,6 +530,28 @@ For edit forms:
 Do not leak raw transport shape into the form just because it is convenient.
 
 ---
+
+## Dirty-Edit Policy
+
+Edit forms must reflect unsaved-change state explicitly instead of always
+allowing submit.
+
+### Rule
+
+- Disable the submit button while `formState.isDirty` is `false` - there is
+  nothing to save.
+- Disable actions that would discard or conflict with unsaved input (e.g. a
+  "request verification code" action next to a profile field) while
+  `formState.isDirty` is `true`, and say why (a short `FieldDescription` /
+  `AppStatusCallout` near the disabled action is enough).
+- Do not silently drop unsaved input. If an action must proceed despite dirty
+  state, that is a deliberate product decision, not a default.
+
+### Existing pattern
+
+See `profileForm.formState.isDirty` usage in
+[`account-page.tsx`](../../src/features/account/components/account-page.tsx)
+for the reference implementation of both halves of this rule.
 
 ## Controlled vs Uncontrolled Rules
 

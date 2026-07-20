@@ -24,6 +24,9 @@ async function openAccountWorkspace(page: Page) {
 }
 
 async function openUserDetails(page: Page, email: string) {
+  await page.getByPlaceholder('Search people by name or email').fill(email)
+  await expect.poll(() => new URL(page.url()).searchParams.get('search')).toBe(email)
+
   const userRow = page
     .locator('tbody tr')
     .filter({

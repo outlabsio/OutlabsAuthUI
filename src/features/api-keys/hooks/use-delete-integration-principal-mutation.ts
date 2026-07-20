@@ -17,9 +17,14 @@ export function useDeleteIntegrationPrincipalMutation() {
       success: 'Integration principal archived.',
     }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
-      })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiKeysKeys.principalsLists(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiKeysKeys.principalKeyLists(),
+        }),
+      ])
     },
   })
 }

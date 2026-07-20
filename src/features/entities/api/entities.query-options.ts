@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { getEntity } from '@/features/entities/api/get-entity'
 import { getEntityDescendants } from '@/features/entities/api/get-entity-descendants'
@@ -16,28 +16,29 @@ import type {
 export function getEntitiesQueryOptions(params: GetEntitiesParams = {}) {
   return queryOptions({
     queryKey: entitiesKeys.list(params),
-    queryFn: () => getEntities(params),
+    queryFn: ({ signal }) => getEntities(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }
 
 export function getEntityQueryOptions(entityId: string) {
   return queryOptions({
     queryKey: entitiesKeys.detail(entityId),
-    queryFn: () => getEntity(entityId),
+    queryFn: ({ signal }) => getEntity(entityId, { signal }),
   })
 }
 
 export function getEntityDescendantsQueryOptions(entityId: string) {
   return queryOptions({
     queryKey: entitiesKeys.descendants(entityId),
-    queryFn: () => getEntityDescendants(entityId),
+    queryFn: ({ signal }) => getEntityDescendants(entityId, { signal }),
   })
 }
 
 export function getEntityPathQueryOptions(entityId: string) {
   return queryOptions({
     queryKey: entitiesKeys.path(entityId),
-    queryFn: () => getEntityPath(entityId),
+    queryFn: ({ signal }) => getEntityPath(entityId, { signal }),
   })
 }
 
@@ -46,7 +47,7 @@ export function getEntityTypeSuggestionsQueryOptions(
 ) {
   return queryOptions({
     queryKey: entitiesKeys.typeSuggestions(params),
-    queryFn: () => getEntityTypeSuggestions(params),
+    queryFn: ({ signal }) => getEntityTypeSuggestions(params, { signal }),
   })
 }
 
@@ -62,6 +63,7 @@ export function getEntityMembersQueryOptions(
 
   return queryOptions({
     queryKey: entitiesKeys.memberList(entityId, resolvedParams),
-    queryFn: () => getEntityMembers(entityId, resolvedParams),
+    queryFn: ({ signal }) => getEntityMembers(entityId, resolvedParams, { signal }),
+    placeholderData: keepPreviousData,
   })
 }

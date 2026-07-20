@@ -91,7 +91,6 @@ export function EditDirectRoleMembershipDialog({
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      syncedMembershipKeyRef.current = null
       form.reset({
         validFrom: '',
         validUntil: '',

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Check, Copy, KeyRound, RefreshCcw, Trash2 } from 'lucide-react'
 
+import { AppDataTable } from '@/components/app/app-data-table'
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppLoadingState } from '@/components/app/app-loading-state'
@@ -25,14 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { getAuthConfigQueryOptions } from '@/features/auth/api/auth.query-options'
 import { useSessionQuery } from '@/features/auth/hooks/use-session-query'
 import { getMyApiKeysQueryOptions } from '@/features/api-keys/api/api-keys.query-options'
@@ -240,6 +234,52 @@ export function PersonalApiKeysPage() {
   const activeKey =
     personalKeys.find((apiKey) => apiKey.id === effectiveSelectedKeyId) ?? null
 
+  const personalKeyColumns = useMemo<ColumnDef<ApiKey>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+          const apiKey = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="font-medium">{apiKey.name}</div>
+              <div className="font-mono text-xs text-muted-foreground">
+                {apiKey.prefix}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'anchor',
+        header: 'Anchor',
+        cell: ({ row }) => {
+          const apiKey = row.original
+          const entityLabel = apiKey.entity_ids?.[0]
+            ? entityById.get(apiKey.entity_ids[0])?.title ?? apiKey.entity_ids[0]
+            : 'Unanchored'
+
+          return entityLabel
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <AppStatusBadge tone={getApiKeyStatusTone(row.original.status)}>
+            {formatToken(row.original.status)}
+          </AppStatusBadge>
+        ),
+        enableSorting: false,
+      },
+    ],
+    [entityById]
+  )
+
   if (sessionQuery.isPending || authConfigQuery.isPending || myKeysQuery.isPending || personalContextPending) {
     return <AppLoadingState title="Loading personal API keys" />
   }
@@ -305,55 +345,18 @@ export function PersonalApiKeysPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {personalKeys.length === 0 ? (
-                  <AppEmptyState
-                    title="No personal API keys"
-                    description="No personal API keys exist yet."
-                    compact
-                  />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Anchor</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {personalKeys.map((apiKey) => {
-                        const isSelected = apiKey.id === activeKey?.id
-                        const entityLabel = apiKey.entity_ids?.[0]
-                          ? entityById.get(apiKey.entity_ids[0])?.title ?? apiKey.entity_ids[0]
-                          : 'Unanchored'
-
-                        return (
-                          <TableRow
-                            key={apiKey.id}
-                            data-state={isSelected ? 'selected' : undefined}
-                            className="cursor-pointer"
-                            onClick={() => setSelectedKeyId(apiKey.id)}
-                          >
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-medium">{apiKey.name}</div>
-                                <div className="font-mono text-xs text-muted-foreground">
-                                  {apiKey.prefix}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>{entityLabel}</TableCell>
-                            <TableCell>
-                              <AppStatusBadge tone={getApiKeyStatusTone(apiKey.status)}>
-                                {formatToken(apiKey.status)}
-                              </AppStatusBadge>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
+                <AppDataTable
+                  data={personalKeys}
+                  columns={personalKeyColumns}
+                  getRowId={(apiKey) => apiKey.id}
+                  isLoading={false}
+                  emptyState={{
+                    title: 'No personal API keys',
+                    description: 'No personal API keys exist yet.',
+                  }}
+                  onRowClick={(apiKey) => setSelectedKeyId(apiKey.id)}
+                  selectedRowId={activeKey?.id}
+                />
               </CardContent>
             </Card>
 

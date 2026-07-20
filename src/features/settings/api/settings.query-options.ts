@@ -6,6 +6,6 @@ import { settingsKeys } from '@/features/settings/api/settings.keys'
 export function getEntityTypeConfigQueryOptions() {
   return queryOptions({
     queryKey: settingsKeys.entityTypeConfig(),
-    queryFn: getEntityTypeConfig,
+    queryFn: ({ signal }) => getEntityTypeConfig({ signal }),
   })
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { ChevronRight, Sparkles } from 'lucide-react'
 
@@ -139,7 +139,6 @@ export function PermissionsTable({
     [permissions]
   )
   const [groupedView, setGroupedView] = useState(true)
-  const [expandedResource, setExpandedResource] = useState<string | null>(null)
   const selectedPermissionResource = useMemo(() => {
     if (!selectedPermissionId) {
       return null
@@ -152,19 +151,30 @@ export function PermissionsTable({
     return selectedPermission ? getPermissionResourceKey(selectedPermission) : null
   }, [permissions, selectedPermissionId])
 
-  useEffect(() => {
+  function deriveExpandedResource() {
     if (selectedPermissionResource) {
-      setExpandedResource(selectedPermissionResource)
-      return
+      return selectedPermissionResource
     }
 
     if (hasActiveFilters && groupedPermissions[0]) {
-      setExpandedResource(groupedPermissions[0].resource)
-      return
+      return groupedPermissions[0].resource
     }
 
-    setExpandedResource(null)
-  }, [groupedPermissions, hasActiveFilters, selectedPermissionResource])
+    return null
+  }
+
+  const expandedResourceSyncKey = `${selectedPermissionResource ?? ''}|${hasActiveFilters ? '1' : '0'}|${groupedPermissions[0]?.resource ?? ''}`
+  const [syncedExpandedResourceKey, setSyncedExpandedResourceKey] = useState(
+    expandedResourceSyncKey
+  )
+  const [expandedResource, setExpandedResource] = useState<string | null>(
+    deriveExpandedResource
+  )
+
+  if (expandedResourceSyncKey !== syncedExpandedResourceKey) {
+    setSyncedExpandedResourceKey(expandedResourceSyncKey)
+    setExpandedResource(deriveExpandedResource())
+  }
 
   function handleResourceToggle(resource: string) {
     setExpandedResource((currentResource) => (currentResource === resource ? null : resource))

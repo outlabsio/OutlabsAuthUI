@@ -12,7 +12,8 @@ const defaultEntityMembersParams: Required<GetEntityMembersParams> = {
 
 export function getEntityMembers(
   entityId: string,
-  params: GetEntityMembersParams = {}
+  params: GetEntityMembersParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const resolvedParams = {
     ...defaultEntityMembersParams,
@@ -29,6 +30,7 @@ export function getEntityMembers(
   }
 
   return apiClient.get<EntityMember[]>(
-    `/memberships/entity/${entityId}/details?${searchParams.toString()}`
+    `/memberships/entity/${entityId}/details?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

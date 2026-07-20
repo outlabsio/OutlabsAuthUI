@@ -432,20 +432,25 @@ Examples:
 
 ### Export naming
 
-Use `PascalCase` with `Schema` suffix.
+Use `camelCase` with `Schema` suffix.
+
+> Correction: earlier revisions of this doc said `PascalCase` here. That was
+> wrong. Every schema actually shipped in this repo uses `camelCase` (e.g.
+> `loginSchema`, `createUserSchema`, `createEntityFormSchema`). Code is canon;
+> this doc was fixed to match it, not the other way around.
 
 Examples:
 
-- `ProjectSchema`
-- `LoginSchema`
-- `ProjectFilterSchema`
+- `projectSchema`
+- `loginSchema`
+- `projectFilterSchema`
 
 If a schema models form input specifically, the export may be more explicit.
 
 Examples:
 
-- `LoginFormSchema`
-- `ProjectFormSchema`
+- `loginFormSchema`
+- `projectFormSchema`
 
 ---
 

@@ -593,7 +593,7 @@ export function UserDetailsAccessTab({
                         )}
                       </AppErrorState>
                     ) : userApiKeysQuery.isPending ? (
-                      <AppEmptyState title="Loading personal API keys…" compact />
+                      <AppEmptyState title="Fetching personal API keys…" compact />
                     ) : userApiKeysQuery.data &&
                       userApiKeysQuery.data.length > 0 ? (
                       <div className="space-y-3">

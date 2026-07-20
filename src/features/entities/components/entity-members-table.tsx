@@ -1,7 +1,9 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 
+import type { ColumnDef } from '@tanstack/react-table'
 import { Search } from 'lucide-react'
 
+import { AppDataTable } from '@/components/app/app-data-table'
 import { AppEmptyState } from '@/components/app/app-empty-state'
 import { AppErrorState } from '@/components/app/app-error-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
@@ -16,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import type { EntityMember } from '@/features/entities/types/entities.types'
 import {
   formatMembershipToken,
@@ -77,6 +71,13 @@ function getRoleSummary(member: EntityMember) {
   return `${visibleRoleNames.join(', ')} +${member.roles.length - 2}`
 }
 
+const columnWidths: Record<string, string> = {
+  member: '34%',
+  access: '30%',
+  window: '24%',
+  actions: '12%',
+}
+
 export function EntityMembersTable({
   members,
   membersLoading,
@@ -128,6 +129,104 @@ export function EntityMembersTable({
       return searchHaystack.includes(normalizedSearchValue)
     })
   }, [members, normalizedSearchValue, statusFilter])
+
+  const columns = useMemo<ColumnDef<EntityMember>[]>(
+    () => [
+      {
+        id: 'member',
+        header: 'Member',
+        cell: ({ row }) => {
+          const member = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="font-medium text-foreground">
+                {getMemberDisplayName(member)}
+              </div>
+              <div className="truncate text-sm text-muted-foreground">
+                {member.user_email}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                User {formatMembershipToken(member.user_status)}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'access',
+        header: 'Access',
+        cell: ({ row }) => {
+          const member = row.original
+          const roleSummary = getRoleSummary(member)
+
+          return (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <AppStatusBadge tone={getMembershipStatusTone(member.effective_status)}>
+                  {formatMembershipToken(member.effective_status)}
+                </AppStatusBadge>
+                <span className="text-xs text-muted-foreground">
+                  Assignment {formatMembershipToken(member.status)}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {roleSummary ?? 'No local roles'}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'window',
+        header: 'Window',
+        cell: ({ row }) => {
+          const member = row.original
+
+          return (
+            <div className="space-y-1 text-sm">
+              <div>{formatDateTime(member.joined_at)}</div>
+              <div className="text-xs text-muted-foreground">
+                From {formatDateTime(member.valid_from, 'Immediate')}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Until {formatDateTime(member.valid_until, 'Open-ended')}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'actions',
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const member = row.original
+
+          return (
+            <div className="text-right">
+              {canEditMemberships ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onManageMember(member)}
+                >
+                  Open user
+                </Button>
+              ) : (
+                <span className="text-sm text-muted-foreground">Read only</span>
+              )}
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+    ],
+    [canEditMemberships, onManageMember]
+  )
 
   if (!canReadMembers) {
     return (
@@ -209,96 +308,21 @@ export function EntityMembersTable({
         </div>
       </div>
 
-      {visibleMembers.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[34%]">Member</TableHead>
-                <TableHead className="w-[30%]">Access</TableHead>
-                <TableHead className="w-[24%]">Window</TableHead>
-                <TableHead className="w-[12%] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleMembers.map((member) => {
-                const roleSummary = getRoleSummary(member)
-
-                return (
-                  <TableRow key={member.id}>
-                    <TableCell className="align-top whitespace-normal">
-                      <div className="space-y-1">
-                        <div className="font-medium text-foreground">
-                          {getMemberDisplayName(member)}
-                        </div>
-                        <div className="truncate text-sm text-muted-foreground">
-                          {member.user_email}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          User {formatMembershipToken(member.user_status)}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="align-top whitespace-normal">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <AppStatusBadge tone={getMembershipStatusTone(member.effective_status)}>
-                            {formatMembershipToken(member.effective_status)}
-                          </AppStatusBadge>
-                          <span className="text-xs text-muted-foreground">
-                            Assignment {formatMembershipToken(member.status)}
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {roleSummary ?? 'No local roles'}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="align-top whitespace-normal">
-                      <div className="space-y-1 text-sm">
-                        <div>{formatDateTime(member.joined_at)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          From {formatDateTime(member.valid_from, 'Immediate')}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Until {formatDateTime(member.valid_until, 'Open-ended')}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="text-right align-top">
-                      {canEditMemberships ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onManageMember(member)}
-                        >
-                          Open user
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Read only</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <AppEmptyState
-          title={members.length === 0 ? 'No members' : 'No matching members'}
-          description={
+      <AppDataTable
+        className="overflow-hidden rounded-2xl border"
+        data={visibleMembers}
+        columns={columns}
+        getRowId={(member) => member.id}
+        isLoading={false}
+        emptyState={{
+          title: members.length === 0 ? 'No members' : 'No matching members',
+          description:
             members.length === 0
               ? 'No memberships have been attached to this entity yet.'
-              : 'No loaded members matched the current search or status filter.'
-          }
-          compact
-        />
-      )}
+              : 'No loaded members matched the current search or status filter.',
+        }}
+        columnWidths={columnWidths}
+      />
 
       {canLoadMoreMembers ? (
         <div className="flex justify-end">

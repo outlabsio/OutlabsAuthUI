@@ -8,7 +8,7 @@ import { getSession } from '@/features/auth/api/get-session'
 export function getAuthConfigQueryOptions() {
   return queryOptions({
     queryKey: authKeys.config(),
-    queryFn: getAuthConfig,
+    queryFn: ({ signal }) => getAuthConfig({ signal }),
     staleTime: 5 * 60_000,
   })
 }
@@ -16,13 +16,13 @@ export function getAuthConfigQueryOptions() {
 export function getSessionQueryOptions() {
   return queryOptions({
     queryKey: authKeys.session(),
-    queryFn: getSession,
+    queryFn: ({ signal }) => getSession({ signal }),
   })
 }
 
 export function getMyPermissionsQueryOptions() {
   return queryOptions({
     queryKey: authKeys.myPermissions(),
-    queryFn: getMyPermissions,
+    queryFn: ({ signal }) => getMyPermissions({ signal }),
   })
 }

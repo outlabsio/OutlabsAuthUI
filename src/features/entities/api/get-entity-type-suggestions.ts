@@ -5,7 +5,8 @@ import type {
 import { apiClient } from '@/lib/api/client'
 
 export async function getEntityTypeSuggestions(
-  params: GetEntityTypeSuggestionsParams = {}
+  params: GetEntityTypeSuggestionsParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams()
 
@@ -22,5 +23,7 @@ export async function getEntityTypeSuggestions(
     ? `/entities/type-suggestions?${query}`
     : '/entities/type-suggestions'
 
-  return apiClient.get<EntityTypeSuggestionsResponse>(path)
+  return apiClient.get<EntityTypeSuggestionsResponse>(path, {
+    signal: options.signal,
+  })
 }

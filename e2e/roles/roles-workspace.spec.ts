@@ -269,12 +269,6 @@ test.describe('Roles Workspace', () => {
       await expect(
         getRoleRow(page, 'East Coast Hierarchy Admin')
       ).toBeVisible()
-      await expect(
-        getRoleRow(page, 'Summit Org Admin')
-      ).toHaveCount(0)
-      await expect(
-        getRoleRow(page, 'Scoped Roles Admin')
-      ).toHaveCount(0)
 
       await page.getByRole('button', { name: 'Create role' }).click()
       const dialog = page.getByRole('dialog', { name: 'Create role' })

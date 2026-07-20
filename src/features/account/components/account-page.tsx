@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -115,11 +115,19 @@ export function AccountPage() {
 
   const sessionUser = sessionQuery.data ?? null
 
+  // Dirty-edit protection: initialize once per record identity. The profile
+  // submit handler below already resets the form to the fresh server values on
+  // its own success, so gating this sync on sessionUser.id prevents unrelated
+  // session refreshes (e.g. from the sessions panel) from wiping an in-progress
+  // edit the operator hasn't submitted yet.
+  const syncedSessionUserIdRef = useRef<string | null>(null)
+
   useEffect(() => {
-    if (!sessionUser) {
+    if (!sessionUser || syncedSessionUserIdRef.current === sessionUser.id) {
       return
     }
 
+    syncedSessionUserIdRef.current = sessionUser.id
     profileForm.reset({
       firstName: sessionUser.first_name ?? '',
       lastName: sessionUser.last_name ?? '',

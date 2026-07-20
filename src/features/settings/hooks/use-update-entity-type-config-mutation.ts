@@ -15,12 +15,8 @@ export function useUpdateEntityTypeConfigMutation() {
       error: 'Entity type configuration could not be updated.',
       success: 'Entity type configuration updated.',
     }),
-    onSuccess: async (config) => {
+    onSuccess: (config) => {
       queryClient.setQueryData(settingsKeys.entityTypeConfig(), config)
-
-      await queryClient.invalidateQueries({
-        queryKey: settingsKeys.entityTypeConfig(),
-      })
     },
   })
 }

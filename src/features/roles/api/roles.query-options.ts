@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { getRoleConditionGroups } from '@/features/roles/api/get-role-condition-groups'
 import { getRoleConditions } from '@/features/roles/api/get-role-conditions'
@@ -11,7 +11,8 @@ import type { GetRolesParams } from '@/features/roles/types/roles.types'
 export function getRolesQueryOptions(params: GetRolesParams = {}) {
   return queryOptions({
     queryKey: rolesKeys.list(params),
-    queryFn: () => getRoles(params),
+    queryFn: ({ signal }) => getRoles(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -19,11 +20,14 @@ export function getInfiniteRolesQueryOptions(params: Omit<GetRolesParams, 'page'
   return infiniteQueryOptions({
     queryKey: rolesKeys.infiniteList(params),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) =>
-      getRoles({
-        ...params,
-        page: pageParam,
-      }),
+    queryFn: ({ pageParam, signal }) =>
+      getRoles(
+        {
+          ...params,
+          page: pageParam,
+        },
+        { signal }
+      ),
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
   })
@@ -32,7 +36,7 @@ export function getInfiniteRolesQueryOptions(params: Omit<GetRolesParams, 'page'
 export function getRoleQueryOptions(roleId: string) {
   return queryOptions({
     queryKey: rolesKeys.detail(roleId),
-    queryFn: () => getRole(roleId),
+    queryFn: ({ signal }) => getRole(roleId, { signal }),
     enabled: Boolean(roleId),
   })
 }
@@ -43,15 +47,16 @@ export function getRolesForEntityQueryOptions(
 ) {
   return queryOptions({
     queryKey: rolesKeys.entityList(entityId, params),
-    queryFn: () => getRolesForEntity(entityId, params),
+    queryFn: ({ signal }) => getRolesForEntity(entityId, params, { signal }),
     enabled: Boolean(entityId),
+    placeholderData: keepPreviousData,
   })
 }
 
 export function getRoleConditionGroupsQueryOptions(roleId: string) {
   return queryOptions({
     queryKey: rolesKeys.conditionGroups(roleId),
-    queryFn: () => getRoleConditionGroups(roleId),
+    queryFn: ({ signal }) => getRoleConditionGroups(roleId, { signal }),
     enabled: Boolean(roleId),
   })
 }
@@ -59,7 +64,7 @@ export function getRoleConditionGroupsQueryOptions(roleId: string) {
 export function getRoleConditionsQueryOptions(roleId: string) {
   return queryOptions({
     queryKey: rolesKeys.conditions(roleId),
-    queryFn: () => getRoleConditions(roleId),
+    queryFn: ({ signal }) => getRoleConditions(roleId, { signal }),
     enabled: Boolean(roleId),
   })
 }

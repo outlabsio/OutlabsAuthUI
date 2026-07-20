@@ -6,7 +6,8 @@ import { apiClient } from '@/lib/api/client'
 
 export function getUserMemberships(
   userId: string,
-  params: GetUserMembershipsParams = {}
+  params: GetUserMembershipsParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams({
     page: '1',
@@ -18,6 +19,7 @@ export function getUserMemberships(
   }
 
   return apiClient.get<UserMembership[]>(
-    `/memberships/user/${userId}?${searchParams.toString()}`
+    `/memberships/user/${userId}?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

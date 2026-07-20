@@ -147,7 +147,6 @@ export function EntitiesPage({
       search: normalizedRootScopeSearchValue || undefined,
     }),
     enabled: entityHierarchyEnabled && isSuperuser,
-    placeholderData: (previousData) => previousData,
   })
   const selectedEntityPathQuery = useQuery({
     ...getEntityPathQueryOptions(selectedEntityId ?? ''),
@@ -352,10 +351,9 @@ export function EntitiesPage({
     enabled: Boolean(sessionUser?.id) && (canCreateRoles || canUpdateRoles),
   })
 
-  const members = useMemo(
-    () => memberQueries.flatMap((memberQuery) => memberQuery.data ?? []),
-    [memberQueries]
-  )
+  // `memberQueries` (from useQueries) is not referentially stable, so this
+  // stays a plain derived value instead of a useMemo dependency.
+  const members = memberQueries.flatMap((memberQuery) => memberQuery.data ?? [])
   const membersError = memberQueries.find((memberQuery) => memberQuery.error)?.error
   const roles = entityRolesQuery.data?.items ?? []
   const permissionOptions = permissionsCatalogQuery.data?.items?.length

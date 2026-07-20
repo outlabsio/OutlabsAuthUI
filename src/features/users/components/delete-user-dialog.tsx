@@ -1,5 +1,3 @@
-import { useEffect, useRef } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
@@ -38,7 +36,6 @@ export function DeleteUserDialog({
   onDeleted,
 }: DeleteUserDialogProps) {
   const deleteUserMutation = useDeleteUserMutation();
-  const previousOpenRef = useRef(open);
   const form = useForm<DeleteUserFormValues>({
     resolver: zodResolver(createDeleteUserSchema(userEmail)),
     defaultValues: {
@@ -46,16 +43,16 @@ export function DeleteUserDialog({
     },
   });
 
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current;
-
-    if (wasOpen && !open) {
+  // Handler-first reset: clear the form and mutation state as the dialog closes
+  // instead of syncing off an `open` effect.
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
       form.reset();
       deleteUserMutation.reset();
     }
 
-    previousOpenRef.current = open;
-  }, [deleteUserMutation, form, open]);
+    onOpenChange(nextOpen);
+  }
 
   const submitError = deleteUserMutation.error
     ? getApiErrorMessage(
@@ -65,7 +62,7 @@ export function DeleteUserDialog({
     : null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Delete user</DialogTitle>
@@ -79,7 +76,7 @@ export function DeleteUserDialog({
               await deleteUserMutation.mutateAsync({
                 userId,
               });
-              onOpenChange(false)
+              handleOpenChange(false)
               onDeleted();
             } catch {
               return;
@@ -115,7 +112,7 @@ export function DeleteUserDialog({
             type="button"
             variant="outline"
             disabled={deleteUserMutation.isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
           >
             Cancel
           </Button>

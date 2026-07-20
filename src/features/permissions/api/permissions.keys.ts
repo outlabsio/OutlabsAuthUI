@@ -8,8 +8,11 @@ export const permissionsKeys = {
   detail: (permissionId: string) =>
     [...permissionsKeys.details(), permissionId] as const,
   conditionGroups: (permissionId: string) =>
-    [...permissionsKeys.all, permissionId, 'condition-groups'] as const,
+    [...permissionsKeys.detail(permissionId), 'condition-groups'] as const,
   conditions: (permissionId: string) =>
-    [...permissionsKeys.all, permissionId, 'conditions'] as const,
+    [...permissionsKeys.detail(permissionId), 'conditions'] as const,
   check: () => [...permissionsKeys.all, 'check'] as const,
+  create: () => [...permissionsKeys.all, 'create'] as const,
+  update: () => [...permissionsKeys.all, 'update'] as const,
+  remove: () => [...permissionsKeys.all, 'remove'] as const,
 }

@@ -4,10 +4,10 @@ import type {
 } from '@/features/api-keys/types/api-keys.types'
 import { apiClient } from '@/lib/api/client'
 
-export async function getGrantableScopes({
-  entityId,
-  inherit_from_tree = false,
-}: GetGrantableScopesInput) {
+export async function getGrantableScopes(
+  { entityId, inherit_from_tree = false }: GetGrantableScopesInput,
+  options: { signal?: AbortSignal } = {}
+) {
   const searchParams = new URLSearchParams()
 
   if (entityId) {
@@ -19,6 +19,7 @@ export async function getGrantableScopes({
   const query = searchParams.toString()
 
   return apiClient.get<ApiKeyGrantableScopes>(
-    `/api-keys/grantable-scopes${query ? `?${query}` : ''}`
+    `/api-keys/grantable-scopes${query ? `?${query}` : ''}`,
+    { signal: options.signal }
   )
 }

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   ArrowLeft,
   Building2,
@@ -92,10 +92,20 @@ export function UserDetailsPage({
   onBack,
   onDeleted,
 }: UserDetailsPageProps) {
+  const navigationKey = `${userId}:${initialTab ?? ''}`;
+  const [syncedNavigationKey, setSyncedNavigationKey] = useState(navigationKey);
   const [activeDetailsTab, setActiveDetailsTab] =
     useState<UserDetailsTab>(initialTab ?? 'details');
   const [auditEventsPage, setAuditEventsPage] = useState(1);
   const [membershipHistoryPage, setMembershipHistoryPage] = useState(1);
+
+  if (navigationKey !== syncedNavigationKey) {
+    setSyncedNavigationKey(navigationKey);
+    setActiveDetailsTab(initialTab ?? 'details');
+    setAuditEventsPage(1);
+    setMembershipHistoryPage(1);
+  }
+
   const actorPermissions = useActorPermissions();
   const sessionUser = actorPermissions.sessionUser;
   const authConfigQuery = useQuery(getAuthConfigQueryOptions());
@@ -277,7 +287,7 @@ export function UserDetailsPage({
   const canChangeSuperuserAccess =
     canManageSuperuserAccess && !(isSelfUser && user?.is_superuser);
   const nextSuperuserValue = !(user?.is_superuser ?? false);
-  const watchedStatus = statusForm.watch('status');
+  const watchedStatus = useWatch({ control: statusForm.control, name: 'status' });
   const profileError = updateUserMutation.error
     ? getApiErrorMessage(
         updateUserMutation.error,
@@ -315,17 +325,22 @@ export function UserDetailsPage({
       )
     : null;
 
-  useEffect(() => {
-    setActiveDetailsTab(initialTab ?? 'details');
-    setAuditEventsPage(1);
-    setMembershipHistoryPage(1);
-  }, [initialTab, userId]);
+  // Dirty-edit protection: initialize once per record identity instead of on
+  // every `user` reference change. This page triggers many mutations (roles,
+  // memberships, sessions, superuser toggles) that invalidate and refetch the
+  // same user query, and resetting on every refetch would wipe an in-progress
+  // profile/status edit. The profile and status submit handlers in
+  // UserDetailsMainTab already reset their own form to the fresh saved values
+  // on success, so gating on userId here only needs to cover the initial load
+  // and navigating between users.
+  const syncedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || syncedUserIdRef.current === user.id) {
       return;
     }
 
+    syncedUserIdRef.current = user.id;
     profileForm.reset({
       firstName: user.first_name ?? '',
       lastName: user.last_name ?? '',

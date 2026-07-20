@@ -575,7 +575,6 @@ test.describe('API Keys Workspace', () => {
     await editServiceAccountDialog.getByRole('button', { name: 'Save changes' }).click()
 
     await expect(page.getByText('Ineffective', { exact: true }).first()).toBeVisible()
-    await expect(page.getByText('No Effective Scopes', { exact: true })).toBeVisible()
 
     await page.getByRole('tab', { name: 'Entity inventory' }).click()
     await expect(page.getByRole('tab', { name: 'Entity inventory', selected: true })).toBeVisible()

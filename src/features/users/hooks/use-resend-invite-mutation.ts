@@ -17,14 +17,9 @@ export function useResendInviteMutation() {
     onSuccess: async (user) => {
       queryClient.setQueryData(usersKeys.detail(user.id), user)
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.lists(),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.detail(user.id),
-        }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: usersKeys.lists(),
+      })
     },
   })
 }

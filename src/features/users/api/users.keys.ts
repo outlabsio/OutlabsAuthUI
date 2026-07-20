@@ -10,7 +10,8 @@ export const usersKeys = {
   orphanedLists: () => [...usersKeys.all, 'orphaned'] as const,
   orphanedList: (filters: OrphanedUsersListFilters) =>
     [...usersKeys.orphanedLists(), filters] as const,
-  detail: (userId: string) => [...usersKeys.all, 'detail', userId] as const,
+  details: () => [...usersKeys.all, 'detail'] as const,
+  detail: (userId: string) => [...usersKeys.details(), userId] as const,
   roles: (userId: string) => [...usersKeys.all, 'roles', userId] as const,
   auditEventsRoot: (userId: string) => [...usersKeys.all, 'audit-events', userId] as const,
   auditEvents: (
@@ -64,6 +65,8 @@ export const usersKeys = {
   permissions: (userId: string) => [...usersKeys.all, 'permissions', userId] as const,
   invite: () => [...usersKeys.all, 'invite'] as const,
   create: () => [...usersKeys.all, 'create'] as const,
+  update: () => [...usersKeys.all, 'update'] as const,
+  remove: () => [...usersKeys.all, 'remove'] as const,
   resendInvite: (userId: string) => [...usersKeys.all, 'resend-invite', userId] as const,
   restore: (userId: string) => [...usersKeys.all, 'restore', userId] as const,
 }

@@ -5,7 +5,8 @@ import type {
 import { apiClient } from '@/lib/api/client'
 
 export function getMyMemberships(
-  params: GetUserMembershipsParams = {}
+  params: GetUserMembershipsParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams()
 
@@ -16,6 +17,7 @@ export function getMyMemberships(
   const query = searchParams.toString()
 
   return apiClient.get<UserMembership[]>(
-    `/memberships/me${query ? `?${query}` : ''}`
+    `/memberships/me${query ? `?${query}` : ''}`,
+    { signal: options.signal }
   )
 }

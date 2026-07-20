@@ -16,12 +16,8 @@ export function useUpdateCurrentUserMutation() {
       error: 'Unable to update your account.',
       success: 'Profile saved.',
     }),
-    onSuccess: async (user) => {
+    onSuccess: (user) => {
       queryClient.setQueryData(authKeys.session(), user)
-
-      await queryClient.invalidateQueries({
-        queryKey: authKeys.session(),
-      })
     },
   })
 }

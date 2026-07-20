@@ -1,7 +1,10 @@
 import type { EntitiesListResponse, GetEntitiesParams } from '@/features/entities/types/entities.types'
 import { apiClient } from '@/lib/api/client'
 
-export async function getEntities(params: GetEntitiesParams = {}) {
+export async function getEntities(
+  params: GetEntitiesParams = {},
+  options: { signal?: AbortSignal } = {}
+) {
   const page = params.page ?? 1
   const limit = params.limit ?? 100
 
@@ -30,5 +33,7 @@ export async function getEntities(params: GetEntitiesParams = {}) {
     searchParams.set('root_only', 'true')
   }
 
-  return apiClient.get<EntitiesListResponse>(`/entities/?${searchParams.toString()}`)
+  return apiClient.get<EntitiesListResponse>(`/entities/?${searchParams.toString()}`, {
+    signal: options.signal,
+  })
 }

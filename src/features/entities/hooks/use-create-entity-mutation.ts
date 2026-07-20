@@ -9,21 +9,18 @@ export function useCreateEntityMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: entitiesKeys.all,
+    mutationKey: entitiesKeys.create(),
     mutationFn: (input: CreateEntityInput) => createEntity(input),
     meta: withMutationToast({
       error: 'The entity could not be created.',
       success: 'Entity created.',
     }),
     onSuccess: async (entity) => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: entitiesKeys.all,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: entitiesKeys.detail(entity.id),
-        }),
-      ])
+      queryClient.setQueryData(entitiesKeys.detail(entity.id), entity)
+      // Hierarchy create reshapes lists, parent descendants, and type suggestions.
+      await queryClient.invalidateQueries({
+        queryKey: entitiesKeys.all,
+      })
     },
   })
 }

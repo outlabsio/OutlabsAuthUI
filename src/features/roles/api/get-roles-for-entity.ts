@@ -8,7 +8,8 @@ const defaultRolesForEntityParams: Required<Pick<GetRolesParams, 'page' | 'limit
 
 export async function getRolesForEntity(
   entityId: string,
-  params: GetRolesParams = {}
+  params: GetRolesParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const resolvedParams = {
     ...defaultRolesForEntityParams,
@@ -21,6 +22,7 @@ export async function getRolesForEntity(
   })
 
   return apiClient.get<RolesListResponse>(
-    `/roles/entity/${entityId}?${searchParams.toString()}`
+    `/roles/entity/${entityId}?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

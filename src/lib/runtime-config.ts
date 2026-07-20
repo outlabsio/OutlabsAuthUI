@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 type RuntimeConfigInput = {
   apiBaseUrl?: string
   authApiPrefix?: string
@@ -15,6 +17,15 @@ export type RuntimeConfig = {
   authBrand: string
   signInDescription: string
 }
+
+export type RuntimeConfigError = {
+  message: string
+  issues: string[]
+}
+
+export type RuntimeConfigResult =
+  | { status: 'ready'; config: RuntimeConfig }
+  | { status: 'error'; error: RuntimeConfigError }
 
 declare global {
   interface Window {
@@ -44,18 +55,52 @@ const builtInDefaults: RuntimeConfig = {
     'Sign in against the configured auth backend to access this console.',
 }
 
-function normalizeRuntimeConfig(input: RuntimeConfigInput): RuntimeConfig {
+// Dev-only fallback. Production must resolve these from real config sources;
+// see `initializeRuntimeConfig` for why they are intentionally excluded there.
+const brandingDefaults = {
+  appName: builtInDefaults.appName,
+  appSubtitle: builtInDefaults.appSubtitle,
+  authBrand: builtInDefaults.authBrand,
+  signInDescription: builtInDefaults.signInDescription,
+}
+
+const runtimeConfigSchema = z.object({
+  apiBaseUrl: z
+    .string()
+    .trim()
+    .min(1, 'apiBaseUrl is required.')
+    .url('apiBaseUrl must be a valid absolute URL (e.g. https://api.example.com).'),
+  authApiPrefix: z
+    .string()
+    .trim()
+    .min(1, 'authApiPrefix is required.')
+    .refine((value) => value.startsWith('/'), {
+      message: 'authApiPrefix must start with "/" (e.g. "/v1").',
+    }),
+  appName: z.string().trim().min(1).optional(),
+  appSubtitle: z.string().trim().min(1).optional(),
+  authBrand: z.string().trim().min(1).optional(),
+  signInDescription: z.string().trim().min(1).optional(),
+})
+
+type ValidatedRuntimeConfigInput = z.infer<typeof runtimeConfigSchema>
+
+function normalizeRuntimeConfig(input: ValidatedRuntimeConfigInput): RuntimeConfig {
   return {
-    apiBaseUrl: trimTrailingSlash(input.apiBaseUrl ?? builtInDefaults.apiBaseUrl),
-    authApiPrefix: ensureLeadingSlash(
-      input.authApiPrefix ?? builtInDefaults.authApiPrefix
-    ),
-    appName: input.appName?.trim() || builtInDefaults.appName,
-    appSubtitle: input.appSubtitle?.trim() || builtInDefaults.appSubtitle,
-    authBrand: input.authBrand?.trim() || builtInDefaults.authBrand,
-    signInDescription:
-      input.signInDescription?.trim() || builtInDefaults.signInDescription,
+    apiBaseUrl: trimTrailingSlash(input.apiBaseUrl),
+    authApiPrefix: ensureLeadingSlash(input.authApiPrefix),
+    appName: input.appName?.trim() || brandingDefaults.appName,
+    appSubtitle: input.appSubtitle?.trim() || brandingDefaults.appSubtitle,
+    authBrand: input.authBrand?.trim() || brandingDefaults.authBrand,
+    signInDescription: input.signInDescription?.trim() || brandingDefaults.signInDescription,
   }
+}
+
+function formatValidationIssues(error: z.ZodError) {
+  return error.issues.map((issue) => {
+    const path = issue.path.join('.') || '(config)'
+    return `${path}: ${issue.message}`
+  })
 }
 
 function readEnvConfig(): RuntimeConfigInput {
@@ -97,14 +142,27 @@ function readInlineRuntimeConfig(): RuntimeConfigInput {
   return window.__OUTLABS_AUTH_UI_CONFIG__ ?? {}
 }
 
+function mergeConfigSources(sources: {
+  envConfig: RuntimeConfigInput
+  runtimeFileConfig: RuntimeConfigInput
+  inlineRuntimeConfig: RuntimeConfigInput
+  preferEnvConfig: boolean
+}): RuntimeConfigInput {
+  const { envConfig, runtimeFileConfig, inlineRuntimeConfig, preferEnvConfig } = sources
+
+  return preferEnvConfig
+    ? { ...runtimeFileConfig, ...envConfig, ...inlineRuntimeConfig }
+    : { ...envConfig, ...runtimeFileConfig, ...inlineRuntimeConfig }
+}
+
 function applyDocumentConfig(config: RuntimeConfig) {
   document.title = config.appName
 }
 
-let runtimeConfig = normalizeRuntimeConfig(readEnvConfig())
-let initializePromise: Promise<RuntimeConfig> | null = null
+let runtimeConfig: RuntimeConfig = builtInDefaults
+let initializePromise: Promise<RuntimeConfigResult> | null = null
 
-export async function initializeRuntimeConfig() {
+export async function initializeRuntimeConfig(): Promise<RuntimeConfigResult> {
   if (initializePromise) {
     return initializePromise
   }
@@ -112,26 +170,54 @@ export async function initializeRuntimeConfig() {
   initializePromise = (async () => {
     const runtimeFileConfig = await readRuntimeFileConfig()
     const inlineRuntimeConfig = readInlineRuntimeConfig()
+    const envConfig = readEnvConfig()
     const preferEnvConfig = shouldPreferEnvConfig()
 
-    runtimeConfig = normalizeRuntimeConfig(
-      preferEnvConfig
-        ? {
-            ...builtInDefaults,
-            ...runtimeFileConfig,
-            ...readEnvConfig(),
-            ...inlineRuntimeConfig,
-          }
-        : {
-            ...builtInDefaults,
-            ...readEnvConfig(),
-            ...runtimeFileConfig,
-            ...inlineRuntimeConfig,
-          }
-    )
+    const mergedConfig = mergeConfigSources({
+      envConfig,
+      runtimeFileConfig,
+      inlineRuntimeConfig,
+      preferEnvConfig,
+    })
 
+    if (import.meta.env.PROD) {
+      // Production must not silently fall back to localhost. If the merged
+      // config (file/env/inline, no built-in defaults) does not validate,
+      // surface a failure state instead of booting against the wrong API.
+      const parsed = runtimeConfigSchema.safeParse(mergedConfig)
+
+      if (!parsed.success) {
+        return {
+          status: 'error',
+          error: {
+            message:
+              'Runtime configuration is invalid or missing. Provide a valid app-config.json, window.__OUTLABS_AUTH_UI_CONFIG__, or VITE_* build env vars before deploying.',
+            issues: formatValidationIssues(parsed.error),
+          },
+        } satisfies RuntimeConfigResult
+      }
+
+      runtimeConfig = normalizeRuntimeConfig(parsed.data)
+      applyDocumentConfig(runtimeConfig)
+      return { status: 'ready', config: runtimeConfig } satisfies RuntimeConfigResult
+    }
+
+    // Dev may keep localhost defaults for anything left unconfigured.
+    const parsed = runtimeConfigSchema.safeParse({ ...builtInDefaults, ...mergedConfig })
+
+    if (!parsed.success) {
+      console.warn(
+        '[runtime-config] Invalid runtime configuration, falling back to built-in defaults:',
+        formatValidationIssues(parsed.error).join('; ')
+      )
+      runtimeConfig = builtInDefaults
+      applyDocumentConfig(runtimeConfig)
+      return { status: 'ready', config: runtimeConfig } satisfies RuntimeConfigResult
+    }
+
+    runtimeConfig = normalizeRuntimeConfig(parsed.data)
     applyDocumentConfig(runtimeConfig)
-    return runtimeConfig
+    return { status: 'ready', config: runtimeConfig } satisfies RuntimeConfigResult
   })()
 
   return initializePromise
