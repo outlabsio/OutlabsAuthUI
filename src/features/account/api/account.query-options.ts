@@ -7,13 +7,13 @@ import { getMySocialAccounts } from '@/features/account/api/get-my-social-accoun
 export function getMySessionsQueryOptions() {
   return queryOptions({
     queryKey: accountKeys.sessions(),
-    queryFn: () => getMySessions(),
+    queryFn: ({ signal }) => getMySessions({ signal }),
   })
 }
 
 export function getMySocialAccountsQueryOptions() {
   return queryOptions({
     queryKey: accountKeys.socialAccounts(),
-    queryFn: () => getMySocialAccounts(),
+    queryFn: ({ signal }) => getMySocialAccounts({ signal }),
   })
 }

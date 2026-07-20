@@ -10,7 +10,7 @@ export function useRestoreUserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: usersKeys.all,
+    mutationKey: usersKeys.update(),
     mutationFn: (input: RestoreUserInput) => restoreUser(input),
     meta: withMutationToast({
       error: 'The user could not be restored.',
@@ -20,7 +20,6 @@ export function useRestoreUserMutation() {
       queryClient.setQueryData(usersKeys.detail(user.id), user)
 
       const queryKeys = [
-        usersKeys.detail(user.id),
         usersKeys.lists(),
         usersKeys.permissions(user.id),
         usersKeys.roleMemberships(user.id),

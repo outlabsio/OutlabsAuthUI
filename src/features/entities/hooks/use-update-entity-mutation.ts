@@ -9,7 +9,7 @@ export function useUpdateEntityMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: entitiesKeys.all,
+    mutationKey: entitiesKeys.update(),
     mutationFn: (input: UpdateEntityInput) => updateEntity(input),
     meta: withMutationToast({
       error: 'The entity could not be updated.',
@@ -17,15 +17,10 @@ export function useUpdateEntityMutation() {
     }),
     onSuccess: async (entity) => {
       queryClient.setQueryData(entitiesKeys.detail(entity.id), entity)
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: entitiesKeys.all,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: entitiesKeys.detail(entity.id),
-        }),
-      ])
+      // Entity fields also appear in list/tree caches; refresh the domain.
+      await queryClient.invalidateQueries({
+        queryKey: entitiesKeys.all,
+      })
     },
   })
 }

@@ -9,7 +9,7 @@ export function useUpdateUserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: usersKeys.all,
+    mutationKey: usersKeys.update(),
     mutationFn: (input: UpdateUserInput) => updateUser(input),
     meta: withMutationToast({
       error: 'Unable to update this user.',
@@ -18,14 +18,9 @@ export function useUpdateUserMutation() {
     onSuccess: async (user) => {
       queryClient.setQueryData(usersKeys.detail(user.id), user)
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.detail(user.id),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: usersKeys.lists(),
-        }),
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: usersKeys.lists(),
+      })
     },
   })
 }

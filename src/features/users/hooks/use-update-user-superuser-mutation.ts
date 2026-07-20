@@ -9,7 +9,7 @@ export function useUpdateUserSuperuserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: usersKeys.all,
+    mutationKey: usersKeys.update(),
     mutationFn: (input: UpdateUserSuperuserInput) =>
       updateUserSuperuser(input),
     meta: withMutationToast({
@@ -20,7 +20,6 @@ export function useUpdateUserSuperuserMutation() {
       queryClient.setQueryData(usersKeys.detail(user.id), user)
 
       const queryKeys = [
-        usersKeys.detail(user.id),
         usersKeys.lists(),
         usersKeys.permissions(user.id),
         usersKeys.auditEventsRoot(user.id),

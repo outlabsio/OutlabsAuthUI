@@ -30,7 +30,10 @@ import type {
   User,
   UserStatusUpdateValue,
 } from '@/features/users/types/users.types';
-import { formatDateTime } from '@/features/users/utils/user-details-display';
+import {
+  formatDateTime,
+  toDateTimeLocalValue,
+} from '@/features/users/utils/user-details-display';
 
 const statusOptions = [
   { label: 'Active', value: 'active' },
@@ -132,12 +135,21 @@ export function UserDetailsMainTab({
                     className="space-y-4"
                     onSubmit={profileForm.handleSubmit(async (values) => {
                       try {
-                        await updateUserMutation.mutateAsync({
+                        const updatedUser = await updateUserMutation.mutateAsync({
                           userId,
                           email: values.email.trim(),
                           first_name: values.firstName.trim() || undefined,
                           last_name: values.lastName.trim() || undefined,
                           phone: values.phone.trim() ? values.phone.trim() : null,
+                        });
+                        // The page only re-syncs this form once per user id, so
+                        // clear the dirty state here with the values the server
+                        // actually saved.
+                        profileForm.reset({
+                          firstName: updatedUser.first_name ?? '',
+                          lastName: updatedUser.last_name ?? '',
+                          email: updatedUser.email,
+                          phone: updatedUser.phone ?? '',
                         });
                       } catch {
                         return;
@@ -285,15 +297,30 @@ export function UserDetailsMainTab({
                         }
 
                         try {
-                          await updateUserStatusMutation.mutateAsync({
-                            userId,
-                            status: values.status,
-                            suspended_until:
-                              values.status === 'suspended' &&
-                              values.suspendedUntil
-                                ? new Date(values.suspendedUntil).toISOString()
-                                : undefined,
-                            reason: values.reason?.trim() || undefined,
+                          const updatedUser =
+                            await updateUserStatusMutation.mutateAsync({
+                              userId,
+                              status: values.status,
+                              suspended_until:
+                                values.status === 'suspended' &&
+                                values.suspendedUntil
+                                  ? new Date(values.suspendedUntil).toISOString()
+                                  : undefined,
+                              reason: values.reason?.trim() || undefined,
+                            });
+                          // The page only re-syncs this form once per user id, so
+                          // clear the dirty state here with the values the server
+                          // actually saved.
+                          statusForm.reset({
+                            status:
+                              updatedUser.status === 'invited' ||
+                              updatedUser.status === 'deleted'
+                                ? undefined
+                                : updatedUser.status,
+                            suspendedUntil: toDateTimeLocalValue(
+                              updatedUser.suspended_until
+                            ),
+                            reason: '',
                           });
                         } catch {
                           return;

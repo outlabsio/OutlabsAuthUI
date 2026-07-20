@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { apiKeysKeys } from '@/features/api-keys/api/api-keys.keys'
 import { getGrantableScopes } from '@/features/api-keys/api/get-grantable-scopes'
@@ -16,28 +16,30 @@ import type {
 export function getMyApiKeysQueryOptions() {
   return queryOptions({
     queryKey: apiKeysKeys.list({ scope: 'self' }),
-    queryFn: () => getMyApiKeys(),
+    queryFn: ({ signal }) => getMyApiKeys({ signal }),
   })
 }
 
 export function getGrantableScopesQueryOptions(params: GetGrantableScopesInput) {
   return queryOptions({
     queryKey: apiKeysKeys.grantableScopes(params),
-    queryFn: () => getGrantableScopes(params),
+    queryFn: ({ signal }) => getGrantableScopes(params, { signal }),
   })
 }
 
 export function getEntityApiKeysQueryOptions(params: ListEntityApiKeysParams) {
   return queryOptions({
     queryKey: apiKeysKeys.list(params),
-    queryFn: () => getApiKeys(params),
+    queryFn: ({ signal }) => getApiKeys(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }
 
 export function getIntegrationPrincipalsQueryOptions(params: ListIntegrationPrincipalsParams) {
   return queryOptions({
     queryKey: apiKeysKeys.principalsList(params),
-    queryFn: () => getIntegrationPrincipals(params),
+    queryFn: ({ signal }) => getIntegrationPrincipals(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -46,6 +48,7 @@ export function getIntegrationPrincipalApiKeysQueryOptions(
 ) {
   return queryOptions({
     queryKey: apiKeysKeys.principalKeyList(params),
-    queryFn: () => getIntegrationPrincipalApiKeys(params),
+    queryFn: ({ signal }) => getIntegrationPrincipalApiKeys(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }

@@ -37,6 +37,26 @@ Package manager policy:
 
 ---
 
+## Production Baseline Quick Notes
+
+- **Tables**: features use `AppDataTable` (`components/app/app-data-table.tsx`),
+  not the raw `@/components/ui/table` primitive, unless the interaction is a
+  bespoke non-tabular selection matrix that genuinely doesn't fit a
+  `ColumnDef` model (document why inline if you add an exception).
+- **Mutations**: every mutation declares its user feedback explicitly via
+  `withMutationToast` meta (`lib/query/mutation-toast.ts`) - either a
+  success/error message pair or an explicit `skipErrorToast` opt-out. Do not
+  add a mutation with silent, undeclared feedback behavior.
+- **Query cancellation**: every request function takes `{ signal?: AbortSignal }`
+  and every `queryFn` forwards Query's `signal` to it. See
+  [`docs/rules/query_rules.md`](./docs/rules/query_rules.md#abortsignal-rule).
+- **Session/security posture**: this SPA stores bearer tokens in
+  `localStorage` as a deliberate cross-origin exception, not an oversight.
+  Read [`docs/security-session-posture.md`](./docs/security-session-posture.md)
+  before touching auth token storage, refresh, or hosting headers.
+
+---
+
 ## Rule Docs
 
 Detailed frontend rules now live under [`docs/rules/README.md`](./docs/rules/README.md).

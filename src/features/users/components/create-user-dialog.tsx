@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { Shield } from 'lucide-react'
 
 import { AppFormField } from '@/components/app/app-form-field'
@@ -55,7 +55,6 @@ export function CreateUserDialog({
   onCreated,
 }: CreateUserDialogProps) {
   const createUserMutation = useCreateUserMutation()
-  const previousOpenRef = useRef(open)
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -69,18 +68,18 @@ export function CreateUserDialog({
     },
   })
 
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current
-
-    if (wasOpen && !open) {
+  // Handler-first reset: clear the form and mutation state as the dialog closes
+  // instead of syncing off an `open` effect.
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
       form.reset()
       createUserMutation.reset()
     }
 
-    previousOpenRef.current = open
-  }, [createUserMutation, form, open])
+    onOpenChange(nextOpen)
+  }
 
-  const rootEntityId = form.watch('rootEntityId')
+  const rootEntityId = useWatch({ control: form.control, name: 'rootEntityId' })
   const submitError = createUserMutation.error
     ? getApiErrorMessage(createUserMutation.error, 'Unable to create the user.')
     : null
@@ -98,7 +97,7 @@ export function CreateUserDialog({
   const confirmPasswordField = form.register('confirmPassword')
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -128,7 +127,7 @@ export function CreateUserDialog({
                     : undefined,
               })
               onCreated?.(user)
-              onOpenChange(false)
+              handleOpenChange(false)
             } catch {
               return
             }
@@ -307,7 +306,7 @@ export function CreateUserDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={createUserMutation.isPending}
           >
             Cancel

@@ -21,7 +21,7 @@ export function useCreateSystemIntegrationApiKeyMutation(options?: {
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: apiKeysKeys.all,
+        queryKey: apiKeysKeys.principalKeyLists(),
       })
     },
   })

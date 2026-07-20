@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
@@ -101,19 +101,17 @@ export function PermissionCheckDialog({
   const selectedEntity =
     entityOptions.find((option) => option.id === selectedEntityId) ?? null
 
-  const resetCheckMutation = checkPermissionsMutation.reset
-
-  useEffect(() => {
-    if (open) {
-      return
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setSelectedPermissionNames([])
+      setPendingPermission(null)
+      setSelectedEntityId(undefined)
+      setResult(null)
+      checkPermissionsMutation.reset()
     }
 
-    setSelectedPermissionNames([])
-    setPendingPermission(null)
-    setSelectedEntityId(undefined)
-    setResult(null)
-    resetCheckMutation()
-  }, [open, resetCheckMutation])
+    onOpenChange(nextOpen)
+  }
 
   async function handleCheck() {
     if (selectedPermissionNames.length === 0) {
@@ -129,7 +127,7 @@ export function PermissionCheckDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Check permissions</DialogTitle>
@@ -310,7 +308,7 @@ export function PermissionCheckDialog({
             type="button"
             variant="outline"
             onClick={() => {
-              onOpenChange(false)
+              handleOpenChange(false)
             }}
           >
             Close

@@ -120,6 +120,18 @@ with auth routes under `/v1`.
 - `agent`
   - self-service-only access while admin catalogs stay denied
 
+## Accessibility Smoke Coverage
+
+- `e2e/a11y/a11y-smoke.spec.ts`
+  - unauthenticated `/auth/login` axe scan
+  - admin `/app/users` axe scan
+  - admin Invite user dialog axe scan
+  - runs `@axe-core/playwright` with `wcag2a`/`wcag2aa` tags; `color-contrast`
+    is disabled for this first pass (see file comment) and should be
+    revisited as a dedicated contrast audit rather than folded silently into
+    this smoke suite
+  - run via `bun run test:e2e:a11y`
+
 ## Mounted Backend Specific Coverage
 
 These suites are intended for mounted backend variants beyond the default

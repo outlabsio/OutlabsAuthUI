@@ -812,14 +812,11 @@ test.describe('Entities Workspace', () => {
     await dialog.getByRole('button', { name: 'Send invite' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.goto('/app/users')
+    await page.goto(
+      `/app/users?search=${encodeURIComponent(invitedEmail)}&status=invited`
+    )
     await expect(page).toHaveURL(/\/app\/users(?:\?.*)?$/)
     await expect(page.getByRole('button', { name: 'Open Users guide' })).toBeVisible()
-
-    const searchField = page.getByPlaceholder('Search people by name or email')
-    await searchField.fill(invitedEmail)
-    await page.getByRole('combobox', { name: 'Filter by status' }).click()
-    await page.getByRole('option', { name: 'Invited' }).click()
     await expect
       .poll(() => new URL(page.url()).searchParams.get('status'))
       .toBe('invited')

@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { AppDateTimePicker } from '@/components/app/app-date-time-picker'
 import { AppEmptyState } from '@/components/app/app-empty-state'
@@ -58,19 +58,6 @@ export function DirectRoleAssignmentDialog({
     enabled: open && canAssignDirectRoles,
   })
 
-  useEffect(() => {
-    if (open) {
-      return
-    }
-
-    form.reset({
-      roleIds: [],
-      validFrom: '',
-      validUntil: '',
-    })
-    assignRoleMutation.reset()
-  }, [assignRoleMutation, form, open])
-
   const assignedRoleIds = useMemo(
     () => assignedRoles.map((role) => role.id),
     [assignedRoles]
@@ -82,7 +69,7 @@ export function DirectRoleAssignmentDialog({
         .sort((left, right) => left.display_name.localeCompare(right.display_name)),
     [rolesQuery.data?.items]
   )
-  const selectedRoleIds = form.watch('roleIds')
+  const selectedRoleIds = useWatch({ control: form.control, name: 'roleIds' })
   const submitError = assignRoleMutation.error
     ? getApiErrorMessage(
         assignRoleMutation.error,
@@ -90,7 +77,18 @@ export function DirectRoleAssignmentDialog({
       )
     : null
 
+  // Handler-first reset: clear the form and mutation state as the dialog closes
+  // instead of syncing off an `open` effect.
   function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      form.reset({
+        roleIds: [],
+        validFrom: '',
+        validUntil: '',
+      })
+      assignRoleMutation.reset()
+    }
+
     onOpenChange(nextOpen)
   }
 

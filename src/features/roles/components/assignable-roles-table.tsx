@@ -6,6 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+// Bespoke keyboard-navigable multi-select matrix (checkbox column,
+// click/keydown row toggle), not a paginated resource list; AppDataTable's
+// ColumnDef model doesn't fit this interaction. See agents.md for the rule.
+// eslint-disable-next-line no-restricted-imports
 import {
   Table,
   TableBody,

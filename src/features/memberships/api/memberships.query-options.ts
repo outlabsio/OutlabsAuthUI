@@ -12,7 +12,7 @@ export function getMyMembershipsQueryOptions(
 
   return queryOptions({
     queryKey: membershipsKeys.myList(includeInactive),
-    queryFn: () => getMyMemberships(params),
+    queryFn: ({ signal }) => getMyMemberships({ includeInactive }, { signal }),
   })
 }
 
@@ -24,6 +24,6 @@ export function getUserMembershipsQueryOptions(
 
   return queryOptions({
     queryKey: membershipsKeys.userList(userId, includeInactive),
-    queryFn: () => getUserMemberships(userId, params),
+    queryFn: ({ signal }) => getUserMemberships(userId, { includeInactive }, { signal }),
   })
 }

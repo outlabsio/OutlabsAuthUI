@@ -1,9 +1,11 @@
+import { useMemo } from 'react'
+
 import type { UseQueryResult } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 
+import { AppDataTable } from '@/components/app/app-data-table'
 import { AppEmptyState } from '@/components/app/app-empty-state'
-import { AppErrorState } from '@/components/app/app-error-state'
-import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,14 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import type { ApiKey } from '@/features/api-keys/types/api-keys.types'
 import type {
   ApiKeyStatusFilter,
@@ -52,7 +46,6 @@ import {
 } from '@/features/api-keys/utils/api-keys-display'
 import { formatApiKeyRateLimitPerMinute } from '@/features/api-keys/utils/rate-limit'
 import type { EntityOption } from '@/features/entities/utils/build-entity-options'
-import { getApiErrorMessage } from '@/lib/api/errors'
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
 type ApiKeysInventoryPanelProps = {
@@ -99,6 +92,74 @@ export function ApiKeysInventoryPanel({
   setDeleteTarget,
 }: ApiKeysInventoryPanelProps) {
   const entitiesQuery = { isLoading: entitiesQueryIsLoading }
+  const inventoryColumns = useMemo<ColumnDef<ApiKey>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+          const apiKey = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="font-medium">{apiKey.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {apiKey.description || 'No description provided.'}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'owner',
+        header: 'Owner',
+        cell: ({ row }) => {
+          const apiKey = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="text-sm font-medium">
+                {formatInventoryOwnerLabel(apiKey)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {formatInventoryOwnerSubtitle(apiKey)}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'kind',
+        header: 'Kind',
+        cell: ({ row }) => (
+          <Badge variant="outline">{formatToken(row.original.key_kind)}</Badge>
+        ),
+        enableSorting: false,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+          const apiKey = row.original
+
+          return (
+            <div className="flex flex-wrap gap-2">
+              <AppStatusBadge tone={getApiKeyStatusTone(apiKey.status)}>
+                {formatToken(apiKey.status)}
+              </AppStatusBadge>
+              <AppStatusBadge tone={getEffectivenessTone(apiKey)}>
+                {apiKey.is_currently_effective ? 'Effective' : 'Ineffective'}
+              </AppStatusBadge>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+    ],
+    [formatInventoryOwnerLabel, formatInventoryOwnerSubtitle]
+  )
 
   return (
     <>
@@ -234,79 +295,21 @@ export function ApiKeysInventoryPanel({
                             </div>
                           </CardHeader>
                           <CardContent>
-                            {inventoryQuery.isLoading ? (
-                              <AppLoadingState title="Loading entity key inventory" />
-                            ) : inventoryQuery.isError ? (
-                              <AppErrorState>
-                                {getApiErrorMessage(
-                                  inventoryQuery.error,
-                                  'The entity key inventory could not be loaded.'
-                                )}
-                              </AppErrorState>
-                            ) : inventoryKeys.length === 0 ? (
-                              <AppEmptyState
-                                title="No matching keys"
-                                description="No keys match the current entity inventory filters."
-                                compact
-                              />
-                            ) : (
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Owner</TableHead>
-                                    <TableHead>Kind</TableHead>
-                                    <TableHead>Status</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {inventoryKeys.map((apiKey) => {
-                                    const isSelected = apiKey.id === activeInventoryKey?.id
-
-                                    return (
-                                      <TableRow
-                                        key={apiKey.id}
-                                        data-state={isSelected ? 'selected' : undefined}
-                                        className="cursor-pointer"
-                                        onClick={() => setSelectedInventoryKeyId(apiKey.id)}
-                                      >
-                                        <TableCell>
-                                          <div className="space-y-1">
-                                            <div className="font-medium">{apiKey.name}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                              {apiKey.description || 'No description provided.'}
-                                            </div>
-                                          </div>
-                                        </TableCell>
-                                        <TableCell>
-                                          <div className="space-y-1">
-                                            <div className="text-sm font-medium">
-                                              {formatInventoryOwnerLabel(apiKey)}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                              {formatInventoryOwnerSubtitle(apiKey)}
-                                            </div>
-                                          </div>
-                                        </TableCell>
-                                        <TableCell>
-                                          <Badge variant="outline">{formatToken(apiKey.key_kind)}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                          <div className="flex flex-wrap gap-2">
-                                            <AppStatusBadge tone={getApiKeyStatusTone(apiKey.status)}>
-                                              {formatToken(apiKey.status)}
-                                            </AppStatusBadge>
-                                            <AppStatusBadge tone={getEffectivenessTone(apiKey)}>
-                                              {apiKey.is_currently_effective ? 'Effective' : 'Ineffective'}
-                                            </AppStatusBadge>
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    )
-                                  })}
-                                </TableBody>
-                              </Table>
-                            )}
+                            <AppDataTable
+                              data={inventoryKeys}
+                              columns={inventoryColumns}
+                              getRowId={(apiKey) => apiKey.id}
+                              isLoading={inventoryQuery.isLoading}
+                              error={inventoryQuery.isError ? inventoryQuery.error : undefined}
+                              errorFallback="The entity key inventory could not be loaded."
+                              loadingTitle="Loading entity key inventory"
+                              emptyState={{
+                                title: 'No matching keys',
+                                description: 'No keys match the current entity inventory filters.',
+                              }}
+                              onRowClick={(apiKey) => setSelectedInventoryKeyId(apiKey.id)}
+                              selectedRowId={activeInventoryKey?.id}
+                            />
                           </CardContent>
                         </Card>
 

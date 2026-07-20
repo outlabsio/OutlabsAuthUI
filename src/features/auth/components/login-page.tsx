@@ -93,9 +93,8 @@ export function LoginPage({ className }: LoginPageProps) {
 
   return (
     <div className={cn('w-full', className)}>
+      <h1 className="sr-only">Sign in to {runtimeConfig.authBrand}</h1>
       <AuthCard
-        title="Welcome back"
-        description={runtimeConfig.signInDescription}
         footer={
           <div className="text-sm text-muted-foreground">
             Need another option?{' '}

@@ -508,6 +508,53 @@ Bad:
 
 When pagination is URL-owned, changing page/search params should naturally drive the correct Query cache identity.
 
+### `keepPreviousData` rule
+
+Every paginated/filterable list query option builder must set
+`placeholderData: keepPreviousData`. This keeps the previous page's rows on
+screen (instead of flashing a loading state) while the next page/filter
+combination fetches.
+
+```ts
+export function getProjectsQueryOptions(filters: ProjectFilters) {
+  return queryOptions({
+    queryKey: projectKeys.list(filters),
+    queryFn: ({ signal }) => getProjects(filters, { signal }),
+    placeholderData: keepPreviousData,
+  })
+}
+```
+
+Pair this with `isPlaceholderData` in the UI (e.g. `AppDataTable`'s
+`isPlaceholderData` prop) to show a subtle "refreshing" indicator instead of
+a full loading skeleton. See `getUsersQueryOptions` in
+`src/features/users/api/users.query-options.ts` for the reference pattern
+already used across every paginated feature list in this repo.
+
+### `AbortSignal` rule
+
+Every request function must accept and forward an optional
+`{ signal?: AbortSignal }` option, and every `queryFn` must pass Query's
+`signal` through to it:
+
+```ts
+export async function getProjects(
+  filters: ProjectFilters,
+  options: { signal?: AbortSignal } = {}
+) {
+  return apiClient.get<ProjectsResponse>('/projects', { signal: options.signal })
+}
+```
+
+```ts
+queryFn: ({ signal }) => getProjects(filters, { signal }),
+```
+
+This lets Query cancel in-flight requests when a query is superseded (new
+filters/page, unmount, etc.) instead of racing stale responses against fresh
+ones. This is the default for every `get-*.ts` request function in this
+repo - do not add a new one without it.
+
 ---
 
 ## Infinite Query Rules

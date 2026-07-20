@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { getPermission } from '@/features/permissions/api/get-permission'
 import { getPermissionConditionGroups } from '@/features/permissions/api/get-permission-condition-groups'
@@ -10,14 +10,15 @@ import type { GetPermissionsParams } from '@/features/permissions/types/permissi
 export function getPermissionsQueryOptions(params: GetPermissionsParams = {}) {
   return queryOptions({
     queryKey: permissionsKeys.list(params),
-    queryFn: () => getPermissions(params),
+    queryFn: ({ signal }) => getPermissions(params, { signal }),
+    placeholderData: keepPreviousData,
   })
 }
 
 export function getPermissionQueryOptions(permissionId: string) {
   return queryOptions({
     queryKey: permissionsKeys.detail(permissionId),
-    queryFn: () => getPermission(permissionId),
+    queryFn: ({ signal }) => getPermission(permissionId, { signal }),
     enabled: Boolean(permissionId),
   })
 }
@@ -25,7 +26,7 @@ export function getPermissionQueryOptions(permissionId: string) {
 export function getPermissionConditionGroupsQueryOptions(permissionId: string) {
   return queryOptions({
     queryKey: permissionsKeys.conditionGroups(permissionId),
-    queryFn: () => getPermissionConditionGroups(permissionId),
+    queryFn: ({ signal }) => getPermissionConditionGroups(permissionId, { signal }),
     enabled: Boolean(permissionId),
   })
 }
@@ -33,7 +34,7 @@ export function getPermissionConditionGroupsQueryOptions(permissionId: string) {
 export function getPermissionConditionsQueryOptions(permissionId: string) {
   return queryOptions({
     queryKey: permissionsKeys.conditions(permissionId),
-    queryFn: () => getPermissionConditions(permissionId),
+    queryFn: ({ signal }) => getPermissionConditions(permissionId, { signal }),
     enabled: Boolean(permissionId),
   })
 }

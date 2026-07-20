@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react'
 
+import { AppBrand } from '@/components/app/app-brand'
 import { AppThemeToggle } from '@/components/app/app-theme-toggle'
 import {
   Avatar,
@@ -45,7 +46,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { routes } from '@/lib/constants/routes'
-import { getRuntimeConfig } from '@/lib/runtime-config'
 import {
   type WorkspaceKey,
   isWorkspaceVisible,
@@ -250,7 +250,6 @@ export function AppSidebar({
   isLoggingOut = false,
   onLogout,
 }: AppSidebarProps) {
-  const runtimeConfig = getRuntimeConfig()
   const authConfigQuery = useQuery(getAuthConfigQueryOptions())
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -264,17 +263,7 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex h-12 items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-                <ShieldCheck className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{runtimeConfig.appName}</span>
-                <span className="truncate text-xs text-sidebar-foreground/70">
-                  {runtimeConfig.appSubtitle}
-                </span>
-              </div>
-            </div>
+            <AppBrand />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

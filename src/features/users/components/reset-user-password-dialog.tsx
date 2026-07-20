@@ -1,5 +1,3 @@
-import { useEffect, useRef } from 'react'
-
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
@@ -36,7 +34,6 @@ export function ResetUserPasswordDialog({
   userEmail,
 }: ResetUserPasswordDialogProps) {
   const resetUserPasswordMutation = useResetUserPasswordMutation()
-  const previousOpenRef = useRef(open)
   const form = useForm<ResetUserPasswordFormValues>({
     resolver: zodResolver(resetUserPasswordSchema),
     defaultValues: {
@@ -45,16 +42,16 @@ export function ResetUserPasswordDialog({
     },
   })
 
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current
-
-    if (wasOpen && !open) {
+  // Handler-first reset: clear the form and mutation state as the dialog closes
+  // instead of syncing off an `open` effect.
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
       form.reset()
       resetUserPasswordMutation.reset()
     }
 
-    previousOpenRef.current = open
-  }, [form, open, resetUserPasswordMutation])
+    onOpenChange(nextOpen)
+  }
 
   const submitError = resetUserPasswordMutation.error
     ? getApiErrorMessage(
@@ -64,7 +61,7 @@ export function ResetUserPasswordDialog({
     : null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Reset password</DialogTitle>
@@ -79,7 +76,7 @@ export function ResetUserPasswordDialog({
                 userId,
                 new_password: values.newPassword,
               })
-              onOpenChange(false)
+              handleOpenChange(false)
             } catch {
               return
             }
@@ -127,7 +124,7 @@ export function ResetUserPasswordDialog({
             type="button"
             variant="outline"
             disabled={resetUserPasswordMutation.isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
           >
             Cancel
           </Button>

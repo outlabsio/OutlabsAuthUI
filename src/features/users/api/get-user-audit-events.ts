@@ -6,7 +6,8 @@ import { apiClient } from '@/lib/api/client'
 
 export function getUserAuditEvents(
   userId: string,
-  params: GetUserAuditEventsParams = {}
+  params: GetUserAuditEventsParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams({
     page: String(params.page ?? 1),
@@ -26,6 +27,7 @@ export function getUserAuditEvents(
   }
 
   return apiClient.get<UserAuditEventsResponse>(
-    `/users/${userId}/audit-events?${searchParams.toString()}`
+    `/users/${userId}/audit-events?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

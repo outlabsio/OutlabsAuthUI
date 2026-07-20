@@ -19,12 +19,8 @@ export function useConfirmPhoneVerificationMutation() {
       error: 'Unable to verify this phone number.',
       success: 'WhatsApp phone verified.',
     }),
-    onSuccess: async (user) => {
+    onSuccess: (user) => {
       queryClient.setQueryData(authKeys.session(), user)
-
-      await queryClient.invalidateQueries({
-        queryKey: authKeys.session(),
-      })
     },
   })
 }

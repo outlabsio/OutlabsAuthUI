@@ -5,14 +5,17 @@ import type {
 } from '@/features/api-keys/types/api-keys.types'
 import { apiClient } from '@/lib/api/client'
 
-export function getIntegrationPrincipals({
-  scopeKind,
-  entityId,
-  page = 1,
-  limit = 100,
-  status,
-  search,
-}: ListIntegrationPrincipalsParams) {
+export function getIntegrationPrincipals(
+  {
+    scopeKind,
+    entityId,
+    page = 1,
+    limit = 100,
+    status,
+    search,
+  }: ListIntegrationPrincipalsParams,
+  options: { signal?: AbortSignal } = {}
+) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -27,6 +30,7 @@ export function getIntegrationPrincipals({
   }
 
   return apiClient.get<IntegrationPrincipalsListResponse>(
-    `${buildIntegrationPrincipalCollectionPath({ scopeKind, entityId })}?${searchParams.toString()}`
+    `${buildIntegrationPrincipalCollectionPath({ scopeKind, entityId })}?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

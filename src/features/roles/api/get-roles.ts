@@ -6,7 +6,10 @@ const defaultRolesParams: Required<Pick<GetRolesParams, 'page' | 'limit'>> = {
   limit: 100,
 }
 
-export async function getRoles(params: GetRolesParams = {}) {
+export async function getRoles(
+  params: GetRolesParams = {},
+  options: { signal?: AbortSignal } = {}
+) {
   const resolvedParams = {
     ...defaultRolesParams,
     ...params,
@@ -29,5 +32,7 @@ export async function getRoles(params: GetRolesParams = {}) {
     searchParams.set('root_entity_id', resolvedParams.rootEntityId)
   }
 
-  return apiClient.get<RolesListResponse>(`/roles/?${searchParams.toString()}`)
+  return apiClient.get<RolesListResponse>(`/roles/?${searchParams.toString()}`, {
+    signal: options.signal,
+  })
 }

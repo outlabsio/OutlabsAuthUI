@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { ChevronRight, Shield } from 'lucide-react'
 
 import { AppFormField } from '@/components/app/app-form-field'
@@ -65,7 +65,6 @@ export function InviteUserDialog({
   canInviteSuperusers,
 }: InviteUserDialogProps) {
   const inviteMutation = useInviteUserMutation()
-  const previousOpenRef = useRef(open)
   const previousEntityIdRef = useRef<string | null>(null)
   const [showSelectedRolesOnly, setShowSelectedRolesOnly] = useState(false)
   const form = useForm<InviteUserFormValues>({
@@ -80,21 +79,23 @@ export function InviteUserDialog({
     },
   })
 
-  useEffect(() => {
-    const wasOpen = previousOpenRef.current
-
-    if (wasOpen && !open) {
+  // Handler-first reset: clear the form and mutation state as the dialog closes
+  // instead of syncing off an `open` effect.
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
       previousEntityIdRef.current = null
       setShowSelectedRolesOnly(false)
       form.reset()
       inviteMutation.reset()
     }
 
-    previousOpenRef.current = open
-  }, [form, inviteMutation, open])
+    onOpenChange(nextOpen)
+  }
 
-  const roleIds = form.watch('roleIds')
-  const entityId = form.watch('entityId')
+  const [roleIds, entityId] = useWatch({
+    control: form.control,
+    name: ['roleIds', 'entityId'],
+  })
   const submitError = inviteMutation.error
     ? getApiErrorMessage(inviteMutation.error, 'Unable to send the invitation.')
     : null
@@ -133,11 +134,9 @@ export function InviteUserDialog({
     previousEntityIdRef.current = nextEntityId
   }, [entityId, form, rolesRequireEntity])
 
-  useEffect(() => {
-    if (roleIds.length === 0 && showSelectedRolesOnly) {
-      setShowSelectedRolesOnly(false)
-    }
-  }, [roleIds.length, showSelectedRolesOnly])
+  // Derived instead of synced via effect: once no roles remain selected, the
+  // "selected only" filter should behave as off without a setState-in-effect.
+  const effectiveShowSelectedRolesOnly = showSelectedRolesOnly && roleIds.length > 0
 
   const availableRoles = useMemo(
     () =>
@@ -159,10 +158,10 @@ export function InviteUserDialog({
   )
   const visibleRoles = useMemo(
     () =>
-      showSelectedRolesOnly
+      effectiveShowSelectedRolesOnly
         ? sortedRoles.filter((role) => roleIds.includes(role.id))
         : sortedRoles,
-    [roleIds, showSelectedRolesOnly, sortedRoles]
+    [effectiveShowSelectedRolesOnly, roleIds, sortedRoles]
   )
 
   const emailField = form.register('email')
@@ -170,7 +169,7 @@ export function InviteUserDialog({
   const lastNameField = form.register('lastName')
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden p-0 sm:max-w-4xl">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col">
           <DialogHeader className="border-b px-6 py-5">
@@ -553,7 +552,7 @@ export function InviteUserDialog({
                     </div>
                   ) : (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
-                      {showSelectedRolesOnly
+                      {effectiveShowSelectedRolesOnly
                         ? 'No selected roles match the current filter.'
                         : selectedEntity
                           ? 'No roles are available for the selected entity.'
@@ -574,7 +573,7 @@ export function InviteUserDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancel
               </Button>

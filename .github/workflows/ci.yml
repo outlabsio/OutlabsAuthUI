@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: >-
+          Attempt the Playwright E2E job against a live Enterprise RBAC
+          backend. Only works if this repo's secrets/environment are
+          configured per the "e2e" job comments below.
+        type: boolean
+        default: false
+
+jobs:
+  # Always runs on push/PR. Fast, hermetic, no backend required.
+  quality:
+    name: Quality (typecheck, lint, build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      # Verifies the architecture-fixtures/ negative fixtures still fail
+      # lint, i.e. the architecture boundary guardrails in eslint.config.js
+      # haven't regressed. See architecture-fixtures/README.md.
+      - name: Lint architecture fixtures (expect intentional failures)
+        run: bun run lint:architecture-fixtures
+
+      - name: Build
+        run: bun run build
+
+  # Best-effort / manual-trigger only. This is NOT wired into the default
+  # push/PR pipeline because a full pass requires a live Enterprise RBAC
+  # backend (Postgres + FastAPI/uvicorn on :8004), which this workflow does
+  # not stand up automatically today.
+  #
+  # To actually run this job you currently need to:
+  #   1. Dispatch this workflow manually ("Run workflow") with `run_e2e: true`.
+  #   2. Make the `outlabsAuth` backend source available to the runner. This
+  #      workflow assumes a sibling private repo at `outlabsio/outlabsAuth`
+  #      and checks it out via a `OUTLABSAUTH_CHECKOUT_TOKEN` secret (a PAT
+  #      or deploy key with read access) — add that secret to this repo, or
+  #      swap the checkout step below for however the backend source is
+  #      actually distributed (submodule, published package, etc.).
+  #   3. Provide a reachable Postgres instance. The `postgres` service
+  #      container below provisions one; `DATABASE_URL` is wired to it, but
+  #      the backend's own migration/seed entrypoint must be run against it
+  #      (see `examples/enterprise_rbac/reset_test_env.py` in outlabsAuth).
+  #   4. The backend must end up serving on `http://localhost:8004` with
+  #      auth routes mounted under `/v1` — this is what `playwright.config.ts`
+  #      and `e2e/support/global-setup.ts` expect by default
+  #      (`E2E_API_BASE_URL`, `E2E_AUTH_API_PREFIX`).
+  #
+  # Until all of the above is wired up for this runner, treat this job as
+  # documentation of the intended shape rather than a passing CI gate. Do
+  # not mark E2E as "passing" in CI without it actually exercising a real
+  # backend — a job that trivially no-ops is worse than an honest skip.
+  e2e:
+    name: E2E (Playwright, manual/opt-in)
+    needs: quality
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e == true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: outlabs
+          POSTGRES_PASSWORD: outlabs
+          POSTGRES_DB: outlabs_auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Consumed by the outlabsAuth backend's own settings/migration tooling.
+      DATABASE_URL: postgresql://outlabs:outlabs@localhost:5432/outlabs_auth_test
+      E2E_API_BASE_URL: http://localhost:8004
+      E2E_AUTH_API_PREFIX: /v1
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      # TODO: replace with the real distribution mechanism for the
+      # outlabsAuth backend once one is settled (submodule, internal
+      # package registry, etc). This assumes a sibling private repo and a
+      # fine-grained PAT stored as OUTLABSAUTH_CHECKOUT_TOKEN.
+      - name: Checkout outlabsAuth backend
+        uses: actions/checkout@v4
+        with:
+          repository: outlabsio/outlabsAuth
+          token: ${{ secrets.OUTLABSAUTH_CHECKOUT_TOKEN }}
+          path: outlabsAuth
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      # TODO: confirm the actual install/migrate/seed entrypoints for the
+      # enterprise_rbac example against a fresh Postgres instance, then
+      # replace this placeholder with real commands.
+      - name: Install and seed outlabsAuth backend (enterprise_rbac example)
+        working-directory: outlabsAuth/examples/enterprise_rbac
+        run: |
+          uv sync
+          uv run python reset_test_env.py
+
+      - name: Start outlabsAuth backend on :8004
+        working-directory: outlabsAuth/examples/enterprise_rbac
+        run: |
+          uv run uvicorn main:app --host localhost --port 8004 &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8004/v1/auth/config && break
+            sleep 1
+          done
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E suite
+        run: bun run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

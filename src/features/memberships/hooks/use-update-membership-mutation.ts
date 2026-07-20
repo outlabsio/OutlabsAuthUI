@@ -5,6 +5,7 @@ import { membershipsKeys } from '@/features/memberships/api/memberships.keys'
 import { updateMembership } from '@/features/memberships/api/update-membership'
 import type { UpdateMembershipInput } from '@/features/memberships/types/memberships.types'
 import { usersKeys } from '@/features/users/api/users.keys'
+import { withMutationToast } from '@/lib/query/mutation-toast'
 
 export function useUpdateMembershipMutation() {
   const queryClient = useQueryClient()
@@ -12,6 +13,10 @@ export function useUpdateMembershipMutation() {
   return useMutation({
     mutationKey: membershipsKeys.all,
     mutationFn: (input: UpdateMembershipInput) => updateMembership(input),
+    meta: withMutationToast({
+      error: 'The entity access could not be updated.',
+      success: 'Entity access updated.',
+    }),
     onSuccess: async (_membership, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
@@ -24,7 +29,7 @@ export function useUpdateMembershipMutation() {
           queryKey: usersKeys.detail(variables.userId),
         }),
         queryClient.invalidateQueries({
-          queryKey: entitiesKeys.memberLists(),
+          queryKey: entitiesKeys.members(variables.entityId),
         }),
       ])
     },

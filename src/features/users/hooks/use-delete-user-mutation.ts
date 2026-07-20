@@ -10,16 +10,15 @@ export function useDeleteUserMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: usersKeys.all,
+    mutationKey: usersKeys.remove(),
     mutationFn: (input: DeleteUserInput) => deleteUser(input),
     meta: withMutationToast({
       error: 'The user could not be deleted.',
       success: 'User deleted.',
     }),
     onSuccess: async (_result, variables) => {
-      const queryKeys = [
+      const removedQueryKeys = [
         usersKeys.detail(variables.userId),
-        usersKeys.lists(),
         usersKeys.roles(variables.userId),
         usersKeys.permissions(variables.userId),
         usersKeys.roleMemberships(variables.userId),
@@ -29,12 +28,13 @@ export function useDeleteUserMutation() {
         membershipsKeys.userList(variables.userId, true),
       ] as const
 
-      await Promise.all(
-        queryKeys.flatMap((queryKey) => [
-          queryClient.invalidateQueries({ queryKey }),
-          queryClient.refetchQueries({ queryKey }),
-        ])
-      )
+      removedQueryKeys.forEach((queryKey) => {
+        queryClient.removeQueries({ queryKey })
+      })
+
+      await queryClient.invalidateQueries({
+        queryKey: usersKeys.lists(),
+      })
     },
   })
 }

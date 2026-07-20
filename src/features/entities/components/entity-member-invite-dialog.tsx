@@ -124,7 +124,7 @@ export function EntityMemberInviteDialog({
                 })
 
                 await queryClient.invalidateQueries({
-                  queryKey: entitiesKeys.memberLists(),
+                  queryKey: entitiesKeys.members(entity.id),
                 })
 
                 onOpenChange(false)

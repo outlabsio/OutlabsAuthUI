@@ -34,10 +34,19 @@ export async function runBackendReset() {
   await assertPathExists(defaultBackendRepoDir, 'Backend repo')
   await assertPathExists(defaultBackendResetScript, 'Backend reset script')
 
+  // Drop ambient DATABASE_URL unless E2E_DATABASE_URL is set. Otherwise a shell
+  // pointed at enterprise can make the SimpleRBAC reset seed the wrong database.
+  const env = { ...process.env }
+  if (process.env.E2E_DATABASE_URL) {
+    env.DATABASE_URL = process.env.E2E_DATABASE_URL
+  } else {
+    delete env.DATABASE_URL
+  }
+
   await new Promise<void>((resolve, reject) => {
     const child = spawn('uv', ['run', 'python', defaultBackendResetScript], {
       cwd: defaultBackendRepoDir,
-      env: process.env,
+      env,
       stdio: 'inherit',
     })
 

@@ -22,13 +22,16 @@ check_backend "http://localhost:8004/v1/auth/config" "Enterprise RBAC backend (:
 check_backend "http://localhost:8003/v1/auth/config" "SimpleRBAC backend (:8003)"
 
 echo "==> Enterprise fixture suite"
-bun run test:e2e "$@"
+# Clear ambient DATABASE_URL so enterprise reset uses its script default.
+env -u DATABASE_URL bun run test:e2e "$@"
 
 echo "==> SimpleRBAC fixture suite (frontend :3001)"
 # Separate port so this pass can start while an enterprise Vite server is still up.
+# Force the SimpleRBAC database explicitly — ambient DATABASE_URL often points at enterprise.
 E2E_PORT=3001 \
 E2E_BASE_URL=http://localhost:3001 \
 E2E_REUSE_EXISTING_SERVER=0 \
-bun run test:e2e:simple "$@"
+E2E_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/blog_simple_rbac \
+env -u DATABASE_URL bun run test:e2e:simple "$@"
 
 echo "==> Both fixture suites finished"

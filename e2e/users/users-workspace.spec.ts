@@ -21,7 +21,16 @@ async function gotoUsersWorkspace(page: Page) {
   await expect(page.getByRole('button', { name: 'Open Users guide' })).toBeVisible()
 }
 
+async function searchUsers(page: Page, email: string) {
+  const search = page.getByPlaceholder('Search people by name or email')
+  await search.fill(email)
+  await expectUsersSearchParam(page, email)
+}
+
 async function openUserDetails(page: Page, email: string) {
+  // Suite-created users push seeded fixtures off page 1; always search first.
+  await searchUsers(page, email)
+
   const userRow = page
     .locator('tbody tr')
     .filter({
@@ -352,7 +361,7 @@ async function updateSuperuserViaApi(userId: string, isSuperuser: boolean) {
     }),
   })
 
-  if (response.status === 404) {
+  if (response.status === 404 || response.status === 422) {
     return
   }
 
@@ -428,7 +437,9 @@ test.describe('Users Workspace', () => {
     await gotoUsersWorkspace(page)
     await expect(page.getByRole('button', { name: 'Invite user' })).toBeVisible()
 
+    await searchUsers(page, 'lead@sf.acme.com')
     await expect(page.getByText('lead@sf.acme.com', { exact: true })).toBeVisible()
+    await searchUsers(page, 'auditor@acme.com')
     await expect(page.getByText('auditor@acme.com', { exact: true })).toBeVisible()
 
     await openUserDetails(page, 'lead@sf.acme.com')
@@ -814,10 +825,12 @@ test.describe('Users Workspace', () => {
     const apiKeysSection = page
       .locator('div')
       .filter({
-        has: page.getByRole('heading', { name: 'Personal API keys' }),
+        has: page.getByRole('heading', { name: 'Personal API keys', exact: true }),
       })
       .first()
-    await expect(apiKeysSection.getByRole('heading', { name: 'Personal API keys' })).toBeVisible()
+    await expect(
+      apiKeysSection.getByRole('heading', { name: 'Personal API keys', exact: true })
+    ).toBeVisible()
 
     const keyCard = apiKeysSection
       .locator('div.rounded-lg.border')

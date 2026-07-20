@@ -9,15 +9,18 @@ const defaultListParams: Required<Pick<ListEntityApiKeysParams, 'page' | 'limit'
   limit: 20,
 }
 
-export function getApiKeys({
-  entityId,
-  page = defaultListParams.page,
-  limit = defaultListParams.limit,
-  ownerId,
-  status,
-  keyKind,
-  search,
-}: ListEntityApiKeysParams) {
+export function getApiKeys(
+  {
+    entityId,
+    page = defaultListParams.page,
+    limit = defaultListParams.limit,
+    ownerId,
+    status,
+    keyKind,
+    search,
+  }: ListEntityApiKeysParams,
+  options: { signal?: AbortSignal } = {}
+) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -40,6 +43,7 @@ export function getApiKeys({
   }
 
   return apiClient.get<ApiKeysListResponse>(
-    `/admin/entities/${entityId}/api-keys?${searchParams.toString()}`
+    `/admin/entities/${entityId}/api-keys?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

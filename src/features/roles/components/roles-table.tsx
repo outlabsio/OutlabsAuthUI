@@ -1,28 +1,13 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
-import {
-  type ColumnDef,
-  type SortingState,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { Sparkles } from 'lucide-react'
 
-import { AppEmptyState } from '@/components/app/app-empty-state'
+import { AppDataTable } from '@/components/app/app-data-table'
+import { AppDataTableColumnHeader } from '@/components/app/app-data-table-column-header'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { AppDataTableColumnHeader } from '@/components/app/app-data-table-column-header'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import type { Role } from '@/features/roles/types/roles.types'
 import {
   formatAssignableTypes,
@@ -37,7 +22,6 @@ import {
   getRoleTypeLabel,
   groupPermissions,
 } from '@/features/roles/utils/role-display'
-import { cn } from '@/lib/utils/cn'
 
 type RolesTableProps = {
   roles: Role[]
@@ -58,6 +42,13 @@ type RolesTableProps = {
   emptyDescription?: string
 }
 
+const columnWidths: Record<string, string> = {
+  role: '29%',
+  applicability: '25%',
+  assignment: '24%',
+  footprint: '22%',
+}
+
 export function RolesTable({
   roles,
   selectedRoleId,
@@ -76,7 +67,7 @@ export function RolesTable({
   emptyTitle = 'No roles matched these filters.',
   emptyDescription = 'Adjust or clear the current filters.',
 }: RolesTableProps) {
-  const scrollAreaRef = useRef<HTMLDivElement | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const [internalSorting, setInternalSorting] = useState<SortingState>([
     {
       id: 'role',
@@ -216,26 +207,13 @@ export function RolesTable({
     ],
     []
   )
-  const table = useReactTable({
-    data: roles,
-    columns,
-    state: {
-      sorting: activeSorting,
-    },
-    onSortingChange: (updater) => {
-      setActiveSorting(typeof updater === 'function' ? updater(activeSorting) : updater)
-    },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
+
   const handleScrollNearBottom = useEffectEvent(() => {
     if (!hasNextPage || isFetchingNextPage || !onLoadMore) {
       return
     }
 
-    const scrollContainer = scrollAreaRef.current?.querySelector<HTMLElement>(
-      '[data-slot=table-container]'
-    )
+    const scrollContainer = scrollContainerRef.current
 
     if (!scrollContainer) {
       return
@@ -252,9 +230,7 @@ export function RolesTable({
   })
 
   useEffect(() => {
-    const scrollContainer = scrollAreaRef.current?.querySelector<HTMLElement>(
-      '[data-slot=table-container]'
-    )
+    const scrollContainer = scrollContainerRef.current
 
     if (!scrollContainer) {
       return
@@ -289,88 +265,29 @@ export function RolesTable({
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col p-0">
-        {isLoading ? (
-          <div className="flex min-h-[28rem] items-center justify-center text-sm text-muted-foreground">
-            Loading roles…
-          </div>
-        ) : roles.length === 0 ? (
-          <AppEmptyState
-            title={emptyTitle}
-            description={emptyDescription}
-            className="min-h-[28rem] border-none"
-            compact
-          />
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div
-              ref={scrollAreaRef}
-              className="min-h-0 flex-1 overflow-hidden [&_[data-slot=table-container]]:h-full [&_[data-slot=table-container]]:overflow-y-auto [&_[data-slot=table-container]]:overscroll-contain"
-            >
-              <Table className="table-fixed">
-                <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_var(--color-border)]">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead
-                          key={header.id}
-                          className={cn(
-                            'px-4',
-                            header.column.id === 'role' ? 'w-[29%]' : null,
-                            header.column.id === 'applicability' ? 'w-[25%]' : null,
-                            header.column.id === 'assignment' ? 'w-[24%]' : null,
-                            header.column.id === 'footprint' ? 'w-[22%]' : null
-                          )}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => {
-                    const role = row.original
-                    const isSelected = selectedRoleId === role.id
-
-                    return (
-                      <TableRow
-                        key={role.id}
-                        data-state={isSelected ? 'selected' : undefined}
-                        className="cursor-pointer transition-colors hover:bg-muted/60"
-                        tabIndex={0}
-                        onClick={() => onRoleSelect(role.id)}
-                        onKeyDown={(event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') {
-                            return
-                          }
-
-                          event.preventDefault()
-                          onRoleSelect(role.id)
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className="px-4 py-4 align-top whitespace-normal"
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-              {isFetchingNextPage ? (
-                <div className="px-4 py-3 text-sm text-muted-foreground">
-                  Loading more roles…
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
+        <AppDataTable
+          data={roles}
+          columns={columns}
+          getRowId={(role) => role.id}
+          sorting={activeSorting}
+          onSortingChange={setActiveSorting}
+          sortingMode="client"
+          isLoading={isLoading}
+          loadingTitle="Loading roles..."
+          emptyState={{
+            title: emptyTitle,
+            description: emptyDescription,
+          }}
+          onRowClick={(role) => onRoleSelect(role.id)}
+          selectedRowId={selectedRoleId}
+          columnWidths={columnWidths}
+          scrollContainerRef={scrollContainerRef}
+          footerExtra={
+            isFetchingNextPage ? (
+              <div className="text-sm text-muted-foreground">Loading more roles…</div>
+            ) : undefined
+          }
+        />
       </div>
     </>
   )
@@ -385,7 +302,7 @@ export function RolesTable({
 
   if (embedded) {
     return (
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/90">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/90">
         {content}
       </div>
     )

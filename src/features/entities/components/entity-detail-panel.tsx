@@ -595,7 +595,7 @@ export function EntityDetailPanel({
             ) : rolesLoading ? (
               <AppEmptyState title="Loading roles…" compact />
             ) : (
-              <div className="h-[28rem] min-h-[24rem] max-h-[60svh] min-w-0">
+              <div className="flex h-[28rem] min-h-[24rem] max-h-[60svh] min-w-0 flex-col overflow-hidden">
                 <RolesTable
                   roles={roles}
                   selectedRoleId={selectedRoleId}

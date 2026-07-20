@@ -11,7 +11,7 @@ export function useDeleteEntityMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: [...entitiesKeys.all, 'delete'] as const,
+    mutationKey: entitiesKeys.remove(),
     mutationFn: (input: DeleteEntityInput) => deleteEntity(input),
     meta: withMutationToast({
       error: 'The entity could not be archived.',
@@ -21,7 +21,7 @@ export function useDeleteEntityMutation() {
       queryClient.removeQueries({
         queryKey: entitiesKeys.detail(input.entityId),
       })
-
+      // Archive/delete reshapes hierarchy lists and descendant trees.
       await queryClient.invalidateQueries({
         queryKey: entitiesKeys.all,
       })

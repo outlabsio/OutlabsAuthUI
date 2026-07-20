@@ -5,15 +5,18 @@ import type {
 } from '@/features/api-keys/types/api-keys.types'
 import { apiClient } from '@/lib/api/client'
 
-export function getIntegrationPrincipalApiKeys({
-  scopeKind,
-  entityId,
-  principalId,
-  page = 1,
-  limit = 100,
-  status,
-  search,
-}: ListIntegrationPrincipalApiKeysParams) {
+export function getIntegrationPrincipalApiKeys(
+  {
+    scopeKind,
+    entityId,
+    principalId,
+    page = 1,
+    limit = 100,
+    status,
+    search,
+  }: ListIntegrationPrincipalApiKeysParams,
+  options: { signal?: AbortSignal } = {}
+) {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -32,6 +35,7 @@ export function getIntegrationPrincipalApiKeys({
       scopeKind,
       entityId,
       principalId,
-    })}?${searchParams.toString()}`
+    })}?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

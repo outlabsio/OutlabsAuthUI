@@ -1,9 +1,11 @@
+import { useMemo } from 'react'
+
 import type { UseQueryResult } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
 import { KeyRound, RefreshCcw, Trash2 } from 'lucide-react'
 
+import { AppDataTable } from '@/components/app/app-data-table'
 import { AppEmptyState } from '@/components/app/app-empty-state'
-import { AppErrorState } from '@/components/app/app-error-state'
-import { AppLoadingState } from '@/components/app/app-loading-state'
 import { AppStatusBadge } from '@/components/app/app-status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,14 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import type {
   ApiKey,
   IntegrationPrincipal,
@@ -55,7 +49,6 @@ import {
 import { formatApiKeyRateLimitPerMinute } from '@/features/api-keys/utils/rate-limit'
 import type { EntityOption } from '@/features/entities/utils/build-entity-options'
 import type { Role } from '@/features/roles/types/roles.types'
-import { getApiErrorMessage } from '@/lib/api/errors'
 import type { PaginatedResponse } from '@/lib/api/paginated-response.types'
 
 type ApiKeysIntegrationsPanelProps = {
@@ -136,6 +129,98 @@ export function ApiKeysIntegrationsPanel({
   setDeleteTarget,
 }: ApiKeysIntegrationsPanelProps) {
   const entitiesQuery = { isLoading: entitiesQueryIsLoading }
+  const principalColumns = useMemo<ColumnDef<IntegrationPrincipal>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+          const principal = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="font-medium">{principal.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {principal.description || 'No description provided.'}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <AppStatusBadge tone={getPrincipalStatusTone(row.original.status)}>
+            {formatToken(row.original.status)}
+          </AppStatusBadge>
+        ),
+        enableSorting: false,
+      },
+      {
+        id: 'roles',
+        header: 'Roles',
+        cell: ({ row }) => row.original.role_ids.length,
+        enableSorting: false,
+      },
+      {
+        id: 'permissions',
+        header: 'Permissions',
+        cell: ({ row }) => row.original.effective_allowed_scopes.length,
+        enableSorting: false,
+      },
+    ],
+    []
+  )
+  const principalKeyColumns = useMemo<ColumnDef<ApiKey>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+          const apiKey = row.original
+
+          return (
+            <div className="space-y-1">
+              <div className="font-medium">{apiKey.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {apiKey.description || 'No description provided.'}
+              </div>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <AppStatusBadge tone={getApiKeyStatusTone(row.original.status)}>
+            {formatToken(row.original.status)}
+          </AppStatusBadge>
+        ),
+        enableSorting: false,
+      },
+      {
+        id: 'effective',
+        header: 'Effective',
+        cell: ({ row }) => (
+          <AppStatusBadge tone={getEffectivenessTone(row.original)}>
+            {row.original.is_currently_effective ? 'Effective' : 'Ineffective'}
+          </AppStatusBadge>
+        ),
+        enableSorting: false,
+      },
+      {
+        id: 'lastUsed',
+        header: 'Last used',
+        cell: ({ row }) => formatDateTime(row.original.last_used_at),
+        enableSorting: false,
+      },
+    ],
+    []
+  )
 
   return (
     <>
@@ -274,66 +359,28 @@ export function ApiKeysIntegrationsPanel({
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {integrationPrincipalsQuery.isLoading ? (
-                            <AppLoadingState title="Loading service accounts" />
-                          ) : integrationPrincipalsQuery.isError ? (
-                            <AppErrorState>
-                              {getApiErrorMessage(
-                                integrationPrincipalsQuery.error,
-                                'The service-account list could not be loaded.'
-                              )}
-                            </AppErrorState>
-                          ) : integrationPrincipals.length === 0 ? (
-                            <AppEmptyState
-                              title="No service accounts"
-                              description="No service accounts match the current scope and search."
-                              compact
-                            />
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Name</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead>Roles</TableHead>
-                                  <TableHead>Permissions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {integrationPrincipals.map((principal) => {
-                                  const isSelected = principal.id === activePrincipal?.id
-
-                                  return (
-                                    <TableRow
-                                      key={principal.id}
-                                      data-state={isSelected ? 'selected' : undefined}
-                                      className="cursor-pointer"
-                                      onClick={() => {
-                                        setSelectedPrincipalId(principal.id)
-                                        setSelectedPrincipalKeyId(null)
-                                      }}
-                                    >
-                                      <TableCell>
-                                        <div className="space-y-1">
-                                          <div className="font-medium">{principal.name}</div>
-                                          <div className="text-xs text-muted-foreground">
-                                            {principal.description || 'No description provided.'}
-                                          </div>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <AppStatusBadge tone={getPrincipalStatusTone(principal.status)}>
-                                          {formatToken(principal.status)}
-                                        </AppStatusBadge>
-                                      </TableCell>
-                                      <TableCell>{principal.role_ids.length}</TableCell>
-                                      <TableCell>{principal.effective_allowed_scopes.length}</TableCell>
-                                    </TableRow>
-                                  )
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
+                          <AppDataTable
+                            data={integrationPrincipals}
+                            columns={principalColumns}
+                            getRowId={(principal) => principal.id}
+                            isLoading={integrationPrincipalsQuery.isLoading}
+                            error={
+                              integrationPrincipalsQuery.isError
+                                ? integrationPrincipalsQuery.error
+                                : undefined
+                            }
+                            errorFallback="The service-account list could not be loaded."
+                            loadingTitle="Loading service accounts"
+                            emptyState={{
+                              title: 'No service accounts',
+                              description: 'No service accounts match the current scope and search.',
+                            }}
+                            onRowClick={(principal) => {
+                              setSelectedPrincipalId(principal.id)
+                              setSelectedPrincipalKeyId(null)
+                            }}
+                            selectedRowId={activePrincipal?.id}
+                          />
                         </CardContent>
                       </Card>
 
@@ -537,67 +584,25 @@ export function ApiKeysIntegrationsPanel({
                                 description="Select a service account to load its keys."
                                 compact
                               />
-                            ) : principalKeysQuery.isLoading ? (
-                              <AppLoadingState title="Loading machine keys" />
-                            ) : principalKeysQuery.isError ? (
-                              <AppErrorState>
-                                {getApiErrorMessage(
-                                  principalKeysQuery.error,
-                                  'The service-account key list could not be loaded.'
-                                )}
-                              </AppErrorState>
-                            ) : principalKeys.length === 0 ? (
-                              <AppEmptyState
-                                title="No machine keys"
-                                description="No keys exist for this service account yet."
-                                compact
-                              />
                             ) : (
                               <>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Name</TableHead>
-                                      <TableHead>Status</TableHead>
-                                      <TableHead>Effective</TableHead>
-                                      <TableHead>Last used</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {principalKeys.map((apiKey) => {
-                                      const isSelected = apiKey.id === activePrincipalKey?.id
-
-                                      return (
-                                        <TableRow
-                                          key={apiKey.id}
-                                          data-state={isSelected ? 'selected' : undefined}
-                                          className="cursor-pointer"
-                                          onClick={() => setSelectedPrincipalKeyId(apiKey.id)}
-                                        >
-                                          <TableCell>
-                                            <div className="space-y-1">
-                                              <div className="font-medium">{apiKey.name}</div>
-                                              <div className="text-xs text-muted-foreground">
-                                                {apiKey.description || 'No description provided.'}
-                                              </div>
-                                            </div>
-                                          </TableCell>
-                                          <TableCell>
-                                            <AppStatusBadge tone={getApiKeyStatusTone(apiKey.status)}>
-                                              {formatToken(apiKey.status)}
-                                            </AppStatusBadge>
-                                          </TableCell>
-                                          <TableCell>
-                                            <AppStatusBadge tone={getEffectivenessTone(apiKey)}>
-                                              {apiKey.is_currently_effective ? 'Effective' : 'Ineffective'}
-                                            </AppStatusBadge>
-                                          </TableCell>
-                                          <TableCell>{formatDateTime(apiKey.last_used_at)}</TableCell>
-                                        </TableRow>
-                                      )
-                                    })}
-                                  </TableBody>
-                                </Table>
+                                <AppDataTable
+                                  data={principalKeys}
+                                  columns={principalKeyColumns}
+                                  getRowId={(apiKey) => apiKey.id}
+                                  isLoading={principalKeysQuery.isLoading}
+                                  error={
+                                    principalKeysQuery.isError ? principalKeysQuery.error : undefined
+                                  }
+                                  errorFallback="The service-account key list could not be loaded."
+                                  loadingTitle="Loading machine keys"
+                                  emptyState={{
+                                    title: 'No machine keys',
+                                    description: 'No keys exist for this service account yet.',
+                                  }}
+                                  onRowClick={(apiKey) => setSelectedPrincipalKeyId(apiKey.id)}
+                                  selectedRowId={activePrincipalKey?.id}
+                                />
 
                                 {activePrincipalKey ? (
                                   <div className="space-y-4 rounded-2xl border px-4 py-4">

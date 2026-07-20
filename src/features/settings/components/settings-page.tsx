@@ -64,17 +64,26 @@ export function SettingsPage() {
     },
   })
 
+  // Dirty-edit protection: this config is a singleton with no record id to key
+  // on, so a background refetch (e.g. after another tab saves) must not wipe an
+  // operator's in-progress edit. keepDirtyValues merges fresh values into
+  // untouched fields while leaving any dirty field exactly as the operator left
+  // it; nothing here gates the submit button on isDirty, so the form staying
+  // dirty after a successful save has no user-visible downside.
   useEffect(() => {
     if (!entityTypeConfigQuery.data) {
       return
     }
 
-    form.reset({
-      structuralRootTypes: entityTypeConfigQuery.data.allowed_root_types.structural,
-      accessGroupRootTypes: entityTypeConfigQuery.data.allowed_root_types.access_group,
-      structuralChildTypes: entityTypeConfigQuery.data.default_child_types.structural,
-      accessGroupChildTypes: entityTypeConfigQuery.data.default_child_types.access_group,
-    })
+    form.reset(
+      {
+        structuralRootTypes: entityTypeConfigQuery.data.allowed_root_types.structural,
+        accessGroupRootTypes: entityTypeConfigQuery.data.allowed_root_types.access_group,
+        structuralChildTypes: entityTypeConfigQuery.data.default_child_types.structural,
+        accessGroupChildTypes: entityTypeConfigQuery.data.default_child_types.access_group,
+      },
+      { keepDirtyValues: true, keepErrors: true }
+    )
   }, [entityTypeConfigQuery.data, form])
 
   const pageError =

@@ -6,7 +6,8 @@ import { apiClient } from '@/lib/api/client'
 
 export function getUserMembershipHistory(
   userId: string,
-  params: GetUserMembershipHistoryParams = {}
+  params: GetUserMembershipHistoryParams = {},
+  options: { signal?: AbortSignal } = {}
 ) {
   const searchParams = new URLSearchParams({
     page: String(params.page ?? 1),
@@ -22,6 +23,7 @@ export function getUserMembershipHistory(
   }
 
   return apiClient.get<UserMembershipHistoryResponse>(
-    `/users/${userId}/membership-history?${searchParams.toString()}`
+    `/users/${userId}/membership-history?${searchParams.toString()}`,
+    { signal: options.signal }
   )
 }

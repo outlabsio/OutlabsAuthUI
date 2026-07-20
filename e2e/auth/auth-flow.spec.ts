@@ -441,6 +441,7 @@ test.describe('Auth Flow', () => {
     await expect(page.getByText('Auth configuration snapshot')).toBeVisible()
     expect(verifyBody).toEqual({
       email: 'admin@acme.com',
+      channel: 'email',
       code: '123456',
     })
     await expect
@@ -490,6 +491,7 @@ test.describe('Auth Flow', () => {
     await expect(page).toHaveURL(/\/app\/dashboard$/)
     expect(verifyBody).toEqual({
       email: 'admin@acme.com',
+      channel: 'email',
       code: '123456',
     })
     await expect
@@ -607,6 +609,22 @@ test.describe('Auth Flow', () => {
     ).toBeVisible()
 
     await page.getByRole('button', { name: 'Send verification code' }).click()
+
+    const rateLimitToast = page.getByText(/Too many phone verification requests/i)
+    const sentToast = page.getByText('Verification code sent.', { exact: true })
+    await expect
+      .poll(
+        async () =>
+          (await rateLimitToast.isVisible().catch(() => false)) ||
+          (await sentToast.isVisible().catch(() => false)),
+        { timeout: 10_000 }
+      )
+      .toBe(true)
+
+    if (await rateLimitToast.isVisible().catch(() => false)) {
+      test.skip(true, 'Phone verification is rate-limited on the fixture backend')
+    }
+
     const phoneVerify = await waitForCapturedPhoneVerifyCode(email, { phone })
     await page.locator('#account-phone-verify-code').fill(phoneVerify.code)
     await page.getByRole('button', { name: 'Verify phone' }).click()

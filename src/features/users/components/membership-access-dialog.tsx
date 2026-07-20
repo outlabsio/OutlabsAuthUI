@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { type Resolver, useForm } from 'react-hook-form'
+import { type Resolver, useForm, useWatch } from 'react-hook-form'
 import { ChevronRight } from 'lucide-react'
 
 import { AppEmptyState } from '@/components/app/app-empty-state'
@@ -109,12 +109,12 @@ export function MembershipAccessDialog({
   })
 
   const entityOptions = useMemo(() => buildEntityOptions(entities), [entities])
-  const selectedEntityId = form.watch('entityId')
-  const selectedRoleIds = form.watch('roleIds')
-  const selectedStatus = form.watch('status')
-  const validFrom = form.watch('validFrom') ?? ''
-  const validUntil = form.watch('validUntil') ?? ''
-  const reason = form.watch('reason') ?? ''
+  const selectedEntityId = useWatch({ control: form.control, name: 'entityId' })
+  const selectedRoleIds = useWatch({ control: form.control, name: 'roleIds' })
+  const selectedStatus = useWatch({ control: form.control, name: 'status' })
+  const validFrom = useWatch({ control: form.control, name: 'validFrom' }) ?? ''
+  const validUntil = useWatch({ control: form.control, name: 'validUntil' }) ?? ''
+  const reason = useWatch({ control: form.control, name: 'reason' }) ?? ''
   const selectedEntity =
     entityOptions.find((entityOption) => entityOption.id === selectedEntityId) ?? null
   const existingMembership =
@@ -159,8 +159,7 @@ export function MembershipAccessDialog({
     setShowRemoveConfirm(false)
   }
 
-  const wasOpenRef = useRef(false)
-  const resetDialogState = useEffectEvent(() => {
+  function resetDialogFields() {
     const nextEntityId = initialEntityId ?? ''
     const membership =
       memberships.find((membership) => membership.entity_id === nextEntityId) ?? null
@@ -168,7 +167,10 @@ export function MembershipAccessDialog({
     form.reset(getMembershipFormValues(nextEntityId, membership))
     setShowRemoveConfirm(false)
     membershipActions.reset()
-  })
+  }
+
+  const wasOpenRef = useRef(false)
+  const resetDialogStateEffectEvent = useEffectEvent(resetDialogFields)
 
   useEffect(() => {
     const justOpened = open && !wasOpenRef.current
@@ -178,12 +180,12 @@ export function MembershipAccessDialog({
       return
     }
 
-    resetDialogState()
+    resetDialogStateEffectEvent()
   }, [open])
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      resetDialogState()
+      resetDialogFields()
     }
 
     onOpenChange(nextOpen)

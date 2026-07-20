@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { ConfigErrorPage } from '@/app/pages/config-error-page'
 import { QueryProvider } from '@/app/providers/query-provider'
 import { RouterProvider } from '@/app/providers/router-provider'
 import { ThemeProvider } from '@/app/providers/theme-provider'
@@ -10,9 +11,19 @@ import { initializeRuntimeConfig } from '@/lib/runtime-config'
 import '@/styles/app.css'
 
 async function bootstrap() {
-  await initializeRuntimeConfig()
+  const runtimeConfigResult = await initializeRuntimeConfig()
+  const root = createRoot(document.getElementById('root')!)
 
-  createRoot(document.getElementById('root')!).render(
+  if (runtimeConfigResult.status === 'error') {
+    root.render(
+      <StrictMode>
+        <ConfigErrorPage error={runtimeConfigResult.error} />
+      </StrictMode>
+    )
+    return
+  }
+
+  root.render(
     <StrictMode>
       <ThemeProvider>
         <QueryProvider>

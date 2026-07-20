@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { AppConfirmDialog } from '@/components/app/app-confirm-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -53,23 +53,27 @@ export function MoveEntityDialog({
   const hasMoveTargets = sortedParentOptions.length > 0 || canPromoteToRoot
   const isPromoteToRoot = newParentId === PROMOTE_TO_ROOT_VALUE
 
-  useEffect(() => {
-    if (!open) {
-      return
+  const dialogSyncKey = open ? entity?.id ?? '__none__' : null
+  const [syncedDialogKey, setSyncedDialogKey] = useState<string | null>(null)
+
+  if (dialogSyncKey !== syncedDialogKey) {
+    setSyncedDialogKey(dialogSyncKey)
+
+    if (dialogSyncKey !== null) {
+      const currentParentId = entity?.parent_entity_id ?? ''
+      const preferredParent =
+        sortedParentOptions.find((option) => option.id === currentParentId) ??
+        sortedParentOptions[0]
+
+      setNewParentId(
+        preferredParent
+          ? preferredParent.id
+          : canPromoteToRoot
+            ? PROMOTE_TO_ROOT_VALUE
+            : ''
+      )
     }
-
-    const currentParentId = entity?.parent_entity_id ?? ''
-    const preferredParent =
-      sortedParentOptions.find((option) => option.id === currentParentId) ??
-      sortedParentOptions[0]
-
-    if (preferredParent) {
-      setNewParentId(preferredParent.id)
-      return
-    }
-
-    setNewParentId(canPromoteToRoot ? PROMOTE_TO_ROOT_VALUE : '')
-  }, [canPromoteToRoot, entity?.parent_entity_id, open, sortedParentOptions])
+  }
 
   const selectedParent =
     sortedParentOptions.find((option) => option.id === newParentId) ?? null

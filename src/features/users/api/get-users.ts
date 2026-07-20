@@ -9,7 +9,10 @@ const defaultUsersFilters: Required<Pick<UsersListFilters, 'page' | 'limit'>> = 
   limit: 20,
 }
 
-export async function getUsers(filters: UsersListFilters) {
+export async function getUsers(
+  filters: UsersListFilters,
+  options: { signal?: AbortSignal } = {}
+) {
   const resolvedFilters = {
     ...defaultUsersFilters,
     ...filters,
@@ -32,5 +35,7 @@ export async function getUsers(filters: UsersListFilters) {
     searchParams.set('root_entity_id', resolvedFilters.rootEntityId)
   }
 
-  return apiClient.get<UsersListResponse>(`/users/?${searchParams.toString()}`)
+  return apiClient.get<UsersListResponse>(`/users/?${searchParams.toString()}`, {
+    signal: options.signal,
+  })
 }
