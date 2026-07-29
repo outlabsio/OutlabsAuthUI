@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client'
+import { withFrontendProfileQuery } from '@/lib/api/frontend-profile'
 
 export type OAuthAuthorizeResponse = {
   authorization_url: string
@@ -6,7 +7,7 @@ export type OAuthAuthorizeResponse = {
 
 export function startOAuthLogin(provider: string) {
   return apiClient.get<OAuthAuthorizeResponse>(
-    `/oauth/${provider}/authorize`,
+    withFrontendProfileQuery(`/oauth/${provider}/authorize`),
     { auth: false }
   )
 }

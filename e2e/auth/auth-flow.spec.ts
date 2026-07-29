@@ -106,6 +106,32 @@ test.describe('Auth Flow', () => {
     ).toBeVisible()
   })
 
+  test('configured frontend profile is sent with password login', async ({ page }) => {
+    let requestBody: unknown = null
+    await page.addInitScript(() => {
+      window.__OUTLABS_AUTH_UI_CONFIG__ = {
+        frontendProfileKey: 'identity-admin',
+      }
+    })
+    await page.route('**/v1/auth/login', async (route) => {
+      requestBody = route.request().postDataJSON()
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        json: { detail: 'Invalid credentials.' },
+      })
+    })
+
+    await page.goto('/auth/login')
+    await signIn(page, 'admin@example.com', 'Wrongpass1!')
+
+    expect(requestBody).toEqual({
+      email: 'admin@example.com',
+      password: 'Wrongpass1!',
+      app: 'identity-admin',
+    })
+  })
+
   test('successful sign-in lands on the dashboard', async ({ page }) => {
     await page.goto('/auth/login')
     await expectLoginPage(page)

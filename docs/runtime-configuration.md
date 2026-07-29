@@ -23,6 +23,7 @@ Supported keys:
 
 - `apiBaseUrl`
 - `authApiPrefix`
+- `frontendProfileKey` (optional OutLabsAuth multi-frontend profile selector)
 - `appName`
 - `appSubtitle`
 - `authBrand`
@@ -34,6 +35,7 @@ Example:
 {
   "apiBaseUrl": "http://127.0.0.1:8050",
   "authApiPrefix": "/iam",
+  "frontendProfileKey": "auth-console",
   "appName": "Auth Console",
   "appSubtitle": "Shared admin access for mounted auth backends",
   "authBrand": "OutlabsAuth",
@@ -47,6 +49,7 @@ For quick local work, `.env.local` can still provide:
 
 - `VITE_API_BASE_URL`
 - `VITE_AUTH_API_PREFIX`
+- `VITE_FRONTEND_PROFILE_KEY`
 - `VITE_APP_NAME`
 - `VITE_APP_SUBTITLE`
 - `VITE_AUTH_BRAND`
@@ -67,4 +70,8 @@ test harnesses like Playwright force a specific backend target without mutating
 
 - Keep consumer-specific targets out of committed source.
 - Prefer runtime `app-config.json` over committed build presets.
+- Set `frontendProfileKey` when the backend declares OutLabsAuth frontend profiles.
+  The UI sends that stable, non-secret key on login, invite acceptance, recovery,
+  passwordless, and OAuth initiation so the backend can bind routing and the
+  session `azp` claim to the intended frontend.
 - If a hosting platform can inject inline config before the app boots, populate `window.__OUTLABS_AUTH_UI_CONFIG__` instead of rebuilding the app per consumer.

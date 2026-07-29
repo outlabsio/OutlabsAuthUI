@@ -3,6 +3,7 @@ import { z } from 'zod'
 type RuntimeConfigInput = {
   apiBaseUrl?: string
   authApiPrefix?: string
+  frontendProfileKey?: string
   appName?: string
   appSubtitle?: string
   authBrand?: string
@@ -12,6 +13,7 @@ type RuntimeConfigInput = {
 export type RuntimeConfig = {
   apiBaseUrl: string
   authApiPrefix: string
+  frontendProfileKey?: string
   appName: string
   appSubtitle: string
   authBrand: string
@@ -48,6 +50,7 @@ function shouldPreferEnvConfig() {
 const builtInDefaults: RuntimeConfig = {
   apiBaseUrl: 'http://localhost:8004',
   authApiPrefix: '/v1',
+  frontendProfileKey: undefined,
   appName: 'OutlabsAuth UI',
   appSubtitle: 'Shared auth admin console',
   authBrand: 'OutlabsAuth',
@@ -77,6 +80,7 @@ const runtimeConfigSchema = z.object({
     .refine((value) => value.startsWith('/'), {
       message: 'authApiPrefix must start with "/" (e.g. "/v1").',
     }),
+  frontendProfileKey: z.string().trim().min(1).max(64).optional(),
   appName: z.string().trim().min(1).optional(),
   appSubtitle: z.string().trim().min(1).optional(),
   authBrand: z.string().trim().min(1).optional(),
@@ -89,6 +93,7 @@ function normalizeRuntimeConfig(input: ValidatedRuntimeConfigInput): RuntimeConf
   return {
     apiBaseUrl: trimTrailingSlash(input.apiBaseUrl),
     authApiPrefix: ensureLeadingSlash(input.authApiPrefix),
+    frontendProfileKey: input.frontendProfileKey?.trim() || undefined,
     appName: input.appName?.trim() || brandingDefaults.appName,
     appSubtitle: input.appSubtitle?.trim() || brandingDefaults.appSubtitle,
     authBrand: input.authBrand?.trim() || brandingDefaults.authBrand,
@@ -107,6 +112,7 @@ function readEnvConfig(): RuntimeConfigInput {
   return {
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
     authApiPrefix: import.meta.env.VITE_AUTH_API_PREFIX,
+    frontendProfileKey: import.meta.env.VITE_FRONTEND_PROFILE_KEY,
     appName: import.meta.env.VITE_APP_NAME,
     appSubtitle: import.meta.env.VITE_APP_SUBTITLE,
     authBrand: import.meta.env.VITE_AUTH_BRAND,

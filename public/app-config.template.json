@@ -1,6 +1,7 @@
 {
   "apiBaseUrl": "http://localhost:8004",
   "authApiPrefix": "/v1",
+  "frontendProfileKey": "auth-console",
   "appName": "OutlabsAuth UI",
   "appSubtitle": "Shared auth admin console",
   "authBrand": "OutlabsAuth",
