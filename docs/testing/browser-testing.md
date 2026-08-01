@@ -1,0 +1,228 @@
+# Browser Testing
+
+This repo uses Playwright for reusable browser automation.
+
+Core pieces:
+
+- `playwright.config.ts`: shared browser config and Bun-powered frontend server bootstrap
+- `e2e/support/global-setup.ts`: backend reset, persona login bootstrap, and storage-state generation
+- `e2e/support/auth-fixture.ts`: per-test persona fixture
+- `e2e/support/reset-backend.ts`: reusable backend reseed entrypoint for deterministic runs
+- `e2e/support/base-ui-select.ts`: reusable helper for Base UI `Select` controls
+- `e2e/support/base-ui-text.ts`: reusable helper for Base UI text inputs and textareas
+- `docs/testing/e2e-coverage.md`: current coverage matrix for enterprise and mounted-backend fixtures
+
+## Commands
+
+Run the full suite:
+
+```bash
+bun run test:e2e
+```
+
+Run just the backend reseed:
+
+```bash
+bun run test:e2e:reset-backend
+```
+
+Run the auth flow suite only:
+
+```bash
+bun run test:e2e:auth
+```
+
+Run the app-shell and app access-control suites:
+
+```bash
+bun run test:e2e:app
+```
+
+Run the SimpleRBAC mounted-backend smoke suite:
+
+```bash
+bun run test:e2e:simple
+```
+
+Run the Roles workspace suite only:
+
+```bash
+bun run test:e2e:roles
+```
+
+Run the Permissions workspace suite only:
+
+```bash
+bun run test:e2e:permissions
+```
+
+Run the Users workspace suite only:
+
+```bash
+bun run test:e2e:users
+```
+
+Run the Entities workspace suite only:
+
+```bash
+bun run test:e2e:entities
+```
+
+Run headed:
+
+```bash
+bun run test:e2e:headed
+```
+
+Open the Playwright UI runner:
+
+```bash
+bun run test:e2e:ui
+```
+
+Run the accessibility smoke suite (`@axe-core/playwright` against
+`/auth/login`, `/app/users`, and the Invite user dialog):
+
+```bash
+bun run test:e2e:a11y
+```
+
+Run without resetting backend data first:
+
+```bash
+bun run test:e2e:no-reset
+```
+
+## Prerequisites
+
+- frontend app reachable at `http://localhost:3000`
+- auth backend reachable at `http://localhost:8004`
+- `uv` available on `PATH` so the reset runner can reseed the backend example
+- backend reset script available at:
+  - `../outlabsAuth/examples/enterprise_rbac/reset_test_env.py`
+
+Use `localhost` consistently for both frontend and backend. Mixing `127.0.0.1` and `localhost` will break browser-origin assumptions in the auth flow.
+
+For the SimpleRBAC smoke suite, start the sibling example server first:
+
+```bash
+cd ../outlabsAuth/examples/simple_rbac
+uv run uvicorn main:app --host localhost --port 8003
+```
+
+`bun run test:e2e:simple` overrides the backend reseed script, admin credentials, and API base URL so the frontend can exercise the verified `SimpleRBAC` contract.
+
+To run **enterprise then SimpleRBAC** in one command (both backends must be up):
+
+```bash
+bun run test:e2e:fixtures
+```
+
+The SimpleRBAC pass uses frontend port `3001` so it can start while an enterprise Vite server remains on `:3000`. The SimpleRBAC example backend must allow that origin in CORS (same as enterprise: `http://localhost:3000` and `http://localhost:3001`). Backend resets clear ambient `DATABASE_URL` unless `E2E_DATABASE_URL` is set, so a shell pointed at the enterprise DB cannot seed the wrong fixture. Default `bun run test:e2e` ignores `*simple-rbac*` and `*mounted-backend*` specs.
+
+Playwright global setup will, by default:
+
+- verify the frontend and backend are reachable
+- reset the backend to the seeded review fixture
+- log in seeded personas through the backend API
+- generate per-persona storage states in `playwright/.auth`
+
+This reset is important because the browser suite now intentionally exercises additive mutations like invites, temporary roles, and ABAC edits.
+
+Available seeded personas:
+
+- `admin`
+- `orgAdmin`
+- `permissionAdmin`
+- `regionalAdmin`
+- `officeAdmin`
+- `eastAdmin`
+- `auditor`
+- `teamLead`
+- `agent`
+- `commercialAgent`
+- `summitAdmin`
+
+Example:
+
+```ts
+import { expect, test } from '../support/auth-fixture'
+
+test.use({ persona: 'regionalAdmin' })
+```
+
+## Environment overrides
+
+```bash
+E2E_BASE_URL=http://localhost:3001
+E2E_API_BASE_URL=http://localhost:8005
+E2E_AUTH_API_PREFIX=/iam
+E2E_RESET_BACKEND=0
+E2E_PERSONAS=admin
+E2E_ADMIN_EMAIL=admin@demo.com
+E2E_ADMIN_PASSWORD=Testpass1!
+E2E_BACKEND_REPO_DIR=/path/to/outlabsAuth
+E2E_BACKEND_RESET_SCRIPT=/path/to/reset_test_env.py
+```
+
+These can be used when the frontend or backend run on non-default ports.
+
+- `E2E_RESET_BACKEND=0` skips the automatic reseed step.
+- `E2E_AUTH_API_PREFIX` points Playwright login/bootstrap calls at a non-default
+  auth mount such as `/iam`.
+- `E2E_PERSONAS` limits storage-state bootstrap to a comma-delimited subset such
+  as `admin` when running against a live backend that does not have the full
+  seeded enterprise persona set.
+- `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` override the default admin persona
+  credentials used for login bootstrap.
+- `E2E_BACKEND_REPO_DIR` overrides the backend repo root used for reseeding.
+- `E2E_BACKEND_RESET_SCRIPT` overrides the exact reset script path.
+
+Example: run the targeted mounted-backend entity-discovery spec against the
+mounted `/iam` auth backend without resetting data:
+
+```bash
+E2E_RESET_BACKEND=0 \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@demo.com \
+E2E_ADMIN_PASSWORD=Testpass1! \
+E2E_API_BASE_URL=http://localhost:8010 \
+E2E_AUTH_API_PREFIX=/iam \
+bunx playwright test e2e/entities/entities-mounted-backend-discovery.spec.ts
+```
+
+Example: run the SimpleRBAC smoke suite against the sibling example with its
+seeded admin account:
+
+```bash
+E2E_API_BASE_URL=http://localhost:8003 \
+E2E_BACKEND_RESET_SCRIPT=../outlabsAuth/examples/simple_rbac/reset_test_env.py \
+E2E_PERSONAS=admin \
+E2E_ADMIN_EMAIL=admin@test.com \
+E2E_ADMIN_PASSWORD=Test123!! \
+bunx playwright test e2e/app/app-shell-simple-rbac.spec.ts
+```
+
+## CI
+
+`.github/workflows/ci.yml` runs a `quality` job (typecheck, lint, architecture
+fixture lint, build) on every push to `main` and every pull request — this
+job has no backend dependency and always runs.
+
+The full Playwright E2E suite is **not** part of the default CI gate: it
+needs a live Enterprise RBAC backend (Postgres + uvicorn on `:8004`), which
+the shared runner doesn't stand up automatically today. An `e2e` job exists
+in the same workflow as a documented, opt-in path — it only runs when the
+workflow is manually dispatched with `run_e2e: true`, and the job's comments
+spell out the prerequisites (backend checkout, `DATABASE_URL`, seeding, port
+`8004`). Treat it as a template to finish wiring up, not a currently-green
+gate.
+
+## Authoring Guidance
+
+- Prefer accessible roles and labels first.
+- For Base UI text inputs and textareas, use `typeIntoBaseUiField(...)` instead of `fill()`.
+- For Base UI select controls, use `selectBaseUiOption(...)` instead of brittle button-text selectors.
+- Keep persona setup in `test.use(...)` rather than re-implementing login in specs.
+- Start new feature suites under `e2e/<feature>/`.
+- Prefer reversible mutations in seeded data: edit-and-restore beats one-way destructive setup.

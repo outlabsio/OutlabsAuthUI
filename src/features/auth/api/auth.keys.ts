@@ -1,0 +1,16 @@
+export const authKeys = {
+  all: ['auth'] as const,
+  accessCodeRequest: () => [...authKeys.all, 'access-code-request'] as const,
+  accessCodeVerify: () => [...authKeys.all, 'access-code-verify'] as const,
+  acceptInvite: () => [...authKeys.all, 'accept-invite'] as const,
+  config: () => [...authKeys.all, 'config'] as const,
+  forgotPassword: () => [...authKeys.all, 'forgot-password'] as const,
+  login: () => [...authKeys.all, 'login'] as const,
+  logout: () => [...authKeys.all, 'logout'] as const,
+  magicLinkRequest: () => [...authKeys.all, 'magic-link-request'] as const,
+  magicLinkVerify: () => [...authKeys.all, 'magic-link-verify'] as const,
+  myPermissions: () => [...authKeys.all, 'my-permissions'] as const,
+  resetPassword: () => [...authKeys.all, 'reset-password'] as const,
+  session: () => [...authKeys.all, 'session'] as const,
+  startOAuthLogin: () => [...authKeys.all, 'start-oauth-login'] as const,
+}

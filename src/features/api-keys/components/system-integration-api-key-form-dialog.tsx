@@ -1,0 +1,536 @@
+import { useEffect, useMemo, useState } from 'react'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+
+import { AppFormField } from '@/components/app/app-form-field'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { useCreateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-create-system-integration-api-key-mutation'
+import { useUpdateSystemIntegrationApiKeyMutation } from '@/features/api-keys/hooks/use-update-system-integration-api-key-mutation'
+import {
+  systemIntegrationApiKeyFormSchema,
+  type SystemIntegrationApiKeyFormInput,
+  type SystemIntegrationApiKeyFormValues,
+} from '@/features/api-keys/schemas/system-integration-api-key-form.schema'
+import type {
+  ApiKey,
+  CreateApiKeyResponse,
+  IntegrationPrincipal,
+  IntegrationPrincipalScopeKind,
+} from '@/features/api-keys/types/api-keys.types'
+import { parseDelimitedValues } from '@/features/api-keys/utils/delimited-values'
+import {
+  DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  getLimitedApiKeyRateLimitFallback,
+  isUnlimitedApiKeyRateLimit,
+} from '@/features/api-keys/utils/rate-limit'
+import { RolePermissionsPicker } from '@/features/roles/components/role-permissions-picker'
+import type { RolePermissionOption } from '@/features/roles/types/role-permission-option.types'
+import { formatRoleToken } from '@/features/roles/utils/role-display'
+import { getApiErrorMessage } from '@/lib/api/errors'
+
+type SystemIntegrationApiKeyFormDialogProps = {
+  open: boolean
+  mode: 'create' | 'edit'
+  scopeKind: IntegrationPrincipalScopeKind
+  entityId?: string
+  entityLabel?: string | null
+  principal: IntegrationPrincipal | null
+  apiKey: ApiKey | null
+  onOpenChange: (open: boolean) => void
+  onCreated: (apiKey: CreateApiKeyResponse) => void
+  onUpdated: (apiKey: ApiKey) => void
+}
+
+function buildPermissionOptions(permissionNames: string[]): RolePermissionOption[] {
+  return permissionNames
+    .map((permissionName) => {
+      const resource = permissionName.split(':')[0] || 'general'
+
+      return {
+        name: permissionName,
+        label: formatRoleToken(permissionName),
+        resource,
+        description: null,
+      }
+    })
+    .sort((left, right) => left.label.localeCompare(right.label))
+}
+
+export function SystemIntegrationApiKeyFormDialog({
+  open,
+  mode,
+  scopeKind,
+  entityId,
+  entityLabel,
+  principal,
+  apiKey,
+  onOpenChange,
+  onCreated,
+  onUpdated,
+}: SystemIntegrationApiKeyFormDialogProps) {
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false)
+  const [visiblePermissionCount, setVisiblePermissionCount] = useState(0)
+  const principalAllowedScopes = useMemo(
+    () => principal?.effective_allowed_scopes ?? principal?.allowed_scopes ?? [],
+    [principal?.allowed_scopes, principal?.effective_allowed_scopes]
+  )
+  const permissionOptions = useMemo(
+    () => buildPermissionOptions(principalAllowedScopes),
+    [principalAllowedScopes]
+  )
+  const form = useForm<
+    SystemIntegrationApiKeyFormInput,
+    unknown,
+    SystemIntegrationApiKeyFormValues
+  >({
+    resolver: zodResolver(systemIntegrationApiKeyFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      accessMode: 'full',
+      selectedScopes: [],
+      ipWhitelistText: '',
+      prefixType: 'sk_live',
+      rateLimitPerMinute: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+      expiresInDays: '',
+      status: 'active',
+    },
+  })
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    form.reset({
+      name: apiKey?.name ?? '',
+      description: apiKey?.description ?? '',
+      accessMode: apiKey && apiKey.scopes.length > 0 ? 'restricted' : 'full',
+      selectedScopes: apiKey?.scopes ?? [],
+      ipWhitelistText: (apiKey?.ip_whitelist ?? []).join('\n'),
+      prefixType: 'sk_live',
+      rateLimitPerMinute:
+        apiKey?.rate_limit_per_minute ?? DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+      expiresInDays: '',
+      status: apiKey?.status === 'suspended' ? 'suspended' : 'active',
+    })
+  }, [apiKey, form, open])
+
+  const accessMode = useWatch({
+    control: form.control,
+    name: 'accessMode',
+    defaultValue: 'full',
+  })
+  const selectedScopes = useWatch({
+    control: form.control,
+    name: 'selectedScopes',
+    defaultValue: [],
+  })
+  const rateLimitPerMinute = useWatch({
+    control: form.control,
+    name: 'rateLimitPerMinute',
+    defaultValue: DEFAULT_API_KEY_RATE_LIMIT_PER_MINUTE,
+  })
+  const rateLimitUnlimited = isUnlimitedApiKeyRateLimit(rateLimitPerMinute)
+
+  const createMutation = useCreateSystemIntegrationApiKeyMutation({
+    skipErrorToast: true,
+  })
+  const updateMutation = useUpdateSystemIntegrationApiKeyMutation({
+    skipErrorToast: true,
+  })
+  const activeMutation = mode === 'create' ? createMutation : updateMutation
+
+  const submitError = activeMutation.error
+    ? getApiErrorMessage(
+        activeMutation.error,
+        mode === 'create'
+          ? 'The machine API key could not be created.'
+          : 'The machine API key could not be updated.'
+      )
+    : null
+
+  const isPending = activeMutation.isPending
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setShowSelectedOnly(false)
+    }
+
+    onOpenChange(nextOpen)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 px-4 py-4">
+          <DialogTitle>
+            {mode === 'create' ? 'Create machine API key' : 'Edit machine API key'}
+          </DialogTitle>
+          <DialogDescription>
+            Create or update a service-account-owned key. Full access inherits every permission
+            from the service account envelope; restricted access narrows the key to a subset.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          id="system-integration-api-key-form"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
+          onSubmit={form.handleSubmit(async (values) => {
+            if (!principal) {
+              return
+            }
+
+            const scopes = values.accessMode === 'full' ? [] : values.selectedScopes
+
+            if (values.accessMode === 'restricted' && scopes.length === 0) {
+              form.setError('selectedScopes', {
+                message: 'Choose at least one permission or use full access.',
+              })
+              return
+            }
+
+            const ipWhitelist = parseDelimitedValues(values.ipWhitelistText)
+
+            try {
+              if (mode === 'create') {
+                const result = await createMutation.mutateAsync({
+                  scopeKind,
+                  entityId,
+                  principalId: principal.id,
+                  name: values.name.trim(),
+                  description: values.description.trim() || null,
+                  scopes,
+                  prefix_type: values.prefixType.trim(),
+                  ip_whitelist: ipWhitelist.length > 0 ? ipWhitelist : undefined,
+                  rate_limit_per_minute: values.rateLimitPerMinute,
+                  expires_in_days:
+                    values.expiresInDays === ''
+                      ? undefined
+                      : Number(values.expiresInDays),
+                })
+                onCreated(result)
+                return
+              }
+
+              if (!apiKey) {
+                return
+              }
+
+              const result = await updateMutation.mutateAsync({
+                scopeKind,
+                entityId,
+                principalId: principal.id,
+                keyId: apiKey.id,
+                name: values.name.trim(),
+                description: values.description.trim() || null,
+                scopes,
+                ip_whitelist: ipWhitelist,
+                rate_limit_per_minute: values.rateLimitPerMinute,
+                status: values.status,
+              })
+              onUpdated(result)
+            } catch {
+              return
+            }
+          })}
+        >
+          <div className="rounded-2xl border bg-muted/20 px-4 py-3">
+            <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Service-account envelope
+            </div>
+            <div className="mt-1 text-sm font-medium">
+              {principal?.name ?? 'Select a service account first'}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Badge variant="outline">
+                {scopeKind === 'entity' ? 'Entity scoped' : 'Platform global'}
+              </Badge>
+              {scopeKind === 'entity' && entityLabel ? (
+                <Badge variant="outline">{entityLabel}</Badge>
+              ) : null}
+              <Badge variant="outline">{principalAllowedScopes.length} permissions</Badge>
+            </div>
+            <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-auto pr-1">
+              {principalAllowedScopes.length > 0 ? (
+                principalAllowedScopes.map((scope) => (
+                  <Badge key={scope} variant="secondary">
+                    {formatRoleToken(scope)}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  This service account does not currently derive any permissions.
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AppFormField
+              className="sm:col-span-2"
+              label="Name"
+              htmlFor="system-api-key-name"
+              errors={[form.formState.errors.name]}
+            >
+              <Input
+                id="system-api-key-name"
+                placeholder="Scraping Worker Key"
+                disabled={isPending}
+                {...form.register('name')}
+              />
+            </AppFormField>
+
+            <AppFormField
+              className="sm:col-span-2"
+              label="Description"
+              htmlFor="system-api-key-description"
+              errors={[form.formState.errors.description]}
+            >
+              <Textarea
+                id="system-api-key-description"
+                rows={3}
+                placeholder="What this key is used for."
+                disabled={isPending}
+                {...form.register('description')}
+              />
+            </AppFormField>
+
+            <div className="space-y-3 sm:col-span-2">
+              <div className="space-y-1">
+                <Label>Access model</Label>
+                <p className="text-xs text-muted-foreground">
+                  Full access inherits every service-account permission. Restricted access narrows
+                  the key to a chosen subset.
+                </p>
+              </div>
+              <Controller
+                control={form.control}
+                name="accessMode"
+                render={({ field }) => (
+                  <RadioGroup
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                    className="grid gap-3 md:grid-cols-2"
+                  >
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4">
+                      <RadioGroupItem value="full" />
+                      <div className="space-y-1">
+                        <div className="font-medium">Full service-account access</div>
+                        <p className="text-sm text-muted-foreground">
+                          The key inherits all {principalAllowedScopes.length} permissions from the
+                          selected service account.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4">
+                      <RadioGroupItem value="restricted" />
+                      <div className="space-y-1">
+                        <div className="font-medium">Restricted access</div>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a smaller permission set for this specific key.
+                        </p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                )}
+              />
+            </div>
+
+            {accessMode === 'restricted' ? (
+              <div className="space-y-3 sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <Label>Restricted permissions</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Filter and select the permissions this key should keep.
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {selectedScopes.length} selected · {visiblePermissionCount} visible
+                  </Badge>
+                </div>
+
+                <RolePermissionsPicker
+                  permissionOptions={permissionOptions}
+                  selectedPermissionNames={selectedScopes}
+                  showSelectedOnly={showSelectedOnly}
+                  disabled={isPending || permissionOptions.length === 0}
+                  onShowSelectedOnlyChange={setShowSelectedOnly}
+                  onVisiblePermissionCountChange={setVisiblePermissionCount}
+                  onChange={(permissionNames) =>
+                    form.setValue('selectedScopes', permissionNames, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
+                <FieldError errors={[form.formState.errors.selectedScopes]} />
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="system-api-key-rate-limit">Rate limit per minute</Label>
+                <label className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm font-medium">
+                  <span className={rateLimitUnlimited ? 'text-foreground' : 'text-muted-foreground'}>
+                    Unlimited
+                  </span>
+                  <Switch
+                    checked={rateLimitUnlimited}
+                    disabled={isPending}
+                    aria-label="Use unlimited rate limit"
+                    onCheckedChange={(checked) => {
+                      form.setValue(
+                        'rateLimitPerMinute',
+                        checked ? 0 : getLimitedApiKeyRateLimitFallback(rateLimitPerMinute),
+                        {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        }
+                      )
+                    }}
+                  />
+                </label>
+              </div>
+              <Input
+                id="system-api-key-rate-limit"
+                type="number"
+                min={0}
+                readOnly={rateLimitUnlimited}
+                disabled={isPending}
+                {...form.register('rateLimitPerMinute')}
+              />
+              <div className="text-xs text-muted-foreground">
+                Use 0 or the Unlimited switch for trusted service keys that should not be throttled.
+              </div>
+              <FieldError errors={[form.formState.errors.rateLimitPerMinute]} />
+            </div>
+
+            {mode === 'create' ? (
+              <AppFormField
+                label="Expires in days"
+                htmlFor="system-api-key-expires-days"
+                errors={[form.formState.errors.expiresInDays]}
+              >
+                <Input
+                  id="system-api-key-expires-days"
+                  type="number"
+                  min={1}
+                  placeholder="Optional"
+                  disabled={isPending}
+                  {...form.register('expiresInDays')}
+                />
+              </AppFormField>
+            ) : (
+              <div className="space-y-2">
+                <Label>Lifecycle</Label>
+                <Controller
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select lifecycle state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError errors={[form.formState.errors.status]} />
+              </div>
+            )}
+
+            <AppFormField
+              label="Prefix type"
+              htmlFor="system-api-key-prefix-type"
+              errors={[form.formState.errors.prefixType]}
+            >
+              <Input
+                id="system-api-key-prefix-type"
+                disabled={isPending || mode === 'edit'}
+                {...form.register('prefixType')}
+              />
+            </AppFormField>
+
+            <AppFormField
+              className="sm:col-span-2"
+              label="IP whitelist"
+              htmlFor="system-api-key-ip-whitelist"
+              description="Separate addresses or CIDR blocks with commas or new lines."
+              errors={[form.formState.errors.ipWhitelistText]}
+            >
+              <Textarea
+                id="system-api-key-ip-whitelist"
+                rows={3}
+                placeholder="203.0.113.10, 198.51.100.0/24"
+                disabled={isPending}
+                {...form.register('ipWhitelistText')}
+              />
+            </AppFormField>
+          </div>
+
+          {submitError ? <FieldError>{submitError}</FieldError> : null}
+        </form>
+
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t bg-muted/50 px-4 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="system-integration-api-key-form"
+            disabled={isPending || !principal || principalAllowedScopes.length === 0}
+          >
+            {isPending
+              ? mode === 'create'
+                ? 'Creating...'
+                : 'Saving...'
+              : mode === 'create'
+                ? 'Create key'
+                : 'Save changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
