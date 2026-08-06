@@ -8,10 +8,13 @@ import type { Permission, PermissionsListFilters } from '~/types/permission'
 
 // P2 vertical — copy of pages/app/roles/index.vue against /permissions.
 const toast = useToast()
+const { hasPermission } = useAuth()
 
 const filters = reactive<PermissionsListFilters>({ page: 1, limit: 1000 })
 const search = ref('')
-const { data, status, error, refetch } = useQuery(() => permissionsListQuery({ ...filters }))
+// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
+// denied actor; the AppPermissionGate renders the same verdict in-place.
+const { data, status, error, refetch } = useQuery(() => ({ ...permissionsListQuery({ ...filters }), enabled: hasPermission('permission:read') }))
 
 // Permissions list is small and returned whole; filter client-side by name/display_name.
 const rows = computed<Permission[]>(() => {
@@ -91,7 +94,12 @@ async function onConfirmDelete() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton icon="i-lucide-plus" label="Add permission" @click="createOpen = true" />
+          <UButton
+            v-if="hasPermission('permission:create')"
+            icon="i-lucide-plus"
+            label="Add permission"
+            @click="createOpen = true"
+          />
         </template>
       </UDashboardNavbar>
 
@@ -108,45 +116,47 @@ async function onConfirmDelete() {
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load permissions"
-        :description="getApiErrorMessage(error)"
-        class="mb-4"
-      />
+      <AppPermissionGate permission="permission:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load permissions"
+          :description="getApiErrorMessage(error)"
+          class="mb-4"
+        />
 
-      <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
-        <template #display_name-cell="{ row }">
-          <ULink :to="`/app/permissions/${row.original.id}`" class="font-medium text-highlighted hover:underline">
-            {{ row.original.display_name }}
-          </ULink>
-        </template>
-        <template #is_system-cell="{ row }">
-          <UBadge :color="row.original.is_system ? 'neutral' : 'primary'" variant="subtle">
-            {{ row.original.is_system ? 'System' : 'Custom' }}
-          </UBadge>
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge :color="row.original.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-        <template #actions-cell="{ row }">
-          <div class="text-right">
-            <UDropdownMenu v-if="!row.original.is_system" :items="rowMenu(row.original)">
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Permission actions"
-              />
-            </UDropdownMenu>
-          </div>
-        </template>
-      </UTable>
+        <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
+          <template #display_name-cell="{ row }">
+            <ULink :to="`/app/permissions/${row.original.id}`" class="font-medium text-highlighted hover:underline">
+              {{ row.original.display_name }}
+            </ULink>
+          </template>
+          <template #is_system-cell="{ row }">
+            <UBadge :color="row.original.is_system ? 'neutral' : 'primary'" variant="subtle">
+              {{ row.original.is_system ? 'System' : 'Custom' }}
+            </UBadge>
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge :color="row.original.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">
+              {{ row.original.status }}
+            </UBadge>
+          </template>
+          <template #actions-cell="{ row }">
+            <div class="text-right">
+              <UDropdownMenu v-if="!row.original.is_system" :items="rowMenu(row.original)">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Permission actions"
+                />
+              </UDropdownMenu>
+            </div>
+          </template>
+        </UTable>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 

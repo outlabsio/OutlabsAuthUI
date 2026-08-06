@@ -9,9 +9,12 @@ import type { User, UsersListFilters } from '~/types/user'
 // Reference vertical (A3/A4). List = Pinia Colada query; create/edit/delete = Zod UForm +
 // mutations that invalidate the resource root key. Every other resource copies this shape.
 const toast = useToast()
+const { hasPermission } = useAuth()
 
 const filters = reactive<UsersListFilters>({ page: 1, limit: 20, search: '' })
-const { data, status, error, refetch } = useQuery(() => usersListQuery({ ...filters }))
+// Gate the fetch on the read permission too, not just the render — a denied actor never
+// fires the (guaranteed-403) list call. The AppPermissionGate shows the same verdict in-place.
+const { data, status, error, refetch } = useQuery(() => ({ ...usersListQuery({ ...filters }), enabled: hasPermission('user:read') }))
 
 const rows = computed<User[]>(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
@@ -137,7 +140,12 @@ async function onConfirmDelete() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton icon="i-lucide-plus" label="Add user" @click="createOpen = true" />
+          <UButton
+            v-if="hasPermission('user:create')"
+            icon="i-lucide-plus"
+            label="Add user"
+            @click="createOpen = true"
+          />
         </template>
       </UDashboardNavbar>
 
@@ -154,52 +162,54 @@ async function onConfirmDelete() {
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load users"
-        :description="getApiErrorMessage(error)"
-        class="mb-4"
-      />
-
-      <UTable
-        :data="rows"
-        :columns="columns"
-        :loading="status === 'pending'"
-      >
-        <template #email-cell="{ row }">
-          <ULink :to="`/app/users/${row.original.id}`" class="font-medium text-highlighted hover:underline">
-            {{ row.original.email }}
-          </ULink>
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-        <template #actions-cell="{ row }">
-          <div class="text-right">
-            <UDropdownMenu :items="rowMenu(row.original)">
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="User actions"
-              />
-            </UDropdownMenu>
-          </div>
-        </template>
-      </UTable>
-
-      <div v-if="total > filters.limit!" class="flex justify-end pt-4">
-        <UPagination
-          v-model:page="filters.page"
-          :total="total"
-          :items-per-page="filters.limit"
+      <AppPermissionGate permission="user:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load users"
+          :description="getApiErrorMessage(error)"
+          class="mb-4"
         />
-      </div>
+
+        <UTable
+          :data="rows"
+          :columns="columns"
+          :loading="status === 'pending'"
+        >
+          <template #email-cell="{ row }">
+            <ULink :to="`/app/users/${row.original.id}`" class="font-medium text-highlighted hover:underline">
+              {{ row.original.email }}
+            </ULink>
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
+              {{ row.original.status }}
+            </UBadge>
+          </template>
+          <template #actions-cell="{ row }">
+            <div class="text-right">
+              <UDropdownMenu :items="rowMenu(row.original)">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="User actions"
+                />
+              </UDropdownMenu>
+            </div>
+          </template>
+        </UTable>
+
+        <div v-if="total > filters.limit!" class="flex justify-end pt-4">
+          <UPagination
+            v-model:page="filters.page"
+            :total="total"
+            :items-per-page="filters.limit"
+          />
+        </div>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 

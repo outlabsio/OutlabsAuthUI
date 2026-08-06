@@ -23,6 +23,7 @@ import type {
 
 export const SESSION_KEY = ['session'] as const
 export const AUTH_CONFIG_KEY = ['auth-config'] as const
+export const MY_PERMISSIONS_KEY = ['my-permissions'] as const
 
 export const sessionQuery = defineQueryOptions({
   key: SESSION_KEY,
@@ -39,16 +40,25 @@ export const authConfigQuery = defineQueryOptions({
   staleTime: 1000 * 60 * 30
 })
 
+// The current actor's effective permission names (RBAC gating). Superusers bypass this.
+export const myPermissionsQuery = defineQueryOptions({
+  key: MY_PERMISSIONS_KEY,
+  query: () => apiClient.get<string[]>('/permissions/me'),
+  staleTime: 1000 * 60 * 5
+})
+
 // Shared finalizer: store tokens, then seed the session + config caches so the whole app
 // reflects the logged-in identity immediately (no refetch flash).
 export async function finalizeAuth(queryCache: QueryCache, tokens: AuthTokens): Promise<SessionUser> {
   setStoredAuthTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token })
-  const [user, config] = await Promise.all([
+  const [user, config, permissions] = await Promise.all([
     apiClient.get<SessionUser>('/users/me'),
-    apiClient.get<AuthConfig>('/auth/config')
+    apiClient.get<AuthConfig>('/auth/config'),
+    apiClient.get<string[]>('/permissions/me')
   ])
   queryCache.setQueryData(SESSION_KEY, user)
   queryCache.setQueryData(AUTH_CONFIG_KEY, config)
+  queryCache.setQueryData(MY_PERMISSIONS_KEY, permissions)
   return user
 }
 
@@ -56,6 +66,7 @@ export async function finalizeAuth(queryCache: QueryCache, tokens: AuthTokens): 
 export function resetSession(queryCache: QueryCache) {
   clearStoredAuthTokens()
   queryCache.setQueryData(SESSION_KEY, null)
+  queryCache.setQueryData(MY_PERMISSIONS_KEY, [])
 }
 
 // ── Mutations (composables, one per auth flow) ──

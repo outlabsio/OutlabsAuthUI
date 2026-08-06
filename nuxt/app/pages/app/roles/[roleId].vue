@@ -5,8 +5,10 @@ import { getApiErrorMessage } from '~/utils/api'
 
 const route = useRoute()
 const roleId = computed(() => String(route.params.roleId))
+const { hasPermission } = useAuth()
 
-const { data: role, status, error } = useQuery(() => roleDetailQuery(roleId.value))
+// Gate the fetch on the read permission (see users/index.vue).
+const { data: role, status, error } = useQuery(() => ({ ...roleDetailQuery(roleId.value), enabled: hasPermission('role:read') }))
 
 const detailItems = computed(() => {
   const r = role.value
@@ -41,51 +43,53 @@ const detailItems = computed(() => {
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load role"
-        :description="getApiErrorMessage(error)"
-      />
+      <AppPermissionGate permission="role:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load role"
+          :description="getApiErrorMessage(error)"
+        />
 
-      <div v-else class="mx-auto w-full max-w-3xl space-y-6">
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              Details
-            </h2>
-          </template>
-          <AppDetailList :items="detailItems" />
-          <p v-if="role?.description" class="mt-4 text-sm text-muted">
-            {{ role.description }}
-          </p>
-        </UCard>
-
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
+        <div v-else class="mx-auto w-full max-w-3xl space-y-6">
+          <UCard>
+            <template #header>
               <h2 class="font-semibold text-highlighted">
-                Permissions
+                Details
               </h2>
-              <span class="text-sm text-muted">{{ role?.permissions.length ?? 0 }}</span>
+            </template>
+            <AppDetailList :items="detailItems" />
+            <p v-if="role?.description" class="mt-4 text-sm text-muted">
+              {{ role.description }}
+            </p>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-highlighted">
+                  Permissions
+                </h2>
+                <span class="text-sm text-muted">{{ role?.permissions.length ?? 0 }}</span>
+              </div>
+            </template>
+            <div v-if="role?.permissions.length" class="flex flex-wrap gap-2">
+              <UBadge
+                v-for="p in role.permissions"
+                :key="p"
+                color="neutral"
+                variant="subtle"
+              >
+                {{ p }}
+              </UBadge>
             </div>
-          </template>
-          <div v-if="role?.permissions.length" class="flex flex-wrap gap-2">
-            <UBadge
-              v-for="p in role.permissions"
-              :key="p"
-              color="neutral"
-              variant="subtle"
-            >
-              {{ p }}
-            </UBadge>
-          </div>
-          <p v-else class="text-sm text-muted">
-            No permissions attached.
-          </p>
-        </UCard>
-      </div>
+            <p v-else class="text-sm text-muted">
+              No permissions attached.
+            </p>
+          </UCard>
+        </div>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 </template>

@@ -8,9 +8,12 @@ import type { Role, RolesListFilters } from '~/types/role'
 
 // P2 vertical — copy of pages/app/users/index.vue against /roles.
 const toast = useToast()
+const { hasPermission } = useAuth()
 
 const filters = reactive<RolesListFilters>({ page: 1, limit: 100, search: '' })
-const { data, status, error, refetch } = useQuery(() => rolesListQuery({ ...filters }))
+// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
+// denied actor; the AppPermissionGate renders the same verdict in-place.
+const { data, status, error, refetch } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
 
 const rows = computed<Role[]>(() => data.value?.items ?? [])
 
@@ -129,7 +132,12 @@ async function onConfirmDelete() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton icon="i-lucide-plus" label="Add role" @click="createOpen = true" />
+          <UButton
+            v-if="hasPermission('role:create')"
+            icon="i-lucide-plus"
+            label="Add role"
+            @click="createOpen = true"
+          />
         </template>
       </UDashboardNavbar>
 
@@ -146,48 +154,50 @@ async function onConfirmDelete() {
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load roles"
-        :description="getApiErrorMessage(error)"
-        class="mb-4"
-      />
+      <AppPermissionGate permission="role:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load roles"
+          :description="getApiErrorMessage(error)"
+          class="mb-4"
+        />
 
-      <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
-        <template #display_name-cell="{ row }">
-          <ULink :to="`/app/roles/${row.original.id}`" class="font-medium text-highlighted hover:underline">
-            {{ row.original.display_name }}
-          </ULink>
-        </template>
-        <template #scope-cell="{ row }">
-          <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
-        </template>
-        <template #is_global-cell="{ row }">
-          <UBadge :color="row.original.is_global ? 'primary' : 'neutral'" variant="subtle">
-            {{ row.original.is_global ? 'Global' : 'Scoped' }}
-          </UBadge>
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-        <template #actions-cell="{ row }">
-          <div class="text-right">
-            <UDropdownMenu :items="rowMenu(row.original)">
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Role actions"
-              />
-            </UDropdownMenu>
-          </div>
-        </template>
-      </UTable>
+        <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
+          <template #display_name-cell="{ row }">
+            <ULink :to="`/app/roles/${row.original.id}`" class="font-medium text-highlighted hover:underline">
+              {{ row.original.display_name }}
+            </ULink>
+          </template>
+          <template #scope-cell="{ row }">
+            <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
+          </template>
+          <template #is_global-cell="{ row }">
+            <UBadge :color="row.original.is_global ? 'primary' : 'neutral'" variant="subtle">
+              {{ row.original.is_global ? 'Global' : 'Scoped' }}
+            </UBadge>
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
+              {{ row.original.status }}
+            </UBadge>
+          </template>
+          <template #actions-cell="{ row }">
+            <div class="text-right">
+              <UDropdownMenu :items="rowMenu(row.original)">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Role actions"
+                />
+              </UDropdownMenu>
+            </div>
+          </template>
+        </UTable>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 

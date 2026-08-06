@@ -8,10 +8,14 @@ import type { UserSession } from '~/types/account'
 
 const route = useRoute()
 const userId = computed(() => String(route.params.userId))
+const { hasPermission } = useAuth()
 
-const { data: user, status, error } = useQuery(() => userDetailQuery(userId.value))
-const { data: roles } = useQuery(() => userRolesQuery(userId.value))
-const { data: sessions, status: sessionsStatus } = useQuery(() => userSessionsQuery(userId.value))
+// Gate every fetch on the read permission (see users/index.vue) — a denied actor sees the
+// AppPermissionGate verdict and fires no 403s.
+const canRead = computed(() => hasPermission('user:read'))
+const { data: user, status, error } = useQuery(() => ({ ...userDetailQuery(userId.value), enabled: canRead.value }))
+const { data: roles } = useQuery(() => ({ ...userRolesQuery(userId.value), enabled: canRead.value }))
+const { data: sessions, status: sessionsStatus } = useQuery(() => ({ ...userSessionsQuery(userId.value), enabled: canRead.value }))
 
 const profileItems = computed(() => {
   const u = user.value
@@ -62,55 +66,57 @@ const sessionColumns: TableColumn<UserSession>[] = [
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load user"
-        :description="getApiErrorMessage(error)"
-      />
+      <AppPermissionGate permission="user:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load user"
+          :description="getApiErrorMessage(error)"
+        />
 
-      <div v-else class="mx-auto w-full max-w-3xl space-y-6">
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
+        <div v-else class="mx-auto w-full max-w-3xl space-y-6">
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-highlighted">
+                  Profile
+                </h2>
+                <UBadge v-if="user" variant="subtle" class="capitalize">
+                  {{ user.status }}
+                </UBadge>
+              </div>
+            </template>
+            <AppDetailList :items="profileItems" />
+          </UCard>
+
+          <UCard>
+            <template #header>
               <h2 class="font-semibold text-highlighted">
-                Profile
+                Roles
               </h2>
-              <UBadge v-if="user" variant="subtle" class="capitalize">
-                {{ user.status }}
-              </UBadge>
-            </div>
-          </template>
-          <AppDetailList :items="profileItems" />
-        </UCard>
-
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              Roles
-            </h2>
-          </template>
-          <UTable :data="roleRows" :columns="roleColumns" :empty="'No roles assigned.'">
-            <template #scope-cell="{ row }">
-              <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
             </template>
-          </UTable>
-        </UCard>
+            <UTable :data="roleRows" :columns="roleColumns" :empty="'No roles assigned.'">
+              <template #scope-cell="{ row }">
+                <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
+              </template>
+            </UTable>
+          </UCard>
 
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              Active sessions
-            </h2>
-          </template>
-          <UTable :data="sessionRows" :columns="sessionColumns" :loading="sessionsStatus === 'pending'">
-            <template #last_used_at-cell="{ row }">
-              {{ row.original.last_used_at ?? '—' }}
+          <UCard>
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                Active sessions
+              </h2>
             </template>
-          </UTable>
-        </UCard>
-      </div>
+            <UTable :data="sessionRows" :columns="sessionColumns" :loading="sessionsStatus === 'pending'">
+              <template #last_used_at-cell="{ row }">
+                {{ row.original.last_used_at ?? '—' }}
+              </template>
+            </UTable>
+          </UCard>
+        </div>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 </template>

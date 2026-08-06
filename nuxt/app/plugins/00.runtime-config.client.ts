@@ -2,7 +2,7 @@ import { useQueryCache } from '@pinia/colada'
 import { initializeRuntimeConfig, type RuntimeConfig, type RuntimeConfigError, type RuntimeConfigInput } from '~/utils/runtime-config'
 import { apiClient, authSessionExpiredEvent } from '~/utils/api'
 import { clearStoredAuthTokens, hasStoredAuthTokens, isAuthTokenStorageKey, tokensPresent } from '~/utils/auth-token'
-import { AUTH_CONFIG_KEY, SESSION_KEY, resetSession } from '~/queries/session'
+import { AUTH_CONFIG_KEY, MY_PERMISSIONS_KEY, SESSION_KEY, resetSession } from '~/queries/session'
 import type { AuthConfig, SessionUser } from '~/types/auth'
 
 // Runs first (00 prefix), client-only, async — blocks app mount until (1) the backend target
@@ -35,11 +35,15 @@ export default defineNuxtPlugin(async () => {
     // Non-fatal — the authConfig query retries on demand.
   }
 
-  // Resolve the session before the first guarded navigation.
+  // Resolve the session + actor permissions before the first guarded navigation.
   if (hasStoredAuthTokens()) {
     try {
-      const user = await apiClient.get<SessionUser>('/users/me')
+      const [user, permissions] = await Promise.all([
+        apiClient.get<SessionUser>('/users/me'),
+        apiClient.get<string[]>('/permissions/me')
+      ])
       queryCache.setQueryData(SESSION_KEY, user)
+      queryCache.setQueryData(MY_PERMISSIONS_KEY, permissions)
     } catch {
       clearStoredAuthTokens()
       queryCache.setQueryData(SESSION_KEY, null)

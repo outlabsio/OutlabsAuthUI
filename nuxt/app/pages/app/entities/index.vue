@@ -7,8 +7,12 @@ import type { EntitiesListFilters, Entity } from '~/types/entity'
 
 // P2 vertical (read-only) — the entity hierarchy. Create/move is hierarchy-constrained and
 // lands in a later pass with a tree-aware form.
+const { hasPermission } = useAuth()
+
 const filters = reactive<EntitiesListFilters>({ page: 1, limit: 100, search: '' })
-const { data, status, error } = useQuery(() => entitiesListQuery({ ...filters }))
+// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
+// denied actor; the AppPermissionGate renders the same verdict in-place.
+const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ ...filters }), enabled: hasPermission('entity:read') }))
 
 const rows = computed<Entity[]>(() => data.value?.items ?? [])
 
@@ -43,32 +47,34 @@ const columns: TableColumn<Entity>[] = [
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load entities"
-        :description="getApiErrorMessage(error)"
-        class="mb-4"
-      />
+      <AppPermissionGate permission="entity:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load entities"
+          :description="getApiErrorMessage(error)"
+          class="mb-4"
+        />
 
-      <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
-        <template #display_name-cell="{ row }">
-          <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-highlighted hover:underline">
-            {{ row.original.display_name }}
-          </ULink>
-        </template>
-        <template #entity_class-cell="{ row }">
-          <UBadge :color="row.original.entity_class === 'structural' ? 'primary' : 'neutral'" variant="subtle">
-            {{ row.original.entity_class.replace('_', ' ') }}
-          </UBadge>
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge :color="row.original.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-      </UTable>
+        <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
+          <template #display_name-cell="{ row }">
+            <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-highlighted hover:underline">
+              {{ row.original.display_name }}
+            </ULink>
+          </template>
+          <template #entity_class-cell="{ row }">
+            <UBadge :color="row.original.entity_class === 'structural' ? 'primary' : 'neutral'" variant="subtle">
+              {{ row.original.entity_class.replace('_', ' ') }}
+            </UBadge>
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge :color="row.original.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">
+              {{ row.original.status }}
+            </UBadge>
+          </template>
+        </UTable>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 </template>

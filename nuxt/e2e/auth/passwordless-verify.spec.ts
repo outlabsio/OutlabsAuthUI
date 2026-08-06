@@ -98,6 +98,9 @@ test.describe('passwordless verify (dev capture)', () => {
     await page.getByRole('button', { name: 'Accept and sign in' }).click()
 
     await expect(page).toHaveURL(/\/app\//)
-    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
+    // The invitee is a fresh, role-less user: the app shell renders (Dashboard nav is
+    // unguarded) but the RBAC-gated admin resources stay hidden.
+    await expect(page.getByRole('link', { name: 'Dashboard', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users', exact: true })).toHaveCount(0)
   })
 })

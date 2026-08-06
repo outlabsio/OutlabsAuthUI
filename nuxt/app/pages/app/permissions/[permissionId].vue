@@ -5,8 +5,10 @@ import { getApiErrorMessage } from '~/utils/api'
 
 const route = useRoute()
 const permissionId = computed(() => String(route.params.permissionId))
+const { hasPermission } = useAuth()
 
-const { data: permission, status, error } = useQuery(() => permissionDetailQuery(permissionId.value))
+// Gate the fetch on the read permission (see users/index.vue).
+const { data: permission, status, error } = useQuery(() => ({ ...permissionDetailQuery(permissionId.value), enabled: hasPermission('permission:read') }))
 
 const detailItems = computed(() => {
   const p = permission.value
@@ -41,27 +43,29 @@ const detailItems = computed(() => {
     </template>
 
     <template #body>
-      <UAlert
-        v-if="status === 'error'"
-        color="error"
-        icon="i-lucide-triangle-alert"
-        title="Could not load permission"
-        :description="getApiErrorMessage(error)"
-      />
+      <AppPermissionGate permission="permission:read">
+        <UAlert
+          v-if="status === 'error'"
+          color="error"
+          icon="i-lucide-triangle-alert"
+          title="Could not load permission"
+          :description="getApiErrorMessage(error)"
+        />
 
-      <div v-else class="mx-auto w-full max-w-3xl space-y-6">
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              Details
-            </h2>
-          </template>
-          <AppDetailList :items="detailItems" />
-          <p v-if="permission?.description" class="mt-4 text-sm text-muted">
-            {{ permission.description }}
-          </p>
-        </UCard>
-      </div>
+        <div v-else class="mx-auto w-full max-w-3xl space-y-6">
+          <UCard>
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                Details
+              </h2>
+            </template>
+            <AppDetailList :items="detailItems" />
+            <p v-if="permission?.description" class="mt-4 text-sm text-muted">
+              {{ permission.description }}
+            </p>
+          </UCard>
+        </div>
+      </AppPermissionGate>
     </template>
   </UDashboardPanel>
 </template>
