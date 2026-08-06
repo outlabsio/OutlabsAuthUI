@@ -23,6 +23,7 @@
     "test:e2e:permissions": "playwright test e2e/permissions",
     "test:e2e:api-keys": "playwright test e2e/api-keys",
     "test:e2e:entities": "playwright test e2e/entities",
+    "test:e2e:audit": "playwright test e2e/audit",
     "test:e2e:settings": "playwright test e2e/settings",
     "test:e2e:account": "playwright test e2e/account",
     "test:e2e:a11y": "playwright test e2e/a11y"
