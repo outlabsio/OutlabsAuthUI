@@ -53,6 +53,11 @@ const columns: TableColumn<Entity>[] = [
       />
 
       <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
+        <template #display_name-cell="{ row }">
+          <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-primary">
+            {{ row.original.display_name }}
+          </ULink>
+        </template>
         <template #entity_class-cell="{ row }">
           <UBadge :color="row.original.entity_class === 'structural' ? 'primary' : 'neutral'" variant="subtle">
             {{ row.original.entity_class.replace('_', ' ') }}

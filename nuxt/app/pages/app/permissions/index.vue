@@ -85,6 +85,11 @@ async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
       />
 
       <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
+        <template #display_name-cell="{ row }">
+          <ULink :to="`/app/permissions/${row.original.id}`" class="font-medium text-primary">
+            {{ row.original.display_name }}
+          </ULink>
+        </template>
         <template #is_system-cell="{ row }">
           <UBadge :color="row.original.is_system ? 'neutral' : 'primary'" variant="subtle">
             {{ row.original.is_system ? 'System' : 'Custom' }}

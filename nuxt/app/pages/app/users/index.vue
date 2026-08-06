@@ -97,6 +97,11 @@ async function onCreate(event: FormSubmitEvent<CreateUserSchema>) {
         :columns="columns"
         :loading="status === 'pending'"
       >
+        <template #email-cell="{ row }">
+          <ULink :to="`/app/users/${row.original.id}`" class="font-medium text-primary">
+            {{ row.original.email }}
+          </ULink>
+        </template>
         <template #status-cell="{ row }">
           <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
             {{ row.original.status }}

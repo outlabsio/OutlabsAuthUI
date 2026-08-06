@@ -7,6 +7,8 @@ import type {
   UsersListFilters,
   UsersListResponse
 } from '~/types/user'
+import type { Role } from '~/types/role'
+import type { UserSession } from '~/types/account'
 
 // A3 — the reference resource vertical. Pinia Colada owns all server state for users.
 // Key convention: ['users', 'list', filters] for lists, ['users', 'detail', id] for details.
@@ -35,6 +37,16 @@ export const usersListQuery = defineQueryOptions((filters: UsersListFilters) => 
 export const userDetailQuery = defineQueryOptions((userId: string) => ({
   key: [USERS_ROOT, 'detail', userId],
   query: ctx => apiClient.get<User>(`/users/${userId}`, { signal: ctx?.signal })
+}))
+
+export const userRolesQuery = defineQueryOptions((userId: string) => ({
+  key: [USERS_ROOT, 'detail', userId, 'roles'],
+  query: ctx => apiClient.get<Role[]>(`/users/${userId}/roles`, { signal: ctx?.signal })
+}))
+
+export const userSessionsQuery = defineQueryOptions((userId: string) => ({
+  key: [USERS_ROOT, 'detail', userId, 'sessions'],
+  query: ctx => apiClient.get<UserSession[]>(`/users/${userId}/sessions`, { signal: ctx?.signal })
 }))
 
 export function useCreateUser() {
