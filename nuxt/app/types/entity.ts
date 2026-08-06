@@ -15,6 +15,9 @@ export type Entity = {
   entity_type: string
   parent_entity_id?: string | null
   status: EntityStatusValue
+  // Child governance — constrains what may be created directly under this entity.
+  allowed_child_classes?: EntityClassValue[] | null
+  allowed_child_types?: string[] | null
 }
 
 export type EntitiesListResponse = PaginatedResponse<Entity>
@@ -29,8 +32,8 @@ export type EntitiesListFilters = {
   rootOnly?: boolean
 }
 
-// Create payload (POST /entities/). Omitting parent_entity_id creates a root. The advanced
-// child-governance fields (allowed_child_*, patterns, validity window) are a later pass.
+// Create payload (POST /entities/). Omitting parent_entity_id creates a root. Naming patterns,
+// validity windows and max_members remain a later pass.
 export type CreateEntityInput = {
   name: string
   display_name: string
@@ -39,6 +42,8 @@ export type CreateEntityInput = {
   entity_class: EntityClassValue
   entity_type: string
   parent_entity_id?: string
+  allowed_child_classes?: EntityClassValue[]
+  allowed_child_types?: string[]
 }
 
 // Update payload (PATCH /entities/{id}). entity_type is not editable post-create.
@@ -46,4 +51,6 @@ export type UpdateEntityInput = {
   display_name?: string
   description?: string | null
   status?: EntityStatusValue
+  allowed_child_classes?: EntityClassValue[]
+  allowed_child_types?: string[]
 }

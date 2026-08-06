@@ -11,7 +11,8 @@ const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 type SeededEntity = { id: string, display_name: string, parent_entity_id: string | null }
 
 // Seed an entity through the API, reusing the setup-minted admin token (no extra logins).
-async function createEntityViaApi(parentId?: string): Promise<SeededEntity> {
+// Pass allowedChildTypes to make it a governed parent.
+async function createEntityViaApi(parentId?: string, allowedChildTypes?: string[]): Promise<SeededEntity> {
   const stamp = `${Date.now()}-${Math.floor(Math.random() * 100000)}`
   const slug = `pw-api-${stamp}`
   const res = await fetch(`${apiBaseUrl}${authApiPrefix}/entities/`, {
@@ -23,7 +24,8 @@ async function createEntityViaApi(parentId?: string): Promise<SeededEntity> {
       slug,
       entity_class: 'structural',
       entity_type: 'organization',
-      ...(parentId ? { parent_entity_id: parentId } : {})
+      ...(parentId ? { parent_entity_id: parentId } : {}),
+      ...(allowedChildTypes ? { allowed_child_types: allowedChildTypes, allowed_child_classes: ['structural'] } : {})
     })
   })
   if (!res.ok) throw new Error(`Seed entity failed: ${res.status}`)
@@ -129,5 +131,41 @@ test.describe('entities workspace', () => {
     await expect(page.locator('#entity-move-parent')).toBeHidden()
     expect(moves).toHaveLength(1)
     expect(moves[0]).toEqual(expect.objectContaining({ new_parent_id: parent.id }))
+  })
+
+  test('sends child-governance in the create payload', async ({ page }) => {
+    const stamp = Date.now()
+    const slug = `pw-gov-${stamp}`
+    const posts: Array<Record<string, unknown>> = []
+    await page.route(/\/entities\/?$/, async (route) => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON() as Record<string, unknown>)
+      await route.continue()
+    })
+
+    await page.goto('/app/entities')
+    await fillCreateForm(page, slug, `PW Gov ${stamp}`)
+    await page.getByRole('checkbox', { name: 'Structural', exact: true }).check()
+    await page.locator('#entity-allowed-child-types').fill('region, office')
+    await page.getByRole('button', { name: 'Create entity' }).click()
+
+    await expect(page.locator('#entity-name')).toBeHidden()
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toEqual(
+      expect.objectContaining({ allowed_child_types: ['region', 'office'], allowed_child_classes: ['structural'] })
+    )
+  })
+
+  test('surfaces the parent governance guidance when a governed parent is selected', async ({ page }) => {
+    const parent = await createEntityViaApi(undefined, ['region'])
+
+    await page.goto('/app/entities')
+    await page.getByRole('button', { name: 'New entity' }).click()
+    await expect(page.locator('#entity-parent')).toBeVisible()
+    await expect(page.locator(`#entity-parent option[value="${parent.id}"]`)).toHaveCount(1)
+    await page.locator('#entity-parent').selectOption(parent.id)
+
+    const guidance = page.getByTestId('parent-governance')
+    await expect(guidance).toBeVisible()
+    await expect(guidance).toContainText('region')
   })
 })

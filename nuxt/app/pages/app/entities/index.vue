@@ -37,14 +37,31 @@ const createState = reactive({
   slug: '',
   description: '',
   entityClass: 'structural' as EntityClassValue,
-  entityType: ''
+  entityType: '',
+  allowedChildClasses: [] as EntityClassValue[],
+  allowedChildTypes: ''
 })
 const createErrors = reactive({ name: '', displayName: '', slug: '', entityType: '' })
 const createEntity = useCreateEntity()
 const creating = ref(false)
 
+function parseChildTypes(raw: string): string[] {
+  return raw.split(',').map(t => t.trim()).filter(Boolean)
+}
+function toggleChildClass(value: EntityClassValue) {
+  const idx = createState.allowedChildClasses.indexOf(value)
+  if (idx === -1) createState.allowedChildClasses.push(value)
+  else createState.allowedChildClasses.splice(idx, 1)
+}
+
+// Governance of the chosen parent — surfaced as guidance (the backend enforces on submit).
+const selectedParent = computed(() => parentOptions.value.find(e => e.id === createState.parentId) ?? null)
+const parentAllowedTypes = computed(() => selectedParent.value?.allowed_child_types ?? [])
+const parentAllowedClasses = computed(() => selectedParent.value?.allowed_child_classes ?? [])
+const hasParentGovernance = computed(() => Boolean(parentAllowedTypes.value?.length || parentAllowedClasses.value?.length))
+
 function openCreate() {
-  Object.assign(createState, { parentId: '', name: '', displayName: '', slug: '', description: '', entityClass: 'structural', entityType: '' })
+  Object.assign(createState, { parentId: '', name: '', displayName: '', slug: '', description: '', entityClass: 'structural', entityType: '', allowedChildClasses: [], allowedChildTypes: '' })
   Object.assign(createErrors, { name: '', displayName: '', slug: '', entityType: '' })
   createOpen.value = true
 }
@@ -67,6 +84,9 @@ async function onCreate() {
     }
     if (createState.description.trim()) input.description = createState.description.trim()
     if (createState.parentId) input.parent_entity_id = createState.parentId
+    if (createState.allowedChildClasses.length) input.allowed_child_classes = [...createState.allowedChildClasses]
+    const childTypes = parseChildTypes(createState.allowedChildTypes)
+    if (childTypes.length) input.allowed_child_types = childTypes
 
     await createEntity.mutateAsync(input)
     toast.add({ title: 'Entity created', color: 'success', icon: 'i-lucide-check' })
@@ -158,6 +178,14 @@ async function onCreate() {
               {{ entity.display_name }}
             </option>
           </select>
+          <p v-if="hasParentGovernance" class="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-muted" data-testid="parent-governance">
+            <template v-if="parentAllowedTypes?.length">
+              This parent allows child types: <span class="font-medium text-default">{{ parentAllowedTypes.join(', ') }}</span>.
+            </template>
+            <template v-if="parentAllowedClasses?.length">
+              Allowed classes: <span class="font-medium text-default">{{ parentAllowedClasses.map(c => c.replace('_', ' ')).join(', ') }}</span>.
+            </template>
+          </p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -238,6 +266,36 @@ async function onCreate() {
             :rows="2"
             class="w-full"
           />
+        </div>
+
+        <div class="space-y-2 rounded-lg border border-default p-3">
+          <p class="text-sm font-medium text-default">
+            Child governance <span class="font-normal text-muted">(optional)</span>
+          </p>
+          <div class="space-y-1">
+            <span class="block text-xs text-muted">Allowed child classes</span>
+            <div class="flex gap-4">
+              <UCheckbox
+                label="Structural"
+                :model-value="createState.allowedChildClasses.includes('structural')"
+                @update:model-value="toggleChildClass('structural')"
+              />
+              <UCheckbox
+                label="Access group"
+                :model-value="createState.allowedChildClasses.includes('access_group')"
+                @update:model-value="toggleChildClass('access_group')"
+              />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <label for="entity-allowed-child-types" class="block text-xs text-muted">Allowed child types (comma-separated)</label>
+            <UInput
+              id="entity-allowed-child-types"
+              v-model="createState.allowedChildTypes"
+              placeholder="region, office"
+              class="w-full"
+            />
+          </div>
         </div>
       </div>
     </template>

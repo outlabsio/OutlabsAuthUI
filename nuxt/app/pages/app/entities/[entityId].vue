@@ -3,7 +3,7 @@ import { useQuery } from '@pinia/colada'
 import type { TableColumn } from '@nuxt/ui'
 import { entitiesListQuery, entityDetailQuery, useMoveEntity, useUpdateEntity } from '~/queries/entities'
 import { getApiErrorMessage } from '~/utils/api'
-import type { Entity, EntityStatusValue } from '~/types/entity'
+import type { Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 
 const route = useRoute()
 const entityId = computed(() => String(route.params.entityId))
@@ -43,9 +43,15 @@ const childColumns: TableColumn<Entity>[] = [
 
 // --- Edit ---
 const editOpen = ref(false)
-const editState = reactive({ displayName: '', description: '', status: 'active' as EntityStatusValue })
+const editState = reactive({ displayName: '', description: '', status: 'active' as EntityStatusValue, allowedChildClasses: [] as EntityClassValue[], allowedChildTypes: '' })
 const updateEntity = useUpdateEntity()
 const saving = ref(false)
+
+function toggleChildClass(value: EntityClassValue) {
+  const idx = editState.allowedChildClasses.indexOf(value)
+  if (idx === -1) editState.allowedChildClasses.push(value)
+  else editState.allowedChildClasses.splice(idx, 1)
+}
 
 function openEdit() {
   const e = entity.value
@@ -53,6 +59,8 @@ function openEdit() {
   editState.displayName = e.display_name
   editState.description = e.description ?? ''
   editState.status = e.status
+  editState.allowedChildClasses = [...(e.allowed_child_classes ?? [])]
+  editState.allowedChildTypes = (e.allowed_child_types ?? []).join(', ')
   editOpen.value = true
 }
 
@@ -64,7 +72,9 @@ async function onEdit() {
       input: {
         display_name: editState.displayName.trim(),
         description: editState.description.trim() ? editState.description.trim() : null,
-        status: editState.status
+        status: editState.status,
+        allowed_child_classes: [...editState.allowedChildClasses],
+        allowed_child_types: editState.allowedChildTypes.split(',').map(t => t.trim()).filter(Boolean)
       }
     })
     toast.add({ title: 'Entity updated', color: 'success', icon: 'i-lucide-check' })
@@ -218,6 +228,35 @@ async function onMove() {
               Archived
             </option>
           </select>
+        </div>
+        <div class="space-y-2 rounded-lg border border-default p-3">
+          <p class="text-sm font-medium text-default">
+            Child governance
+          </p>
+          <div class="space-y-1">
+            <span class="block text-xs text-muted">Allowed child classes</span>
+            <div class="flex gap-4">
+              <UCheckbox
+                label="Structural"
+                :model-value="editState.allowedChildClasses.includes('structural')"
+                @update:model-value="toggleChildClass('structural')"
+              />
+              <UCheckbox
+                label="Access group"
+                :model-value="editState.allowedChildClasses.includes('access_group')"
+                @update:model-value="toggleChildClass('access_group')"
+              />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <label for="entity-edit-allowed-child-types" class="block text-xs text-muted">Allowed child types (comma-separated)</label>
+            <UInput
+              id="entity-edit-allowed-child-types"
+              v-model="editState.allowedChildTypes"
+              placeholder="region, office"
+              class="w-full"
+            />
+          </div>
         </div>
       </div>
     </template>
