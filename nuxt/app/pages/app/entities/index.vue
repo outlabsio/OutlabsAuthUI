@@ -1,45 +1,59 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import type { TableColumn } from '@nuxt/ui'
 import { entitiesListQuery, useCreateEntity } from '~/queries/entities'
 import { getApiErrorMessage } from '~/utils/api'
-import type { CreateEntityInput, EntitiesListFilters, Entity, EntityClassValue } from '~/types/entity'
+import { buildEntityTree, filterEntityTree, type EntityTreeNode } from '~/utils/entity-tree'
+import type { CreateEntityInput, Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 
-// Entities vertical — the hierarchy list plus a hierarchy-aware create (pick a parent, or
-// none for a root). Create/edit/move gate on entity:update/create (superusers pass).
+// Entities vertical — the hierarchy as a navigable TREE (parity with the React tree panel):
+// expand/collapse to explore, each node links to its detail, client-side search filters and
+// reveals matches. Plus a hierarchy-aware create. Gates on entity:read / entity:create.
 const toast = useToast()
 const { hasPermission } = useAuth()
 
-const filters = reactive<EntitiesListFilters>({ page: 1, limit: 100, search: '' })
-// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
-// denied actor; the AppPermissionGate renders the same verdict in-place.
-const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ ...filters }), enabled: hasPermission('entity:read') }))
-// The full hierarchy for the parent picker (the USelectMenu searches it client-side, so it
-// needs every entity, not the table's search-filtered/paginated page).
-const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: hasPermission('entity:read') }))
+// One query loads the whole hierarchy — the tree, search, and the parent picker all derive
+// from it (built + filtered client-side, no server pagination).
+const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: hasPermission('entity:read') }))
+const allEntities = computed<Entity[]>(() => data.value?.items ?? [])
 
-const rows = computed<Entity[]>(() => data.value?.items ?? [])
-const parentOptions = computed<Entity[]>(() => parentPool.value?.items ?? [])
+const search = ref('')
+const fullTree = computed(() => buildEntityTree(allEntities.value))
+const filtered = computed(() => filterEntityTree(fullTree.value, search.value))
+const expanded = ref<string[]>([])
+watch(() => filtered.value.expandedIds, (ids) => {
+  expanded.value = ids
+})
 
-// Select items — parent is a searchable USelectMenu (the hierarchy can be long); class is a
-// small USelect. Both bind the value string. "Root" uses a sentinel because Reka's Combobox
-// reserves the empty string for clearing the selection (an empty-value item throws).
+// UTree items — value = id (key), label = display name; children omitted for leaves so they
+// render without an expand toggle.
+type EntityTreeItem = {
+  value: string
+  label: string
+  entityClass: EntityClassValue
+  status: EntityStatusValue
+  children?: EntityTreeItem[]
+}
+function toTreeItems(nodes: EntityTreeNode[]): EntityTreeItem[] {
+  return nodes.map(n => ({
+    value: n.id,
+    label: n.display_name,
+    entityClass: n.entity_class,
+    status: n.status,
+    ...(n.children.length ? { children: toTreeItems(n.children) } : {})
+  }))
+}
+const treeItems = computed(() => toTreeItems(filtered.value.tree))
+
+// Parent picker options (searchable USelectMenu). "Root" uses a sentinel because Reka's
+// Combobox reserves the empty string for clearing (an empty-value item throws).
 const ROOT_PARENT = '__root__'
 const parentSelectItems = computed(() => [
   { label: 'None (root)', value: ROOT_PARENT },
-  ...parentOptions.value.map(e => ({ label: e.display_name, value: e.id }))
+  ...allEntities.value.map(e => ({ label: e.display_name, value: e.id }))
 ])
 const entityClassItems = [
   { label: 'Structural', value: 'structural' as EntityClassValue },
   { label: 'Access group', value: 'access_group' as EntityClassValue }
-]
-
-const columns: TableColumn<Entity>[] = [
-  { accessorKey: 'display_name', header: 'Display name' },
-  { accessorKey: 'slug', header: 'Slug' },
-  { accessorKey: 'entity_type', header: 'Type' },
-  { accessorKey: 'entity_class', header: 'Class' },
-  { accessorKey: 'status', header: 'Status' }
 ]
 
 // --- Create ---
@@ -69,7 +83,7 @@ function toggleChildClass(value: EntityClassValue) {
 }
 
 // Governance of the chosen parent — surfaced as guidance (the backend enforces on submit).
-const selectedParent = computed(() => parentOptions.value.find(e => e.id === createState.parentId) ?? null)
+const selectedParent = computed(() => allEntities.value.find(e => e.id === createState.parentId) ?? null)
 const parentAllowedTypes = computed(() => selectedParent.value?.allowed_child_types ?? [])
 const parentAllowedClasses = computed(() => selectedParent.value?.allowed_child_classes ?? [])
 const hasParentGovernance = computed(() => Boolean(parentAllowedTypes.value?.length || parentAllowedClasses.value?.length))
@@ -133,7 +147,7 @@ async function onCreate() {
       <UDashboardToolbar>
         <template #left>
           <UInput
-            v-model="filters.search"
+            v-model="search"
             icon="i-lucide-search"
             placeholder="Search entities..."
             class="w-64"
@@ -153,23 +167,42 @@ async function onCreate() {
           class="mb-4"
         />
 
-        <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
-          <template #display_name-cell="{ row }">
-            <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-highlighted hover:underline">
-              {{ row.original.display_name }}
+        <div v-if="status === 'pending'" class="py-16 text-center text-sm text-muted">
+          Loading entities...
+        </div>
+        <p v-else-if="!treeItems.length" class="py-16 text-center text-sm text-muted">
+          {{ search ? 'No entities match your search.' : 'No entities yet.' }}
+        </p>
+        <UTree
+          v-else
+          v-model:expanded="expanded"
+          :items="treeItems"
+          :get-key="(item) => item.value"
+          color="neutral"
+          class="max-w-2xl"
+        >
+          <template #item-label="{ item }">
+            <ULink :to="`/app/entities/${item.value}`" class="truncate font-medium text-highlighted hover:underline">
+              {{ item.label }}
             </ULink>
           </template>
-          <template #entity_class-cell="{ row }">
-            <UBadge :color="row.original.entity_class === 'structural' ? 'info' : 'special'" variant="subtle">
-              {{ row.original.entity_class.replace('_', ' ') }}
-            </UBadge>
+          <template #item-trailing="{ item }">
+            <span class="ml-auto flex items-center gap-2 pl-2">
+              <UBadge :color="item.entityClass === 'structural' ? 'info' : 'special'" variant="subtle" size="sm">
+                {{ item.entityClass.replace('_', ' ') }}
+              </UBadge>
+              <UBadge
+                v-if="item.status !== 'active'"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                class="capitalize"
+              >
+                {{ item.status }}
+              </UBadge>
+            </span>
           </template>
-          <template #status-cell="{ row }">
-            <UBadge :color="row.original.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">
-              {{ row.original.status }}
-            </UBadge>
-          </template>
-        </UTable>
+        </UTree>
       </AppPermissionGate>
     </template>
   </UDashboardPanel>

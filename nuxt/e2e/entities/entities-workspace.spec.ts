@@ -45,10 +45,12 @@ async function fillCreateForm(page: Page, slug: string, display: string) {
 test.describe('entities workspace', () => {
   test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
 
-  test('lists the entity hierarchy', async ({ page }) => {
+  test('renders the entity hierarchy as a tree', async ({ page }) => {
     await page.goto('/app/entities')
     await expect(page.getByRole('heading', { name: 'Entities' })).toBeVisible()
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(page.getByRole('tree')).toBeVisible()
+    // Root nodes link through to their detail (a known seed root).
+    await expect(page.getByRole('link', { name: 'ACME Realty' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'New entity' })).toBeVisible()
   })
 
