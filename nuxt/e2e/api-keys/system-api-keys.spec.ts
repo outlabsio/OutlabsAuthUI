@@ -1,14 +1,29 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
+import { adminAccessToken } from '../support/admin-token'
 import type { Page } from '@playwright/test'
 
-// System API Keys — platform-global service accounts + their machine keys (chromium project,
-// admin storageState — superuser, so apikey:read passes). Machine-key create + rotate surface
-// the one-time secret; revoke soft-deletes (the row stays as revoked).
+// System API Keys — service accounts + machine keys, platform-global and entity-scoped
+// (chromium project, admin storageState — superuser, so apikey:read passes). Machine-key
+// create + rotate surface the one-time secret; revoke soft-deletes (the row stays as revoked).
 const SCOPE = 'entity:read'
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
+const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 
 // Unique per call — Date.now() alone collides across parallel workers (same-named principals
 // then match two master-list buttons).
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+// Seed an entity to scope service accounts to (reuses the setup-minted admin token).
+async function createEntityViaApi(): Promise<{ id: string, display_name: string }> {
+  const slug = `pw-esc-${uid()}`
+  const res = await fetch(`${apiBaseUrl}${authApiPrefix}/entities/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAccessToken()}` },
+    body: JSON.stringify({ name: slug, display_name: `PW ESC ${slug}`, slug, entity_class: 'structural', entity_type: 'organization' })
+  })
+  if (!res.ok) throw new Error(`Seed entity failed: ${res.status}`)
+  return res.json() as Promise<{ id: string, display_name: string }>
+}
 
 async function createServiceAccount(page: Page, name: string) {
   await page.goto('/app/users/api-keys')
@@ -90,5 +105,34 @@ test.describe('system api keys workspace', () => {
     await page.getByRole('button', { name: 'Revoke key' }).click()
 
     await expect(keyRow(page, keyName).getByText('revoked')).toBeVisible()
+  })
+
+  test('entity scope: create an account + key, and the inventory lists it', async ({ page }) => {
+    const entity = await createEntityViaApi()
+    const saName = `pw-esc-sa-${uid()}`
+    const keyName = `pw-esc-mk-${uid()}`
+
+    await page.goto('/app/users/api-keys')
+    await page.locator('#scope-kind').selectOption('entity')
+    await expect(page.locator('#scope-entity')).toBeVisible()
+    await expect(page.locator(`#scope-entity option[value="${entity.id}"]`)).toHaveCount(1)
+    await page.locator('#scope-entity').selectOption(entity.id)
+
+    // Create an entity-scoped service account.
+    await page.getByRole('button', { name: 'Create service account' }).click()
+    await expect(page.locator('#sa-name')).toBeVisible()
+    await page.locator('#sa-name').fill(saName)
+    await page.getByRole('checkbox', { name: SCOPE, exact: true }).check()
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await expect(page.locator('#sa-name')).toBeHidden()
+    await expect(page.getByRole('button').filter({ hasText: saName })).toBeVisible()
+
+    // Mint a machine key under it.
+    await createMachineKey(page, keyName)
+    await expect(keyRow(page, keyName)).toBeVisible()
+
+    // The entity inventory tab lists the key.
+    await page.getByRole('button', { name: 'Inventory' }).click()
+    await expect(keyRow(page, keyName)).toBeVisible()
   })
 })

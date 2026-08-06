@@ -55,26 +55,40 @@ export function useRevokeApiKey() {
   })
 }
 
-// ── System integration: platform-global service accounts + machine keys ──
-// Paths: /admin/system/integration-principals[/{id}[/api-keys[/{keyId}[/rotate]]]].
+// ── System integration: service accounts + machine keys, platform-global OR entity-scoped ──
+// Platform-global: /admin/system/integration-principals[...].
+// Entity-scoped:   /admin/entities/{entityId}/integration-principals[...].
 const PRINCIPALS_ROOT = 'system-principals' as const
-const SYSTEM_BASE = '/admin/system/integration-principals'
 
-export const systemPrincipalsQuery = defineQueryOptions({
-  key: [PRINCIPALS_ROOT, 'list'],
-  query: ctx => apiClient.get<IntegrationPrincipalsListResponse>(`${SYSTEM_BASE}?page=1&limit=100`, { signal: ctx?.signal })
-})
+export type SystemScope = { kind: 'platform_global' } | { kind: 'entity', entityId: string }
 
-export const principalKeysQuery = defineQueryOptions((principalId: string) => ({
-  key: [PRINCIPALS_ROOT, 'detail', principalId, 'keys'],
-  query: ctx => apiClient.get<PaginatedResponse<ApiKey>>(`${SYSTEM_BASE}/${principalId}/api-keys?page=1&limit=100`, { signal: ctx?.signal })
+function principalsBase(scope: SystemScope): string {
+  return scope.kind === 'entity'
+    ? `/admin/entities/${scope.entityId}/integration-principals`
+    : '/admin/system/integration-principals'
+}
+
+export const principalsQuery = defineQueryOptions((scope: SystemScope) => ({
+  key: [PRINCIPALS_ROOT, 'list', scope],
+  query: ctx => apiClient.get<IntegrationPrincipalsListResponse>(`${principalsBase(scope)}?page=1&limit=100`, { signal: ctx?.signal })
+}))
+
+export const principalKeysQuery = defineQueryOptions(({ scope, principalId }: { scope: SystemScope, principalId: string }) => ({
+  key: [PRINCIPALS_ROOT, 'detail', scope, principalId, 'keys'],
+  query: ctx => apiClient.get<PaginatedResponse<ApiKey>>(`${principalsBase(scope)}/${principalId}/api-keys?page=1&limit=100`, { signal: ctx?.signal })
+}))
+
+// Entity inventory — every machine key under an entity, across its service accounts.
+export const entityInventoryQuery = defineQueryOptions((entityId: string) => ({
+  key: [PRINCIPALS_ROOT, 'inventory', entityId],
+  query: ctx => apiClient.get<PaginatedResponse<ApiKey>>(`/admin/entities/${entityId}/api-keys?page=1&limit=100`, { signal: ctx?.signal })
 }))
 
 export function useCreatePrincipal() {
   const queryCache = useQueryCache()
   return useMutation({
-    mutation: (input: CreatePrincipalInput) =>
-      apiClient.post<IntegrationPrincipal>(SYSTEM_BASE, { body: { ...input, role_ids: [] } }),
+    mutation: ({ scope, input }: { scope: SystemScope, input: CreatePrincipalInput }) =>
+      apiClient.post<IntegrationPrincipal>(principalsBase(scope), { body: { ...input, role_ids: [] } }),
     onSettled: () => queryCache.invalidateQueries({ key: [PRINCIPALS_ROOT] })
   })
 }
@@ -82,8 +96,8 @@ export function useCreatePrincipal() {
 export function useCreateMachineKey() {
   const queryCache = useQueryCache()
   return useMutation({
-    mutation: ({ principalId, input }: { principalId: string, input: CreateMachineKeyInput }) =>
-      apiClient.post<CreateApiKeyResponse>(`${SYSTEM_BASE}/${principalId}/api-keys`, { body: input }),
+    mutation: ({ scope, principalId, input }: { scope: SystemScope, principalId: string, input: CreateMachineKeyInput }) =>
+      apiClient.post<CreateApiKeyResponse>(`${principalsBase(scope)}/${principalId}/api-keys`, { body: input }),
     onSettled: () => queryCache.invalidateQueries({ key: [PRINCIPALS_ROOT] })
   })
 }
@@ -91,8 +105,8 @@ export function useCreateMachineKey() {
 export function useRotateMachineKey() {
   const queryCache = useQueryCache()
   return useMutation({
-    mutation: ({ principalId, keyId }: { principalId: string, keyId: string }) =>
-      apiClient.post<CreateApiKeyResponse>(`${SYSTEM_BASE}/${principalId}/api-keys/${keyId}/rotate`),
+    mutation: ({ scope, principalId, keyId }: { scope: SystemScope, principalId: string, keyId: string }) =>
+      apiClient.post<CreateApiKeyResponse>(`${principalsBase(scope)}/${principalId}/api-keys/${keyId}/rotate`),
     onSettled: () => queryCache.invalidateQueries({ key: [PRINCIPALS_ROOT] })
   })
 }
@@ -100,8 +114,8 @@ export function useRotateMachineKey() {
 export function useRevokeMachineKey() {
   const queryCache = useQueryCache()
   return useMutation({
-    mutation: ({ principalId, keyId }: { principalId: string, keyId: string }) =>
-      apiClient.delete<undefined>(`${SYSTEM_BASE}/${principalId}/api-keys/${keyId}`),
+    mutation: ({ scope, principalId, keyId }: { scope: SystemScope, principalId: string, keyId: string }) =>
+      apiClient.delete<undefined>(`${principalsBase(scope)}/${principalId}/api-keys/${keyId}`),
     onSettled: () => queryCache.invalidateQueries({ key: [PRINCIPALS_ROOT] })
   })
 }

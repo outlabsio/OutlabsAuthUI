@@ -2,31 +2,59 @@
 import { useQuery } from '@pinia/colada'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import {
+  entityInventoryQuery,
   grantableScopesQuery,
   principalKeysQuery,
-  systemPrincipalsQuery,
+  principalsQuery,
   useCreateMachineKey,
   useCreatePrincipal,
   useRevokeMachineKey,
-  useRotateMachineKey
+  useRotateMachineKey,
+  type SystemScope
 } from '~/queries/api-keys'
+import { entitiesListQuery } from '~/queries/entities'
 import { getApiErrorMessage } from '~/utils/api'
 import type { ApiKey, CreateMachineKeyInput, CreatePrincipalInput, IntegrationPrincipal } from '~/types/api-key'
+import type { Entity } from '~/types/entity'
 
-// System API Keys — platform-global service accounts (integration principals) and their
-// machine keys. Master (principals) / detail (that principal's keys). Machine-key create +
-// rotate surface the one-time secret. Entity-scoped service accounts + role envelopes + the
-// inventory tab remain a later pass. Gated by apikey:read (superusers pass).
+// System API Keys — service accounts (integration principals) and their machine keys, either
+// PLATFORM-GLOBAL or scoped to a chosen ENTITY (scope toggle + entity picker). Master
+// (principals) / detail (that principal's keys); entity scope adds an Inventory tab (all keys
+// under the entity). Machine-key create + rotate surface the one-time secret. Role envelopes
+// remain a later pass. Gated by apikey:read (superusers pass).
 const toast = useToast()
 const { hasPermission } = useAuth()
 
 const canRead = computed(() => hasPermission('apikey:read'))
-const { data: principalsData, status, error } = useQuery(() => ({ ...systemPrincipalsQuery, enabled: canRead.value }))
+
+// Scope: platform-global, or a chosen entity.
+const scopeKind = ref<'platform_global' | 'entity'>('platform_global')
+const entityId = ref('')
+const selectedId = ref<string | null>(null)
+const activeTab = ref<'accounts' | 'inventory'>('accounts')
+
+const scope = computed<SystemScope>(() =>
+  scopeKind.value === 'entity' && entityId.value
+    ? { kind: 'entity', entityId: entityId.value }
+    : { kind: 'platform_global' }
+)
+const scopeReady = computed(() => scopeKind.value === 'platform_global' || Boolean(entityId.value))
+
+// Changing scope invalidates the current selection + tab.
+watch([scopeKind, entityId], () => {
+  selectedId.value = null
+  activeTab.value = 'accounts'
+})
+
+// Entities for the scope picker.
+const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: canRead.value }))
+const entityOptions = computed<Entity[]>(() => entitiesData.value?.items ?? [])
+
+const { data: principalsData, status, error } = useQuery(() => ({ ...principalsQuery(scope.value), enabled: canRead.value && scopeReady.value }))
 const { data: grantable } = useQuery(() => ({ ...grantableScopesQuery, enabled: canRead.value }))
 const grantableScopes = computed<string[]>(() => grantable.value?.grantable_scopes ?? [])
 
 const principals = computed<IntegrationPrincipal[]>(() => principalsData.value?.items ?? [])
-const selectedId = ref<string | null>(null)
 const selectedPrincipal = computed(() => principals.value.find(p => p.id === selectedId.value) ?? null)
 
 // Auto-select the first principal once loaded (nothing selected yet).
@@ -35,16 +63,28 @@ watch(principals, (list) => {
 })
 
 const { data: keysData, status: keysStatus } = useQuery(() => ({
-  ...principalKeysQuery(selectedId.value ?? ''),
+  ...principalKeysQuery({ scope: scope.value, principalId: selectedId.value ?? '' }),
   enabled: canRead.value && Boolean(selectedId.value)
 }))
 const keys = computed<ApiKey[]>(() => keysData.value?.items ?? [])
+
+// Inventory (entity scope only) — every machine key under the entity.
+const { data: inventoryData, status: inventoryStatus } = useQuery(() => ({
+  ...entityInventoryQuery(entityId.value),
+  enabled: canRead.value && scopeKind.value === 'entity' && Boolean(entityId.value)
+}))
+const inventoryKeys = computed<ApiKey[]>(() => inventoryData.value?.items ?? [])
 
 const keyColumns: TableColumn<ApiKey>[] = [
   { accessorKey: 'name', header: 'Name' },
   { accessorKey: 'prefix', header: 'Prefix' },
   { accessorKey: 'status', header: 'Status' },
   { id: 'actions', header: '' }
+]
+const inventoryColumns: TableColumn<ApiKey>[] = [
+  { accessorKey: 'name', header: 'Name' },
+  { accessorKey: 'prefix', header: 'Prefix' },
+  { accessorKey: 'status', header: 'Status' }
 ]
 const statusColor: Record<ApiKey['status'], 'success' | 'warning' | 'error' | 'neutral'> = {
   active: 'success',
@@ -109,7 +149,7 @@ async function onCreatePrincipal() {
       inherit_from_tree: saState.inherit
     }
     if (saState.description.trim()) input.description = saState.description.trim()
-    const created = await createPrincipal.mutateAsync(input)
+    const created = await createPrincipal.mutateAsync({ scope: scope.value, input })
     selectedId.value = created.id
     createSaOpen.value = false
     toast.add({ title: 'Service account created', color: 'success', icon: 'i-lucide-check' })
@@ -154,7 +194,7 @@ async function onCreateKey() {
       rate_limit_per_minute: Number(keyState.rateLimit)
     }
     if (keyState.expiresInDays !== '' && Number(keyState.expiresInDays) > 0) input.expires_in_days = Number(keyState.expiresInDays)
-    const created = await createMachineKey.mutateAsync({ principalId: selectedId.value, input })
+    const created = await createMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, input })
     createKeyOpen.value = false
     revealSecret(created.api_key)
     toast.add({ title: 'Machine key created', color: 'success', icon: 'i-lucide-check' })
@@ -178,7 +218,7 @@ async function onRotate() {
   if (!rotateTarget.value || !selectedId.value) return
   rotating.value = true
   try {
-    const rotated = await rotateMachineKey.mutateAsync({ principalId: selectedId.value, keyId: rotateTarget.value.id })
+    const rotated = await rotateMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, keyId: rotateTarget.value.id })
     rotateOpen.value = false
     revealSecret(rotated.api_key)
     toast.add({ title: 'Machine key rotated', color: 'success', icon: 'i-lucide-check' })
@@ -201,7 +241,7 @@ async function onRevoke() {
   if (!revokeTarget.value || !selectedId.value) return
   revoking.value = true
   try {
-    await revokeMachineKey.mutateAsync({ principalId: selectedId.value, keyId: revokeTarget.value.id })
+    await revokeMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, keyId: revokeTarget.value.id })
     revokeOpen.value = false
     toast.add({ title: 'Machine key revoked', color: 'success', icon: 'i-lucide-check' })
   } catch (err) {
@@ -236,6 +276,39 @@ const guideOpen = ref(false)
 
     <template #body>
       <AppPermissionGate permission="apikey:read">
+        <div class="mb-4 flex flex-wrap items-end gap-3">
+          <div class="space-y-1.5">
+            <label for="scope-kind" class="block text-sm font-medium text-default">Scope</label>
+            <select
+              id="scope-kind"
+              v-model="scopeKind"
+              class="rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
+            >
+              <option value="platform_global">
+                Platform global
+              </option>
+              <option value="entity">
+                Entity
+              </option>
+            </select>
+          </div>
+          <div v-if="scopeKind === 'entity'" class="space-y-1.5">
+            <label for="scope-entity" class="block text-sm font-medium text-default">Entity</label>
+            <select
+              id="scope-entity"
+              v-model="entityId"
+              class="min-w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
+            >
+              <option value="">
+                Select an entity...
+              </option>
+              <option v-for="e in entityOptions" :key="e.id" :value="e.id">
+                {{ e.display_name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
         <UAlert
           v-if="status === 'error'"
           color="error"
@@ -245,83 +318,126 @@ const guideOpen = ref(false)
           class="mb-4"
         />
 
-        <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-          <!-- Service accounts (master) -->
-          <div class="space-y-2">
-            <p class="text-sm font-medium text-default">
-              Service accounts
-            </p>
-            <div v-if="status === 'pending'" class="text-sm text-muted">
-              Loading...
-            </div>
-            <div v-else-if="!principals.length" class="rounded-lg border border-default p-4 text-sm text-muted">
-              No platform-global service accounts yet.
-            </div>
-            <div v-else class="space-y-1.5">
-              <button
-                v-for="principal in principals"
-                :key="principal.id"
-                type="button"
-                class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
-                :class="principal.id === selectedId ? 'border-primary bg-primary/10' : 'border-default hover:bg-muted/40'"
-                @click="selectedId = principal.id"
-              >
-                <div class="font-medium text-highlighted">
-                  {{ principal.name }}
-                </div>
-                <div class="text-xs text-muted capitalize">
-                  {{ principal.status }} · {{ principal.effective_allowed_scopes.length }} scopes
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <!-- Machine keys for the selected principal (detail) -->
-          <div>
-            <div v-if="!selectedPrincipal" class="flex h-full items-center justify-center rounded-lg border border-default py-16 text-sm text-muted">
-              Select a service account to manage its machine keys.
-            </div>
-            <div v-else class="space-y-3">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <h2 class="font-semibold text-highlighted">
-                    {{ selectedPrincipal.name }}
-                  </h2>
-                  <p v-if="selectedPrincipal.description" class="text-sm text-muted">
-                    {{ selectedPrincipal.description }}
-                  </p>
-                </div>
-                <UButton icon="i-lucide-plus" label="Create machine key" @click="openCreateKey" />
-              </div>
-
-              <UTable
-                :data="keys"
-                :columns="keyColumns"
-                :loading="keysStatus === 'pending'"
-                :empty="'No machine keys yet.'"
-              >
-                <template #status-cell="{ row }">
-                  <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
-                    {{ row.original.status }}
-                  </UBadge>
-                </template>
-                <template #actions-cell="{ row }">
-                  <div class="text-right">
-                    <UDropdownMenu :items="keyMenu(row.original)">
-                      <UButton
-                        icon="i-lucide-ellipsis-vertical"
-                        color="neutral"
-                        variant="ghost"
-                        size="xs"
-                        aria-label="Machine key actions"
-                      />
-                    </UDropdownMenu>
-                  </div>
-                </template>
-              </UTable>
-            </div>
-          </div>
+        <div
+          v-if="scopeKind === 'entity' && !entityId"
+          class="rounded-lg border border-default py-16 text-center text-sm text-muted"
+        >
+          Select an entity to manage its service accounts.
         </div>
+
+        <template v-else>
+          <div v-if="scopeKind === 'entity'" class="mb-3 flex gap-2 border-b border-default">
+            <button
+              type="button"
+              class="-mb-px border-b-2 px-3 py-1.5 text-sm"
+              :class="activeTab === 'accounts' ? 'border-primary text-highlighted' : 'border-transparent text-muted'"
+              @click="activeTab = 'accounts'"
+            >
+              Service accounts
+            </button>
+            <button
+              type="button"
+              class="-mb-px border-b-2 px-3 py-1.5 text-sm"
+              :class="activeTab === 'inventory' ? 'border-primary text-highlighted' : 'border-transparent text-muted'"
+              @click="activeTab = 'inventory'"
+            >
+              Inventory
+            </button>
+          </div>
+
+          <!-- Inventory (entity scope) -->
+          <div v-if="scopeKind === 'entity' && activeTab === 'inventory'">
+            <UTable
+              :data="inventoryKeys"
+              :columns="inventoryColumns"
+              :loading="inventoryStatus === 'pending'"
+              :empty="'No machine keys under this entity.'"
+            >
+              <template #status-cell="{ row }">
+                <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
+                  {{ row.original.status }}
+                </UBadge>
+              </template>
+            </UTable>
+          </div>
+
+          <!-- Service accounts master-detail -->
+          <div v-else class="grid gap-4 lg:grid-cols-[320px_1fr]">
+            <div class="space-y-2">
+              <p class="text-sm font-medium text-default">
+                Service accounts
+              </p>
+              <div v-if="status === 'pending'" class="text-sm text-muted">
+                Loading...
+              </div>
+              <div v-else-if="!principals.length" class="rounded-lg border border-default p-4 text-sm text-muted">
+                No service accounts in this scope yet.
+              </div>
+              <div v-else class="space-y-1.5">
+                <button
+                  v-for="principal in principals"
+                  :key="principal.id"
+                  type="button"
+                  class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
+                  :class="principal.id === selectedId ? 'border-primary bg-primary/10' : 'border-default hover:bg-muted/40'"
+                  @click="selectedId = principal.id"
+                >
+                  <div class="font-medium text-highlighted">
+                    {{ principal.name }}
+                  </div>
+                  <div class="text-xs text-muted capitalize">
+                    {{ principal.status }} · {{ principal.effective_allowed_scopes.length }} scopes
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div v-if="!selectedPrincipal" class="flex h-full items-center justify-center rounded-lg border border-default py-16 text-sm text-muted">
+                Select a service account to manage its machine keys.
+              </div>
+              <div v-else class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 class="font-semibold text-highlighted">
+                      {{ selectedPrincipal.name }}
+                    </h2>
+                    <p v-if="selectedPrincipal.description" class="text-sm text-muted">
+                      {{ selectedPrincipal.description }}
+                    </p>
+                  </div>
+                  <UButton icon="i-lucide-plus" label="Create machine key" @click="openCreateKey" />
+                </div>
+
+                <UTable
+                  :data="keys"
+                  :columns="keyColumns"
+                  :loading="keysStatus === 'pending'"
+                  :empty="'No machine keys yet.'"
+                >
+                  <template #status-cell="{ row }">
+                    <UBadge :color="statusColor[row.original.status]" variant="subtle" class="capitalize">
+                      {{ row.original.status }}
+                    </UBadge>
+                  </template>
+                  <template #actions-cell="{ row }">
+                    <div class="text-right">
+                      <UDropdownMenu :items="keyMenu(row.original)">
+                        <UButton
+                          icon="i-lucide-ellipsis-vertical"
+                          color="neutral"
+                          variant="ghost"
+                          size="xs"
+                          aria-label="Machine key actions"
+                        />
+                      </UDropdownMenu>
+                    </div>
+                  </template>
+                </UTable>
+              </div>
+            </div>
+          </div>
+        </template>
       </AppPermissionGate>
     </template>
   </UDashboardPanel>
@@ -357,11 +473,11 @@ const guideOpen = ref(false)
           </p>
           <div class="max-h-48 space-y-1.5 overflow-y-auto rounded-md border border-default p-3">
             <UCheckbox
-              v-for="scope in grantableScopes"
-              :key="scope"
-              :label="scope"
-              :model-value="saState.scopes.includes(scope)"
-              @update:model-value="toggleSaScope(scope)"
+              v-for="option in grantableScopes"
+              :key="option"
+              :label="option"
+              :model-value="saState.scopes.includes(option)"
+              @update:model-value="toggleSaScope(option)"
             />
           </div>
           <p v-if="saErrors.scopes" class="text-xs text-error">
@@ -409,11 +525,11 @@ const guideOpen = ref(false)
           </p>
           <div class="max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-default p-3">
             <UCheckbox
-              v-for="scope in principalScopes"
-              :key="scope"
-              :label="scope"
-              :model-value="keyState.scopes.includes(scope)"
-              @update:model-value="toggleKeyScope(scope)"
+              v-for="option in principalScopes"
+              :key="option"
+              :label="option"
+              :model-value="keyState.scopes.includes(option)"
+              @update:model-value="toggleKeyScope(option)"
             />
             <p v-if="!principalScopes.length" class="text-xs text-muted">
               This service account has no grantable scopes.
@@ -548,7 +664,7 @@ const guideOpen = ref(false)
           <li>Select it, then <span class="text-default">create machine keys</span> for it — the secret is shown once.</li>
           <li>Rotate a key to issue a new secret; revoke to disable it permanently.</li>
         </ul>
-        <p>This workspace manages <span class="text-default">platform-global</span> service accounts. Entity-scoped accounts land in a later pass.</p>
+        <p>Switch <span class="text-default">Scope</span> between platform-global and a specific entity. In entity scope, the <span class="text-default">Inventory</span> tab lists every machine key under that entity.</p>
       </div>
     </template>
   </USlideover>
