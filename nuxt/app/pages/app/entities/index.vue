@@ -54,7 +54,7 @@ const columns: TableColumn<Entity>[] = [
 
       <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
         <template #display_name-cell="{ row }">
-          <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-primary">
+          <ULink :to="`/app/entities/${row.original.id}`" class="font-medium text-highlighted hover:underline">
             {{ row.original.display_name }}
           </ULink>
         </template>

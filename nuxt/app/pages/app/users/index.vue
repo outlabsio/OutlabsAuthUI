@@ -169,7 +169,7 @@ async function onConfirmDelete() {
         :loading="status === 'pending'"
       >
         <template #email-cell="{ row }">
-          <ULink :to="`/app/users/${row.original.id}`" class="font-medium text-primary">
+          <ULink :to="`/app/users/${row.original.id}`" class="font-medium text-highlighted hover:underline">
             {{ row.original.email }}
           </ULink>
         </template>

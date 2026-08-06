@@ -119,7 +119,7 @@ async function onConfirmDelete() {
 
       <UTable :data="rows" :columns="columns" :loading="status === 'pending'">
         <template #display_name-cell="{ row }">
-          <ULink :to="`/app/permissions/${row.original.id}`" class="font-medium text-primary">
+          <ULink :to="`/app/permissions/${row.original.id}`" class="font-medium text-highlighted hover:underline">
             {{ row.original.display_name }}
           </ULink>
         </template>

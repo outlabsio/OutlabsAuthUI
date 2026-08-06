@@ -14,7 +14,8 @@ test.describe('resource detail navigation', () => {
 
   test('opens a user detail from the users list', async ({ page }) => {
     await page.goto('/app/users')
-    await page.getByRole('link', { name: 'auditor@acme.com' }).click()
+    // Click whichever user is first — robust to list ordering / accumulated test data.
+    await page.getByRole('link', { name: /@/ }).first().click()
     await expect(page).toHaveURL(/\/app\/users\/[0-9a-f-]+/)
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible()
