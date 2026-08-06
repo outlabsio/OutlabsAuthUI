@@ -1,7 +1,9 @@
-// Ported from the React api-keys feature (src/features/api-keys/types). The workspace here
-// covers the current actor's PERSONAL keys: list (GET /api-keys), mint (POST /api-keys/),
-// rotate (POST /api-keys/{id}/rotate), and revoke (DELETE /api-keys/{id}). Entity-anchored
-// keys, system-integration keys and integration principals are a separate, larger surface.
+import type { PaginatedResponse } from '~/types/auth'
+
+// Ported from the React api-keys feature (src/features/api-keys/types). Covers the current
+// actor's PERSONAL keys (GET /api-keys, mint/rotate/revoke) AND the platform-global
+// system-integration surface: service accounts (integration principals) + their machine keys.
+// Entity-anchored/entity-scoped variants + role envelopes remain a further pass.
 
 export type ApiKeyStatus = 'active' | 'suspended' | 'revoked' | 'expired'
 export type ApiKeyKind = 'personal' | 'system_integration'
@@ -44,4 +46,42 @@ export type ApiKeyGrantableScopes = {
   allowed_key_kinds: ApiKeyKind[]
   personal_allowed_action_prefixes: string[]
   grantable_scopes: string[]
+}
+
+// ── System integration: service accounts (integration principals) + machine keys ──
+// This slice covers the PLATFORM-GLOBAL scope (/admin/system/integration-principals). The
+// entity-scoped variant (/admin/entities/{id}/integration-principals) + role envelopes land
+// in a later pass.
+
+export type IntegrationPrincipalStatus = 'active' | 'inactive' | 'archived'
+
+export type IntegrationPrincipal = {
+  id: string
+  name: string
+  description?: string | null
+  status: IntegrationPrincipalStatus
+  scope_kind: 'entity' | 'platform_global'
+  anchor_entity_id?: string | null
+  inherit_from_tree: boolean
+  allowed_scopes: string[]
+  effective_allowed_scopes: string[]
+  role_ids: string[]
+  created_at: string
+}
+
+export type IntegrationPrincipalsListResponse = PaginatedResponse<IntegrationPrincipal>
+
+export type CreatePrincipalInput = {
+  name: string
+  description?: string | null
+  allowed_scopes: string[]
+  inherit_from_tree?: boolean
+}
+
+export type CreateMachineKeyInput = {
+  name: string
+  scopes: string[]
+  description?: string | null
+  rate_limit_per_minute?: number
+  expires_in_days?: number
 }

@@ -9,6 +9,7 @@ import type { AuthConfig, SessionUser } from '~/types/auth'
 const capabilityRoutes: { prefix: string, feature: keyof AuthConfig['features'] }[] = [
   { prefix: '/app/entities', feature: 'entity_hierarchy' },
   { prefix: '/app/api-keys', feature: 'api_keys' },
+  { prefix: '/app/users/api-keys', feature: 'api_keys' },
   { prefix: '/app/audit', feature: 'activity_tracking' }
 ]
 

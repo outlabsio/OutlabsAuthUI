@@ -29,6 +29,10 @@ const items = computed<NavigationMenuItem[][]>(() => {
   if (can('api_keys')) {
     primary.push({ label: 'API Keys', icon: 'i-lucide-key', to: '/app/api-keys' })
   }
+  // System (service-account) keys are an admin surface — gate on apikey:read (superusers pass).
+  if (can('api_keys') && hasPermission('apikey:read')) {
+    primary.push({ label: 'System API Keys', icon: 'i-lucide-server-cog', to: '/app/users/api-keys' })
+  }
   if (can('entity_hierarchy') && hasPermission('entity:read')) {
     primary.push({ label: 'Entities', icon: 'i-lucide-building-2', to: '/app/entities' })
   }
