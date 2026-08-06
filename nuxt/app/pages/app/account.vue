@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
+import { useQuery, useQueryCache } from '@pinia/colada'
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import { useSessionStore } from '~/stores/session'
 import {
   mySessionsQuery,
   useChangePassword,
@@ -9,6 +8,7 @@ import {
   useRevokeSession,
   useUpdateProfile
 } from '~/queries/account'
+import { SESSION_KEY } from '~/queries/session'
 import {
   changePasswordSchema,
   type ChangePasswordSchema,
@@ -19,16 +19,17 @@ import { getApiErrorMessage } from '~/utils/api'
 import type { UserSession } from '~/types/account'
 
 // P2 account vertical — the actor's own profile, password, and active sessions.
-const session = useSessionStore()
+const { user } = useAuth()
+const queryCache = useQueryCache()
 const toast = useToast()
 
 // --- Profile ---
 const profileState = reactive<UpdateProfileSchema>({ first_name: '', last_name: '', phone: '' })
 watchEffect(() => {
-  if (session.user) {
-    profileState.first_name = session.user.first_name ?? ''
-    profileState.last_name = session.user.last_name ?? ''
-    profileState.phone = session.user.phone ?? ''
+  if (user.value) {
+    profileState.first_name = user.value.first_name ?? ''
+    profileState.last_name = user.value.last_name ?? ''
+    profileState.phone = user.value.phone ?? ''
   }
 })
 const updateProfile = useUpdateProfile()
@@ -41,7 +42,7 @@ async function onSaveProfile(event: FormSubmitEvent<UpdateProfileSchema>) {
       last_name: event.data.last_name,
       phone: event.data.phone === '' ? null : event.data.phone
     })
-    session.user = updated
+    queryCache.setQueryData(SESSION_KEY, updated)
     toast.add({ title: 'Profile updated', color: 'success', icon: 'i-lucide-check' })
   } catch (err) {
     toast.add({ title: 'Could not update profile', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
@@ -110,7 +111,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
             @submit="onSaveProfile"
           >
             <UFormField label="Email">
-              <UInput :model-value="session.user?.email" disabled class="w-full" />
+              <UInput :model-value="user?.email" disabled class="w-full" />
             </UFormField>
             <div class="grid grid-cols-2 gap-3">
               <UFormField name="first_name" label="First name">

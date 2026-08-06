@@ -1,25 +1,30 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { loginSchema, type LoginSchema } from '~/schemas/login'
-import { useSessionStore } from '~/stores/session'
+import { useLogin } from '~/queries/session'
 import { getApiErrorMessage } from '~/utils/api'
 import type { RuntimeConfig } from '~/utils/runtime-config'
 
 definePageMeta({ layout: 'auth' })
 
-const session = useSessionStore()
 const route = useRoute()
 const toast = useToast()
 const runtimeConfig = useState<RuntimeConfig | null>('app:runtime-config')
+const { capabilities } = useAuth()
 
-// A4 — UForm + Zod, stock behavior. UForm validates before emitting @submit.
+// Passwordless methods are shown only when the mounted backend exposes them (A1).
+const methods = computed(() => capabilities.value?.auth_methods)
+
+// A4 — UForm + Zod, stock behavior. Login is a Colada mutation (useLogin) that funnels
+// through finalizeAuth, seeding the session cache on success.
+const login = useLogin()
 const state = reactive<Partial<LoginSchema>>({ email: '', password: '' })
 const loading = ref(false)
 
 async function onSubmit(event: FormSubmitEvent<LoginSchema>) {
   loading.value = true
   try {
-    await session.login(event.data)
+    await login.mutateAsync(event.data)
     // Only honor internal /app/ redirect targets (open-redirect guard).
     const target = route.query.redirect
     const redirect = typeof target === 'string' && target.startsWith('/app/') ? target : '/app/dashboard'
@@ -81,12 +86,17 @@ async function onSubmit(event: FormSubmitEvent<LoginSchema>) {
       />
     </UForm>
 
-    <div class="flex items-center justify-between text-sm">
-      <ULink to="/auth/forgot-password" class="text-muted hover:text-default">
-        Forgot password?
-      </ULink>
-      <ULink to="/auth/magic-link" class="text-muted hover:text-default">
-        Magic link
+    <div class="flex flex-col gap-2 text-sm">
+      <div class="flex items-center justify-between">
+        <ULink to="/auth/forgot-password" class="text-muted hover:text-default">
+          Forgot password?
+        </ULink>
+        <ULink v-if="methods?.magic_link" to="/auth/magic-link" class="text-muted hover:text-default">
+          Sign in with a magic link
+        </ULink>
+      </div>
+      <ULink v-if="methods?.access_code" to="/auth/access-code" class="text-muted hover:text-default">
+        Sign in with an access code
       </ULink>
     </div>
   </div>

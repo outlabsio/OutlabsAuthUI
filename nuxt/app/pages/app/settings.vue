@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { useSessionStore } from '~/stores/session'
 import { entityTypeConfigQuery } from '~/queries/settings'
 import { getApiErrorMessage } from '~/utils/api'
 
-// P2 settings vertical — runtime capabilities (from /auth/config, already in the session
-// store) plus the entity-type config (read-only; superuser edit is a later pass).
-const session = useSessionStore()
+// P2 settings vertical — runtime capabilities (from /auth/config, via the Colada-owned
+// session) plus the entity-type config (read-only; superuser edit is a later pass).
+const { capabilities, can } = useAuth()
 
 const features = computed(() => {
-  const f = session.capabilities?.features
+  const f = capabilities.value?.features
   if (!f) return []
   return (Object.entries(f) as [string, boolean][]).map(([key, on]) => ({
     label: key.replace(/_/g, ' '),
@@ -18,12 +17,12 @@ const features = computed(() => {
 })
 
 const authMethods = computed(() => {
-  const m = session.capabilities?.auth_methods
+  const m = capabilities.value?.auth_methods
   if (!m) return []
   return (Object.entries(m) as [string, boolean][]).filter(([, on]) => on).map(([key]) => key.replace(/_/g, ' '))
 })
 
-const entityHierarchyOn = computed(() => session.can('entity_hierarchy'))
+const entityHierarchyOn = computed(() => can('entity_hierarchy'))
 
 // Gate the config fetch on the capability so a minimal backend never 404s here.
 const { data: entityConfig, status: configStatus, error: configError } = useQuery(() => ({
@@ -52,7 +51,7 @@ const { data: entityConfig, status: configStatus, error: configError } = useQuer
                 Runtime capabilities
               </h2>
               <UBadge color="primary" variant="subtle">
-                {{ session.capabilities?.preset ?? 'unknown' }}
+                {{ capabilities?.preset ?? 'unknown' }}
               </UBadge>
             </div>
           </template>
@@ -78,7 +77,7 @@ const { data: entityConfig, status: configStatus, error: configError } = useQuer
               <span>Auth methods:
                 <span class="capitalize text-default">{{ authMethods.join(', ') || 'none' }}</span>
               </span>
-              <span>{{ session.capabilities?.available_permissions.length ?? 0 }} permissions available</span>
+              <span>{{ capabilities?.available_permissions.length ?? 0 }} permissions available</span>
             </div>
           </div>
         </UCard>

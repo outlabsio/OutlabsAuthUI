@@ -6,6 +6,45 @@ export type LoginCredentials = {
   password: string
 }
 
+export type MagicLinkRequestInput = {
+  email: string
+  redirect_url?: string | null
+}
+
+export type MagicLinkVerifyInput = {
+  token: string
+}
+
+export type AccessCodeChannel = 'email' | 'whatsapp' | 'sms'
+
+export type AccessCodeRequestInput = {
+  email?: string
+  phone?: string
+  channel?: AccessCodeChannel
+  redirect_url?: string | null
+}
+
+export type AccessCodeVerifyInput = {
+  email?: string
+  phone?: string
+  channel?: AccessCodeChannel
+  code: string
+}
+
+export type ForgotPasswordInput = {
+  email: string
+}
+
+export type ResetPasswordInput = {
+  token: string
+  new_password: string
+}
+
+export type AcceptInviteInput = {
+  token: string
+  new_password: string
+}
+
 export type AuthTokens = {
   access_token: string
   refresh_token: string

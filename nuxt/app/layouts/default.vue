@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { useSessionStore } from '~/stores/session'
+import { useLogout } from '~/queries/session'
 import type { RuntimeConfig } from '~/utils/runtime-config'
 
 // The app shell (A5). Vanilla UDashboard components, no custom styling. Nav adapts to the
 // capabilities discovered from /auth/config (A1) — a minimal backend hides entities/audit.
-const session = useSessionStore()
+const { can, displayName, user } = useAuth()
+const logout = useLogout()
 const runtimeConfig = useState<RuntimeConfig | null>('app:runtime-config')
 
 const items = computed<NavigationMenuItem[][]>(() => {
@@ -15,13 +16,13 @@ const items = computed<NavigationMenuItem[][]>(() => {
     { label: 'Roles', icon: 'i-lucide-shield', to: '/app/roles' },
     { label: 'Permissions', icon: 'i-lucide-key-round', to: '/app/permissions' }
   ]
-  if (session.can('api_keys')) {
+  if (can('api_keys')) {
     primary.push({ label: 'API Keys', icon: 'i-lucide-key', to: '/app/api-keys' })
   }
-  if (session.can('entity_hierarchy')) {
+  if (can('entity_hierarchy')) {
     primary.push({ label: 'Entities', icon: 'i-lucide-building-2', to: '/app/entities' })
   }
-  if (session.can('activity_tracking')) {
+  if (can('activity_tracking')) {
     primary.push({ label: 'Audit', icon: 'i-lucide-scroll-text', to: '/app/audit' })
   }
 
@@ -34,7 +35,7 @@ const items = computed<NavigationMenuItem[][]>(() => {
 })
 
 async function signOut() {
-  await session.logout()
+  await logout.mutateAsync()
   await navigateTo('/auth/login')
 }
 </script>
@@ -68,13 +69,13 @@ async function signOut() {
 
       <template #footer="{ collapsed }">
         <div class="flex w-full items-center gap-2" :class="collapsed ? 'justify-center' : ''">
-          <UAvatar :alt="session.displayName || 'User'" size="sm" icon="i-lucide-user" />
+          <UAvatar :alt="displayName || 'User'" size="sm" icon="i-lucide-user" />
           <div v-if="!collapsed" class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-default">
-              {{ session.displayName }}
+              {{ displayName }}
             </p>
             <p class="truncate text-xs text-muted">
-              {{ session.user?.email }}
+              {{ user?.email }}
             </p>
           </div>
           <UButton

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { useSessionStore } from '~/stores/session'
-
-const session = useSessionStore()
+const { capabilities, displayName } = useAuth()
 
 const capabilityCards = computed(() => {
-  const f = session.capabilities?.features
+  const f = capabilities.value?.features
   if (!f) return []
   return [
     { label: 'Entity hierarchy', on: f.entity_hierarchy },
@@ -32,10 +30,10 @@ const capabilityCards = computed(() => {
       <div class="space-y-6">
         <div>
           <h2 class="text-base font-medium text-highlighted">
-            Welcome back{{ session.displayName ? `, ${session.displayName}` : '' }}
+            Welcome back{{ displayName ? `, ${displayName}` : '' }}
           </h2>
           <p class="text-sm text-muted">
-            Signed in against <span class="font-medium">{{ session.capabilities?.preset ?? 'the configured backend' }}</span>.
+            Signed in against <span class="font-medium">{{ capabilities?.preset ?? 'the configured backend' }}</span>.
           </p>
         </div>
 

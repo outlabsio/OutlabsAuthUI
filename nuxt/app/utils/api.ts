@@ -110,6 +110,14 @@ export function withFrontendProfile<T extends object>(input: T): T & { app?: str
   return app ? { ...input, app } : input
 }
 
+// Same, but as a query-string param (used by GET flows like OAuth authorize).
+export function withFrontendProfileQuery(path: string): string {
+  const app = getRuntimeConfig().frontendProfileKey
+  if (!app) return path
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}app=${encodeURIComponent(app)}`
+}
+
 type RequestBody = BodyInit | Record<string, unknown> | null | undefined
 
 type ApiRequestOptions = Omit<RequestInit, 'body'> & {

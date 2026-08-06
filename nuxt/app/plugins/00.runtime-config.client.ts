@@ -1,10 +1,15 @@
+import { useQueryCache } from '@pinia/colada'
 import { initializeRuntimeConfig, type RuntimeConfig, type RuntimeConfigError, type RuntimeConfigInput } from '~/utils/runtime-config'
-import { useSessionStore } from '~/stores/session'
+import { apiClient, authSessionExpiredEvent } from '~/utils/api'
+import { clearStoredAuthTokens, hasStoredAuthTokens } from '~/utils/auth-token'
+import { AUTH_CONFIG_KEY, SESSION_KEY, resetSession } from '~/queries/session'
+import type { AuthConfig, SessionUser } from '~/types/auth'
 
-// Runs first (00 prefix), client-only, async — blocks app mount until the backend target
-// is resolved from /app-config.json + NUXT_PUBLIC_* env. Mirrors the React app's
-// initializeRuntimeConfig boot gate. On error we surface a hard config-error screen
-// (app.vue) instead of booting against the wrong API.
+// Runs first (00 prefix), client-only, async — blocks app mount until (1) the backend target
+// is resolved from /app-config.json + NUXT_PUBLIC_* env, and (2) the auth server-state is
+// seeded into the Colada cache so the auth guard is trustworthy on the first navigation.
+// On invalid config we surface a hard config-error screen (app.vue) instead of booting
+// against the wrong API.
 export default defineNuxtPlugin(async () => {
   const configState = useState<RuntimeConfig | null>('app:runtime-config', () => null)
   const errorState = useState<RuntimeConfigError | null>('app:config-error', () => null)
@@ -19,8 +24,31 @@ export default defineNuxtPlugin(async () => {
 
   configState.value = result.config
 
-  // Hydrate the session before the first guarded navigation is evaluated.
-  const session = useSessionStore()
-  session.bindExpiryListener()
-  await session.restore()
+  const queryCache = useQueryCache()
+  const router = useRouter()
+
+  // Public capability discovery — the sign-in screen needs auth_methods before any session.
+  try {
+    const config = await apiClient.get<AuthConfig>('/auth/config')
+    queryCache.setQueryData(AUTH_CONFIG_KEY, config)
+  } catch {
+    // Non-fatal — the authConfig query retries on demand.
+  }
+
+  // Resolve the session before the first guarded navigation.
+  if (hasStoredAuthTokens()) {
+    try {
+      const user = await apiClient.get<SessionUser>('/users/me')
+      queryCache.setQueryData(SESSION_KEY, user)
+    } catch {
+      clearStoredAuthTokens()
+      queryCache.setQueryData(SESSION_KEY, null)
+    }
+  }
+
+  // The api client dispatches this when a token refresh fails mid-flight.
+  window.addEventListener(authSessionExpiredEvent, () => {
+    resetSession(queryCache)
+    void router.push('/auth/login')
+  })
 })
