@@ -77,7 +77,8 @@ const { data: entityConfig, status: configStatus, error: configError } = useQuer
               <span>Auth methods:
                 <span class="capitalize text-default">{{ authMethods.join(', ') || 'none' }}</span>
               </span>
-              <span>{{ capabilities?.available_permissions.length ?? 0 }} permissions available</span>
+              <span v-if="capabilities?.available_permissions">{{ capabilities.available_permissions.length }} permissions available</span>
+              <span v-if="capabilities?.library_version">Library <span class="text-default">{{ capabilities.library_version }}</span></span>
             </div>
           </div>
         </UCard>

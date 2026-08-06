@@ -78,8 +78,12 @@ export type SessionUser = {
 }
 
 // Capability discovery — the UI adapts to what the mounted deployment exposes (A1).
+// Fields vary across outlabsAuth library versions, so version-specific keys are optional.
 export type AuthConfig = {
   preset: string
+  library_version?: string
+  api_contract_version?: string
+  mounted_surfaces?: string[]
   features: {
     entity_hierarchy: boolean
     context_aware_roles: boolean
@@ -98,7 +102,8 @@ export type AuthConfig = {
     magic_link?: boolean
     access_code?: boolean
   }
-  available_permissions: string[]
+  // Present on older library versions; newer ones omit it from /auth/config.
+  available_permissions?: string[]
 }
 
 export type PaginatedResponse<T> = {
