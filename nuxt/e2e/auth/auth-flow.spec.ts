@@ -28,7 +28,7 @@ test.describe('auth flow', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
 
     await expect(page).toHaveURL(/\/app\//)
-    await expect(page.getByRole('navigation')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
 
     // Sign out returns to the login screen.
     await page.getByRole('button', { name: 'Sign out' }).click()
