@@ -1,9 +1,10 @@
-import { defineQueryOptions } from '@pinia/colada'
+import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
 import { apiClient } from '~/utils/api'
-import type { EntitiesListFilters, EntitiesListResponse, Entity } from '~/types/entity'
+import type { CreateEntityInput, EntitiesListFilters, EntitiesListResponse, Entity, UpdateEntityInput } from '~/types/entity'
 
-// P2 vertical (read layer) — the entity hierarchy. Create/move is hierarchy-constrained
-// (parent + allowed child types) and lands in a later pass with a tree-aware form.
+// Entities vertical. Read: list + detail. Write: create (POST /entities/), move
+// (POST /entities/{id}/move), update (PATCH /entities/{id}). Mutations invalidate the
+// resource root ['entities'] on settle. Advanced child-governance is a later pass.
 
 const ENTITIES_ROOT = 'entities' as const
 
@@ -30,3 +31,30 @@ export const entityDetailQuery = defineQueryOptions((entityId: string) => ({
   key: [ENTITIES_ROOT, 'detail', entityId],
   query: ctx => apiClient.get<Entity>(`/entities/${entityId}`, { signal: ctx?.signal })
 }))
+
+export function useCreateEntity() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    // Trailing slash: POST /entities 307-redirects and can drop the body.
+    mutation: (input: CreateEntityInput) => apiClient.post<Entity>('/entities/', { body: input }),
+    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+  })
+}
+
+export function useUpdateEntity() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: ({ entityId, input }: { entityId: string, input: UpdateEntityInput }) =>
+      apiClient.patch<Entity>(`/entities/${entityId}`, { body: input }),
+    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+  })
+}
+
+export function useMoveEntity() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: ({ entityId, newParentId }: { entityId: string, newParentId: string | null }) =>
+      apiClient.post<Entity>(`/entities/${entityId}/move`, { body: { new_parent_id: newParentId } }),
+    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+  })
+}

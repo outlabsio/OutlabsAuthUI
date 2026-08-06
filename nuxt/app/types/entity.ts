@@ -28,3 +28,22 @@ export type EntitiesListFilters = {
   parentId?: string
   rootOnly?: boolean
 }
+
+// Create payload (POST /entities/). Omitting parent_entity_id creates a root. The advanced
+// child-governance fields (allowed_child_*, patterns, validity window) are a later pass.
+export type CreateEntityInput = {
+  name: string
+  display_name: string
+  slug: string
+  description?: string
+  entity_class: EntityClassValue
+  entity_type: string
+  parent_entity_id?: string
+}
+
+// Update payload (PATCH /entities/{id}). entity_type is not editable post-create.
+export type UpdateEntityInput = {
+  display_name?: string
+  description?: string | null
+  status?: EntityStatusValue
+}

@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import type { TableColumn } from '@nuxt/ui'
-import { entitiesListQuery } from '~/queries/entities'
+import { entitiesListQuery, useCreateEntity } from '~/queries/entities'
 import { getApiErrorMessage } from '~/utils/api'
-import type { EntitiesListFilters, Entity } from '~/types/entity'
+import type { CreateEntityInput, EntitiesListFilters, Entity, EntityClassValue } from '~/types/entity'
 
-// P2 vertical (read-only) — the entity hierarchy. Create/move is hierarchy-constrained and
-// lands in a later pass with a tree-aware form.
+// Entities vertical — the hierarchy list plus a hierarchy-aware create (pick a parent, or
+// none for a root). Create/edit/move gate on entity:update/create (superusers pass).
+const toast = useToast()
 const { hasPermission } = useAuth()
 
 const filters = reactive<EntitiesListFilters>({ page: 1, limit: 100, search: '' })
 // Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
 // denied actor; the AppPermissionGate renders the same verdict in-place.
 const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ ...filters }), enabled: hasPermission('entity:read') }))
+// A search-independent pool for the parent picker (the table's own list is search-filtered).
+const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: hasPermission('entity:read') }))
 
 const rows = computed<Entity[]>(() => data.value?.items ?? [])
+const parentOptions = computed<Entity[]>(() => parentPool.value?.items ?? [])
 
 const columns: TableColumn<Entity>[] = [
   { accessorKey: 'display_name', header: 'Display name' },
@@ -23,6 +27,56 @@ const columns: TableColumn<Entity>[] = [
   { accessorKey: 'entity_class', header: 'Class' },
   { accessorKey: 'status', header: 'Status' }
 ]
+
+// --- Create ---
+const createOpen = ref(false)
+const createState = reactive({
+  parentId: '',
+  name: '',
+  displayName: '',
+  slug: '',
+  description: '',
+  entityClass: 'structural' as EntityClassValue,
+  entityType: ''
+})
+const createErrors = reactive({ name: '', displayName: '', slug: '', entityType: '' })
+const createEntity = useCreateEntity()
+const creating = ref(false)
+
+function openCreate() {
+  Object.assign(createState, { parentId: '', name: '', displayName: '', slug: '', description: '', entityClass: 'structural', entityType: '' })
+  Object.assign(createErrors, { name: '', displayName: '', slug: '', entityType: '' })
+  createOpen.value = true
+}
+
+async function onCreate() {
+  createErrors.name = createState.name.trim() ? '' : 'System name is required.'
+  createErrors.displayName = createState.displayName.trim() ? '' : 'Display name is required.'
+  createErrors.slug = createState.slug.trim() ? '' : 'Slug is required.'
+  createErrors.entityType = createState.entityType.trim() ? '' : 'Entity type is required.'
+  if (createErrors.name || createErrors.displayName || createErrors.slug || createErrors.entityType) return
+
+  creating.value = true
+  try {
+    const input: CreateEntityInput = {
+      name: createState.name.trim(),
+      display_name: createState.displayName.trim(),
+      slug: createState.slug.trim(),
+      entity_class: createState.entityClass,
+      entity_type: createState.entityType.trim()
+    }
+    if (createState.description.trim()) input.description = createState.description.trim()
+    if (createState.parentId) input.parent_entity_id = createState.parentId
+
+    await createEntity.mutateAsync(input)
+    toast.add({ title: 'Entity created', color: 'success', icon: 'i-lucide-check' })
+    createOpen.value = false
+  } catch (err) {
+    toast.add({ title: 'Could not create entity', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+  } finally {
+    creating.value = false
+  }
+}
 </script>
 
 <template>
@@ -31,6 +85,14 @@ const columns: TableColumn<Entity>[] = [
       <UDashboardNavbar title="Entities">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #right>
+          <UButton
+            v-if="hasPermission('entity:create')"
+            icon="i-lucide-plus"
+            label="New entity"
+            @click="openCreate"
+          />
         </template>
       </UDashboardNavbar>
 
@@ -77,4 +139,118 @@ const columns: TableColumn<Entity>[] = [
       </AppPermissionGate>
     </template>
   </UDashboardPanel>
+
+  <!-- Create -->
+  <UModal v-model:open="createOpen" title="Create entity">
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label for="entity-parent" class="block text-sm font-medium text-default">Parent</label>
+          <select
+            id="entity-parent"
+            v-model="createState.parentId"
+            class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
+          >
+            <option value="">
+              None (root)
+            </option>
+            <option v-for="entity in parentOptions" :key="entity.id" :value="entity.id">
+              {{ entity.display_name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="entity-name" class="block text-sm font-medium text-default">System name</label>
+            <UInput
+              id="entity-name"
+              v-model="createState.name"
+              placeholder="acme-west"
+              class="w-full"
+            />
+            <p v-if="createErrors.name" class="text-xs text-error">
+              {{ createErrors.name }}
+            </p>
+          </div>
+          <div class="space-y-1.5">
+            <label for="entity-slug" class="block text-sm font-medium text-default">Slug</label>
+            <UInput
+              id="entity-slug"
+              v-model="createState.slug"
+              placeholder="acme-west"
+              class="w-full"
+            />
+            <p v-if="createErrors.slug" class="text-xs text-error">
+              {{ createErrors.slug }}
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="entity-display-name" class="block text-sm font-medium text-default">Display name</label>
+          <UInput
+            id="entity-display-name"
+            v-model="createState.displayName"
+            placeholder="ACME West"
+            class="w-full"
+          />
+          <p v-if="createErrors.displayName" class="text-xs text-error">
+            {{ createErrors.displayName }}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="entity-class" class="block text-sm font-medium text-default">Class</label>
+            <select
+              id="entity-class"
+              v-model="createState.entityClass"
+              class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
+            >
+              <option value="structural">
+                Structural
+              </option>
+              <option value="access_group">
+                Access group
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label for="entity-type" class="block text-sm font-medium text-default">Type</label>
+            <UInput
+              id="entity-type"
+              v-model="createState.entityType"
+              placeholder="region"
+              class="w-full"
+            />
+            <p v-if="createErrors.entityType" class="text-xs text-error">
+              {{ createErrors.entityType }}
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="entity-description" class="block text-sm font-medium text-default">Description</label>
+          <UTextarea
+            id="entity-description"
+            v-model="createState.description"
+            :rows="2"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="createOpen = false"
+        />
+        <UButton label="Create entity" :loading="creating" @click="onCreate" />
+      </div>
+    </template>
+  </UModal>
 </template>

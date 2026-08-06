@@ -1,19 +1,17 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
-import { apiLogin } from '../support/passwordless-capture'
+import { adminAccessToken } from '../support/admin-token'
 
 // Audit workspace (chromium project, admin storageState — admin is superuser, so user:read
 // passes). Ported from the React audit-workspace suite; selectors adapt to the Nuxt DOM but
 // the behaviors are identical: filter-to-URL, deep-link prefill, click-to-filter, expandable
 // payloads, and empty states.
-const adminEmail = process.env.E2E_ADMIN_EMAIL ?? 'admin@acme.com'
-const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? 'Testpass1!'
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
 const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 
+// Reuse the setup-minted admin token (no extra login — keeps the login rate limiter happy).
 async function getAdminUserId() {
-  const token = await apiLogin(adminEmail, adminPassword)
   const res = await fetch(`${apiBaseUrl}${authApiPrefix}/users/me`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${adminAccessToken()}` }
   })
   if (!res.ok) throw new Error(`Unable to load admin profile for audit filters: ${res.status}`)
   return ((await res.json()) as { id: string }).id
