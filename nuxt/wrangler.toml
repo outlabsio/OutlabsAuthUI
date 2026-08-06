@@ -1,0 +1,13 @@
+# Cloudflare Workers static-assets deployment (same posture as the React app).
+# Pure SPA: `nuxt generate` (ssr:false + nitro static preset) emits .output/public,
+# and Workers serves it with SPA fallback. No worker script, no server runtime.
+#
+# NOT wired to publish yet — the app stays local until cutover (plan P4). Deploy is
+# `bun run deploy:cloudflare` once CLOUDFLARE_* creds are in .env. The distinct name
+# keeps it off the React app's deployment until the cutover flips it.
+name = "outlabs-auth-ui-nuxt"
+compatibility_date = "2024-04-03"
+
+[assets]
+directory = ".output/public"
+not_found_handling = "single-page-application"

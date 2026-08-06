@@ -20,7 +20,9 @@ async function onSubmit(event: FormSubmitEvent<LoginSchema>) {
   loading.value = true
   try {
     await session.login(event.data)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app/dashboard'
+    // Only honor internal /app/ redirect targets (open-redirect guard).
+    const target = route.query.redirect
+    const redirect = typeof target === 'string' && target.startsWith('/app/') ? target : '/app/dashboard'
     await navigateTo(redirect, { replace: true })
   } catch (error) {
     toast.add({
