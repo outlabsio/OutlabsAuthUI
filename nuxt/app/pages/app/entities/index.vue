@@ -16,13 +16,37 @@ const { hasPermission } = useAuth()
 const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: hasPermission('entity:read') }))
 const allEntities = computed<Entity[]>(() => data.value?.items ?? [])
 
+// The selected entity (right panel) lives in the URL (?entity=id) so it's deep-linkable and
+// the back button works; tree nodes are links that set it.
+const route = useRoute()
+const selectedId = computed(() => (typeof route.query.entity === 'string' ? route.query.entity : ''))
+
 const search = ref('')
 const fullTree = computed(() => buildEntityTree(allEntities.value))
 const filtered = computed(() => filterEntityTree(fullTree.value, search.value))
+const entityById = computed(() => new Map(allEntities.value.map(e => [e.id, e])))
+
+function ancestorIds(id: string): string[] {
+  const out: string[] = []
+  let current = entityById.value.get(id)
+  while (current?.parent_entity_id) {
+    out.push(current.parent_entity_id)
+    current = entityById.value.get(current.parent_entity_id)
+  }
+  return out
+}
+
+// Expanded state — driven by the search filter (reveal matches) or the selected entity's
+// ancestor path (reveal the selection), without collapsing branches the user opened manually.
 const expanded = ref<string[]>([])
 watch(() => filtered.value.expandedIds, (ids) => {
-  expanded.value = ids
+  if (search.value.trim()) expanded.value = ids
 })
+watch([selectedId, () => allEntities.value.length], () => {
+  if (selectedId.value && !search.value.trim()) {
+    expanded.value = [...new Set([...expanded.value, ...ancestorIds(selectedId.value)])]
+  }
+}, { immediate: true })
 
 // UTree items — value = id (key), label = display name; children omitted for leaves so they
 // render without an expand toggle.
@@ -128,7 +152,13 @@ async function onCreate() {
 </script>
 
 <template>
-  <UDashboardPanel id="entities">
+  <UDashboardPanel
+    id="entities"
+    :default-size="34"
+    :min-size="25"
+    :max-size="50"
+    resizable
+  >
     <template #header>
       <UDashboardNavbar title="Entities">
         <template #leading>
@@ -178,11 +208,14 @@ async function onCreate() {
           v-model:expanded="expanded"
           :items="treeItems"
           :get-key="(item) => item.value"
-          color="neutral"
-          class="max-w-2xl"
+          color="primary"
         >
           <template #item-label="{ item }">
-            <ULink :to="`/app/entities/${item.value}`" class="truncate font-medium text-highlighted hover:underline">
+            <ULink
+              :to="{ query: { entity: item.value } }"
+              class="truncate font-medium hover:underline"
+              :class="item.value === selectedId ? 'text-primary' : 'text-highlighted'"
+            >
               {{ item.label }}
             </ULink>
           </template>
@@ -206,6 +239,15 @@ async function onCreate() {
       </AppPermissionGate>
     </template>
   </UDashboardPanel>
+
+  <!-- Detail (right column) — swaps as the tree selection (?entity=) changes -->
+  <AppEntityDetail v-if="selectedId" :key="selectedId" :entity-id="selectedId" />
+  <div v-else class="hidden flex-1 flex-col items-center justify-center gap-2 text-center lg:flex">
+    <UIcon name="i-lucide-building-2" class="size-8 text-dimmed" />
+    <p class="text-sm text-muted">
+      Select an entity to view its details.
+    </p>
+  </div>
 
   <!-- Create -->
   <UModal v-model:open="createOpen" title="Create entity">

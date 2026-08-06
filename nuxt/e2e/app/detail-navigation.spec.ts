@@ -22,10 +22,11 @@ test.describe('resource detail navigation', () => {
     await expect(page.getByRole('heading', { name: 'Active sessions' })).toBeVisible()
   })
 
-  test('opens an entity detail from the entities list', async ({ page }) => {
+  test('opens an entity detail from the entities tree (right column)', async ({ page }) => {
     await page.goto('/app/entities')
+    // Clicking a tree node selects it into the right-hand detail column via ?entity=<id>.
     await page.getByRole('link', { name: 'ACME Realty' }).click()
-    await expect(page).toHaveURL(/\/app\/entities\/[0-9a-f-]+/)
+    await expect(page).toHaveURL(/\/app\/entities\?entity=[0-9a-f-]+/)
     await expect(page.getByRole('heading', { name: 'Details' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Children' })).toBeVisible()
   })
