@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import { permissionsListQuery, useCreatePermission } from '~/queries/permissions'
+import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
+import { permissionsListQuery, useCreatePermission, useDeletePermission } from '~/queries/permissions'
 import { createPermissionSchema, type CreatePermissionSchema } from '~/schemas/permission'
 import { getApiErrorMessage } from '~/utils/api'
 import type { Permission, PermissionsListFilters } from '~/types/permission'
@@ -26,8 +26,15 @@ const columns: TableColumn<Permission>[] = [
   { accessorKey: 'name', header: 'Name' },
   { accessorKey: 'resource', header: 'Resource' },
   { accessorKey: 'is_system', header: 'Origin' },
-  { accessorKey: 'status', header: 'Status' }
+  { accessorKey: 'status', header: 'Status' },
+  { id: 'actions', header: '' }
 ]
+
+function rowMenu(permission: Permission): DropdownMenuItem[] {
+  return [
+    { label: 'Delete', icon: 'i-lucide-trash', color: 'error', onSelect: () => openDelete(permission) }
+  ]
+}
 
 const createOpen = ref(false)
 const createState = reactive<Partial<CreatePermissionSchema>>({ name: '', display_name: '', description: '' })
@@ -46,6 +53,32 @@ async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
     toast.add({ title: 'Could not create permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     creating.value = false
+  }
+}
+
+// --- Delete (custom permissions only; system permissions are backend-protected) ---
+const deleteOpen = ref(false)
+const deleteTarget = ref<Permission | null>(null)
+const deletePermission = useDeletePermission()
+const deleting = ref(false)
+
+function openDelete(permission: Permission) {
+  deleteTarget.value = permission
+  deleteOpen.value = true
+}
+
+async function onConfirmDelete() {
+  if (!deleteTarget.value) return
+  deleting.value = true
+  try {
+    await deletePermission.mutateAsync(deleteTarget.value.id)
+    toast.add({ title: 'Permission deleted', color: 'success', icon: 'i-lucide-check' })
+    deleteOpen.value = false
+    await refetch()
+  } catch (err) {
+    toast.add({ title: 'Could not delete permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+  } finally {
+    deleting.value = false
   }
 }
 </script>
@@ -100,6 +133,19 @@ async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
             {{ row.original.status }}
           </UBadge>
         </template>
+        <template #actions-cell="{ row }">
+          <div class="text-right">
+            <UDropdownMenu v-if="!row.original.is_system" :items="rowMenu(row.original)">
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Permission actions"
+              />
+            </UDropdownMenu>
+          </div>
+        </template>
       </UTable>
     </template>
   </UDashboardPanel>
@@ -136,6 +182,31 @@ async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
           <UButton type="submit" label="Create" :loading="creating" />
         </div>
       </UForm>
+    </template>
+  </UModal>
+
+  <!-- Delete -->
+  <UModal v-model:open="deleteOpen" title="Delete permission">
+    <template #body>
+      <p class="text-sm text-muted">
+        Delete <span class="font-medium text-default">{{ deleteTarget?.name }}</span>? This cannot be undone.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="deleteOpen = false"
+        />
+        <UButton
+          color="error"
+          label="Delete"
+          :loading="deleting"
+          @click="onConfirmDelete"
+        />
+      </div>
     </template>
   </UModal>
 </template>

@@ -45,5 +45,5 @@ export type CreateUserInput = {
 export type UpdateUserInput = {
   first_name?: string
   last_name?: string
-  phone?: string
+  phone?: string | null
 }

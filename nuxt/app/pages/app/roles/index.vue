@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import { rolesListQuery, useCreateRole } from '~/queries/roles'
-import { createRoleSchema, type CreateRoleSchema } from '~/schemas/role'
+import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
+import { rolesListQuery, useCreateRole, useDeleteRole, useUpdateRole } from '~/queries/roles'
+import { createRoleSchema, type CreateRoleSchema, updateRoleSchema, type UpdateRoleSchema } from '~/schemas/role'
 import { getApiErrorMessage } from '~/utils/api'
 import type { Role, RolesListFilters } from '~/types/role'
 
@@ -19,8 +19,16 @@ const columns: TableColumn<Role>[] = [
   { accessorKey: 'name', header: 'Name' },
   { accessorKey: 'scope', header: 'Scope' },
   { accessorKey: 'is_global', header: 'Reach' },
-  { accessorKey: 'status', header: 'Status' }
+  { accessorKey: 'status', header: 'Status' },
+  { id: 'actions', header: '' }
 ]
+
+function rowMenu(role: Role): DropdownMenuItem[] {
+  return [
+    { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(role) },
+    { label: 'Delete', icon: 'i-lucide-trash', color: 'error', onSelect: () => openDelete(role) }
+  ]
+}
 
 const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
   active: 'success',
@@ -51,6 +59,64 @@ async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
     toast.add({ title: 'Could not create role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     creating.value = false
+  }
+}
+
+// --- Edit ---
+const editOpen = ref(false)
+const editTarget = ref<Role | null>(null)
+const editState = reactive<UpdateRoleSchema>({ display_name: '', description: '' })
+const updateRole = useUpdateRole()
+const saving = ref(false)
+
+function openEdit(role: Role) {
+  editTarget.value = role
+  editState.display_name = role.display_name
+  editState.description = role.description ?? ''
+  editOpen.value = true
+}
+
+async function onSaveEdit(event: FormSubmitEvent<UpdateRoleSchema>) {
+  if (!editTarget.value) return
+  saving.value = true
+  try {
+    await updateRole.mutateAsync({
+      roleId: editTarget.value.id,
+      input: { display_name: event.data.display_name, description: event.data.description }
+    })
+    toast.add({ title: 'Role updated', color: 'success', icon: 'i-lucide-check' })
+    editOpen.value = false
+    await refetch()
+  } catch (err) {
+    toast.add({ title: 'Could not update role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+  } finally {
+    saving.value = false
+  }
+}
+
+// --- Delete ---
+const deleteOpen = ref(false)
+const deleteTarget = ref<Role | null>(null)
+const deleteRole = useDeleteRole()
+const deleting = ref(false)
+
+function openDelete(role: Role) {
+  deleteTarget.value = role
+  deleteOpen.value = true
+}
+
+async function onConfirmDelete() {
+  if (!deleteTarget.value) return
+  deleting.value = true
+  try {
+    await deleteRole.mutateAsync(deleteTarget.value.id)
+    toast.add({ title: 'Role deleted', color: 'success', icon: 'i-lucide-check' })
+    deleteOpen.value = false
+    await refetch()
+  } catch (err) {
+    toast.add({ title: 'Could not delete role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+  } finally {
+    deleting.value = false
   }
 }
 </script>
@@ -108,6 +174,19 @@ async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
             {{ row.original.status }}
           </UBadge>
         </template>
+        <template #actions-cell="{ row }">
+          <div class="text-right">
+            <UDropdownMenu :items="rowMenu(row.original)">
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Role actions"
+              />
+            </UDropdownMenu>
+          </div>
+        </template>
       </UTable>
     </template>
   </UDashboardPanel>
@@ -147,6 +226,59 @@ async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
           <UButton type="submit" label="Create" :loading="creating" />
         </div>
       </UForm>
+    </template>
+  </UModal>
+
+  <!-- Edit -->
+  <UModal v-model:open="editOpen" :title="`Edit ${editTarget?.display_name ?? 'role'}`">
+    <template #body>
+      <UForm
+        :schema="updateRoleSchema"
+        :state="editState"
+        class="space-y-4"
+        @submit="onSaveEdit"
+      >
+        <UFormField name="display_name" label="Display name" required>
+          <UInput v-model="editState.display_name" class="w-full" />
+        </UFormField>
+        <UFormField name="description" label="Description">
+          <UTextarea v-model="editState.description" class="w-full" :rows="2" />
+        </UFormField>
+        <div class="flex justify-end gap-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="Cancel"
+            @click="editOpen = false"
+          />
+          <UButton type="submit" label="Save" :loading="saving" />
+        </div>
+      </UForm>
+    </template>
+  </UModal>
+
+  <!-- Delete -->
+  <UModal v-model:open="deleteOpen" title="Delete role">
+    <template #body>
+      <p class="text-sm text-muted">
+        Delete <span class="font-medium text-default">{{ deleteTarget?.display_name }}</span>? This cannot be undone.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="deleteOpen = false"
+        />
+        <UButton
+          color="error"
+          label="Delete"
+          :loading="deleting"
+          @click="onConfirmDelete"
+        />
+      </div>
     </template>
   </UModal>
 </template>

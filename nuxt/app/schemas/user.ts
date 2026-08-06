@@ -7,9 +7,24 @@ export const createUserSchema = z.object({
     .trim()
     .min(1, 'Email is required.')
     .email('Enter a valid email address.'),
+  password: z.string().min(8, 'Password must be at least 8 characters.').max(128),
   first_name: z.string().trim().max(120).optional(),
   last_name: z.string().trim().max(120).optional(),
   is_superuser: z.boolean().optional()
 })
 
 export type CreateUserSchema = z.output<typeof createUserSchema>
+
+export const updateUserSchema = z.object({
+  first_name: z.string().trim().max(120).optional(),
+  last_name: z.string().trim().max(120).optional(),
+  phone: z
+    .string()
+    .trim()
+    .refine(
+      value => value === '' || /^\+[1-9]\d{6,14}$/.test(value),
+      'Phone must be E.164 format (e.g. +15551234567), or left blank.'
+    )
+})
+
+export type UpdateUserSchema = z.output<typeof updateUserSchema>
