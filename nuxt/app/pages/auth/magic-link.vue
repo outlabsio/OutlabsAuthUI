@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useRequestMagicLink, useVerifyMagicLink } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { describeAuthError, getApiErrorMessage } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
 
@@ -38,7 +38,8 @@ async function onSubmit(event: FormSubmitEvent<EmailRequestSchema>) {
     await requestMagicLink.mutateAsync({ email: event.data.email })
     sent.value = true
   } catch (err) {
-    toast.add({ title: 'Could not send magic link', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+    const { title, description } = describeAuthError(err, 'Could not send magic link')
+    toast.add({ title, description, color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     loading.value = false
   }

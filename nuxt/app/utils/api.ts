@@ -80,6 +80,26 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   return (getApiErrorMessageFromPayload(error.data) ?? error.message) || fallback
 }
 
+function getRetryAfterSeconds(error: ApiError): number | null {
+  const data = error.data
+  if (!isRecord(data)) return null
+  const nested = isRecord(data.details) ? data.details : data
+  const secs = (nested as Record<string, unknown>).retry_after_seconds ?? data.retry_after_seconds
+  return typeof secs === 'number' && Number.isFinite(secs) ? Math.max(1, Math.ceil(secs)) : null
+}
+
+// Auth-request error → toast title/description, with a friendly cooldown for 429s.
+export function describeAuthError(error: unknown, fallbackTitle: string): { title: string, description: string } {
+  if (error instanceof ApiError && error.status === 429) {
+    const secs = getRetryAfterSeconds(error)
+    return {
+      title: 'Please wait a moment',
+      description: secs ? `Too many requests — try again in ${secs} second${secs === 1 ? '' : 's'}.` : 'Too many requests — try again shortly.'
+    }
+  }
+  return { title: fallbackTitle, description: getApiErrorMessage(error) }
+}
+
 // Session-expired signal — the session store listens and redirects to login.
 export const authSessionExpiredEvent = 'outlabs-auth:session-expired'
 

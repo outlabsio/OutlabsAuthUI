@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useForgotPassword } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { describeAuthError } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
 
@@ -19,7 +19,8 @@ async function onSubmit(event: FormSubmitEvent<EmailRequestSchema>) {
     // Always show success (don't leak whether the account exists).
     sent.value = true
   } catch (err) {
-    toast.add({ title: 'Could not send reset link', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+    const { title, description } = describeAuthError(err, 'Could not send reset link')
+    toast.add({ title, description, color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     loading.value = false
   }

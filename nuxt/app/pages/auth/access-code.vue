@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useRequestAccessCode, useVerifyAccessCode } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { describeAuthError, getApiErrorMessage } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
 
@@ -29,7 +29,8 @@ async function onRequest(event: FormSubmitEvent<EmailRequestSchema>) {
     email.value = event.data.email
     step.value = 'verify'
   } catch (err) {
-    toast.add({ title: 'Could not send code', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+    const { title, description } = describeAuthError(err, 'Could not send code')
+    toast.add({ title, description, color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     requesting.value = false
   }

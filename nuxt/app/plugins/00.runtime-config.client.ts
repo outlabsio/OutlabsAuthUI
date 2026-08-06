@@ -1,7 +1,7 @@
 import { useQueryCache } from '@pinia/colada'
 import { initializeRuntimeConfig, type RuntimeConfig, type RuntimeConfigError, type RuntimeConfigInput } from '~/utils/runtime-config'
 import { apiClient, authSessionExpiredEvent } from '~/utils/api'
-import { clearStoredAuthTokens, hasStoredAuthTokens } from '~/utils/auth-token'
+import { clearStoredAuthTokens, hasStoredAuthTokens, isAuthTokenStorageKey, tokensPresent } from '~/utils/auth-token'
 import { AUTH_CONFIG_KEY, SESSION_KEY, resetSession } from '~/queries/session'
 import type { AuthConfig, SessionUser } from '~/types/auth'
 
@@ -50,5 +50,22 @@ export default defineNuxtPlugin(async () => {
   window.addEventListener(authSessionExpiredEvent, () => {
     resetSession(queryCache)
     void router.push('/auth/login')
+  })
+
+  // Cross-tab sync — react when the auth tokens change in ANOTHER tab.
+  window.addEventListener('storage', (event) => {
+    if (!isAuthTokenStorageKey(event.key)) return
+    const present = hasStoredAuthTokens()
+    tokensPresent.value = present
+    if (!present) {
+      // Logged out in another tab — drop the session here too.
+      queryCache.setQueryData(SESSION_KEY, null)
+      if (router.currentRoute.value.path.startsWith('/app')) {
+        void router.push('/auth/login')
+      }
+    } else {
+      // Logged in / rotated elsewhere — refresh the identity.
+      void queryCache.invalidateQueries({ key: SESSION_KEY })
+    }
   })
 })

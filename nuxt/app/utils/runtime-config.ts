@@ -13,6 +13,9 @@ export type RuntimeConfigInput = {
   appSubtitle?: string
   authBrand?: string
   signInDescription?: string
+  // OAuth providers the deployment has configured (the library exposes no discovery
+  // endpoint, so the deployment declares them). Array in app-config.json, comma-string via env.
+  oauthProviders?: string | string[]
 }
 
 export type RuntimeConfig = {
@@ -23,6 +26,7 @@ export type RuntimeConfig = {
   appSubtitle: string
   authBrand: string
   signInDescription: string
+  oauthProviders: string[]
 }
 
 export type RuntimeConfigError = {
@@ -48,6 +52,12 @@ function ensureLeadingSlash(value: string) {
   return value.startsWith('/') ? value : `/${value}`
 }
 
+function parseProviders(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value.map(v => v.trim()).filter(Boolean)
+  if (typeof value === 'string') return value.split(',').map(v => v.trim()).filter(Boolean)
+  return []
+}
+
 const builtInDefaults: RuntimeConfig = {
   apiBaseUrl: 'http://localhost:8004',
   authApiPrefix: '/v1',
@@ -55,7 +65,8 @@ const builtInDefaults: RuntimeConfig = {
   appName: 'OutlabsAuth UI',
   appSubtitle: 'Shared auth admin console',
   authBrand: 'OutlabsAuth',
-  signInDescription: 'Sign in against the configured auth backend to access this console.'
+  signInDescription: 'Sign in against the configured auth backend to access this console.',
+  oauthProviders: []
 }
 
 const brandingDefaults = {
@@ -82,7 +93,8 @@ const runtimeConfigSchema = z.object({
   appName: z.string().trim().min(1).optional(),
   appSubtitle: z.string().trim().min(1).optional(),
   authBrand: z.string().trim().min(1).optional(),
-  signInDescription: z.string().trim().min(1).optional()
+  signInDescription: z.string().trim().min(1).optional(),
+  oauthProviders: z.union([z.string(), z.array(z.string())]).optional()
 })
 
 type ValidatedRuntimeConfigInput = z.infer<typeof runtimeConfigSchema>
@@ -95,7 +107,8 @@ function normalizeRuntimeConfig(input: ValidatedRuntimeConfigInput): RuntimeConf
     appName: input.appName?.trim() || brandingDefaults.appName,
     appSubtitle: input.appSubtitle?.trim() || brandingDefaults.appSubtitle,
     authBrand: input.authBrand?.trim() || brandingDefaults.authBrand,
-    signInDescription: input.signInDescription?.trim() || brandingDefaults.signInDescription
+    signInDescription: input.signInDescription?.trim() || brandingDefaults.signInDescription,
+    oauthProviders: parseProviders(input.oauthProviders)
   }
 }
 
@@ -106,10 +119,14 @@ function formatValidationIssues(error: z.ZodError) {
   })
 }
 
-// Drop empty strings so unset NUXT_PUBLIC_* keys don't shadow file config.
+// Drop empty strings so unset NUXT_PUBLIC_* keys don't shadow file config. Keep non-empty
+// arrays (oauthProviders from app-config.json).
 function pruneEmpty(input: RuntimeConfigInput): RuntimeConfigInput {
   return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => typeof value === 'string' && value.trim() !== '')
+    Object.entries(input).filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0
+      return typeof value === 'string' && value.trim() !== ''
+    })
   ) as RuntimeConfigInput
 }
 

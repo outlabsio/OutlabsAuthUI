@@ -53,4 +53,20 @@ test.describe('auth flows', () => {
     await expect(page.getByRole('link', { name: 'Sign in with a magic link' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Sign in with an access code' })).toBeVisible()
   })
+
+  test('login shows OAuth buttons for deployment-configured providers', async ({ page }) => {
+    // The deployment declares its providers via runtime config (no library discovery endpoint).
+    await page.addInitScript(() => {
+      ;(window as unknown as { __OUTLABS_AUTH_UI_CONFIG__?: Record<string, unknown> }).__OUTLABS_AUTH_UI_CONFIG__ = {
+        oauthProviders: ['google']
+      }
+    })
+    await page.goto('/auth/login')
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+  })
+
+  test('login surfaces an oauth_error returned by the provider callback', async ({ page }) => {
+    await page.goto('/auth/login?oauth_error=unknown_account')
+    await expect(page.getByText(/linked to an invitation/)).toBeVisible()
+  })
 })

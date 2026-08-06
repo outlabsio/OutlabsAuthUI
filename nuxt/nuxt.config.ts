@@ -33,7 +33,8 @@ export default defineNuxtConfig({
       appName: '',
       appSubtitle: '',
       authBrand: '',
-      signInDescription: ''
+      signInDescription: '',
+      oauthProviders: ''
     }
   },
 
