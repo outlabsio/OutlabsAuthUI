@@ -48,9 +48,16 @@ watch([scopeKind, entityId], () => {
   activeTab.value = 'accounts'
 })
 
-// Entities for the scope picker.
-const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: canRead.value }))
+// The full hierarchy for the scope picker (the USelectMenu searches it client-side).
+const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: canRead.value }))
 const entityOptions = computed<Entity[]>(() => entitiesData.value?.items ?? [])
+
+const scopeKindItems = [
+  { label: 'Platform global', value: 'platform_global' as const },
+  { label: 'Entity', value: 'entity' as const }
+]
+// Searchable entity picker (the hierarchy can be long).
+const entitySelectItems = computed(() => entityOptions.value.map(e => ({ label: e.display_name, value: e.id })))
 
 // Roles for the service-account role envelope. Platform-global accounts can only carry global
 // roles; entity-scoped accounts can carry entity roles too (the backend still validates).
@@ -299,33 +306,23 @@ const guideOpen = ref(false)
         <div class="mb-4 flex flex-wrap items-end gap-3">
           <div class="space-y-1.5">
             <label for="scope-kind" class="block text-sm font-medium text-default">Scope</label>
-            <select
+            <USelect
               id="scope-kind"
               v-model="scopeKind"
-              class="rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-            >
-              <option value="platform_global">
-                Platform global
-              </option>
-              <option value="entity">
-                Entity
-              </option>
-            </select>
+              :items="scopeKindItems"
+              class="w-44"
+            />
           </div>
           <div v-if="scopeKind === 'entity'" class="space-y-1.5">
             <label for="scope-entity" class="block text-sm font-medium text-default">Entity</label>
-            <select
+            <USelectMenu
               id="scope-entity"
               v-model="entityId"
-              class="min-w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-            >
-              <option value="">
-                Select an entity...
-              </option>
-              <option v-for="e in entityOptions" :key="e.id" :value="e.id">
-                {{ e.display_name }}
-              </option>
-            </select>
+              value-key="value"
+              :items="entitySelectItems"
+              placeholder="Select an entity..."
+              class="w-64"
+            />
           </div>
         </div>
 

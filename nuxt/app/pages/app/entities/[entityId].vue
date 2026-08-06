@@ -18,9 +18,22 @@ const { data: childrenData, status: childrenStatus } = useQuery(() => ({
   ...entitiesListQuery({ parentId: entityId.value, limit: 100 }),
   enabled: canRead.value
 }))
-// Search-independent pool for the move-target picker (excludes this entity).
-const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: canRead.value }))
+// The full hierarchy for the move-target picker (the USelectMenu searches it client-side).
+const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: canRead.value }))
 const moveParentOptions = computed<Entity[]>(() => (parentPool.value?.items ?? []).filter(e => e.id !== entityId.value))
+
+const entityStatusItems = [
+  { label: 'Active', value: 'active' as EntityStatusValue },
+  { label: 'Inactive', value: 'inactive' as EntityStatusValue },
+  { label: 'Archived', value: 'archived' as EntityStatusValue }
+]
+// Searchable move-target picker (the hierarchy can be long).
+// "Root" uses a sentinel — Reka's Combobox reserves the empty string (an empty-value item throws).
+const ROOT_PARENT = '__root__'
+const moveParentSelectItems = computed(() => [
+  { label: 'None (root)', value: ROOT_PARENT },
+  ...moveParentOptions.value.map(e => ({ label: e.display_name, value: e.id }))
+])
 
 const detailItems = computed(() => {
   const e = entity.value
@@ -88,19 +101,20 @@ async function onEdit() {
 
 // --- Move ---
 const moveOpen = ref(false)
-const moveParentId = ref('')
+const moveParentId = ref(ROOT_PARENT)
 const moveEntity = useMoveEntity()
 const moving = ref(false)
 
 function openMove() {
-  moveParentId.value = entity.value?.parent_entity_id ?? ''
+  moveParentId.value = entity.value?.parent_entity_id ?? ROOT_PARENT
   moveOpen.value = true
 }
 
 async function onMove() {
   moving.value = true
   try {
-    await moveEntity.mutateAsync({ entityId: entityId.value, newParentId: moveParentId.value || null })
+    const newParentId = moveParentId.value === ROOT_PARENT ? null : moveParentId.value
+    await moveEntity.mutateAsync({ entityId: entityId.value, newParentId })
     toast.add({ title: 'Entity moved', color: 'success', icon: 'i-lucide-check' })
     moveOpen.value = false
   } catch (err) {
@@ -213,21 +227,12 @@ async function onMove() {
         </div>
         <div class="space-y-1.5">
           <label for="entity-edit-status" class="block text-sm font-medium text-default">Status</label>
-          <select
+          <USelect
             id="entity-edit-status"
             v-model="editState.status"
-            class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-          >
-            <option value="active">
-              Active
-            </option>
-            <option value="inactive">
-              Inactive
-            </option>
-            <option value="archived">
-              Archived
-            </option>
-          </select>
+            :items="entityStatusItems"
+            class="w-full"
+          />
         </div>
         <div class="space-y-2 rounded-lg border border-default p-3">
           <p class="text-sm font-medium text-default">
@@ -278,18 +283,14 @@ async function onMove() {
     <template #body>
       <div class="space-y-1.5">
         <label for="entity-move-parent" class="block text-sm font-medium text-default">New parent</label>
-        <select
+        <USelectMenu
           id="entity-move-parent"
           v-model="moveParentId"
-          class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-        >
-          <option value="">
-            None (root)
-          </option>
-          <option v-for="option in moveParentOptions" :key="option.id" :value="option.id">
-            {{ option.display_name }}
-          </option>
-        </select>
+          value-key="value"
+          :items="moveParentSelectItems"
+          placeholder="None (root)"
+          class="w-full"
+        />
         <p class="text-xs text-muted">
           Re-parents this entity. Hierarchy rules on the new parent still apply.
         </p>

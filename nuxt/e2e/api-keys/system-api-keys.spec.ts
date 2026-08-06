@@ -1,5 +1,6 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
 import { adminAccessToken } from '../support/admin-token'
+import { chooseSelect, chooseSelectMenu } from '../support/ui-select'
 import type { Page } from '@playwright/test'
 
 // System API Keys — service accounts + machine keys, platform-global and entity-scoped
@@ -113,10 +114,9 @@ test.describe('system api keys workspace', () => {
     const keyName = `pw-esc-mk-${uid()}`
 
     await page.goto('/app/users/api-keys')
-    await page.locator('#scope-kind').selectOption('entity')
+    await chooseSelect(page, 'scope-kind', 'Entity')
     await expect(page.locator('#scope-entity')).toBeVisible()
-    await expect(page.locator(`#scope-entity option[value="${entity.id}"]`)).toHaveCount(1)
-    await page.locator('#scope-entity').selectOption(entity.id)
+    await chooseSelectMenu(page, 'scope-entity', entity.display_name)
 
     // Create an entity-scoped service account.
     await page.getByRole('button', { name: 'Create service account' }).click()

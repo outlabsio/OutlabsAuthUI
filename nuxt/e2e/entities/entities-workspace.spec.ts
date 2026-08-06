@@ -1,5 +1,6 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
 import { adminAccessToken } from '../support/admin-token'
+import { chooseSelectMenu } from '../support/ui-select'
 import type { Page } from '@playwright/test'
 
 // Entities vertical — hierarchy-aware create + move + edit (chromium project, admin
@@ -86,8 +87,7 @@ test.describe('entities workspace', () => {
 
     await page.goto('/app/entities')
     await fillCreateForm(page, slug, `PW Child ${stamp}`)
-    await expect(page.locator(`#entity-parent option[value="${parent.id}"]`)).toHaveCount(1)
-    await page.locator('#entity-parent').selectOption(parent.id)
+    await chooseSelectMenu(page, 'entity-parent', parent.display_name)
     await page.getByRole('button', { name: 'Create entity' }).click()
 
     await expect(page.locator('#entity-name')).toBeHidden()
@@ -124,8 +124,7 @@ test.describe('entities workspace', () => {
     await page.goto(`/app/entities/${child.id}`)
     await page.getByRole('button', { name: 'Move' }).click()
     await expect(page.locator('#entity-move-parent')).toBeVisible()
-    await expect(page.locator(`#entity-move-parent option[value="${parent.id}"]`)).toHaveCount(1)
-    await page.locator('#entity-move-parent').selectOption(parent.id)
+    await chooseSelectMenu(page, 'entity-move-parent', parent.display_name)
     await page.getByRole('button', { name: 'Move entity' }).click()
 
     await expect(page.locator('#entity-move-parent')).toBeHidden()
@@ -161,8 +160,7 @@ test.describe('entities workspace', () => {
     await page.goto('/app/entities')
     await page.getByRole('button', { name: 'New entity' }).click()
     await expect(page.locator('#entity-parent')).toBeVisible()
-    await expect(page.locator(`#entity-parent option[value="${parent.id}"]`)).toHaveCount(1)
-    await page.locator('#entity-parent').selectOption(parent.id)
+    await chooseSelectMenu(page, 'entity-parent', parent.display_name)
 
     const guidance = page.getByTestId('parent-governance')
     await expect(guidance).toBeVisible()

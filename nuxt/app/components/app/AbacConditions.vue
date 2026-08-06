@@ -33,6 +33,14 @@ function conditionGroupLabel(condition: AbacCondition) {
 }
 
 const valueTypes: AbacConditionValueType[] = ['string', 'integer', 'float', 'boolean', 'list']
+const operatorItems: ('AND' | 'OR')[] = ['AND', 'OR']
+// Group picker items — "Ungrouped" plus each existing group. "Ungrouped" uses a sentinel
+// because Reka's Select rejects an empty-string item value.
+const UNGROUPED = '__ungrouped__'
+const groupSelectItems = computed(() => [
+  { label: 'Ungrouped', value: UNGROUPED },
+  ...groups.value.map(g => ({ label: groupLabel(g), value: g.id }))
+])
 
 // --- Add group ---
 const groupOpen = ref(false)
@@ -69,7 +77,7 @@ const createCondition = useCreateCondition()
 const creatingCondition = ref(false)
 
 function openAddCondition() {
-  Object.assign(conditionState, { attribute: '', operator: '', value: '', valueType: 'string', groupId: groups.value[0]?.id ?? '' })
+  Object.assign(conditionState, { attribute: '', operator: '', value: '', valueType: 'string', groupId: groups.value[0]?.id ?? UNGROUPED })
   conditionErrors.attribute = ''
   conditionErrors.operator = ''
   conditionOpen.value = true
@@ -85,7 +93,7 @@ async function onAddCondition() {
       attribute: conditionState.attribute.trim(),
       operator: conditionState.operator.trim(),
       value_type: conditionState.valueType,
-      condition_group_id: conditionState.groupId || null
+      condition_group_id: conditionState.groupId && conditionState.groupId !== UNGROUPED ? conditionState.groupId : null
     }
     if (conditionState.value.trim()) input.value = conditionState.value.trim()
     await createCondition.mutateAsync({ kind: props.kind, id: props.id, input })
@@ -230,18 +238,12 @@ async function onDelete() {
         <div class="space-y-4">
           <div class="space-y-1.5">
             <label for="abac-group-operator" class="block text-sm font-medium text-default">Operator</label>
-            <select
+            <USelect
               id="abac-group-operator"
               v-model="groupState.operator"
-              class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-            >
-              <option value="AND">
-                AND
-              </option>
-              <option value="OR">
-                OR
-              </option>
-            </select>
+              :items="operatorItems"
+              class="w-full"
+            />
           </div>
           <div class="space-y-1.5">
             <label for="abac-group-description" class="block text-sm font-medium text-default">Description</label>
@@ -293,15 +295,12 @@ async function onDelete() {
             </div>
             <div class="space-y-1.5">
               <label for="abac-value-type" class="block text-sm font-medium text-default">Value type</label>
-              <select
+              <USelect
                 id="abac-value-type"
                 v-model="conditionState.valueType"
-                class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-              >
-                <option v-for="vt in valueTypes" :key="vt" :value="vt">
-                  {{ vt }}
-                </option>
-              </select>
+                :items="valueTypes"
+                class="w-full"
+              />
             </div>
           </div>
           <div class="space-y-1.5">
@@ -315,18 +314,12 @@ async function onDelete() {
           </div>
           <div class="space-y-1.5">
             <label for="abac-group" class="block text-sm font-medium text-default">Group</label>
-            <select
+            <USelect
               id="abac-group"
               v-model="conditionState.groupId"
-              class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-            >
-              <option value="">
-                Ungrouped
-              </option>
-              <option v-for="group in groups" :key="group.id" :value="group.id">
-                {{ groupLabel(group) }}
-              </option>
-            </select>
+              :items="groupSelectItems"
+              class="w-full"
+            />
           </div>
         </div>
       </template>

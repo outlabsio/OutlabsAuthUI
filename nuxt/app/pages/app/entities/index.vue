@@ -14,11 +14,25 @@ const filters = reactive<EntitiesListFilters>({ page: 1, limit: 100, search: '' 
 // Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
 // denied actor; the AppPermissionGate renders the same verdict in-place.
 const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ ...filters }), enabled: hasPermission('entity:read') }))
-// A search-independent pool for the parent picker (the table's own list is search-filtered).
-const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: hasPermission('entity:read') }))
+// The full hierarchy for the parent picker (the USelectMenu searches it client-side, so it
+// needs every entity, not the table's search-filtered/paginated page).
+const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: hasPermission('entity:read') }))
 
 const rows = computed<Entity[]>(() => data.value?.items ?? [])
 const parentOptions = computed<Entity[]>(() => parentPool.value?.items ?? [])
+
+// Select items — parent is a searchable USelectMenu (the hierarchy can be long); class is a
+// small USelect. Both bind the value string. "Root" uses a sentinel because Reka's Combobox
+// reserves the empty string for clearing the selection (an empty-value item throws).
+const ROOT_PARENT = '__root__'
+const parentSelectItems = computed(() => [
+  { label: 'None (root)', value: ROOT_PARENT },
+  ...parentOptions.value.map(e => ({ label: e.display_name, value: e.id }))
+])
+const entityClassItems = [
+  { label: 'Structural', value: 'structural' as EntityClassValue },
+  { label: 'Access group', value: 'access_group' as EntityClassValue }
+]
 
 const columns: TableColumn<Entity>[] = [
   { accessorKey: 'display_name', header: 'Display name' },
@@ -31,7 +45,7 @@ const columns: TableColumn<Entity>[] = [
 // --- Create ---
 const createOpen = ref(false)
 const createState = reactive({
-  parentId: '',
+  parentId: ROOT_PARENT,
   name: '',
   displayName: '',
   slug: '',
@@ -61,7 +75,7 @@ const parentAllowedClasses = computed(() => selectedParent.value?.allowed_child_
 const hasParentGovernance = computed(() => Boolean(parentAllowedTypes.value?.length || parentAllowedClasses.value?.length))
 
 function openCreate() {
-  Object.assign(createState, { parentId: '', name: '', displayName: '', slug: '', description: '', entityClass: 'structural', entityType: '', allowedChildClasses: [], allowedChildTypes: '' })
+  Object.assign(createState, { parentId: ROOT_PARENT, name: '', displayName: '', slug: '', description: '', entityClass: 'structural', entityType: '', allowedChildClasses: [], allowedChildTypes: '' })
   Object.assign(createErrors, { name: '', displayName: '', slug: '', entityType: '' })
   createOpen.value = true
 }
@@ -83,7 +97,7 @@ async function onCreate() {
       entity_type: createState.entityType.trim()
     }
     if (createState.description.trim()) input.description = createState.description.trim()
-    if (createState.parentId) input.parent_entity_id = createState.parentId
+    if (createState.parentId && createState.parentId !== ROOT_PARENT) input.parent_entity_id = createState.parentId
     if (createState.allowedChildClasses.length) input.allowed_child_classes = [...createState.allowedChildClasses]
     const childTypes = parseChildTypes(createState.allowedChildTypes)
     if (childTypes.length) input.allowed_child_types = childTypes
@@ -166,18 +180,14 @@ async function onCreate() {
       <div class="space-y-4">
         <div class="space-y-1.5">
           <label for="entity-parent" class="block text-sm font-medium text-default">Parent</label>
-          <select
+          <USelectMenu
             id="entity-parent"
             v-model="createState.parentId"
-            class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-          >
-            <option value="">
-              None (root)
-            </option>
-            <option v-for="entity in parentOptions" :key="entity.id" :value="entity.id">
-              {{ entity.display_name }}
-            </option>
-          </select>
+            value-key="value"
+            :items="parentSelectItems"
+            placeholder="None (root)"
+            class="w-full"
+          />
           <p v-if="hasParentGovernance" class="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-muted" data-testid="parent-governance">
             <template v-if="parentAllowedTypes?.length">
               This parent allows child types: <span class="font-medium text-default">{{ parentAllowedTypes.join(', ') }}</span>.
@@ -231,18 +241,12 @@ async function onCreate() {
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
             <label for="entity-class" class="block text-sm font-medium text-default">Class</label>
-            <select
+            <USelect
               id="entity-class"
               v-model="createState.entityClass"
-              class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm text-default"
-            >
-              <option value="structural">
-                Structural
-              </option>
-              <option value="access_group">
-                Access group
-              </option>
-            </select>
+              :items="entityClassItems"
+              class="w-full"
+            />
           </div>
           <div class="space-y-1.5">
             <label for="entity-type" class="block text-sm font-medium text-default">Type</label>
