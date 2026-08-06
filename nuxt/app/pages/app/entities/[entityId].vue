@@ -162,7 +162,7 @@ async function onMove() {
                 <h2 class="font-semibold text-highlighted">
                   Details
                 </h2>
-                <UBadge v-if="entity" variant="subtle">
+                <UBadge v-if="entity" :color="entity.entity_class === 'structural' ? 'info' : 'special'" variant="subtle">
                   {{ entity.entity_class.replace('_', ' ') }}
                 </UBadge>
               </div>

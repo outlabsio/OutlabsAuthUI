@@ -4,7 +4,17 @@ import type { TableColumn } from '@nuxt/ui'
 import { userDetailQuery, userRolesQuery, userSessionsQuery } from '~/queries/users'
 import { getApiErrorMessage } from '~/utils/api'
 import type { Role } from '~/types/role'
+import type { User } from '~/types/user'
 import type { UserSession } from '~/types/account'
+
+// Matches the users list badge palette (invited distinct from suspended).
+const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'error' | 'neutral'> = {
+  active: 'success',
+  invited: 'info',
+  suspended: 'warning',
+  banned: 'error',
+  deleted: 'neutral'
+}
 
 const route = useRoute()
 const userId = computed(() => String(route.params.userId))
@@ -82,7 +92,12 @@ const sessionColumns: TableColumn<UserSession>[] = [
                 <h2 class="font-semibold text-highlighted">
                   Profile
                 </h2>
-                <UBadge v-if="user" variant="subtle" class="capitalize">
+                <UBadge
+                  v-if="user"
+                  :color="statusColor[user.status]"
+                  variant="subtle"
+                  class="capitalize"
+                >
                   {{ user.status }}
                 </UBadge>
               </div>

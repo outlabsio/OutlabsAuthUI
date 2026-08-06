@@ -7,7 +7,6 @@ import { adminAccessToken } from '../support/admin-token'
 // render check is enough there.
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
 const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
-const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 async function createPermissionViaApi(): Promise<{ id: string }> {
   // Permission names follow resource:action (one colon, no hyphens) — keep the suffix numeric.

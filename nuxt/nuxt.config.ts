@@ -22,6 +22,15 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // Semantic colour aliases generated as design tokens. Extends the Nuxt UI defaults with
+  // `accent` + `special` for more badge variety; each is mapped to a Tailwind palette in
+  // app/app.config.ts (neutral is always generated and stays out of this list).
+  ui: {
+    theme: {
+      colors: ['primary', 'secondary', 'success', 'info', 'warning', 'error', 'accent', 'special']
+    }
+  },
+
   // Env-var fallback for the runtime app-config (dev + CI). Production resolves these
   // from /app-config.json at boot; these keys are the dev/E2E fallback and mirror the
   // React app's VITE_* inputs. Override via NUXT_PUBLIC_* env vars.

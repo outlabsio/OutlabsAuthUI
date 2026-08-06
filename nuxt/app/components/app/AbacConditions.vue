@@ -159,7 +159,7 @@ async function onDelete() {
           class="flex items-center justify-between gap-3 rounded-md border border-default px-3 py-2"
         >
           <div class="min-w-0">
-            <UBadge color="primary" variant="subtle">
+            <UBadge color="secondary" variant="subtle">
               {{ group.operator }}
             </UBadge>
             <span v-if="group.description" class="ml-2 text-sm text-muted">{{ group.description }}</span>

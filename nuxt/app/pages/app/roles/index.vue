@@ -174,7 +174,7 @@ async function onConfirmDelete() {
             <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
           </template>
           <template #is_global-cell="{ row }">
-            <UBadge :color="row.original.is_global ? 'primary' : 'neutral'" variant="subtle">
+            <UBadge :color="row.original.is_global ? 'secondary' : 'neutral'" variant="subtle">
               {{ row.original.is_global ? 'Global' : 'Scoped' }}
             </UBadge>
           </template>

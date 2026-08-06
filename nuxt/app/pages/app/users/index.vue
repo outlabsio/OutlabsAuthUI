@@ -32,9 +32,9 @@ const columns: TableColumn<User>[] = [
   { id: 'actions', header: '' }
 ]
 
-const statusColor: Record<User['status'], 'success' | 'warning' | 'error' | 'neutral'> = {
+const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'error' | 'neutral'> = {
   active: 'success',
-  invited: 'warning',
+  invited: 'info',
   suspended: 'warning',
   banned: 'error',
   deleted: 'neutral'

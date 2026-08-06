@@ -146,7 +146,7 @@ async function onCreate() {
             </ULink>
           </template>
           <template #entity_class-cell="{ row }">
-            <UBadge :color="row.original.entity_class === 'structural' ? 'primary' : 'neutral'" variant="subtle">
+            <UBadge :color="row.original.entity_class === 'structural' ? 'info' : 'special'" variant="subtle">
               {{ row.original.entity_class.replace('_', ' ') }}
             </UBadge>
           </template>

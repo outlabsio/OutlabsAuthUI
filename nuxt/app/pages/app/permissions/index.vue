@@ -133,7 +133,7 @@ async function onConfirmDelete() {
             </ULink>
           </template>
           <template #is_system-cell="{ row }">
-            <UBadge :color="row.original.is_system ? 'neutral' : 'primary'" variant="subtle">
+            <UBadge :color="row.original.is_system ? 'neutral' : 'accent'" variant="subtle">
               {{ row.original.is_system ? 'System' : 'Custom' }}
             </UBadge>
           </template>
