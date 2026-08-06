@@ -5,10 +5,14 @@ import { getApiErrorMessage } from '~/utils/api'
 
 const route = useRoute()
 const roleId = computed(() => String(route.params.roleId))
-const { hasPermission } = useAuth()
+const { hasPermission, can } = useAuth()
 
 // Gate the fetch on the read permission (see users/index.vue).
 const { data: role, status, error } = useQuery(() => ({ ...roleDetailQuery(roleId.value), enabled: hasPermission('role:read') }))
+
+// ABAC — shown when the backend exposes it; editable when the actor may update non-system roles.
+const abacEnabled = computed(() => can('abac'))
+const canManageAbac = computed(() => abacEnabled.value && hasPermission('role:update') && Boolean(role.value) && !role.value?.is_system_role)
 
 const detailItems = computed(() => {
   const r = role.value
@@ -87,6 +91,15 @@ const detailItems = computed(() => {
             <p v-else class="text-sm text-muted">
               No permissions attached.
             </p>
+          </UCard>
+
+          <UCard v-if="abacEnabled">
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                ABAC conditions
+              </h2>
+            </template>
+            <AppAbacConditions :id="roleId" kind="roles" :can-manage="canManageAbac" />
           </UCard>
         </div>
       </AppPermissionGate>
