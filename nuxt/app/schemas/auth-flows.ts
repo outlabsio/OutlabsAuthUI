@@ -7,10 +7,8 @@ export const emailRequestSchema = z.object({
 })
 export type EmailRequestSchema = z.output<typeof emailRequestSchema>
 
-export const accessCodeSchema = z.object({
-  code: z.string().trim().min(1, 'Enter the code we sent you.')
-})
-export type AccessCodeSchema = z.output<typeof accessCodeSchema>
+// Note: the access code has no schema — it's entered via UPinInput, whose fixed length
+// (6 digits) is the validation; the verify button stays disabled until all slots are filled.
 
 // Used by both reset-password and accept-invite (set a brand-new password + confirm).
 export const setPasswordSchema = z

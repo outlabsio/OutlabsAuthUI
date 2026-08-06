@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { accessCodeSchema, type AccessCodeSchema, emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
+import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useRequestAccessCode, useVerifyAccessCode } from '~/queries/session'
 import { getApiErrorMessage } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
+
+const CODE_LENGTH = 6
 
 const toast = useToast()
 const requestAccessCode = useRequestAccessCode()
@@ -13,8 +15,11 @@ const verifyAccessCode = useVerifyAccessCode()
 const step = ref<'request' | 'verify'>('request')
 const email = ref('')
 const requestState = reactive<Partial<EmailRequestSchema>>({ email: '' })
-const codeState = reactive<Partial<AccessCodeSchema>>({ code: '' })
 const requesting = ref(false)
+
+// The one-time code is entered via Nuxt UI's OTP input (a digit per slot).
+const digits = ref<number[]>([])
+const code = computed(() => digits.value.join(''))
 const verifying = ref(false)
 
 async function onRequest(event: FormSubmitEvent<EmailRequestSchema>) {
@@ -30,16 +35,24 @@ async function onRequest(event: FormSubmitEvent<EmailRequestSchema>) {
   }
 }
 
-async function onVerify(event: FormSubmitEvent<AccessCodeSchema>) {
+// Called by the button and by the OTP input's @complete (auto-submit on the 6th digit).
+async function onVerify() {
+  if (code.value.length < CODE_LENGTH || verifying.value) return
   verifying.value = true
   try {
-    await verifyAccessCode.mutateAsync({ email: email.value, channel: 'email', code: event.data.code })
+    await verifyAccessCode.mutateAsync({ email: email.value, channel: 'email', code: code.value })
     await navigateTo('/app/dashboard', { replace: true })
   } catch (err) {
     toast.add({ title: 'Invalid code', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
+    digits.value = []
   } finally {
     verifying.value = false
   }
+}
+
+function useDifferentEmail() {
+  step.value = 'request'
+  digits.value = []
 }
 </script>
 
@@ -87,31 +100,36 @@ async function onVerify(event: FormSubmitEvent<AccessCodeSchema>) {
           Enter your code
         </h1>
         <p class="text-sm text-muted">
-          We sent a code to {{ email }}.
+          We sent a {{ CODE_LENGTH }}-digit code to {{ email }}.
         </p>
       </div>
-      <UForm
-        :schema="accessCodeSchema"
-        :state="codeState"
-        class="space-y-4"
-        @submit="onVerify"
-      >
-        <UFormField name="code" label="Access code" required>
-          <UInput v-model="codeState.code" autocomplete="one-time-code" class="w-full" />
-        </UFormField>
+
+      <div class="flex flex-col items-center gap-4">
+        <UPinInput
+          v-model="digits"
+          :length="CODE_LENGTH"
+          type="number"
+          otp
+          size="lg"
+          aria-label="Access code"
+          :disabled="verifying"
+          @complete="onVerify"
+        />
         <UButton
-          type="submit"
           block
           :loading="verifying"
+          :disabled="code.length < CODE_LENGTH"
           label="Verify and sign in"
+          @click="onVerify"
         />
-      </UForm>
+      </div>
+
       <UButton
         variant="link"
         color="neutral"
         class="justify-start px-0"
         label="Use a different email"
-        @click="step = 'request'"
+        @click="useDifferentEmail"
       />
     </template>
   </div>
