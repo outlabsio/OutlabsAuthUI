@@ -88,7 +88,7 @@ export function useCreatePrincipal() {
   const queryCache = useQueryCache()
   return useMutation({
     mutation: ({ scope, input }: { scope: SystemScope, input: CreatePrincipalInput }) =>
-      apiClient.post<IntegrationPrincipal>(principalsBase(scope), { body: { ...input, role_ids: [] } }),
+      apiClient.post<IntegrationPrincipal>(principalsBase(scope), { body: { ...input, role_ids: input.role_ids ?? [] } }),
     onSettled: () => queryCache.invalidateQueries({ key: [PRINCIPALS_ROOT] })
   })
 }

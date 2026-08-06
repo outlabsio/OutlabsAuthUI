@@ -135,4 +135,29 @@ test.describe('system api keys workspace', () => {
     await page.getByRole('button', { name: 'Inventory' }).click()
     await expect(keyRow(page, keyName)).toBeVisible()
   })
+
+  test('creates a role-backed service account (role envelope)', async ({ page }) => {
+    const name = `pw-role-sa-${uid()}`
+    const posts: Array<Record<string, unknown>> = []
+    await page.route(/\/integration-principals$/, async (route) => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON() as Record<string, unknown>)
+      await route.continue()
+    })
+
+    await page.goto('/app/users/api-keys')
+    await page.getByRole('button', { name: 'Create service account' }).click()
+    await expect(page.locator('#sa-name')).toBeVisible()
+    await page.locator('#sa-name').fill(name)
+    // Back it with a global role instead of raw scopes (platform-global shows global roles).
+    const role = page.getByRole('checkbox', { name: 'Service Reader', exact: true })
+    await expect(role).toBeVisible()
+    await role.check()
+    await page.getByRole('button', { name: 'Create account' }).click()
+
+    await expect(page.locator('#sa-name')).toBeHidden()
+    expect(posts).toHaveLength(1)
+    const roleIds = posts[0].role_ids as string[]
+    expect(Array.isArray(roleIds)).toBe(true)
+    expect(roleIds.length).toBeGreaterThan(0)
+  })
 })

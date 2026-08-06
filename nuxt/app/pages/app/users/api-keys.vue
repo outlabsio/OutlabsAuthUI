@@ -13,9 +13,11 @@ import {
   type SystemScope
 } from '~/queries/api-keys'
 import { entitiesListQuery } from '~/queries/entities'
+import { rolesListQuery } from '~/queries/roles'
 import { getApiErrorMessage } from '~/utils/api'
 import type { ApiKey, CreateMachineKeyInput, CreatePrincipalInput, IntegrationPrincipal } from '~/types/api-key'
 import type { Entity } from '~/types/entity'
+import type { Role } from '~/types/role'
 
 // System API Keys — service accounts (integration principals) and their machine keys, either
 // PLATFORM-GLOBAL or scoped to a chosen ENTITY (scope toggle + entity picker). Master
@@ -49,6 +51,14 @@ watch([scopeKind, entityId], () => {
 // Entities for the scope picker.
 const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 100 }), enabled: canRead.value }))
 const entityOptions = computed<Entity[]>(() => entitiesData.value?.items ?? [])
+
+// Roles for the service-account role envelope. Platform-global accounts can only carry global
+// roles; entity-scoped accounts can carry entity roles too (the backend still validates).
+const { data: rolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100 }), enabled: canRead.value }))
+const roleOptions = computed<Role[]>(() => {
+  const all = rolesData.value?.items ?? []
+  return scopeKind.value === 'platform_global' ? all.filter(r => r.is_global) : all
+})
 
 const { data: principalsData, status, error } = useQuery(() => ({ ...principalsQuery(scope.value), enabled: canRead.value && scopeReady.value }))
 const { data: grantable } = useQuery(() => ({ ...grantableScopesQuery, enabled: canRead.value }))
@@ -119,27 +129,36 @@ async function copySecret() {
 
 // --- Create service account ---
 const createSaOpen = ref(false)
-const saState = reactive({ name: '', description: '', scopes: [] as string[], inherit: false })
-const saErrors = reactive({ name: '', scopes: '' })
+const saState = reactive({ name: '', description: '', scopes: [] as string[], roleIds: [] as string[], inherit: false })
+const saErrors = reactive({ name: '', envelope: '' })
 const createPrincipal = useCreatePrincipal()
 const creatingSa = ref(false)
 
 function openCreatePrincipal() {
-  Object.assign(saState, { name: '', description: '', scopes: [], inherit: false })
+  Object.assign(saState, { name: '', description: '', scopes: [], roleIds: [], inherit: false })
   saErrors.name = ''
-  saErrors.scopes = ''
+  saErrors.envelope = ''
   createSaOpen.value = true
+}
+function clearEnvelopeError() {
+  if (saState.scopes.length || saState.roleIds.length) saErrors.envelope = ''
 }
 function toggleSaScope(scope: string) {
   const idx = saState.scopes.indexOf(scope)
   if (idx === -1) saState.scopes.push(scope)
   else saState.scopes.splice(idx, 1)
-  if (saState.scopes.length) saErrors.scopes = ''
+  clearEnvelopeError()
+}
+function toggleSaRole(roleId: string) {
+  const idx = saState.roleIds.indexOf(roleId)
+  if (idx === -1) saState.roleIds.push(roleId)
+  else saState.roleIds.splice(idx, 1)
+  clearEnvelopeError()
 }
 async function onCreatePrincipal() {
   saErrors.name = saState.name.trim() ? '' : 'Name is required.'
-  saErrors.scopes = saState.scopes.length ? '' : 'Select at least one scope.'
-  if (saErrors.name || saErrors.scopes) return
+  saErrors.envelope = (saState.scopes.length || saState.roleIds.length) ? '' : 'Select at least one scope or role.'
+  if (saErrors.name || saErrors.envelope) return
 
   creatingSa.value = true
   try {
@@ -148,6 +167,7 @@ async function onCreatePrincipal() {
       allowed_scopes: [...saState.scopes],
       inherit_from_tree: saState.inherit
     }
+    if (saState.roleIds.length) input.role_ids = [...saState.roleIds]
     if (saState.description.trim()) input.description = saState.description.trim()
     const created = await createPrincipal.mutateAsync({ scope: scope.value, input })
     selectedId.value = created.id
@@ -471,7 +491,7 @@ const guideOpen = ref(false)
           <p class="text-sm font-medium text-default">
             Allowed scopes
           </p>
-          <div class="max-h-48 space-y-1.5 overflow-y-auto rounded-md border border-default p-3">
+          <div class="max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-default p-3">
             <UCheckbox
               v-for="option in grantableScopes"
               :key="option"
@@ -480,10 +500,27 @@ const guideOpen = ref(false)
               @update:model-value="toggleSaScope(option)"
             />
           </div>
-          <p v-if="saErrors.scopes" class="text-xs text-error">
-            {{ saErrors.scopes }}
-          </p>
         </div>
+        <div class="space-y-1.5">
+          <p class="text-sm font-medium text-default">
+            Roles <span class="font-normal text-muted">(role envelope)</span>
+          </p>
+          <div class="max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-default p-3">
+            <UCheckbox
+              v-for="role in roleOptions"
+              :key="role.id"
+              :label="role.display_name"
+              :model-value="saState.roleIds.includes(role.id)"
+              @update:model-value="toggleSaRole(role.id)"
+            />
+            <p v-if="!roleOptions.length" class="text-xs text-muted">
+              No assignable roles in this scope.
+            </p>
+          </div>
+        </div>
+        <p v-if="saErrors.envelope" class="text-xs text-error">
+          {{ saErrors.envelope }}
+        </p>
         <USwitch v-model="saState.inherit" label="Inherit from tree" />
       </div>
     </template>

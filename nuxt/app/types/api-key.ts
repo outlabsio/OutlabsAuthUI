@@ -75,6 +75,7 @@ export type CreatePrincipalInput = {
   name: string
   description?: string | null
   allowed_scopes: string[]
+  role_ids?: string[]
   inherit_from_tree?: boolean
 }
 
