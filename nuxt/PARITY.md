@@ -89,10 +89,15 @@ an existing form; **P3** = polish / edge.
 - **~~P1 `permissionNames`~~ — DONE.** Role create/edit now assigns permissions via
   **`AppPermissionPicker`** (searchable, grouped-by-resource CommandPalette multi-select); role
   detail renders them through **`AppPermissionList`**. E2E: `e2e/roles/role-permissions.spec.ts`.
-- **P1 `roleType`** (global / root / entity) — Nuxt only has an `is_global` boolean; can't create root- or entity-scoped roles.
-- **P2 `rootEntityId` / `scopeEntityId`** — the owning root / defining entity (required for root/entity roles).
-- **P2 `scope`** (hierarchy / entity_only), **`isAutoAssigned`**, **`assignableAtTypes`** — Nuxt detail *shows* auto-assigned + assignable-at read-only, but the form can't set them.
-- **P3 `status`** (active/inactive) on the form.
+- **~~P1 `roleType`~~ (global / root / entity) — DONE.** A Type selector on the create form drives
+  `is_global` + the required entity picker (root organization for `root`, entity for `entity`).
+- **~~P2 `rootEntityId` / `scopeEntityId`~~ — DONE.** Conditional pickers (roots-only for root roles,
+  all entities for entity-local), required per type. Set at create (not editable, per backend).
+- **~~P2 `scope` / `isAutoAssigned` / `assignableAtTypes`~~ — DONE.** Scope select + auto-assign
+  (entity-local only) + comma-separated assignable-at types, on create and edit.
+- **~~P3 `status`~~ (active/inactive) — DONE** on both forms.
+
+E2E: `e2e/roles/role-type-scope.spec.ts` (root-scoped create).
 
 **List** (`roles-search.schema`): React filters by roleType, scope mode, root, assignable-type, usage (auto/manual), system; Nuxt = search only. (P2)
 

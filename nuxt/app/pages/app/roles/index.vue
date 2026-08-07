@@ -11,12 +11,18 @@ const {
   status,
   errorMessage,
   rowMenu,
+  roleTypeItems,
+  scopeItems,
+  statusItems,
+  rootEntityOptions,
+  entityOptions,
   createOpen,
   createState,
   creating,
   onCreate,
   editOpen,
   editTarget,
+  editRoleType,
   editState,
   saving,
   onSaveEdit,
@@ -127,22 +133,74 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
         class="space-y-4"
         @submit="onCreate"
       >
-        <UFormField name="display_name" label="Display name" required>
-          <UInput v-model="createState.display_name" class="w-full" placeholder="Regional Admin" />
-        </UFormField>
-        <UFormField
-          name="name"
-          label="Name"
-          required
-          description="Machine name: lowercase, no spaces."
-        >
-          <UInput v-model="createState.name" class="w-full" placeholder="regional-admin" />
-        </UFormField>
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField name="display_name" label="Display name" required>
+            <UInput v-model="createState.display_name" class="w-full" placeholder="Regional Admin" />
+          </UFormField>
+          <UFormField
+            name="name"
+            label="Name"
+            required
+            description="Lowercase, no spaces."
+          >
+            <UInput v-model="createState.name" class="w-full" placeholder="regional-admin" />
+          </UFormField>
+        </div>
         <UFormField name="description" label="Description">
           <UTextarea v-model="createState.description" class="w-full" :rows="2" />
         </UFormField>
-        <UFormField name="is_global">
-          <UCheckbox v-model="createState.is_global" label="Global role" />
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField name="role_type" label="Type">
+            <USelect
+              id="role-type"
+              v-model="createState.role_type"
+              :items="roleTypeItems"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField name="status" label="Status">
+            <USelect v-model="createState.status" :items="statusItems" class="w-full" />
+          </UFormField>
+        </div>
+        <UFormField
+          v-if="createState.role_type === 'root'"
+          name="root_entity_id"
+          label="Root organization"
+          required
+        >
+          <USelectMenu
+            id="role-root-entity"
+            v-model="createState.root_entity_id"
+            value-key="value"
+            :items="rootEntityOptions"
+            placeholder="Select a root organization"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          v-if="createState.role_type === 'entity'"
+          name="scope_entity_id"
+          label="Entity"
+          required
+        >
+          <USelectMenu
+            v-model="createState.scope_entity_id"
+            value-key="value"
+            :items="entityOptions"
+            placeholder="Select an entity"
+            class="w-full"
+          />
+        </UFormField>
+        <div v-if="createState.role_type !== 'global'" class="grid grid-cols-2 gap-3">
+          <UFormField name="scope" label="Scope">
+            <USelect v-model="createState.scope" :items="scopeItems" class="w-full" />
+          </UFormField>
+          <UFormField v-if="createState.role_type === 'entity'" name="is_auto_assigned" label="Auto-assign">
+            <UCheckbox v-model="createState.is_auto_assigned" label="All members in scope" />
+          </UFormField>
+        </div>
+        <UFormField label="Assignable at (entity types)" description="Comma-separated, e.g. office, region. Blank = any.">
+          <UInput v-model="createState.assignable_at_types_text" class="w-full" placeholder="office, region" />
         </UFormField>
         <UFormField name="permissions" label="Permissions">
           <AppPermissionPicker v-model="createState.permissions" />
@@ -174,6 +232,20 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
         </UFormField>
         <UFormField name="description" label="Description">
           <UTextarea v-model="editState.description" class="w-full" :rows="2" />
+        </UFormField>
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField name="status" label="Status">
+            <USelect v-model="editState.status" :items="statusItems" class="w-full" />
+          </UFormField>
+          <UFormField v-if="editRoleType !== 'global'" name="scope" label="Scope">
+            <USelect v-model="editState.scope" :items="scopeItems" class="w-full" />
+          </UFormField>
+        </div>
+        <UFormField v-if="editRoleType === 'entity'" name="is_auto_assigned">
+          <UCheckbox v-model="editState.is_auto_assigned" label="Auto-assign to all members in scope" />
+        </UFormField>
+        <UFormField label="Assignable at (entity types)" description="Comma-separated. Blank = any.">
+          <UInput v-model="editState.assignable_at_types_text" class="w-full" placeholder="office, region" />
         </UFormField>
         <UFormField name="permissions" label="Permissions">
           <AppPermissionPicker v-model="editState.permissions" />

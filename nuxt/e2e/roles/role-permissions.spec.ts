@@ -28,7 +28,7 @@ test.describe('role permission assignment', () => {
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel('Display name', { exact: true }).fill(`PW Perms ${stamp}`)
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await dialog.getByRole('checkbox', { name: 'Global role' }).check()
+    // Type defaults to Global, so no entity is required.
 
     await dialog.getByPlaceholder('Search permissions...').click()
     await dialog.getByRole('option').nth(0).click()

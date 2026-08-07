@@ -64,6 +64,11 @@ All under `app/components/app/` + `app/composables/`:
 Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
 `e2e/roles/role-permissions.spec.ts`.
 
+## Recently done (beyond the kit)
+- **Role type/scope on the role form** — Type selector (global/root/entity) + conditional root/entity
+  pickers, scope, auto-assign, assignable-at types, status, on create + edit. E2E
+  `e2e/roles/role-type-scope.spec.ts`. The role editor is now full (with permission assignment).
+
 ## Roadmap (remaining, in order)
 1. **Kit step 4** — `AppRoleChip` (a role chip whose popover shows that role's permissions via
    AppPermissionList); retrofit the member-row roles and user-detail roles to use it.

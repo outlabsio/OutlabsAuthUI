@@ -33,16 +33,31 @@ export type RolesListFilters = {
   rootEntityId?: string
 }
 
+// UI concept over the backend fields: global (system-wide) / root (owned by an org) / entity
+// (defined at a specific entity). Maps to is_global + root_entity_id + scope_entity_id on submit.
+export type RoleType = 'global' | 'root' | 'entity'
+
 export type CreateRoleInput = {
   name: string
   display_name: string
   description?: string
   permissions: string[]
   is_global: boolean
+  status?: RoleDefinitionStatus
+  root_entity_id?: string | null
+  scope_entity_id?: string | null
+  scope?: RoleScopeMode
+  is_auto_assigned?: boolean
+  assignable_at_types?: string[]
 }
 
+// root_entity_id / scope_entity_id are set at creation and not editable.
 export type UpdateRoleInput = {
   display_name?: string
   description?: string
   permissions?: string[]
+  status?: RoleDefinitionStatus
+  scope?: RoleScopeMode
+  is_auto_assigned?: boolean
+  assignable_at_types?: string[]
 }
