@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
-import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import { permissionsListQuery, useCreatePermission, useDeletePermission } from '~/queries/permissions'
-import { createPermissionSchema, type CreatePermissionSchema } from '~/schemas/permission'
-import { getApiErrorMessage } from '~/api/client'
-import type { Permission, PermissionsListFilters } from '~/types/permission'
+import type { TableColumn } from '@nuxt/ui'
+import { createPermissionSchema } from '~/schemas/permission'
+import type { Permission } from '~/types/permission'
 
-// P2 vertical — copy of pages/app/roles/index.vue against /permissions.
-const toast = useToast()
-const { hasPermission } = useAuth()
+// Permissions vertical — logic in usePermissionsWorkspace; this file is display only.
+const {
+  canCreate,
+  search,
+  rows,
+  status,
+  errorMessage,
+  rowMenu,
+  createOpen,
+  createState,
+  creating,
+  onCreate,
+  deleteOpen,
+  deleteTarget,
+  deleting,
+  onConfirmDelete
+} = usePermissionsWorkspace()
 
-const filters = reactive<PermissionsListFilters>({ page: 1, limit: 1000 })
-const search = ref('')
-// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
-// denied actor; the AppPermissionGate renders the same verdict in-place.
-const { data, status, error, refetch } = useQuery(() => ({ ...permissionsListQuery({ ...filters }), enabled: hasPermission('permission:read') }))
-
-// Permissions list is small and returned whole; filter client-side by name/display_name.
-const rows = computed<Permission[]>(() => {
-  const all = data.value?.items ?? []
-  const term = search.value.trim().toLowerCase()
-  if (!term) return all
-  return all.filter(p => `${p.name} ${p.display_name}`.toLowerCase().includes(term))
-})
-
+// --- Pure display config ---
 const columns: TableColumn<Permission>[] = [
   { accessorKey: 'display_name', header: 'Display name' },
   { accessorKey: 'name', header: 'Name' },
@@ -32,58 +30,6 @@ const columns: TableColumn<Permission>[] = [
   { accessorKey: 'status', header: 'Status' },
   { id: 'actions', header: '' }
 ]
-
-function rowMenu(permission: Permission): DropdownMenuItem[] {
-  return [
-    { label: 'Delete', icon: 'i-lucide-trash', color: 'error', onSelect: () => openDelete(permission) }
-  ]
-}
-
-const createOpen = ref(false)
-const createState = reactive<Partial<CreatePermissionSchema>>({ name: '', display_name: '', description: '' })
-const createPermission = useCreatePermission()
-const creating = ref(false)
-
-async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
-  creating.value = true
-  try {
-    await createPermission.mutateAsync(event.data)
-    toast.add({ title: 'Permission created', color: 'success', icon: 'i-lucide-check' })
-    createOpen.value = false
-    Object.assign(createState, { name: '', display_name: '', description: '' })
-    await refetch()
-  } catch (err) {
-    toast.add({ title: 'Could not create permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    creating.value = false
-  }
-}
-
-// --- Delete (custom permissions only; system permissions are backend-protected) ---
-const deleteOpen = ref(false)
-const deleteTarget = ref<Permission | null>(null)
-const deletePermission = useDeletePermission()
-const deleting = ref(false)
-
-function openDelete(permission: Permission) {
-  deleteTarget.value = permission
-  deleteOpen.value = true
-}
-
-async function onConfirmDelete() {
-  if (!deleteTarget.value) return
-  deleting.value = true
-  try {
-    await deletePermission.mutateAsync(deleteTarget.value.id)
-    toast.add({ title: 'Permission deleted', color: 'success', icon: 'i-lucide-check' })
-    deleteOpen.value = false
-    await refetch()
-  } catch (err) {
-    toast.add({ title: 'Could not delete permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    deleting.value = false
-  }
-}
 </script>
 
 <template>
@@ -95,7 +41,7 @@ async function onConfirmDelete() {
         </template>
         <template #right>
           <UButton
-            v-if="hasPermission('permission:create')"
+            v-if="canCreate"
             icon="i-lucide-plus"
             label="Add permission"
             @click="createOpen = true"
@@ -122,7 +68,7 @@ async function onConfirmDelete() {
           color="error"
           icon="i-lucide-triangle-alert"
           title="Could not load permissions"
-          :description="getApiErrorMessage(error)"
+          :description="errorMessage"
           class="mb-4"
         />
 
