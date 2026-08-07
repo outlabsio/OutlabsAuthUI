@@ -33,7 +33,10 @@ an existing form; **P3** = polish / edge.
 - **P3 `allowedChildTypes` as a tag input** — Nuxt uses a comma-separated text box; React uses tag chips (normalized). Same data, nicer input.
 
 **Whole dialogs/flows missing:**
-- **P1 Root governance** (`root-governance-form.schema`, `entity-root-governance-dialog`) — for root entities: allowed child classes/types, maxMembers, and **naming rules**: `childNamePattern`, `childDisplayNamePattern`, `childSlugPattern` (regex, validated) + `childNamingGuidance` text. Nothing like it in Nuxt.
+- **~~P1 Root governance~~ — DONE.** A dedicated **Governance** dialog on the entity detail: allowed
+  child classes/types, **max members**, and **child naming rules** — `child_name_pattern`,
+  `child_display_name_pattern`, `child_slug_pattern` (each regex-validated) + `child_naming_guidance`.
+  Child governance moved out of Edit into this dialog. E2E: `e2e/entities/entity-governance.spec.ts`.
 - **~~P1 Member management~~ — DONE.** The Users card now manages members: **Add member** (in-org
   user + roles + status + validity window + reason), **Edit access** (roles/status/validity/reason,
   PATCH), and **Remove** (DELETE), wired to `/memberships` with a root-org-scoped user picker.

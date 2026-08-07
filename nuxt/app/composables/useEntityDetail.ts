@@ -193,17 +193,11 @@ export function useEntityDetail(entityId: Ref<string>) {
   const addSelectedRoles = computed(() => rolesPool.value.filter(r => addMemberState.roleIds.includes(r.id)))
   const editSelectedRoles = computed(() => rolesPool.value.filter(r => editMemberState.roleIds.includes(r.id)))
 
-  // --- Edit ---
+  // --- Edit (core fields; child governance lives in its own dialog) ---
   const editOpen = ref(false)
-  const editState = reactive({ displayName: '', description: '', status: 'active' as EntityStatusValue, allowedChildClasses: [] as EntityClassValue[], allowedChildTypes: '' })
+  const editState = reactive({ displayName: '', description: '', status: 'active' as EntityStatusValue })
   const updateEntity = useUpdateEntity()
   const saving = ref(false)
-
-  function toggleChildClass(value: EntityClassValue) {
-    const idx = editState.allowedChildClasses.indexOf(value)
-    if (idx === -1) editState.allowedChildClasses.push(value)
-    else editState.allowedChildClasses.splice(idx, 1)
-  }
 
   function openEdit() {
     const e = entity.value
@@ -211,8 +205,6 @@ export function useEntityDetail(entityId: Ref<string>) {
     editState.displayName = e.display_name
     editState.description = e.description ?? ''
     editState.status = e.status
-    editState.allowedChildClasses = [...(e.allowed_child_classes ?? [])]
-    editState.allowedChildTypes = (e.allowed_child_types ?? []).join(', ')
     editOpen.value = true
   }
 
@@ -223,13 +215,61 @@ export function useEntityDetail(entityId: Ref<string>) {
       input: {
         display_name: editState.displayName.trim(),
         description: editState.description.trim() ? editState.description.trim() : null,
-        status: editState.status,
-        allowed_child_classes: [...editState.allowedChildClasses],
-        allowed_child_types: editState.allowedChildTypes.split(',').map(t => t.trim()).filter(Boolean)
+        status: editState.status
       }
     }), { success: 'Entity updated', error: 'Could not update entity' })
     if (res.ok) editOpen.value = false
     saving.value = false
+  }
+
+  // --- Governance (what children are allowed + how they're named + membership cap) ---
+  const governanceOpen = ref(false)
+  const savingGovernance = ref(false)
+  // Keys match governanceSchema (snake_case) so UForm binds field validation; the two child-* list
+  // fields are checkbox/comma state, not in the schema.
+  const governanceState = reactive({
+    allowedChildClasses: [] as EntityClassValue[],
+    allowedChildTypes: '',
+    max_members: '',
+    child_name_pattern: '',
+    child_display_name_pattern: '',
+    child_slug_pattern: '',
+    child_naming_guidance: ''
+  })
+  function toggleChildClass(value: EntityClassValue) {
+    const idx = governanceState.allowedChildClasses.indexOf(value)
+    if (idx === -1) governanceState.allowedChildClasses.push(value)
+    else governanceState.allowedChildClasses.splice(idx, 1)
+  }
+  function openGovernance() {
+    const e = entity.value
+    if (!e) return
+    governanceState.allowedChildClasses = [...(e.allowed_child_classes ?? [])]
+    governanceState.allowedChildTypes = (e.allowed_child_types ?? []).join(', ')
+    governanceState.max_members = e.max_members != null ? String(e.max_members) : ''
+    governanceState.child_name_pattern = e.child_name_pattern ?? ''
+    governanceState.child_display_name_pattern = e.child_display_name_pattern ?? ''
+    governanceState.child_slug_pattern = e.child_slug_pattern ?? ''
+    governanceState.child_naming_guidance = e.child_naming_guidance ?? ''
+    governanceOpen.value = true
+  }
+  async function onSaveGovernance() {
+    savingGovernance.value = true
+    const orNull = (s: string) => (s.trim() ? s.trim() : null)
+    const res = await run(() => updateEntity.mutateAsync({
+      entityId: entityId.value,
+      input: {
+        allowed_child_classes: [...governanceState.allowedChildClasses],
+        allowed_child_types: governanceState.allowedChildTypes.split(',').map(t => t.trim()).filter(Boolean),
+        max_members: governanceState.max_members.trim() ? Number(governanceState.max_members) : null,
+        child_name_pattern: orNull(governanceState.child_name_pattern),
+        child_display_name_pattern: orNull(governanceState.child_display_name_pattern),
+        child_slug_pattern: orNull(governanceState.child_slug_pattern),
+        child_naming_guidance: orNull(governanceState.child_naming_guidance)
+      }
+    }), { success: 'Governance updated', error: 'Could not update governance' })
+    if (res.ok) governanceOpen.value = false
+    savingGovernance.value = false
   }
 
   // --- Move ---
@@ -288,6 +328,11 @@ export function useEntityDetail(entityId: Ref<string>) {
     saving,
     openEdit,
     onEdit,
+    governanceOpen,
+    governanceState,
+    savingGovernance,
+    openGovernance,
+    onSaveGovernance,
     toggleChildClass,
     moveOpen,
     moveParentId,

@@ -68,6 +68,9 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
 - **Role type/scope on the role form** — Type selector (global/root/entity) + conditional root/entity
   pickers, scope, auto-assign, assignable-at types, status, on create + edit. E2E
   `e2e/roles/role-type-scope.spec.ts`. The role editor is now full (with permission assignment).
+- **Entity governance** — a Governance dialog on the entity detail: allowed child classes/types, max
+  members, and child naming patterns (regex-validated) + guidance; child governance moved out of
+  Edit. E2E `e2e/entities/entity-governance.spec.ts`. Only P1 left: entity-type config editor.
 
 ## Roadmap (remaining, in order)
 1. **Kit step 4** — `AppRoleChip` (a role chip whose popover shows that role's permissions via

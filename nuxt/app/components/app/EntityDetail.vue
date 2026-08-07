@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { governanceSchema } from '~/schemas/entity'
 import type { Entity, EntityStatusValue } from '~/types/entity'
 import type { EntityMember } from '~/types/membership'
 import type { UserStatusValue } from '~/types/user'
@@ -45,6 +46,11 @@ const {
   saving,
   openEdit,
   onEdit,
+  governanceOpen,
+  governanceState,
+  savingGovernance,
+  openGovernance,
+  onSaveGovernance,
   toggleChildClass,
   moveOpen,
   moveParentId,
@@ -127,6 +133,13 @@ const entityStatusItems = [
               variant="outline"
               label="Edit"
               @click="openEdit"
+            />
+            <UButton
+              icon="i-lucide-shield-check"
+              color="neutral"
+              variant="outline"
+              label="Governance"
+              @click="openGovernance"
             />
             <UButton
               icon="i-lucide-move"
@@ -305,35 +318,6 @@ const entityStatusItems = [
             class="w-full"
           />
         </div>
-        <div class="space-y-2 rounded-lg border border-default p-3">
-          <p class="text-sm font-medium text-default">
-            Child governance
-          </p>
-          <div class="space-y-1">
-            <span class="block text-xs text-muted">Allowed child classes</span>
-            <div class="flex gap-4">
-              <UCheckbox
-                label="Structural"
-                :model-value="editState.allowedChildClasses.includes('structural')"
-                @update:model-value="toggleChildClass('structural')"
-              />
-              <UCheckbox
-                label="Access group"
-                :model-value="editState.allowedChildClasses.includes('access_group')"
-                @update:model-value="toggleChildClass('access_group')"
-              />
-            </div>
-          </div>
-          <div class="space-y-1.5">
-            <label for="entity-edit-allowed-child-types" class="block text-xs text-muted">Allowed child types (comma-separated)</label>
-            <UInput
-              id="entity-edit-allowed-child-types"
-              v-model="editState.allowedChildTypes"
-              placeholder="region, office"
-              class="w-full"
-            />
-          </div>
-        </div>
       </div>
     </template>
     <template #footer>
@@ -346,6 +330,95 @@ const entityStatusItems = [
         />
         <UButton label="Save changes" :loading="saving" @click="onEdit" />
       </div>
+    </template>
+  </UModal>
+
+  <!-- Governance -->
+  <UModal
+    v-model:open="governanceOpen"
+    title="Governance"
+    description="Control what can be created under this entity and how children are named."
+    :ui="{ content: 'sm:max-w-2xl' }"
+  >
+    <template #body>
+      <UForm
+        :schema="governanceSchema"
+        :state="governanceState"
+        class="space-y-4"
+        @submit="onSaveGovernance"
+      >
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Allowed child classes</span>
+          <div class="flex gap-4">
+            <UCheckbox
+              label="Structural"
+              :model-value="governanceState.allowedChildClasses.includes('structural')"
+              @update:model-value="toggleChildClass('structural')"
+            />
+            <UCheckbox
+              label="Access group"
+              :model-value="governanceState.allowedChildClasses.includes('access_group')"
+              @update:model-value="toggleChildClass('access_group')"
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="gov-child-types" class="block text-sm font-medium text-default">Allowed child types</label>
+            <UInput
+              id="gov-child-types"
+              v-model="governanceState.allowedChildTypes"
+              placeholder="region, office"
+              class="w-full"
+            />
+            <p class="text-xs text-muted">
+              Comma-separated. Blank = any.
+            </p>
+          </div>
+          <UFormField name="max_members" label="Max members">
+            <UInput
+              v-model="governanceState.max_members"
+              inputmode="numeric"
+              placeholder="No limit"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+        <div class="space-y-2 rounded-lg border border-default p-3">
+          <p class="text-sm font-medium text-default">
+            Child naming rules
+          </p>
+          <p class="text-xs text-muted">
+            Optional regular expressions enforced when naming children. Blank = no constraint.
+          </p>
+          <UFormField name="child_name_pattern" label="System-name pattern">
+            <UInput v-model="governanceState.child_name_pattern" class="w-full font-mono" placeholder="^[a-z0-9-]+$" />
+          </UFormField>
+          <UFormField name="child_display_name_pattern" label="Display-name pattern">
+            <UInput v-model="governanceState.child_display_name_pattern" class="w-full font-mono" placeholder="^.{2,}$" />
+          </UFormField>
+          <UFormField name="child_slug_pattern" label="Slug pattern">
+            <UInput v-model="governanceState.child_slug_pattern" class="w-full font-mono" placeholder="^[a-z0-9-]+$" />
+          </UFormField>
+          <UFormField name="child_naming_guidance" label="Naming guidance">
+            <UTextarea
+              v-model="governanceState.child_naming_guidance"
+              :rows="2"
+              class="w-full"
+              placeholder="Human-readable note shown when creating a child."
+            />
+          </UFormField>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="Cancel"
+            @click="governanceOpen = false"
+          />
+          <UButton type="submit" label="Save governance" :loading="savingGovernance" />
+        </div>
+      </UForm>
     </template>
   </UModal>
 

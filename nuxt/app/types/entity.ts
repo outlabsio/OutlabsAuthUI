@@ -15,9 +15,15 @@ export type Entity = {
   entity_type: string
   parent_entity_id?: string | null
   status: EntityStatusValue
-  // Child governance — constrains what may be created directly under this entity.
+  // Child governance — constrains what may be created directly under this entity, caps membership,
+  // and (for the naming patterns) enforces how children are named.
   allowed_child_classes?: EntityClassValue[] | null
   allowed_child_types?: string[] | null
+  max_members?: number | null
+  child_name_pattern?: string | null
+  child_display_name_pattern?: string | null
+  child_slug_pattern?: string | null
+  child_naming_guidance?: string | null
 }
 
 export type EntitiesListResponse = PaginatedResponse<Entity>
@@ -53,4 +59,9 @@ export type UpdateEntityInput = {
   status?: EntityStatusValue
   allowed_child_classes?: EntityClassValue[]
   allowed_child_types?: string[]
+  max_members?: number | null
+  child_name_pattern?: string | null
+  child_display_name_pattern?: string | null
+  child_slug_pattern?: string | null
+  child_naming_guidance?: string | null
 }
