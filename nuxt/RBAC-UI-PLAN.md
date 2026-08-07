@@ -71,8 +71,9 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
    1. ~~**Direct role assignment**~~ — DONE. `useUserDetail` + a manageable **Direct roles** card
       (assign via `AppRolePicker` + `AppEffectivePermissions` with a validity window; remove). Pool
       scoped to the user's org (global + `root_entity_id`). E2E: `e2e/users/user-roles.spec.ts`.
-   2. **Invite user** (`invite-user`: email, first/last, entityId, roleIds, isSuperuser) — also
-      covers "invite a new user into an entity" (entity-member-invite).
+   2. ~~**Invite user**~~ — DONE. "Invite" on the users page (`POST /auth/invite`): email, names,
+      optional entity (+ scoped roles) or direct roles, superuser. In `useUsersWorkspace`; E2E
+      `e2e/users/user-invite.spec.ts`. Also closes the entity-member-invite gap.
    3. **Change status** (suspend/ban + suspendedUntil + reason) and **admin reset-password**.
    4. **Membership management** (a user's memberships across entities).
 

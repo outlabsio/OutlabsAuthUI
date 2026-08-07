@@ -1,8 +1,11 @@
 import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { usersListQuery, useCreateUser, useDeleteUser, useUpdateUser } from '~/queries/users'
-import type { CreateUserSchema, UpdateUserSchema } from '~/schemas/user'
+import { usersListQuery, useCreateUser, useDeleteUser, useInviteUser, useUpdateUser } from '~/queries/users'
+import { entitiesListQuery } from '~/queries/entities'
+import { rolesListQuery } from '~/queries/roles'
+import type { CreateUserSchema, InviteUserSchema, UpdateUserSchema } from '~/schemas/user'
 import type { User, UsersListFilters, UserStatusValue } from '~/types/user'
+import type { Role } from '~/types/role'
 
 // Feature logic for the users workspace. Shared CRUD behavior (create gate, `run`, delete flow)
 // comes from useResourceCrud; the query + create/edit forms are per-resource.
@@ -60,6 +63,69 @@ export function useUsersWorkspace() {
     creating.value = false
   }
 
+  // --- Invite ---
+  // Invite by email (no password). Optionally attach an entity membership (entity_id) with roles, or
+  // direct account roles (no entity). Roles are scoped to the chosen entity's org (global + its root)
+  // — or just global roles when no entity is chosen.
+  const inviteOpen = ref(false)
+  const inviting = ref(false)
+  const inviteState = reactive({ email: '', first_name: '', last_name: '', is_superuser: false, entityId: '', roleIds: [] as string[] })
+  const inviteUser = useInviteUser()
+
+  const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: crud.canCreate.value }))
+  const entityOptions = computed(() => (entitiesData.value?.items ?? []).map(e => ({ label: e.display_name, value: e.id })))
+  const entityById = computed(() => new Map((entitiesData.value?.items ?? []).map(e => [e.id, e])))
+  function rootOf(entityId: string): string | undefined {
+    let cur = entityById.value.get(entityId)
+    const seen = new Set<string>()
+    while (cur?.parent_entity_id && !seen.has(cur.id)) {
+      seen.add(cur.id)
+      const parent = entityById.value.get(cur.parent_entity_id)
+      if (!parent) break
+      cur = parent
+    }
+    return cur?.id
+  }
+  const inviteRootId = computed(() => (inviteState.entityId ? rootOf(inviteState.entityId) : undefined))
+
+  const { data: inviteGlobalRoles } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: crud.canCreate.value }))
+  const { data: inviteRootRoles } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: inviteRootId.value }), enabled: crud.canCreate.value && !!inviteRootId.value }))
+  const inviteRolesPool = computed<Role[]>(() => {
+    const byId = new Map<string, Role>()
+    for (const r of inviteGlobalRoles.value?.items ?? []) byId.set(r.id, r)
+    for (const r of inviteRootRoles.value?.items ?? []) byId.set(r.id, r)
+    return [...byId.values()]
+  })
+  const inviteSelectedRoles = computed(() => {
+    const byId = new Map(inviteRolesPool.value.map(r => [r.id, r]))
+    return inviteState.roleIds.map(id => byId.get(id)).filter((r): r is Role => Boolean(r))
+  })
+  // The assignable pool changes with the entity — clear stale selections when it switches.
+  watch(() => inviteState.entityId, () => {
+    inviteState.roleIds = []
+  })
+
+  function openInvite() {
+    Object.assign(inviteState, { email: '', first_name: '', last_name: '', is_superuser: false, entityId: '', roleIds: [] })
+    inviteOpen.value = true
+  }
+  async function onInvite(event: FormSubmitEvent<InviteUserSchema>) {
+    inviting.value = true
+    const res = await crud.run(() => inviteUser.mutateAsync({
+      email: event.data.email,
+      first_name: event.data.first_name || undefined,
+      last_name: event.data.last_name || undefined,
+      is_superuser: event.data.is_superuser ?? false,
+      entity_id: inviteState.entityId || undefined,
+      role_ids: inviteState.roleIds.length ? [...inviteState.roleIds] : undefined
+    }), { success: 'Invitation sent', error: 'Could not send invitation' })
+    if (res.ok) {
+      inviteOpen.value = false
+      Object.assign(inviteState, { email: '', first_name: '', last_name: '', is_superuser: false, entityId: '', roleIds: [] })
+    }
+    inviting.value = false
+  }
+
   // --- Edit ---
   const editOpen = ref(false)
   const editTarget = ref<User | null>(null)
@@ -103,6 +169,14 @@ export function useUsersWorkspace() {
     createState,
     creating,
     onCreate,
+    inviteOpen,
+    inviteState,
+    inviting,
+    openInvite,
+    onInvite,
+    entityOptions,
+    inviteRolesPool,
+    inviteSelectedRoles,
     editOpen,
     editTarget,
     editState,

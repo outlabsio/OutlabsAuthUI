@@ -15,6 +15,20 @@ export const createUserSchema = z.object({
 
 export type CreateUserSchema = z.output<typeof createUserSchema>
 
+// Invite by email (no password). entity_id + role_ids are handled as extra dialog state, not here.
+export const inviteUserSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required.')
+    .email('Enter a valid email address.'),
+  first_name: z.string().trim().max(120).optional(),
+  last_name: z.string().trim().max(120).optional(),
+  is_superuser: z.boolean().optional()
+})
+
+export type InviteUserSchema = z.output<typeof inviteUserSchema>
+
 export const updateUserSchema = z.object({
   first_name: z.string().trim().max(120).optional(),
   last_name: z.string().trim().max(120).optional(),

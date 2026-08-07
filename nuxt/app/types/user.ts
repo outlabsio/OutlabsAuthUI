@@ -28,6 +28,17 @@ export type AssignUserRoleInput = {
   valid_until?: string | null
 }
 
+// POST /auth/invite — invite by email; optionally attach an entity membership with roles (entity_id
+// set) or direct account roles (no entity_id). Creates an INVITED account with no password.
+export type InviteUserInput = {
+  email: string
+  first_name?: string
+  last_name?: string
+  is_superuser?: boolean
+  entity_id?: string
+  role_ids?: string[]
+}
+
 export type User = {
   id: string
   email: string

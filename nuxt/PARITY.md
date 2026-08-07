@@ -57,7 +57,11 @@ an existing form; **P3** = polish / edge.
 **Create form — missing fields** (`create-user.schema`): **P2 `confirmPassword`** (confirm), **P2 `rootEntityId`** (assign root org at creation).
 
 **Whole dialogs/flows missing:**
-- **P1 Invite user** (`invite-user`: email, first/last, entityId, roleIds, isSuperuser) — invite vs create-with-password. Absent.
+- **~~P1 Invite user~~ — DONE.** An "Invite" action on the users page emails an invitation
+  (`POST /auth/invite`): email, first/last, optional **entity** (attaches a membership) with roles
+  (scoped to that entity's org via `AppRolePicker` + `AppEffectivePermissions`) or direct account
+  roles when no entity, plus superuser. This also covers inviting a *new* user into an entity
+  (the entity-member-invite gap). E2E: `e2e/users/user-invite.spec.ts`.
 - **P1 Change status** (`update-user-status`: active/suspended/banned + `suspendedUntil` + reason) — suspend/ban a user. Nuxt only soft-deletes.
 - **P1 Reset password** (`reset-user-password`: new + confirm) — admin resets a user's password. Absent.
 - **~~P1 Direct role assignment~~ — DONE.** User detail now has a manageable **Direct roles** card:

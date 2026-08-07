@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { createUserSchema, updateUserSchema } from '~/schemas/user'
+import { createUserSchema, inviteUserSchema, updateUserSchema } from '~/schemas/user'
 import type { User } from '~/types/user'
 
 // Users vertical — logic in useUsersWorkspace; this file is display only.
@@ -18,6 +18,14 @@ const {
   createState,
   creating,
   onCreate,
+  inviteOpen,
+  inviteState,
+  inviting,
+  openInvite,
+  onInvite,
+  entityOptions,
+  inviteRolesPool,
+  inviteSelectedRoles,
   editOpen,
   editTarget,
   editState,
@@ -55,12 +63,20 @@ const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'erro
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton
-            v-if="canCreate"
-            icon="i-lucide-plus"
-            label="Add user"
-            @click="createOpen = true"
-          />
+          <div v-if="canCreate" class="flex items-center gap-2">
+            <UButton
+              icon="i-lucide-mail"
+              color="neutral"
+              variant="outline"
+              label="Invite"
+              @click="openInvite"
+            />
+            <UButton
+              icon="i-lucide-plus"
+              label="Add user"
+              @click="createOpen = true"
+            />
+          </div>
         </template>
       </UDashboardNavbar>
 
@@ -180,6 +196,74 @@ const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'erro
             @click="createOpen = false"
           />
           <UButton type="submit" label="Create" :loading="creating" />
+        </div>
+      </UForm>
+    </template>
+  </UModal>
+
+  <!-- Invite -->
+  <UModal
+    v-model:open="inviteOpen"
+    title="Invite user"
+    description="Email an invitation. Optionally attach an entity membership with roles, or direct account roles."
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <UForm
+        :schema="inviteUserSchema"
+        :state="inviteState"
+        class="space-y-4"
+        @submit="onInvite"
+      >
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField name="email" label="Email" required>
+            <UInput
+              v-model="inviteState.email"
+              type="email"
+              class="w-full"
+              placeholder="you@example.com"
+            />
+          </UFormField>
+          <div class="space-y-1.5">
+            <label for="invite-entity" class="block text-sm font-medium text-default">Entity</label>
+            <USelectMenu
+              id="invite-entity"
+              v-model="inviteState.entityId"
+              value-key="value"
+              :items="entityOptions"
+              placeholder="No entity (direct roles)"
+              class="w-full"
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField name="first_name" label="First name">
+            <UInput v-model="inviteState.first_name" class="w-full" />
+          </UFormField>
+          <UFormField name="last_name" label="Last name">
+            <UInput v-model="inviteState.last_name" class="w-full" />
+          </UFormField>
+        </div>
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="inviteState.roleIds" :roles="inviteRolesPool" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="inviteSelectedRoles" />
+            </div>
+          </div>
+        </div>
+        <UFormField name="is_superuser">
+          <UCheckbox v-model="inviteState.is_superuser" label="Superuser" />
+        </UFormField>
+        <div class="flex justify-end gap-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="Cancel"
+            @click="inviteOpen = false"
+          />
+          <UButton type="submit" label="Send invite" :loading="inviting" />
         </div>
       </UForm>
     </template>

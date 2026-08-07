@@ -3,6 +3,7 @@ import { apiClient } from '~/api/client'
 import type {
   AssignUserRoleInput,
   CreateUserInput,
+  InviteUserInput,
   UpdateUserInput,
   User,
   UserRoleMembership,
@@ -55,6 +56,15 @@ export function useCreateUser() {
   const queryCache = useQueryCache()
   return useMutation({
     mutation: (input: CreateUserInput) => apiClient.post<User>('/users/', { body: input }),
+    onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
+  })
+}
+
+// Invite by email (POST /auth/invite). Creates an INVITED account; entity_id also adds a membership.
+export function useInviteUser() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: (input: InviteUserInput) => apiClient.post<User>('/auth/invite', { body: input }),
     onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
   })
 }
