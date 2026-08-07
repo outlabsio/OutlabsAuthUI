@@ -24,6 +24,20 @@ export type EntityMember = {
   valid_until?: string | null
 }
 
+// A user's membership in an entity (entity-centric), from GET /memberships/user/{id}. Roles are IDs
+// here (map via the roles pool); the entity is an ID (map via the entities pool).
+export type Membership = {
+  id: string
+  entity_id: string
+  user_id: string
+  role_ids: string[]
+  status: string
+  effective_status: string
+  valid_from?: string | null
+  valid_until?: string | null
+  is_currently_valid: boolean
+}
+
 // Only 'active'/'suspended' are set directly on create/update — the backend rejects the rest
 // (DELETE handles revocation). See schemas/membership.py MembershipCreateRequest/UpdateRequest.
 export type MembershipStatusValue = 'active' | 'suspended'

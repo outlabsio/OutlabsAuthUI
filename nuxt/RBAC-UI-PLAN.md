@@ -77,7 +77,9 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
    3. ~~**Change status** (suspend/ban + suspendedUntil + reason) and **admin reset-password**~~ —
       DONE. User-detail header **Actions** menu → two dialogs; `PATCH /users/{id}/status` and
       `PATCH /users/{id}/password`. E2E `e2e/users/user-status-password.spec.ts`.
-   4. **Membership management** (a user's memberships across entities) — the last user-lifecycle flow.
+   4. ~~**Membership management**~~ — DONE. A **Memberships** card on the user detail (add scoped to
+      the user's org, edit access, remove) reusing the `/memberships` mutations. E2E
+      `e2e/users/user-memberships.spec.ts`. **User lifecycle (task #11) complete.**
 
 ## Open refinements (tracked, not yet done)
 - **"Include inactive" toggle** on the entity Users card — the members-details endpoint is

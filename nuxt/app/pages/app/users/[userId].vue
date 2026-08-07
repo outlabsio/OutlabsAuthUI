@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { resetPasswordSchema } from '~/schemas/user'
 import type { User, UserRoleMembership } from '~/types/user'
+import type { Membership } from '~/types/membership'
 import type { UserSession } from '~/types/account'
 
 // User detail — logic in useUserDetail; this file is display only.
@@ -38,7 +39,32 @@ const {
   resetOpen,
   resetState,
   resettingPassword,
-  onResetPassword
+  onResetPassword,
+  canAddMembership,
+  memberships,
+  membershipsStatus,
+  membershipRowMenu,
+  membershipEntityOptions,
+  entityName,
+  membershipRoleNames,
+  memberStatusItems,
+  orgRoles,
+  addMembershipOpen,
+  addMembershipState,
+  addMembershipRoles,
+  addingMembership,
+  openAddMembership,
+  onAddMembership,
+  editMembershipOpen,
+  editMembershipTarget,
+  editMembershipState,
+  editMembershipRoles,
+  savingMembership,
+  onSaveMembership,
+  removeMembershipOpen,
+  removeMembershipTarget,
+  removingMembership,
+  onConfirmRemoveMembership
 } = useUserDetail(userId)
 
 // --- Pure display config ---
@@ -78,6 +104,13 @@ const sessionColumns: TableColumn<UserSession>[] = [
   { accessorKey: 'device_name', header: 'Device' },
   { accessorKey: 'ip_address', header: 'IP address' },
   { accessorKey: 'last_used_at', header: 'Last used' }
+]
+
+const membershipColumns: TableColumn<Membership>[] = [
+  { id: 'entity', header: 'Entity' },
+  { id: 'roles', header: 'Roles' },
+  { id: 'validity', header: 'Status' },
+  { id: 'actions', header: '' }
 ]
 </script>
 
@@ -194,6 +227,80 @@ const sessionColumns: TableColumn<UserSession>[] = [
                       variant="ghost"
                       size="xs"
                       aria-label="Role actions"
+                    />
+                  </UDropdownMenu>
+                </div>
+              </template>
+            </UTable>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <h2 class="font-semibold text-highlighted">
+                    Memberships
+                  </h2>
+                  <span class="text-sm text-muted">{{ memberships.length }}</span>
+                </div>
+                <UButton
+                  v-if="canAddMembership"
+                  icon="i-lucide-plus"
+                  size="xs"
+                  variant="outline"
+                  color="neutral"
+                  label="Add membership"
+                  @click="openAddMembership"
+                />
+              </div>
+            </template>
+            <UTable
+              :data="memberships"
+              :columns="membershipColumns"
+              :loading="membershipsStatus === 'pending'"
+              :empty="'Not a member of any entity.'"
+            >
+              <template #entity-cell="{ row }">
+                <ULink
+                  :to="{ path: '/app/entities', query: { entity: row.original.entity_id } }"
+                  class="font-medium text-highlighted hover:underline"
+                >
+                  {{ entityName(row.original.entity_id) }}
+                </ULink>
+              </template>
+              <template #roles-cell="{ row }">
+                <div class="flex flex-wrap gap-1">
+                  <UBadge
+                    v-for="name in membershipRoleNames(row.original.role_ids)"
+                    :key="name"
+                    color="neutral"
+                    variant="subtle"
+                    size="sm"
+                  >
+                    {{ name }}
+                  </UBadge>
+                  <span v-if="!row.original.role_ids.length" class="text-sm text-dimmed">—</span>
+                </div>
+              </template>
+              <template #validity-cell="{ row }">
+                <UBadge
+                  :color="row.original.is_currently_valid ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                  class="capitalize"
+                >
+                  {{ row.original.is_currently_valid ? 'Active' : (row.original.effective_status || 'Inactive') }}
+                </UBadge>
+              </template>
+              <template #actions-cell="{ row }">
+                <div v-if="membershipRowMenu(row.original).length" class="text-right">
+                  <UDropdownMenu :items="membershipRowMenu(row.original)">
+                    <UButton
+                      icon="i-lucide-ellipsis-vertical"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Membership actions"
                     />
                   </UDropdownMenu>
                 </div>
@@ -377,6 +484,174 @@ const sessionColumns: TableColumn<UserSession>[] = [
           <UButton type="submit" label="Reset password" :loading="resettingPassword" />
         </div>
       </UForm>
+    </template>
+  </UModal>
+
+  <!-- Add membership -->
+  <UModal
+    v-model:open="addMembershipOpen"
+    title="Add membership"
+    :description="`Add ${user?.email ?? 'this user'} to an entity.`"
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="add-membership-entity" class="block text-sm font-medium text-default">Entity</label>
+            <USelectMenu
+              id="add-membership-entity"
+              v-model="addMembershipState.entityId"
+              value-key="value"
+              :items="membershipEntityOptions"
+              placeholder="Select an entity"
+              class="w-full"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label for="add-membership-status" class="block text-sm font-medium text-default">Status</label>
+            <USelect
+              id="add-membership-status"
+              v-model="addMembershipState.status"
+              :items="memberStatusItems"
+              class="w-full"
+            />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="addMembershipState.roleIds" :roles="orgRoles" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="addMembershipRoles" />
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid from</span>
+            <AppDateField v-model="addMembershipState.validFrom" placeholder="Any time" />
+          </div>
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid until</span>
+            <AppDateField v-model="addMembershipState.validUntil" placeholder="No expiry" />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label for="add-membership-reason" class="block text-sm font-medium text-default">Reason</label>
+          <UTextarea
+            id="add-membership-reason"
+            v-model="addMembershipState.reason"
+            :rows="2"
+            placeholder="Optional note for the audit trail"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="addMembershipOpen = false"
+        />
+        <UButton
+          label="Add membership"
+          :loading="addingMembership"
+          :disabled="!addMembershipState.entityId"
+          @click="onAddMembership"
+        />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Edit membership -->
+  <UModal
+    v-model:open="editMembershipOpen"
+    :title="`Edit membership — ${editMembershipTarget ? entityName(editMembershipTarget.entity_id) : 'entity'}`"
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="editMembershipState.roleIds" :roles="orgRoles" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="editMembershipRoles" />
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="space-y-1.5">
+            <label for="edit-membership-status" class="block text-sm font-medium text-default">Status</label>
+            <USelect
+              id="edit-membership-status"
+              v-model="editMembershipState.status"
+              :items="memberStatusItems"
+              class="w-full"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid from</span>
+            <AppDateField v-model="editMembershipState.validFrom" placeholder="Any time" />
+          </div>
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid until</span>
+            <AppDateField v-model="editMembershipState.validUntil" placeholder="No expiry" />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label for="edit-membership-reason" class="block text-sm font-medium text-default">Reason</label>
+          <UTextarea
+            id="edit-membership-reason"
+            v-model="editMembershipState.reason"
+            :rows="2"
+            placeholder="Optional note for the audit trail"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="editMembershipOpen = false"
+        />
+        <UButton label="Save access" :loading="savingMembership" @click="onSaveMembership" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Remove membership -->
+  <UModal v-model:open="removeMembershipOpen" title="Remove membership">
+    <template #body>
+      <p class="text-sm text-muted">
+        Remove this user from
+        <span class="font-medium text-default">{{ removeMembershipTarget ? entityName(removeMembershipTarget.entity_id) : '' }}</span>?
+        Their membership and its roles are revoked.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="removeMembershipOpen = false"
+        />
+        <UButton
+          color="error"
+          label="Remove"
+          :loading="removingMembership"
+          @click="onConfirmRemoveMembership"
+        />
+      </div>
     </template>
   </UModal>
 </template>

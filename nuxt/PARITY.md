@@ -70,7 +70,10 @@ an existing form; **P3** = polish / edge.
   assign (via `AppRolePicker` + live `AppEffectivePermissions`, pool scoped to the user's org) with a
   validity window, and remove. E2E: `e2e/users/user-roles.spec.ts`. (Editing an existing assignment's
   validity — `role-memberships` PATCH — is a later refinement.)
-- **P1 Membership management** (`membership-access-dialog`) — manage a user's entity memberships. Absent.
+- **~~P1 Membership management~~ — DONE.** A **Memberships** card on the user detail lists the
+  entities the user belongs to and manages them: add membership (entity picker scoped to the user's
+  org + `AppRolePicker` + `AppEffectivePermissions` + status + validity + reason), edit access,
+  remove. Reuses the `/memberships` mutations. E2E: `e2e/users/user-memberships.spec.ts`.
 - **P2 Permission check** (`permission-check-dialog`) — "does this user have permission X (here)?" debugging tool. Absent.
 - **P3 Delete confirmation** — React requires typing the user's email to confirm; Nuxt is a plain confirm.
 

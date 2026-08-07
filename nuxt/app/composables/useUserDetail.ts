@@ -3,16 +3,24 @@ import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useAssignUserRole, useRemoveUserRole, useResetUserPassword, useUpdateUserStatus, userDetailQuery, userRoleMembershipsQuery, userSessionsQuery } from '~/queries/users'
 import { rolesListQuery } from '~/queries/roles'
+import { entitiesListQuery } from '~/queries/entities'
+import { useAddMember, useRemoveMember, useUpdateMemberAccess, userMembershipsQuery } from '~/queries/memberships'
 import type { ResetPasswordSchema } from '~/schemas/user'
 import type { Role } from '~/types/role'
 import type { UserRoleMembership, UserStatusUpdateValue } from '~/types/user'
+import type { Membership, MembershipStatusValue } from '~/types/membership'
 
-// Feature logic for the user-detail page: profile + sessions (read) and direct role assignment
-// (write). The SFC binds this and owns pure display config. Direct role assignments are distinct
-// from roles a user gets via entity membership.
+// Feature logic for the user-detail page: profile + sessions (read), direct role assignment, account
+// admin actions (status / password), and entity membership management. The SFC binds this and owns
+// pure display config. Direct role assignments are distinct from roles a user gets via membership.
 
-// Validity is stored as ISO datetimes; the form uses AppDateField (YYYY-MM-DD strings).
+// Validity is stored as ISO datetimes; forms use AppDateField (YYYY-MM-DD strings).
 const toIsoOrNull = (d: string): string | null => (d ? new Date(d).toISOString() : null)
+const toDateInput = (iso?: string | null): string => (iso ? iso.slice(0, 10) : '')
+const MEMBER_STATUS_ITEMS = [
+  { label: 'Active', value: 'active' as MembershipStatusValue },
+  { label: 'Suspended', value: 'suspended' as MembershipStatusValue }
+]
 
 export function useUserDetail(userId: Ref<string>) {
   const { hasPermission } = useAuth()
@@ -20,6 +28,10 @@ export function useUserDetail(userId: Ref<string>) {
 
   const canRead = computed(() => hasPermission('user:read'))
   const canManageUser = computed(() => hasPermission('user:update'))
+  const canReadMemberships = computed(() => hasPermission('membership:read'))
+  const canAddMembership = computed(() => hasPermission('membership:create'))
+  const canEditMembership = computed(() => hasPermission('membership:update'))
+  const canRemoveMembership = computed(() => hasPermission('membership:delete'))
 
   const { data: user, status, error } = useQuery(() => ({ ...userDetailQuery(userId.value), enabled: canRead.value }))
   const errorMessage = useApiErrorMessage(error)
@@ -29,17 +41,23 @@ export function useUserDetail(userId: Ref<string>) {
   const sessions = computed(() => sessionsData.value ?? [])
   const roleMemberships = computed<UserRoleMembership[]>(() => membershipsData.value ?? [])
 
-  // Assignable roles = global + the user's root-org roles, minus roles already assigned directly.
+  // Roles available in the user's org (global + root-org roles) — the base pool for both direct role
+  // assignment and membership roles. Loaded when the actor can manage roles or read memberships.
   const rootEntityId = computed(() => user.value?.root_entity_id ?? undefined)
-  const { data: globalRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: canManageUser.value }))
-  const { data: rootRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: rootEntityId.value }), enabled: canManageUser.value && !!rootEntityId.value }))
-  const assignedRoleIds = computed(() => new Set(roleMemberships.value.map(m => m.role_id)))
-  const rolesPool = computed<Role[]>(() => {
+  const rolesNeeded = computed(() => canManageUser.value || canReadMemberships.value)
+  const { data: globalRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: rolesNeeded.value }))
+  const { data: rootRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: rootEntityId.value }), enabled: rolesNeeded.value && !!rootEntityId.value }))
+  const orgRoles = computed<Role[]>(() => {
     const byId = new Map<string, Role>()
     for (const r of globalRolesData.value?.items ?? []) byId.set(r.id, r)
     for (const r of rootRolesData.value?.items ?? []) byId.set(r.id, r)
-    return [...byId.values()].filter(r => !assignedRoleIds.value.has(r.id))
+    return [...byId.values()]
   })
+  const roleById = computed(() => new Map(orgRoles.value.map(r => [r.id, r])))
+
+  // Direct-role picker excludes roles already assigned directly.
+  const assignedRoleIds = computed(() => new Set(roleMemberships.value.map(m => m.role_id)))
+  const rolesPool = computed<Role[]>(() => orgRoles.value.filter(r => !assignedRoleIds.value.has(r.id)))
 
   // Assign (one POST per selected role; the endpoint assigns a single role at a time).
   const assignRole = useAssignUserRole()
@@ -147,6 +165,123 @@ export function useUserDetail(userId: Ref<string>) {
     ]]
   })
 
+  // --- Memberships (entities the user belongs to) ---
+  const canManageMemberships = computed(() => canAddMembership.value || canEditMembership.value || canRemoveMembership.value)
+  const { data: userMembershipsData, status: membershipsStatus } = useQuery(() => ({ ...userMembershipsQuery(userId.value), enabled: canReadMemberships.value }))
+  const memberships = computed<Membership[]>(() => userMembershipsData.value ?? [])
+
+  // Entities pool for name mapping + the add-membership picker, scoped to the user's org (memberships
+  // are org-scoped — the backend rejects cross-org). Loaded when memberships are readable.
+  const { data: entitiesData } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: canReadMemberships.value }))
+  const entityById = computed(() => new Map((entitiesData.value?.items ?? []).map(e => [e.id, e])))
+  function entityRootOf(entityId: string): string | undefined {
+    let cur = entityById.value.get(entityId)
+    const seen = new Set<string>()
+    while (cur?.parent_entity_id && !seen.has(cur.id)) {
+      seen.add(cur.id)
+      const parent = entityById.value.get(cur.parent_entity_id)
+      if (!parent) break
+      cur = parent
+    }
+    return cur?.id
+  }
+  const memberEntityIds = computed(() => new Set(memberships.value.map(m => m.entity_id)))
+  const membershipEntityOptions = computed(() => (entitiesData.value?.items ?? [])
+    .filter(e => entityRootOf(e.id) === user.value?.root_entity_id && !memberEntityIds.value.has(e.id))
+    .map(e => ({ label: e.display_name, value: e.id })))
+  const entityName = (entityId: string) => entityById.value.get(entityId)?.display_name ?? entityId
+  const membershipRoleNames = (roleIds: string[]) => roleIds.map(id => roleById.value.get(id)?.display_name ?? id)
+
+  // Add membership
+  const addMember = useAddMember()
+  const addMembershipOpen = ref(false)
+  const addingMembership = ref(false)
+  const addMembershipState = reactive({ entityId: '', roleIds: [] as string[], status: 'active' as MembershipStatusValue, validFrom: '', validUntil: '', reason: '' })
+  const addMembershipRoles = computed(() => addMembershipState.roleIds.map(id => roleById.value.get(id)).filter((r): r is Role => Boolean(r)))
+  function openAddMembership() {
+    Object.assign(addMembershipState, { entityId: '', roleIds: [], status: 'active', validFrom: '', validUntil: '', reason: '' })
+    addMembershipOpen.value = true
+  }
+  async function onAddMembership() {
+    if (!addMembershipState.entityId) return
+    addingMembership.value = true
+    const res = await run(() => addMember.mutateAsync({
+      user_id: userId.value,
+      entity_id: addMembershipState.entityId,
+      role_ids: [...addMembershipState.roleIds],
+      status: addMembershipState.status,
+      valid_from: toIsoOrNull(addMembershipState.validFrom),
+      valid_until: toIsoOrNull(addMembershipState.validUntil),
+      reason: addMembershipState.reason.trim() || null
+    }), { success: 'Membership added', error: 'Could not add membership' })
+    if (res.ok) addMembershipOpen.value = false
+    addingMembership.value = false
+  }
+
+  // Edit membership access
+  const updateMember = useUpdateMemberAccess()
+  const editMembershipOpen = ref(false)
+  const editMembershipTarget = ref<Membership | null>(null)
+  const savingMembership = ref(false)
+  const editMembershipState = reactive({ roleIds: [] as string[], status: 'active' as MembershipStatusValue, validFrom: '', validUntil: '', reason: '' })
+  const editMembershipRoles = computed(() => editMembershipState.roleIds.map(id => roleById.value.get(id)).filter((r): r is Role => Boolean(r)))
+  function openEditMembership(membership: Membership) {
+    editMembershipTarget.value = membership
+    Object.assign(editMembershipState, {
+      roleIds: [...membership.role_ids],
+      status: membership.status === 'suspended' ? 'suspended' : 'active',
+      validFrom: toDateInput(membership.valid_from),
+      validUntil: toDateInput(membership.valid_until),
+      reason: ''
+    })
+    editMembershipOpen.value = true
+  }
+  async function onSaveMembership() {
+    const membership = editMembershipTarget.value
+    if (!membership) return
+    savingMembership.value = true
+    const res = await run(() => updateMember.mutateAsync({
+      entityId: membership.entity_id,
+      userId: userId.value,
+      input: {
+        role_ids: [...editMembershipState.roleIds],
+        status: editMembershipState.status,
+        valid_from: toIsoOrNull(editMembershipState.validFrom),
+        valid_until: toIsoOrNull(editMembershipState.validUntil),
+        reason: editMembershipState.reason.trim() || null
+      }
+    }), { success: 'Membership updated', error: 'Could not update membership' })
+    if (res.ok) editMembershipOpen.value = false
+    savingMembership.value = false
+  }
+
+  // Remove membership
+  const removeMember = useRemoveMember()
+  const removeMembershipOpen = ref(false)
+  const removeMembershipTarget = ref<Membership | null>(null)
+  const removingMembership = ref(false)
+  function openRemoveMembership(membership: Membership) {
+    removeMembershipTarget.value = membership
+    removeMembershipOpen.value = true
+  }
+  async function onConfirmRemoveMembership() {
+    const membership = removeMembershipTarget.value
+    if (!membership) return
+    removingMembership.value = true
+    const res = await run(() => removeMember.mutateAsync({ entityId: membership.entity_id, userId: userId.value }), { success: 'Membership removed', error: 'Could not remove membership' })
+    if (res.ok) removeMembershipOpen.value = false
+    removingMembership.value = false
+  }
+
+  function membershipRowMenu(membership: Membership) {
+    const items = []
+    if (canEditMembership.value) items.push({ label: 'Edit access', icon: 'i-lucide-pencil', onSelect: () => openEditMembership(membership) })
+    if (canRemoveMembership.value) items.push({ label: 'Remove', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => openRemoveMembership(membership) })
+    return items.length ? [items] : []
+  }
+
+  const memberStatusItems = MEMBER_STATUS_ITEMS
+
   return {
     user,
     status,
@@ -177,6 +312,33 @@ export function useUserDetail(userId: Ref<string>) {
     resetOpen,
     resetState,
     resettingPassword,
-    onResetPassword
+    onResetPassword,
+    // memberships
+    canAddMembership,
+    canManageMemberships,
+    memberships,
+    membershipsStatus,
+    membershipRowMenu,
+    membershipEntityOptions,
+    entityName,
+    membershipRoleNames,
+    memberStatusItems,
+    orgRoles,
+    addMembershipOpen,
+    addMembershipState,
+    addMembershipRoles,
+    addingMembership,
+    openAddMembership,
+    onAddMembership,
+    editMembershipOpen,
+    editMembershipTarget,
+    editMembershipState,
+    editMembershipRoles,
+    savingMembership,
+    onSaveMembership,
+    removeMembershipOpen,
+    removeMembershipTarget,
+    removingMembership,
+    onConfirmRemoveMembership
   }
 }
