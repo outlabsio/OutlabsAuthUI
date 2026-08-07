@@ -1,6 +1,6 @@
 import { useQueryCache } from '@pinia/colada'
 import { initializeRuntimeConfig, type RuntimeConfig, type RuntimeConfigError, type RuntimeConfigInput } from '~/utils/runtime-config'
-import { apiClient, authSessionExpiredEvent } from '~/utils/api'
+import { apiClient, authSessionExpiredEvent } from '~/api/client'
 import { clearStoredAuthTokens, hasStoredAuthTokens, isAuthTokenStorageKey, tokensPresent } from '~/auth/tokens'
 import { AUTH_CONFIG_KEY, MY_PERMISSIONS_KEY, SESSION_KEY, resetSession } from '~/queries/session'
 import type { AuthConfig, SessionUser } from '~/types/auth'

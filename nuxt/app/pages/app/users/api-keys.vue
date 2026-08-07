@@ -14,7 +14,7 @@ import {
 } from '~/queries/api-keys'
 import { entitiesListQuery } from '~/queries/entities'
 import { rolesListQuery } from '~/queries/roles'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { ApiKey, CreateMachineKeyInput, CreatePrincipalInput, IntegrationPrincipal } from '~/types/api-key'
 import type { Entity } from '~/types/entity'
 import type { Role } from '~/types/role'

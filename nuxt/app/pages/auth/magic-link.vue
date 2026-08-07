@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useRequestMagicLink, useVerifyMagicLink } from '~/queries/session'
-import { describeAuthError, getApiErrorMessage } from '~/utils/api'
+import { describeAuthError, getApiErrorMessage } from '~/api/client'
 
 definePageMeta({ layout: 'auth' })
 

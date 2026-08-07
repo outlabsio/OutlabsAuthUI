@@ -45,17 +45,21 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
 - One store. A second requires a written reason in the PR. Server data never goes here (see #1).
 
 ### 5. Pure helpers — `app/utils/`
-- **Pure, stateless functions only** (tree building, formatters, `getApiErrorMessage`). No
-  reactive state, no singletons, no HTTP client. If it holds state or does IO, it's not a util.
+- **Pure, stateless functions only** (tree building, formatters). No reactive state, no
+  singletons, no HTTP client. If it holds state or does IO, it's not a util.
 
 ### 6. Infra modules — `app/api/`, `app/auth/`
-- Cohesive infra singletons live in named modules, not in `utils/`: the HTTP client in
-  `app/api/`, token storage in `app/auth/`.
+- Cohesive infra singletons live in named modules, not in `utils/`: the HTTP client and its
+  error/URL helpers (`getApiErrorMessage`, `buildApiUrl`) in `app/api/`, token storage in
+  `app/auth/`.
 
 ## Cross-cutting side effects
-- **Error toasts** are cross-cutting → a global PiniaColada `onError` hook surfaces a generic
-  error toast; components/composables never repeat error `try/catch` for the toast.
-- **Success toasts** are feature-specific → the feature composable.
+- **Error and success toasts live in the feature composable**, with specific per-feature titles
+  ("Could not move entity" beats a generic "Something went wrong"). Components never toast or
+  `try/catch`.
+- A global PiniaColada `onError` net (via a root `colada.options.ts`) is available if we ever
+  want a catch-all for unhandled/background errors — **deferred on purpose**: the per-feature
+  toasts are the primary path and are more specific than any global handler.
 
 ## Definition of done (per feature)
 - SFC: template + one composable call; no queries/mutations/handlers/try-catch inline.
@@ -66,8 +70,8 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
 - [x] Patterns doc
 - [x] Entities (pilot) — `useEntitiesWorkspace` + `useEntityDetail`, thin `index.vue` + `EntityDetail.vue`, `entityKeys` factory
 - [x] utils cleanup — dead barrel removed; token module moved to `app/auth/`
-- [ ] Global error-toast Colada plugin
-- [ ] Relocate HTTP client `utils/api.ts` → `app/api/` (keep `getApiErrorMessage` in utils)
+- [x] Toast ownership decided — feature composables (specific titles); global catch-all net deferred
+- [x] Relocated HTTP client `utils/api.ts` → `app/api/client.ts` (33 imports repointed)
 - [ ] Adopt the UI store (sidebar + table page-size prefs)
 - [ ] Roll the pattern to users, roles, permissions, system api-keys, audit, account (+ shared `useResourceList`)
 

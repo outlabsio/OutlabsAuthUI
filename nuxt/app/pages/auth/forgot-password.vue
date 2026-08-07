@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
 import { useForgotPassword } from '~/queries/session'
-import { describeAuthError } from '~/utils/api'
+import { describeAuthError } from '~/api/client'
 
 definePageMeta({ layout: 'auth' })
 

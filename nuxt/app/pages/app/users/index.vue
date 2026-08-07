@@ -3,7 +3,7 @@ import { useQuery } from '@pinia/colada'
 import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { usersListQuery, useCreateUser, useDeleteUser, useUpdateUser } from '~/queries/users'
 import { createUserSchema, type CreateUserSchema, updateUserSchema, type UpdateUserSchema } from '~/schemas/user'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { User, UsersListFilters } from '~/types/user'
 
 // Reference vertical (A3/A4). List = Pinia Colada query; create/edit/delete = Zod UForm +

@@ -3,7 +3,7 @@ import { useQuery } from '@pinia/colada'
 import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { rolesListQuery, useCreateRole, useDeleteRole, useUpdateRole } from '~/queries/roles'
 import { createRoleSchema, type CreateRoleSchema, updateRoleSchema, type UpdateRoleSchema } from '~/schemas/role'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { Role, RolesListFilters } from '~/types/role'
 
 // P2 vertical — copy of pages/app/users/index.vue against /roles.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { entityTypeConfigQuery } from '~/queries/settings'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 // P2 settings vertical — runtime capabilities (from /auth/config, via the Colada-owned
 // session) plus the entity-type config (read-only; superuser edit is a later pass).

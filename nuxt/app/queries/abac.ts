@@ -1,5 +1,5 @@
 import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type {
   AbacCondition,
   AbacConditionGroup,

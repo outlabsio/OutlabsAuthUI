@@ -8,7 +8,7 @@ import {
   useDeleteCondition,
   useDeleteConditionGroup
 } from '~/queries/abac'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { AbacCondition, AbacConditionGroup, AbacConditionValueType, AbacScopeKind, CreateConditionInput } from '~/types/abac'
 
 // ABAC editor — condition groups (AND/OR) + conditions (attribute/operator/value), for a role

@@ -1,5 +1,5 @@
 import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type { SessionUser } from '~/types/auth'
 import type {
   ChangeCurrentUserPasswordInput,

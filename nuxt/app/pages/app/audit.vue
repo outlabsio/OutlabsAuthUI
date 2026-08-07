@@ -2,7 +2,7 @@
 import { useQuery } from '@pinia/colada'
 import { auditEventsQuery } from '~/queries/audit'
 import { auditFiltersFromQuery, auditFiltersToQuery, emptyAuditFilters, type AuditFilters } from '~/types/audit'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 // Audit workspace (parity with the React audit feature). Two-layer gate: the activity_tracking
 // CAPABILITY guards the nav + route (middleware redirects when off), and the user:read

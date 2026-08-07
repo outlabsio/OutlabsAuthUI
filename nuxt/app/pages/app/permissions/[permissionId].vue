@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { permissionDetailQuery } from '~/queries/permissions'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 const route = useRoute()
 const permissionId = computed(() => String(route.params.permissionId))

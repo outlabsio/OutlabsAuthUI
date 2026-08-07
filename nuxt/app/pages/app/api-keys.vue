@@ -2,7 +2,7 @@
 import { useQuery } from '@pinia/colada'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import { grantableScopesQuery, myApiKeysQuery, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '~/queries/api-keys'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { ApiKey, CreateApiKeyInput } from '~/types/api-key'
 
 // Personal API keys — full self-service lifecycle: mint (with a grantable-scope picker),

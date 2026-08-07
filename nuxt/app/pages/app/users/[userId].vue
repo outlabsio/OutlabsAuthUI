@@ -2,7 +2,7 @@
 import { useQuery } from '@pinia/colada'
 import type { TableColumn } from '@nuxt/ui'
 import { userDetailQuery, userRolesQuery, userSessionsQuery } from '~/queries/users'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { Role } from '~/types/role'
 import type { User } from '~/types/user'
 import type { UserSession } from '~/types/account'

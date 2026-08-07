@@ -1,6 +1,6 @@
 import { useQuery } from '@pinia/colada'
 import { entitiesListQuery, useCreateEntity } from '~/queries/entities'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import { buildEntityTree, filterEntityTree, type EntityTreeNode } from '~/utils/entity-tree'
 import type { CreateEntityInput, Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 

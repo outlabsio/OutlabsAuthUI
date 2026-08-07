@@ -3,7 +3,7 @@ import { useQuery } from '@pinia/colada'
 import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import { permissionsListQuery, useCreatePermission, useDeletePermission } from '~/queries/permissions'
 import { createPermissionSchema, type CreatePermissionSchema } from '~/schemas/permission'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { Permission, PermissionsListFilters } from '~/types/permission'
 
 // P2 vertical — copy of pages/app/roles/index.vue against /permissions.

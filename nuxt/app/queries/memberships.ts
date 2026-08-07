@@ -1,5 +1,5 @@
 import { defineQueryOptions } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type { EntityMember } from '~/types/membership'
 
 // Memberships. The Users card on an entity reads its active members (with user details +

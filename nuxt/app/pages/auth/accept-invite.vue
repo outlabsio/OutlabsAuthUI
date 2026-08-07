@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { setPasswordSchema, type SetPasswordSchema } from '~/schemas/auth-flows'
 import { useAcceptInvite } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 definePageMeta({ layout: 'auth' })
 

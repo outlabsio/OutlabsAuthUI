@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
 import { entitiesListQuery, entityDetailQuery, useMoveEntity, useUpdateEntity } from '~/queries/entities'
 import { entityMembersQuery } from '~/queries/memberships'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 import type { EntityMember } from '~/types/membership'
 

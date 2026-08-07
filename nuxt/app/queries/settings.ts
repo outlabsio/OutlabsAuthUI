@@ -1,5 +1,5 @@
 import { defineQueryOptions } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type { EntityTypeConfig } from '~/types/settings'
 
 // P2 settings vertical (read layer) — entity-type configuration. Only meaningful when the

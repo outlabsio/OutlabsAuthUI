@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQueryCache } from '@pinia/colada'
 import { finalizeAuth } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 definePageMeta({ layout: 'auth' })
 

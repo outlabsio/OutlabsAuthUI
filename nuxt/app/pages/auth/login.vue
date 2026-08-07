@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { loginSchema, type LoginSchema } from '~/schemas/login'
 import { useLogin, useStartOAuthLogin } from '~/queries/session'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { RuntimeConfig } from '~/utils/runtime-config'
 
 definePageMeta({ layout: 'auth' })

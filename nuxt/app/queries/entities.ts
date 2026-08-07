@@ -1,5 +1,5 @@
 import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type { CreateEntityInput, EntitiesListFilters, EntitiesListResponse, Entity, UpdateEntityInput } from '~/types/entity'
 
 // Entities vertical. Read: list + detail. Write: create (POST /entities/), move

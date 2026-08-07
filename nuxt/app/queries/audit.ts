@@ -1,5 +1,5 @@
 import { defineQueryOptions } from '@pinia/colada'
-import { apiClient } from '~/utils/api'
+import { apiClient } from '~/api/client'
 import type { AuditEventsResponse, AuditFilters } from '~/types/audit'
 
 // Audit is read-only server state (activity_tracking capability + user:read permission).

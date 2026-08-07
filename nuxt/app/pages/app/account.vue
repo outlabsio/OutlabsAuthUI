@@ -15,7 +15,7 @@ import {
   updateProfileSchema,
   type UpdateProfileSchema
 } from '~/schemas/account'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 import type { UserSession } from '~/types/account'
 
 // P2 account vertical — the actor's own profile, password, and active sessions.

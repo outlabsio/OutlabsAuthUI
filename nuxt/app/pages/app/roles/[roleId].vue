@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { roleDetailQuery } from '~/queries/roles'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorMessage } from '~/api/client'
 
 const route = useRoute()
 const roleId = computed(() => String(route.params.roleId))

@@ -1,5 +1,5 @@
 import { defineQueryOptions, useMutation, useQueryCache, type QueryCache } from '@pinia/colada'
-import { apiClient, withFrontendProfile, withFrontendProfileQuery } from '~/utils/api'
+import { apiClient, withFrontendProfile, withFrontendProfileQuery } from '~/api/client'
 import { clearStoredAuthTokens, getStoredRefreshToken, setStoredAuthTokens } from '~/auth/tokens'
 import type {
   AcceptInviteInput,
