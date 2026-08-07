@@ -87,11 +87,15 @@ the `nuxt` branch (each feature is its own commit) to know exactly what's done a
 - [x] users — `useUsersWorkspace`
 - [x] roles — `useRolesWorkspace`
 - [x] permissions — `usePermissionsWorkspace`
-- [ ] personal api-keys — `app/pages/app/api-keys.vue`
-- [ ] system api-keys — `app/pages/app/users/api-keys.vue` (largest: scope toggle + service accounts + machine keys + inventory tabs)
-- [ ] audit — `app/pages/app/audit.vue`
-- [ ] account — `app/pages/app/account.vue`
-- [ ] settings — `app/pages/app/settings.vue`
+- [x] personal api-keys — `useApiKeysWorkspace`
+- [x] system api-keys — `useSystemApiKeys` (scope toggle + service accounts + machine keys + inventory)
+- [x] audit — `useAuditWorkspace`
+- [x] account — `useAccount`
+- [x] settings — `useSettings`
+
+**Feature rollout complete** — every `app/pages/app/**` view is now template + one `useFeature()`
+call + pure display config; all feature logic lives in `app/composables/`.
+
 - [ ] (optional) DRY a shared `useResourceList` now the list shape is proven across users/roles/permissions
 
 **Resume / verify** — per feature: follow "Definition of done" above, one commit each. Verify with

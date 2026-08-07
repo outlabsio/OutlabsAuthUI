@@ -1,34 +1,14 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
-import { entityTypeConfigQuery } from '~/queries/settings'
-import { getApiErrorMessage } from '~/api/client'
-
-// P2 settings vertical — runtime capabilities (from /auth/config, via the Colada-owned
-// session) plus the entity-type config (read-only; superuser edit is a later pass).
-const { capabilities, can } = useAuth()
-
-const features = computed(() => {
-  const f = capabilities.value?.features
-  if (!f) return []
-  return (Object.entries(f) as [string, boolean][]).map(([key, on]) => ({
-    label: key.replace(/_/g, ' '),
-    on
-  }))
-})
-
-const authMethods = computed(() => {
-  const m = capabilities.value?.auth_methods
-  if (!m) return []
-  return (Object.entries(m) as [string, boolean][]).filter(([, on]) => on).map(([key]) => key.replace(/_/g, ' '))
-})
-
-const entityHierarchyOn = computed(() => can('entity_hierarchy'))
-
-// Gate the config fetch on the capability so a minimal backend never 404s here.
-const { data: entityConfig, status: configStatus, error: configError } = useQuery(() => ({
-  ...entityTypeConfigQuery,
-  enabled: entityHierarchyOn.value
-}))
+// Settings — logic in useSettings; this file is display only.
+const {
+  capabilities,
+  features,
+  authMethods,
+  entityHierarchyOn,
+  entityConfig,
+  configStatus,
+  configErrorMessage
+} = useSettings()
 </script>
 
 <template>
@@ -96,7 +76,7 @@ const { data: entityConfig, status: configStatus, error: configError } = useQuer
             color="error"
             icon="i-lucide-triangle-alert"
             title="Could not load entity-type config"
-            :description="getApiErrorMessage(configError)"
+            :description="configErrorMessage"
           />
           <div v-else-if="entityConfig" class="space-y-4 text-sm">
             <div>

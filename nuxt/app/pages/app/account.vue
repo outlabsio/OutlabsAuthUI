@@ -1,82 +1,24 @@
 <script setup lang="ts">
-import { useQuery, useQueryCache } from '@pinia/colada'
-import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import {
-  mySessionsQuery,
-  useChangePassword,
-  useRevokeAllSessions,
-  useRevokeSession,
-  useUpdateProfile
-} from '~/queries/account'
-import { SESSION_KEY } from '~/queries/session'
-import {
-  changePasswordSchema,
-  type ChangePasswordSchema,
-  updateProfileSchema,
-  type UpdateProfileSchema
-} from '~/schemas/account'
-import { getApiErrorMessage } from '~/api/client'
+import type { TableColumn } from '@nuxt/ui'
+import { changePasswordSchema, updateProfileSchema } from '~/schemas/account'
 import type { UserSession } from '~/types/account'
 
-// P2 account vertical — the actor's own profile, password, and active sessions.
-const { user } = useAuth()
-const queryCache = useQueryCache()
-const toast = useToast()
+// Account — logic in useAccount; this file is display only.
+const {
+  user,
+  profileState,
+  savingProfile,
+  onSaveProfile,
+  passwordState,
+  changingPassword,
+  onChangePassword,
+  sessionRows,
+  sessionsStatus,
+  onRevokeSession,
+  onRevokeAll
+} = useAccount()
 
-// --- Profile ---
-const profileState = reactive<UpdateProfileSchema>({ first_name: '', last_name: '', phone: '' })
-watchEffect(() => {
-  if (user.value) {
-    profileState.first_name = user.value.first_name ?? ''
-    profileState.last_name = user.value.last_name ?? ''
-    profileState.phone = user.value.phone ?? ''
-  }
-})
-const updateProfile = useUpdateProfile()
-const savingProfile = ref(false)
-async function onSaveProfile(event: FormSubmitEvent<UpdateProfileSchema>) {
-  savingProfile.value = true
-  try {
-    const updated = await updateProfile.mutateAsync({
-      first_name: event.data.first_name,
-      last_name: event.data.last_name,
-      phone: event.data.phone === '' ? null : event.data.phone
-    })
-    queryCache.setQueryData(SESSION_KEY, updated)
-    toast.add({ title: 'Profile updated', color: 'success', icon: 'i-lucide-check' })
-  } catch (err) {
-    toast.add({ title: 'Could not update profile', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    savingProfile.value = false
-  }
-}
-
-// --- Password ---
-const passwordState = reactive<ChangePasswordSchema>({ current_password: '', new_password: '', confirm_password: '' })
-const changePassword = useChangePassword()
-const changingPassword = ref(false)
-async function onChangePassword(event: FormSubmitEvent<ChangePasswordSchema>) {
-  changingPassword.value = true
-  try {
-    await changePassword.mutateAsync({
-      current_password: event.data.current_password,
-      new_password: event.data.new_password
-    })
-    toast.add({ title: 'Password changed', color: 'success', icon: 'i-lucide-check' })
-    Object.assign(passwordState, { current_password: '', new_password: '', confirm_password: '' })
-  } catch (err) {
-    toast.add({ title: 'Could not change password', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    changingPassword.value = false
-  }
-}
-
-// --- Sessions ---
-const { data: sessions, status: sessionsStatus } = useQuery(mySessionsQuery)
-const sessionRows = computed<UserSession[]>(() => sessions.value ?? [])
-const revokeSession = useRevokeSession()
-const revokeAll = useRevokeAllSessions()
-
+// --- Pure display config ---
 const sessionColumns: TableColumn<UserSession>[] = [
   { accessorKey: 'device_name', header: 'Device' },
   { accessorKey: 'ip_address', header: 'IP address' },
@@ -185,7 +127,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
                 variant="ghost"
                 size="sm"
                 label="Revoke all others"
-                @click="revokeAll.mutate()"
+                @click="onRevokeAll"
               />
             </div>
           </template>
@@ -200,7 +142,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
                 size="xs"
                 icon="i-lucide-x"
                 aria-label="Revoke session"
-                @click="revokeSession.mutate(row.original.id)"
+                @click="onRevokeSession(row.original.id)"
               />
             </template>
           </UTable>
