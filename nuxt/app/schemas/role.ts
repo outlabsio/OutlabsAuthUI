@@ -9,14 +9,16 @@ export const createRoleSchema = z.object({
     .regex(/^[a-z0-9_-]+$/, 'Use lowercase letters, numbers, hyphens or underscores.'),
   display_name: z.string().trim().min(1, 'Display name is required.'),
   description: z.string().trim().max(500).optional(),
-  is_global: z.boolean().optional()
+  is_global: z.boolean().optional(),
+  permissions: z.array(z.string()).optional()
 })
 
 export type CreateRoleSchema = z.output<typeof createRoleSchema>
 
 export const updateRoleSchema = z.object({
   display_name: z.string().trim().min(1, 'Display name is required.'),
-  description: z.string().trim().max(500).optional()
+  description: z.string().trim().max(500).optional(),
+  permissions: z.array(z.string()).optional()
 })
 
 export type UpdateRoleSchema = z.output<typeof updateRoleSchema>

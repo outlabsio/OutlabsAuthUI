@@ -26,7 +26,7 @@ export function useRolesWorkspace() {
 
   // --- Create ---
   const createOpen = ref(false)
-  const createState = reactive<Partial<CreateRoleSchema>>({ name: '', display_name: '', description: '', is_global: false })
+  const createState = reactive<Partial<CreateRoleSchema>>({ name: '', display_name: '', description: '', is_global: false, permissions: [] })
   const createRole = useCreateRole()
   const creating = ref(false)
   async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
@@ -36,11 +36,11 @@ export function useRolesWorkspace() {
       display_name: event.data.display_name,
       description: event.data.description,
       is_global: event.data.is_global ?? false,
-      permissions: []
+      permissions: event.data.permissions ?? []
     }), { success: 'Role created', error: 'Could not create role' })
     if (res.ok) {
       createOpen.value = false
-      Object.assign(createState, { name: '', display_name: '', description: '', is_global: false })
+      Object.assign(createState, { name: '', display_name: '', description: '', is_global: false, permissions: [] })
     }
     creating.value = false
   }
@@ -48,13 +48,14 @@ export function useRolesWorkspace() {
   // --- Edit ---
   const editOpen = ref(false)
   const editTarget = ref<Role | null>(null)
-  const editState = reactive<UpdateRoleSchema>({ display_name: '', description: '' })
+  const editState = reactive<UpdateRoleSchema>({ display_name: '', description: '', permissions: [] })
   const updateRole = useUpdateRole()
   const saving = ref(false)
   function openEdit(role: Role) {
     editTarget.value = role
     editState.display_name = role.display_name
     editState.description = role.description ?? ''
+    editState.permissions = [...role.permissions]
     editOpen.value = true
   }
   async function onSaveEdit(event: FormSubmitEvent<UpdateRoleSchema>) {
@@ -63,7 +64,7 @@ export function useRolesWorkspace() {
     saving.value = true
     const res = await crud.run(() => updateRole.mutateAsync({
       roleId: target.id,
-      input: { display_name: event.data.display_name, description: event.data.description }
+      input: { display_name: event.data.display_name, description: event.data.description, permissions: event.data.permissions }
     }), { success: 'Role updated', error: 'Could not update role' })
     if (res.ok) editOpen.value = false
     saving.value = false

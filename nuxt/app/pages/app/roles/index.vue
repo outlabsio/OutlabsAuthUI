@@ -119,7 +119,7 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
     </template>
   </UDashboardPanel>
 
-  <UModal v-model:open="createOpen" title="Add role">
+  <UModal v-model:open="createOpen" title="Add role" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <UForm
         :schema="createRoleSchema"
@@ -144,6 +144,9 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
         <UFormField name="is_global">
           <UCheckbox v-model="createState.is_global" label="Global role" />
         </UFormField>
+        <UFormField name="permissions" label="Permissions">
+          <AppPermissionPicker v-model="createState.permissions" />
+        </UFormField>
         <div class="flex justify-end gap-2 pt-2">
           <UButton
             color="neutral"
@@ -158,7 +161,7 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
   </UModal>
 
   <!-- Edit -->
-  <UModal v-model:open="editOpen" :title="`Edit ${editTarget?.display_name ?? 'role'}`">
+  <UModal v-model:open="editOpen" :title="`Edit ${editTarget?.display_name ?? 'role'}`" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <UForm
         :schema="updateRoleSchema"
@@ -171,6 +174,9 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
         </UFormField>
         <UFormField name="description" label="Description">
           <UTextarea v-model="editState.description" class="w-full" :rows="2" />
+        </UFormField>
+        <UFormField name="permissions" label="Permissions">
+          <AppPermissionPicker v-model="editState.permissions" />
         </UFormField>
         <div class="flex justify-end gap-2 pt-2">
           <UButton

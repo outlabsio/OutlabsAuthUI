@@ -16,9 +16,10 @@ export function usePermissionCatalog() {
   // Permissions endpoint caps limit at 1000 — enough to hold the whole catalog in one page.
   const { data, status } = useQuery(permissionsListQuery({ limit: 1000 }))
 
+  const all = computed<Permission[]>(() => data.value?.items ?? [])
   const byName = computed(() => {
     const map = new Map<string, Permission>()
-    for (const p of data.value?.items ?? []) map.set(p.name, p)
+    for (const p of all.value) map.set(p.name, p)
     return map
   })
 
@@ -55,5 +56,5 @@ export function usePermissionCatalog() {
       .sort((a, b) => a.resource.localeCompare(b.resource))
   }
 
-  return { status, byName, resolve, resolveMany, groupByResource }
+  return { status, all, byName, resolve, resolveMany, groupByResource }
 }

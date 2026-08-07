@@ -73,7 +73,9 @@ an existing form; **P3** = polish / edge.
 ## Roles — the create/edit form is very limited
 
 **Create/edit form — missing fields** (`role-form.schema`):
-- **P1 `permissionNames`** — assign permissions to the role. Nuxt **always sends `permissions: []`**; the detail page shows a role's permissions **read-only**, with no way to change them. This is the biggest single role gap.
+- **~~P1 `permissionNames`~~ — DONE.** Role create/edit now assigns permissions via
+  **`AppPermissionPicker`** (searchable, grouped-by-resource CommandPalette multi-select); role
+  detail renders them through **`AppPermissionList`**. E2E: `e2e/roles/role-permissions.spec.ts`.
 - **P1 `roleType`** (global / root / entity) — Nuxt only has an `is_global` boolean; can't create root- or entity-scoped roles.
 - **P2 `rootEntityId` / `scopeEntityId`** — the owning root / defining entity (required for root/entity roles).
 - **P2 `scope`** (hierarchy / entity_only), **`isAutoAssigned`**, **`assignableAtTypes`** — Nuxt detail *shows* auto-assigned + assignable-at read-only, but the form can't set them.
