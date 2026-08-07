@@ -1,6 +1,6 @@
 import { useQuery } from '@pinia/colada'
 import { authConfigQuery, myPermissionsQuery, sessionQuery } from '~/queries/session'
-import { tokensPresent } from '~/utils/auth-token'
+import { tokensPresent } from '~/auth/tokens'
 import type { AuthConfig } from '~/types/auth'
 
 // Ergonomic read surface over the Colada-owned auth state. Every consumer that needs the

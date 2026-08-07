@@ -1,6 +1,6 @@
 import { defineQueryOptions, useMutation, useQueryCache, type QueryCache } from '@pinia/colada'
 import { apiClient, withFrontendProfile, withFrontendProfileQuery } from '~/utils/api'
-import { clearStoredAuthTokens, getStoredRefreshToken, setStoredAuthTokens } from '~/utils/auth-token'
+import { clearStoredAuthTokens, getStoredRefreshToken, setStoredAuthTokens } from '~/auth/tokens'
 import type {
   AcceptInviteInput,
   AccessCodeRequestInput,
@@ -17,7 +17,7 @@ import type {
 
 // Auth = SERVER STATE, owned by Pinia Colada (not a Pinia store). The query cache is the
 // single source of truth for "who am I" (`['session']`) and "what does this backend expose"
-// (`['auth-config']`). Tokens — the only genuine client state — live in ~/utils/auth-token.
+// (`['auth-config']`). Tokens — the only genuine client state — live in ~/auth/tokens.
 // Every token-returning entrypoint funnels through finalizeAuth(); useAuth() is the read
 // surface; middleware reads the cache directly via useQueryCache().
 

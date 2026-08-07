@@ -3,7 +3,7 @@ import {
   getStoredAccessToken,
   getStoredRefreshToken,
   setStoredAuthTokens
-} from '~/utils/auth-token'
+} from '~/auth/tokens'
 import { getRuntimeConfig } from '~/utils/runtime-config'
 
 // The one thin API client (A3 hard rule): base URL + auth-prefix resolution, bearer

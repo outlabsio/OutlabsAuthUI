@@ -6,7 +6,13 @@ import type { CreateEntityInput, EntitiesListFilters, EntitiesListResponse, Enti
 // (POST /entities/{id}/move), update (PATCH /entities/{id}). Mutations invalidate the
 // resource root ['entities'] on settle. Advanced child-governance is a later pass.
 
-const ENTITIES_ROOT = 'entities' as const
+// Key factory — single source of truth for this domain's cache keys (queries key off it,
+// mutations invalidate entityKeys.root).
+export const entityKeys = {
+  root: ['entities'] as const,
+  list: (filters: EntitiesListFilters) => [...entityKeys.root, 'list', filters] as const,
+  detail: (entityId: string) => [...entityKeys.root, 'detail', entityId] as const
+}
 
 function buildEntitiesQueryString(filters: EntitiesListFilters) {
   const params = new URLSearchParams({
@@ -22,13 +28,13 @@ function buildEntitiesQueryString(filters: EntitiesListFilters) {
 }
 
 export const entitiesListQuery = defineQueryOptions((filters: EntitiesListFilters) => ({
-  key: [ENTITIES_ROOT, 'list', filters],
+  key: entityKeys.list(filters),
   query: ctx =>
     apiClient.get<EntitiesListResponse>(`/entities/?${buildEntitiesQueryString(filters)}`, { signal: ctx?.signal })
 }))
 
 export const entityDetailQuery = defineQueryOptions((entityId: string) => ({
-  key: [ENTITIES_ROOT, 'detail', entityId],
+  key: entityKeys.detail(entityId),
   query: ctx => apiClient.get<Entity>(`/entities/${entityId}`, { signal: ctx?.signal })
 }))
 
@@ -37,7 +43,7 @@ export function useCreateEntity() {
   return useMutation({
     // Trailing slash: POST /entities 307-redirects and can drop the body.
     mutation: (input: CreateEntityInput) => apiClient.post<Entity>('/entities/', { body: input }),
-    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+    onSettled: () => queryCache.invalidateQueries({ key: entityKeys.root })
   })
 }
 
@@ -46,7 +52,7 @@ export function useUpdateEntity() {
   return useMutation({
     mutation: ({ entityId, input }: { entityId: string, input: UpdateEntityInput }) =>
       apiClient.patch<Entity>(`/entities/${entityId}`, { body: input }),
-    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+    onSettled: () => queryCache.invalidateQueries({ key: entityKeys.root })
   })
 }
 
@@ -55,6 +61,6 @@ export function useMoveEntity() {
   return useMutation({
     mutation: ({ entityId, newParentId }: { entityId: string, newParentId: string | null }) =>
       apiClient.post<Entity>(`/entities/${entityId}/move`, { body: { new_parent_id: newParentId } }),
-    onSettled: () => queryCache.invalidateQueries({ key: [ENTITIES_ROOT] })
+    onSettled: () => queryCache.invalidateQueries({ key: entityKeys.root })
   })
 }

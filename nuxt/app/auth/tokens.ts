@@ -1,8 +1,10 @@
 import { ref } from 'vue'
 
 // Token storage — the ONLY genuine client state in auth (everything else, i.e. the current
-// user and backend capabilities, is server state owned by Pinia Colada). localStorage keys
-// are unchanged from the React app so a session minted by either app is interchangeable.
+// user and backend capabilities, is server state owned by Pinia Colada). Lives in app/auth/
+// (infra), not utils/, because it holds a reactive singleton — utils/ is pure functions only.
+// localStorage keys are unchanged from the React app so a session minted by either app is
+// interchangeable.
 //
 // `tokensPresent` is a reactive mirror of "do we have tokens", so Pinia Colada's `enabled`
 // gate on the session query reacts to login/logout without polling localStorage.
