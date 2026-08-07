@@ -404,7 +404,7 @@ const entityStatusItems = [
           <span class="block text-sm font-medium text-default">Roles</span>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <AppRolePicker v-model="addMemberState.roleIds" :roles="rolesPool" />
-            <div class="max-h-80 overflow-hidden rounded-md border border-default p-3">
+            <div class="h-72 overflow-hidden rounded-md border border-default p-3">
               <AppEffectivePermissions :roles="addSelectedRoles" />
             </div>
           </div>
@@ -420,22 +420,12 @@ const entityStatusItems = [
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
-            <label for="add-member-valid-from" class="block text-sm font-medium text-default">Valid from</label>
-            <UInput
-              id="add-member-valid-from"
-              v-model="addMemberState.validFrom"
-              type="date"
-              class="w-full"
-            />
+            <span class="block text-sm font-medium text-default">Valid from</span>
+            <AppDateField v-model="addMemberState.validFrom" placeholder="Any time" />
           </div>
           <div class="space-y-1.5">
-            <label for="add-member-valid-until" class="block text-sm font-medium text-default">Valid until</label>
-            <UInput
-              id="add-member-valid-until"
-              v-model="addMemberState.validUntil"
-              type="date"
-              class="w-full"
-            />
+            <span class="block text-sm font-medium text-default">Valid until</span>
+            <AppDateField v-model="addMemberState.validUntil" placeholder="No expiry" />
           </div>
         </div>
         <div class="space-y-1.5">
@@ -481,7 +471,7 @@ const entityStatusItems = [
           <span class="block text-sm font-medium text-default">Roles</span>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <AppRolePicker v-model="editMemberState.roleIds" :roles="rolesPool" />
-            <div class="max-h-80 overflow-hidden rounded-md border border-default p-3">
+            <div class="h-72 overflow-hidden rounded-md border border-default p-3">
               <AppEffectivePermissions :roles="editSelectedRoles" />
             </div>
           </div>
@@ -497,22 +487,12 @@ const entityStatusItems = [
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
-            <label for="edit-member-valid-from" class="block text-sm font-medium text-default">Valid from</label>
-            <UInput
-              id="edit-member-valid-from"
-              v-model="editMemberState.validFrom"
-              type="date"
-              class="w-full"
-            />
+            <span class="block text-sm font-medium text-default">Valid from</span>
+            <AppDateField v-model="editMemberState.validFrom" placeholder="Any time" />
           </div>
           <div class="space-y-1.5">
-            <label for="edit-member-valid-until" class="block text-sm font-medium text-default">Valid until</label>
-            <UInput
-              id="edit-member-valid-until"
-              v-model="editMemberState.validUntil"
-              type="date"
-              class="w-full"
-            />
+            <span class="block text-sm font-medium text-default">Valid until</span>
+            <AppDateField v-model="editMemberState.validUntil" placeholder="No expiry" />
           </div>
         </div>
         <div class="space-y-1.5">

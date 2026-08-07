@@ -18,7 +18,7 @@ const names = computed(() => [...new Set(props.roles.flatMap(r => r.permissions 
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-col">
+  <div class="flex h-full min-h-0 flex-col">
     <div class="mb-1.5 flex items-center gap-2">
       <span class="text-xs font-medium uppercase tracking-wide text-muted">{{ title }}</span>
       <span class="text-xs text-dimmed">{{ names.length }}</span>

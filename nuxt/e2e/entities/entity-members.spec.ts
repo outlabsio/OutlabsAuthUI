@@ -69,16 +69,17 @@ test.describe('entity member management', () => {
     const row = page.getByRole('row').filter({ hasText: email })
     await expect(row).toBeVisible()
 
-    // --- Edit access: set an expiry (keeps the membership active + listed, unlike a suspend,
-    // which the active-only details view would hide) ---
+    // --- Edit access: assign a role (keeps the membership active + listed, and exercises the role
+    // picker; a suspend would hide the member from the active-only details view). Role options carry
+    // a "perms" count chip, which distinguishes them from any other role="option". ---
     await row.getByRole('button', { name: 'Member actions' }).click()
     await page.getByRole('menuitem', { name: 'Edit access' }).click()
     const editDialog = page.getByRole('dialog')
-    await editDialog.locator('#edit-member-valid-until').fill('2030-12-31')
+    await editDialog.getByRole('option').filter({ hasText: 'perms' }).first().click()
     await editDialog.getByRole('button', { name: 'Save access' }).click()
     await expect.poll(() => patches.length).toBe(1)
     expect(patches[0]).toEqual(expect.objectContaining({ status: 'active' }))
-    expect(patches[0]!.valid_until).toBeTruthy()
+    expect((patches[0]!.role_ids as string[]).length).toBeGreaterThan(0)
     await expect(editDialog).toBeHidden()
 
     // --- Remove the member (self-clean) ---
