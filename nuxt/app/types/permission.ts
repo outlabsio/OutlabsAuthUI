@@ -19,6 +19,22 @@ export type Permission = {
   metadata: Record<string, unknown>
 }
 
+// A permission NAME (e.g. "user:read") enriched from the catalog for display. Always renderable —
+// resource/action fall back to splitting the name when the catalog lacks the definition. Produced by
+// usePermissionCatalog and consumed by the AppPermission*/AppRole* display kit.
+export type ResolvedPermission = {
+  name: string
+  displayName: string
+  resource: string
+  action: string
+  description?: string | null
+}
+
+export type PermissionGroup = {
+  resource: string
+  items: ResolvedPermission[]
+}
+
 export type PermissionsListResponse = PaginatedResponse<Permission>
 
 export type PermissionsListFilters = {

@@ -78,19 +78,7 @@ const detailItems = computed(() => {
                 <span class="text-sm text-muted">{{ role?.permissions.length ?? 0 }}</span>
               </div>
             </template>
-            <div v-if="role?.permissions.length" class="flex flex-wrap gap-2">
-              <UBadge
-                v-for="p in role.permissions"
-                :key="p"
-                color="neutral"
-                variant="subtle"
-              >
-                {{ p }}
-              </UBadge>
-            </div>
-            <p v-else class="text-sm text-muted">
-              No permissions attached.
-            </p>
+            <AppPermissionList :names="role?.permissions ?? []" detailed empty-text="No permissions attached." />
           </UCard>
 
           <UCard v-if="abacEnabled">
