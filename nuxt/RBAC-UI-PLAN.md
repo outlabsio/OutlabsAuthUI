@@ -25,8 +25,10 @@ Dev preview runs on :3001 (CORS allows 3000/3001); Playwright starts its own :30
   "will grant" panel (right) showing the deduped union of what the selected roles grant.
 - **Pickers are built on `UCommandPalette`** (fuzzy search + groups + multi-select, bound via
   `value-key`).
-- **Dates use Nuxt UI** (`AppDateField` on `UPopover` + `UCalendar`) — never native
-  `<input type="date">`.
+- **Dates use Nuxt UI** (`AppDateField` = `UPopover` + `UCalendar`) — never native
+  `<input type="date">`. The popover closes on select via a macrotask (`setTimeout 0`) so a
+  surrounding `UModal` isn't dismissed mid-click. (`UInputDate` was tried and rejected — it crashes
+  with `defaultPlaceholder.copy is not a function` in this Reka/@internationalized/date combo.)
 - **Member/role pools are scoped to the entity's org** (global roles + the entity's root-org roles;
   users scoped to the root). Memberships are org-scoped and the backend rejects cross-org adds.
 
