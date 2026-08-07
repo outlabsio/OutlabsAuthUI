@@ -19,6 +19,25 @@ const {
   childrenStatus,
   members,
   membersStatus,
+  canAddMember,
+  memberRowMenu,
+  roleOptions,
+  addableUserOptions,
+  memberStatusItems,
+  addMemberOpen,
+  addMemberState,
+  addingMember,
+  openAddMember,
+  onAddMember,
+  editMemberOpen,
+  editMemberTarget,
+  editMemberState,
+  savingMember,
+  onSaveMember,
+  removeMemberOpen,
+  removeMemberTarget,
+  removingMember,
+  onConfirmRemoveMember,
   editOpen,
   editState,
   saving,
@@ -64,7 +83,8 @@ const memberColumns: TableColumn<EntityMember>[] = [
   { id: 'name', header: 'Name' },
   { accessorKey: 'user_email', header: 'Email' },
   { id: 'roles', header: 'Roles' },
-  { accessorKey: 'user_status', header: 'Status' }
+  { accessorKey: 'user_status', header: 'Status' },
+  { id: 'actions', header: '' }
 ]
 const memberStatusColor: Record<UserStatusValue, 'success' | 'info' | 'warning' | 'error' | 'neutral'> = {
   active: 'success',
@@ -179,11 +199,22 @@ const entityStatusItems = [
 
           <UCard>
             <template #header>
-              <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-highlighted">
-                  Users
-                </h2>
-                <span class="text-sm text-muted">{{ members.length }}</span>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <h2 class="font-semibold text-highlighted">
+                    Users
+                  </h2>
+                  <span class="text-sm text-muted">{{ members.length }}</span>
+                </div>
+                <UButton
+                  v-if="canAddMember"
+                  icon="i-lucide-user-plus"
+                  size="xs"
+                  variant="outline"
+                  color="neutral"
+                  label="Add member"
+                  @click="openAddMember"
+                />
               </div>
             </template>
             <AppPermissionGate permission="membership:read">
@@ -224,6 +255,19 @@ const entityStatusItems = [
                   >
                     {{ row.original.user_status }}
                   </UBadge>
+                </template>
+                <template #actions-cell="{ row }">
+                  <div v-if="memberRowMenu(row.original).length" class="text-right">
+                    <UDropdownMenu :items="memberRowMenu(row.original)">
+                      <UButton
+                        icon="i-lucide-ellipsis-vertical"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Member actions"
+                      />
+                    </UDropdownMenu>
+                  </div>
                 </template>
               </UTable>
             </AppPermissionGate>
@@ -330,6 +374,192 @@ const entityStatusItems = [
           @click="moveOpen = false"
         />
         <UButton label="Move entity" :loading="moving" @click="onMove" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Add member -->
+  <UModal v-model:open="addMemberOpen" title="Add member" description="Add an existing user to this entity.">
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label for="add-member-user" class="block text-sm font-medium text-default">User</label>
+          <USelectMenu
+            id="add-member-user"
+            v-model="addMemberState.userId"
+            value-key="value"
+            :items="addableUserOptions"
+            placeholder="Search users..."
+            class="w-full"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <label for="add-member-roles" class="block text-sm font-medium text-default">Roles</label>
+          <USelectMenu
+            id="add-member-roles"
+            v-model="addMemberState.roleIds"
+            value-key="value"
+            :items="roleOptions"
+            multiple
+            placeholder="Select roles"
+            class="w-full"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <label for="add-member-status" class="block text-sm font-medium text-default">Status</label>
+          <USelect
+            id="add-member-status"
+            v-model="addMemberState.status"
+            :items="memberStatusItems"
+            class="w-full"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="add-member-valid-from" class="block text-sm font-medium text-default">Valid from</label>
+            <UInput
+              id="add-member-valid-from"
+              v-model="addMemberState.validFrom"
+              type="date"
+              class="w-full"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label for="add-member-valid-until" class="block text-sm font-medium text-default">Valid until</label>
+            <UInput
+              id="add-member-valid-until"
+              v-model="addMemberState.validUntil"
+              type="date"
+              class="w-full"
+            />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label for="add-member-reason" class="block text-sm font-medium text-default">Reason</label>
+          <UTextarea
+            id="add-member-reason"
+            v-model="addMemberState.reason"
+            :rows="2"
+            placeholder="Optional note for the audit trail"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="addMemberOpen = false"
+        />
+        <UButton
+          label="Add member"
+          :loading="addingMember"
+          :disabled="!addMemberState.userId"
+          @click="onAddMember"
+        />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Edit member access -->
+  <UModal
+    v-model:open="editMemberOpen"
+    :title="`Edit access — ${editMemberTarget?.user_email ?? 'member'}`"
+    description="Update this member's roles and access window."
+  >
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label for="edit-member-roles" class="block text-sm font-medium text-default">Roles</label>
+          <USelectMenu
+            id="edit-member-roles"
+            v-model="editMemberState.roleIds"
+            value-key="value"
+            :items="roleOptions"
+            multiple
+            placeholder="Select roles"
+            class="w-full"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <label for="edit-member-status" class="block text-sm font-medium text-default">Status</label>
+          <USelect
+            id="edit-member-status"
+            v-model="editMemberState.status"
+            :items="memberStatusItems"
+            class="w-full"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="edit-member-valid-from" class="block text-sm font-medium text-default">Valid from</label>
+            <UInput
+              id="edit-member-valid-from"
+              v-model="editMemberState.validFrom"
+              type="date"
+              class="w-full"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label for="edit-member-valid-until" class="block text-sm font-medium text-default">Valid until</label>
+            <UInput
+              id="edit-member-valid-until"
+              v-model="editMemberState.validUntil"
+              type="date"
+              class="w-full"
+            />
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label for="edit-member-reason" class="block text-sm font-medium text-default">Reason</label>
+          <UTextarea
+            id="edit-member-reason"
+            v-model="editMemberState.reason"
+            :rows="2"
+            placeholder="Optional note for the audit trail"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="editMemberOpen = false"
+        />
+        <UButton label="Save access" :loading="savingMember" @click="onSaveMember" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Remove member -->
+  <UModal v-model:open="removeMemberOpen" title="Remove member">
+    <template #body>
+      <p class="text-sm text-muted">
+        Remove <span class="font-medium text-default">{{ removeMemberTarget?.user_email }}</span> from this entity?
+        Their membership and its roles are revoked. This does not delete the user.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="removeMemberOpen = false"
+        />
+        <UButton
+          color="error"
+          label="Remove"
+          :loading="removingMember"
+          @click="onConfirmRemoveMember"
+        />
       </div>
     </template>
   </UModal>

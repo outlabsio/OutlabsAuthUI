@@ -34,10 +34,18 @@ an existing form; **P3** = polish / edge.
 
 **Whole dialogs/flows missing:**
 - **P1 Root governance** (`root-governance-form.schema`, `entity-root-governance-dialog`) — for root entities: allowed child classes/types, maxMembers, and **naming rules**: `childNamePattern`, `childDisplayNamePattern`, `childSlugPattern` (regex, validated) + `childNamingGuidance` text. Nothing like it in Nuxt.
-- **P1 Member management** — Nuxt's Users card is **read-only**. React can:
-  - **Invite a new user into the entity** (`entity-member-invite`: email, first/last, roleIds).
-  - **Add/edit an existing user's membership** (`entity-member-access`: userId, roleIds, status, validFrom/until, reason).
-  - Remove a member.
+- **~~P1 Member management~~ — DONE.** The Users card now manages members: **Add member** (in-org
+  user + roles + status + validity window + reason), **Edit access** (roles/status/validity/reason,
+  PATCH), and **Remove** (DELETE), wired to `/memberships` with a root-org-scoped user picker.
+  E2E: `e2e/entities/entity-members.spec.ts`. Two refinements remain:
+  - **Role picker isn't scoped to "assignable at this entity"** — it offers all roles; a cross-org
+    role is rejected by the backend (with a clear message) rather than hidden. (User picker *is*
+    scoped to the entity's root org.)
+  - **No "include inactive" view** — the details endpoint is active-only, so a suspended member
+    disappears from the card and can't be un-suspended from the UI. Add an include-inactive toggle
+    (+ show `effective_status`) so suspend is reversible.
+  - Still missing: **inviting a *new* user** into the entity (`entity-member-invite`) — folded into
+    the user-lifecycle **invite** flow (P1, next).
 - **P2 Entity activity panel** (`entity-activity-panel`) — per-entity audit/activity feed on the detail. Absent in Nuxt.
 
 ## Memberships — no management UI
