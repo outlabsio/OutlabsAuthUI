@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { entityTypeConfigSchema } from '~/schemas/settings'
+
 // Settings — logic in useSettings; this file is display only.
 const {
   capabilities,
@@ -7,7 +9,13 @@ const {
   entityHierarchyOn,
   entityConfig,
   configStatus,
-  configErrorMessage
+  configErrorMessage,
+  canEditConfig,
+  configOpen,
+  configState,
+  savingConfig,
+  openConfigEdit,
+  onSaveConfig
 } = useSettings()
 </script>
 
@@ -66,9 +74,20 @@ const {
         <!-- Entity type config -->
         <UCard v-if="entityHierarchyOn">
           <template #header>
-            <h2 class="font-semibold text-highlighted">
-              Entity types
-            </h2>
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="font-semibold text-highlighted">
+                Entity types
+              </h2>
+              <UButton
+                v-if="canEditConfig && entityConfig"
+                icon="i-lucide-pencil"
+                size="xs"
+                variant="outline"
+                color="neutral"
+                label="Edit"
+                @click="openConfigEdit"
+              />
+            </div>
           </template>
 
           <UAlert
@@ -125,12 +144,82 @@ const {
                 </UBadge>
               </div>
             </div>
-            <p class="text-xs text-muted">
-              Editing entity-type configuration (superuser) is a later pass.
-            </p>
           </div>
         </UCard>
       </div>
     </template>
   </UDashboardPanel>
+
+  <!-- Edit entity types -->
+  <UModal
+    v-model:open="configOpen"
+    title="Entity types"
+    description="Types allowed for root entities and offered as children, per class. Comma-separated."
+    :ui="{ content: 'sm:max-w-2xl' }"
+  >
+    <template #body>
+      <UForm
+        :schema="entityTypeConfigSchema"
+        :state="configState"
+        class="space-y-4"
+        @submit="onSaveConfig"
+      >
+        <div class="space-y-1.5">
+          <p class="text-sm font-medium text-default">
+            Allowed root types
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <UFormField name="structural_root_types" label="Structural">
+              <UInput
+                id="etc-structural-root"
+                v-model="configState.structural_root_types"
+                class="w-full"
+                placeholder="organization"
+              />
+            </UFormField>
+            <UFormField name="access_group_root_types" label="Access group">
+              <UInput
+                id="etc-ag-root"
+                v-model="configState.access_group_root_types"
+                class="w-full"
+                placeholder="team"
+              />
+            </UFormField>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <p class="text-sm font-medium text-default">
+            Default child types
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <UFormField name="structural_child_types" label="Structural">
+              <UInput
+                id="etc-structural-child"
+                v-model="configState.structural_child_types"
+                class="w-full"
+                placeholder="region, office"
+              />
+            </UFormField>
+            <UFormField name="access_group_child_types" label="Access group">
+              <UInput
+                id="etc-ag-child"
+                v-model="configState.access_group_child_types"
+                class="w-full"
+                placeholder="team, squad"
+              />
+            </UFormField>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="Cancel"
+            @click="configOpen = false"
+          />
+          <UButton type="submit" label="Save" :loading="savingConfig" />
+        </div>
+      </UForm>
+    </template>
+  </UModal>
 </template>

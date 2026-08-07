@@ -118,7 +118,12 @@ E2E: `e2e/roles/role-type-scope.spec.ts` (root-scoped create).
 - **No key edit** in Nuxt (rotate/revoke only); React can edit a key's status (suspend). (P3)
 
 ## Settings
-- **P1 Entity-type config editor** (`entity-type-config-form.schema`) — edit the allowed structural/access-group **root** and **child** types (tag arrays, with "at least one" rules). Nuxt settings shows this config **read-only**.
+- **~~P1 Entity-type config editor~~ — DONE.** Settings now has a superuser **Edit** on the Entity
+  types card: allowed **root** + default **child** types per class (structural / access-group), with
+  the at-least-one rules (a child type per class, a root type across classes). `PUT /config/entity-types`.
+  E2E: `e2e/settings/settings-config.spec.ts`.
+
+**All P1 gaps are now closed.** What remains is P2 polish + kit step 4 (`AppRoleChip`).
 
 ## Account
 - **P2 Phone verification** (`verify-phone.schema`) — request + verify a phone code. Absent in Nuxt.

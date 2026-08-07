@@ -70,7 +70,21 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
   `e2e/roles/role-type-scope.spec.ts`. The role editor is now full (with permission assignment).
 - **Entity governance** — a Governance dialog on the entity detail: allowed child classes/types, max
   members, and child naming patterns (regex-validated) + guidance; child governance moved out of
-  Edit. E2E `e2e/entities/entity-governance.spec.ts`. Only P1 left: entity-type config editor.
+  Edit. E2E `e2e/entities/entity-governance.spec.ts`.
+- **Entity-type config editor** — superuser Edit on the Settings Entity-types card (root + child
+  types per class, at-least-one rules); `PUT /config/entity-types`. E2E
+  `e2e/settings/settings-config.spec.ts`. **This was the last P1 — all P1 gaps are now closed.**
+
+## Remaining (P2 + polish)
+- P2 form fields: entity validity window (validFrom/validUntil), permission resource/action split +
+  tags + isSystem/isActive, users create confirm-password + rootEntity.
+- List filters: roles (type/scope/usage/system), permissions (resource/system/status/tag), users
+  orphaned view.
+- API keys: IP allowlist, prefix type, machine-key access mode, key status/suspend.
+- Kit step 4: `AppRoleChip` (role chip → permissions popover) retrofit on member rows + user roles.
+- Refinements: member "include inactive" toggle; role picker `assignable_at_types` filtering;
+  account phone verification; access-code whatsapp/sms channels; edit an existing role-membership's
+  validity (role-memberships PATCH).
 
 ## Roadmap (remaining, in order)
 1. **Kit step 4** — `AppRoleChip` (a role chip whose popover shows that role's permissions via
