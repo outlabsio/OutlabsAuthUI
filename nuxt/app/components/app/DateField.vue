@@ -20,7 +20,11 @@ const calendarValue = computed<DateValue | undefined>({
   },
   set(value) {
     model.value = value ? `${value.year}-${String(value.month).padStart(2, '0')}-${String(value.day).padStart(2, '0')}` : ''
-    if (value) setTimeout(() => { open.value = false }, 0)
+    if (value) {
+      setTimeout(() => {
+        open.value = false
+      }, 0)
+    }
   }
 })
 
@@ -45,7 +49,13 @@ function clear() {
       <div class="p-2">
         <UCalendar v-model="calendarValue" />
         <div v-if="model" class="mt-2 flex justify-end border-t border-default pt-2">
-          <UButton size="xs" color="neutral" variant="ghost" label="Clear" @click="clear" />
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            label="Clear"
+            @click="clear"
+          />
         </div>
       </div>
     </template>

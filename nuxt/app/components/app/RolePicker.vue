@@ -8,7 +8,7 @@ import type { Role } from '~/types/role'
 // AppEffectivePermissions to show what the selected roles grant.
 type RoleItem = CommandPaletteItem & { id: string }
 
-const props = withDefaults(defineProps<{ roles?: Role[] }>(), { roles: () => [] })
+const props = withDefaults(defineProps<{ roles?: Role[], heightClass?: string }>(), { roles: () => [], heightClass: 'h-72' })
 const model = defineModel<string[]>({ default: () => [] })
 
 const groups = computed<CommandPaletteGroup<RoleItem>[]>(() => [{
@@ -25,7 +25,7 @@ const groups = computed<CommandPaletteGroup<RoleItem>[]>(() => [{
 </script>
 
 <template>
-  <div class="flex flex-col rounded-md border border-default">
+  <div class="flex flex-col rounded-md border border-default" :class="heightClass">
     <UCommandPalette
       v-model="model"
       multiple
@@ -33,7 +33,7 @@ const groups = computed<CommandPaletteGroup<RoleItem>[]>(() => [{
       :groups="groups"
       placeholder="Search roles..."
       :fuse="{ fuseOptions: { keys: ['label', 'description', 'suffix'] } }"
-      class="h-72"
+      class="min-h-0 flex-1"
     />
     <p class="border-t border-default px-3 py-1.5 text-xs text-muted">
       {{ model.length }} role{{ model.length === 1 ? '' : 's' }} selected

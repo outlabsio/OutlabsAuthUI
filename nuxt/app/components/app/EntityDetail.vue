@@ -389,34 +389,36 @@ const entityStatusItems = [
   >
     <template #body>
       <div class="space-y-4">
-        <div class="space-y-1.5">
-          <label for="add-member-user" class="block text-sm font-medium text-default">User</label>
-          <USelectMenu
-            id="add-member-user"
-            v-model="addMemberState.userId"
-            value-key="value"
-            :items="addableUserOptions"
-            placeholder="Search users..."
-            class="w-full"
-          />
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="add-member-user" class="block text-sm font-medium text-default">User</label>
+            <USelectMenu
+              id="add-member-user"
+              v-model="addMemberState.userId"
+              value-key="value"
+              :items="addableUserOptions"
+              placeholder="Search users..."
+              class="w-full"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label for="add-member-status" class="block text-sm font-medium text-default">Status</label>
+            <USelect
+              id="add-member-status"
+              v-model="addMemberState.status"
+              :items="memberStatusItems"
+              class="w-full"
+            />
+          </div>
         </div>
         <div class="space-y-1.5">
           <span class="block text-sm font-medium text-default">Roles</span>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <AppRolePicker v-model="addMemberState.roleIds" :roles="rolesPool" />
-            <div class="h-72 overflow-hidden rounded-md border border-default p-3">
+            <AppRolePicker v-model="addMemberState.roleIds" :roles="rolesPool" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
               <AppEffectivePermissions :roles="addSelectedRoles" />
             </div>
           </div>
-        </div>
-        <div class="space-y-1.5">
-          <label for="add-member-status" class="block text-sm font-medium text-default">Status</label>
-          <USelect
-            id="add-member-status"
-            v-model="addMemberState.status"
-            :items="memberStatusItems"
-            class="w-full"
-          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
@@ -470,22 +472,22 @@ const entityStatusItems = [
         <div class="space-y-1.5">
           <span class="block text-sm font-medium text-default">Roles</span>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <AppRolePicker v-model="editMemberState.roleIds" :roles="rolesPool" />
-            <div class="h-72 overflow-hidden rounded-md border border-default p-3">
+            <AppRolePicker v-model="editMemberState.roleIds" :roles="rolesPool" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
               <AppEffectivePermissions :roles="editSelectedRoles" />
             </div>
           </div>
         </div>
-        <div class="space-y-1.5">
-          <label for="edit-member-status" class="block text-sm font-medium text-default">Status</label>
-          <USelect
-            id="edit-member-status"
-            v-model="editMemberState.status"
-            :items="memberStatusItems"
-            class="w-full"
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="space-y-1.5">
+            <label for="edit-member-status" class="block text-sm font-medium text-default">Status</label>
+            <USelect
+              id="edit-member-status"
+              v-model="editMemberState.status"
+              :items="memberStatusItems"
+              class="w-full"
+            />
+          </div>
           <div class="space-y-1.5">
             <span class="block text-sm font-medium text-default">Valid from</span>
             <AppDateField v-model="editMemberState.validFrom" placeholder="Any time" />
