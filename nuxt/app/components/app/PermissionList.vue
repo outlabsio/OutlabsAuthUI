@@ -20,6 +20,9 @@ const groups = computed(() => groupByResource(props.names))
 
 const formatResource = (resource: string) => resource.replace(/[_-]/g, ' ')
 const tooltip = (p: ResolvedPermission) => (p.description ? `${p.displayName} â€” ${p.description}` : p.displayName)
+// The full sub-action (everything after the resource) so tree variants read distinctly
+// (create vs create_tree), not two badges both labelled with the base action.
+const subAction = (p: ResolvedPermission) => (p.name.startsWith(`${p.resource}:`) ? p.name.slice(p.resource.length + 1) : (p.action || p.name))
 </script>
 
 <template>
@@ -41,7 +44,7 @@ const tooltip = (p: ResolvedPermission) => (p.description ? `${p.displayName} â€
             size="sm"
             class="shrink-0 font-mono"
           >
-            {{ p.action || p.name }}
+            {{ subAction(p) }}
           </UBadge>
           <div class="min-w-0 text-sm">
             <span class="text-default">{{ p.displayName }}</span>
@@ -58,7 +61,7 @@ const tooltip = (p: ResolvedPermission) => (p.description ? `${p.displayName} â€
             size="sm"
             class="font-mono"
           >
-            {{ p.action || p.name }}
+            {{ subAction(p) }}
           </UBadge>
         </UTooltip>
       </div>

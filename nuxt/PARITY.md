@@ -37,10 +37,11 @@ an existing form; **P3** = polish / edge.
 - **~~P1 Member management~~ — DONE.** The Users card now manages members: **Add member** (in-org
   user + roles + status + validity window + reason), **Edit access** (roles/status/validity/reason,
   PATCH), and **Remove** (DELETE), wired to `/memberships` with a root-org-scoped user picker.
-  E2E: `e2e/entities/entity-members.spec.ts`. Two refinements remain:
-  - **Role picker isn't scoped to "assignable at this entity"** — it offers all roles; a cross-org
-    role is rejected by the backend (with a clear message) rather than hidden. (User picker *is*
-    scoped to the entity's root org.)
+  E2E: `e2e/entities/entity-members.spec.ts`. The role step now uses the shared kit:
+  **`AppRolePicker`** (searchable, permission-count chips) beside a live **`AppEffectivePermissions`**
+  two-column preview, with the pool scoped to **global + the entity's root-org roles**. Refinements:
+  - **Assignable-at-type filtering** — the role pool is org-scoped but not yet filtered by a role's
+    `assignable_at_types` (a role may be limited to certain entity types).
   - **No "include inactive" view** — the details endpoint is active-only, so a suspended member
     disappears from the card and can't be un-suspended from the UI. Add an include-inactive toggle
     (+ show `effective_status`) so suspend is reversible.

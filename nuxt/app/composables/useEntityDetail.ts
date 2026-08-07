@@ -6,6 +6,7 @@ import { rolesListQuery } from '~/queries/roles'
 import { usersListQuery } from '~/queries/users'
 import type { Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 import type { EntityMember, MembershipStatusValue } from '~/types/membership'
+import type { Role } from '~/types/role'
 
 // Feature logic for the entity detail panel (right column of the master-detail). The SFC binds
 // this and owns pure display config (columns, badge colours); no queries/handlers in the template.
@@ -60,14 +61,9 @@ export function useEntityDetail(entityId: Ref<string>) {
   const canRemoveMember = computed(() => hasPermission('membership:delete'))
   const canManageMembers = computed(() => canAddMember.value || canEditMember.value || canRemoveMember.value)
 
-  // Role + user option pools for the member forms — fetched only when an actor can manage members,
-  // so a read-only viewer fires no extra calls.
-  const { data: rolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100 }), enabled: canManageMembers.value }))
-  const roleOptions = computed(() => (rolesData.value?.items ?? []).map(r => ({ label: r.display_name || r.name, value: r.id })))
-
-  // Memberships are scoped within a root org — only users of this entity's root are addable. The
-  // entity response doesn't carry its root, so walk parents up the already-loaded pool to find it
-  // (a root entity is its own root), then scope the picker to that org.
+  // Memberships are scoped within a root org — only users/roles of this entity's root are eligible.
+  // The entity response doesn't carry its root, so walk parents up the already-loaded pool to find
+  // it (a root entity is its own root), then scope both pickers to that org.
   const rootEntityId = computed(() => {
     const byId = new Map((parentPool.value?.items ?? []).map(e => [e.id, e]))
     let cur = entity.value ?? byId.get(entityId.value)
@@ -79,6 +75,17 @@ export function useEntityDetail(entityId: Ref<string>) {
       cur = parent
     }
     return cur?.id
+  })
+
+  // Assignable roles = global roles + roles owned by this entity's root (the backend rejects
+  // cross-org roles). Fetched only when an actor can manage members; unioned, deduped by id.
+  const { data: globalRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: canManageMembers.value }))
+  const { data: rootRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: rootEntityId.value }), enabled: canManageMembers.value && !!rootEntityId.value }))
+  const rolesPool = computed<Role[]>(() => {
+    const byId = new Map<string, Role>()
+    for (const r of globalRolesData.value?.items ?? []) byId.set(r.id, r)
+    for (const r of rootRolesData.value?.items ?? []) byId.set(r.id, r)
+    return [...byId.values()]
   })
 
   const { data: usersData } = useQuery(() => ({
@@ -182,6 +189,10 @@ export function useEntityDetail(entityId: Ref<string>) {
     return items.length ? [items] : []
   }
 
+  // Selected roles (resolved from the pool) feed the live effective-permissions preview.
+  const addSelectedRoles = computed(() => rolesPool.value.filter(r => addMemberState.roleIds.includes(r.id)))
+  const editSelectedRoles = computed(() => rolesPool.value.filter(r => editMemberState.roleIds.includes(r.id)))
+
   // --- Edit ---
   const editOpen = ref(false)
   const editState = reactive({ displayName: '', description: '', status: 'active' as EntityStatusValue, allowedChildClasses: [] as EntityClassValue[], allowedChildTypes: '' })
@@ -253,7 +264,9 @@ export function useEntityDetail(entityId: Ref<string>) {
     canAddMember,
     canManageMembers,
     memberRowMenu,
-    roleOptions,
+    rolesPool,
+    addSelectedRoles,
+    editSelectedRoles,
     addableUserOptions,
     memberStatusItems,
     addMemberOpen,

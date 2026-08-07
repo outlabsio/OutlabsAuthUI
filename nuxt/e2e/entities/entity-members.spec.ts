@@ -52,7 +52,8 @@ test.describe('entity member management', () => {
     await page.getByRole('button', { name: 'Add member' }).click()
     const addDialog = page.getByRole('dialog')
     await addDialog.locator('#add-member-user').click()
-    const firstUser = page.getByRole('option').first()
+    // Scope to user options (they carry an email) — the role picker also renders role="option".
+    const firstUser = page.getByRole('option').filter({ hasText: '@' }).first()
     const userLabel = ((await firstUser.textContent()) ?? '').trim()
     await firstUser.click()
     await addDialog.getByRole('button', { name: 'Add member' }).click()

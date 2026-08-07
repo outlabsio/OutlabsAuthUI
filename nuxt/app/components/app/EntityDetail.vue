@@ -21,7 +21,9 @@ const {
   membersStatus,
   canAddMember,
   memberRowMenu,
-  roleOptions,
+  rolesPool,
+  addSelectedRoles,
+  editSelectedRoles,
   addableUserOptions,
   memberStatusItems,
   addMemberOpen,
@@ -379,7 +381,12 @@ const entityStatusItems = [
   </UModal>
 
   <!-- Add member -->
-  <UModal v-model:open="addMemberOpen" title="Add member" description="Add an existing user to this entity.">
+  <UModal
+    v-model:open="addMemberOpen"
+    title="Add member"
+    description="Add an existing user to this entity."
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
     <template #body>
       <div class="space-y-4">
         <div class="space-y-1.5">
@@ -394,16 +401,13 @@ const entityStatusItems = [
           />
         </div>
         <div class="space-y-1.5">
-          <label for="add-member-roles" class="block text-sm font-medium text-default">Roles</label>
-          <USelectMenu
-            id="add-member-roles"
-            v-model="addMemberState.roleIds"
-            value-key="value"
-            :items="roleOptions"
-            multiple
-            placeholder="Select roles"
-            class="w-full"
-          />
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="addMemberState.roleIds" :roles="rolesPool" />
+            <div class="max-h-80 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="addSelectedRoles" />
+            </div>
+          </div>
         </div>
         <div class="space-y-1.5">
           <label for="add-member-status" class="block text-sm font-medium text-default">Status</label>
@@ -469,20 +473,18 @@ const entityStatusItems = [
     v-model:open="editMemberOpen"
     :title="`Edit access — ${editMemberTarget?.user_email ?? 'member'}`"
     description="Update this member's roles and access window."
+    :ui="{ content: 'sm:max-w-3xl' }"
   >
     <template #body>
       <div class="space-y-4">
         <div class="space-y-1.5">
-          <label for="edit-member-roles" class="block text-sm font-medium text-default">Roles</label>
-          <USelectMenu
-            id="edit-member-roles"
-            v-model="editMemberState.roleIds"
-            value-key="value"
-            :items="roleOptions"
-            multiple
-            placeholder="Select roles"
-            class="w-full"
-          />
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="editMemberState.roleIds" :roles="rolesPool" />
+            <div class="max-h-80 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="editSelectedRoles" />
+            </div>
+          </div>
         </div>
         <div class="space-y-1.5">
           <label for="edit-member-status" class="block text-sm font-medium text-default">Status</label>
