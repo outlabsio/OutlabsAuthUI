@@ -39,10 +39,14 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
 - Pure, stateless display helpers (a badge-colour map, a `TableColumn[]` definition) may stay in
   the SFC — they're presentation, not logic.
 
-### 4. Global UI state — one Pinia setup store (`app/stores/ui.ts`)
-- Cross-route **client** state only: mobile sidebar, theme, table page-size prefs. Adopt it —
-  don't re-roll ad-hoc `reactive({ page, limit })` per page.
-- One store. A second requires a written reason in the PR. Server data never goes here (see #1).
+### 4. Global UI state — a single Pinia store, only when there's a real need (`app/stores/ui.ts`)
+- For genuinely global, cross-route **client** state — not server data (#1), not per-view form
+  state (#2). There is none today: server state is Colada, feature/form state is composables,
+  the sidebar is Nuxt UI's own, theme is nuxt-color-mode. So there is currently **no ui store**
+  (an empty one was removed rather than padded with invented state).
+- Add exactly one `stores/ui.ts` the moment a real need appears (command palette, a cross-route
+  filter, persisted table prefs with a page-size control, …). A second store requires a written
+  reason. Server data never goes here (see #1).
 
 ### 5. Pure helpers — `app/utils/`
 - **Pure, stateless functions only** (tree building, formatters). No reactive state, no
@@ -72,8 +76,10 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
 - [x] utils cleanup — dead barrel removed; token module moved to `app/auth/`
 - [x] Toast ownership decided — feature composables (specific titles); global catch-all net deferred
 - [x] Relocated HTTP client `utils/api.ts` → `app/api/client.ts` (33 imports repointed)
-- [ ] Adopt the UI store (sidebar + table page-size prefs)
-- [ ] Roll the pattern to users, roles, permissions, system api-keys, audit, account (+ shared `useResourceList`)
+- [x] Removed the orphan UI store (YAGNI — no global client state today; doc says when to reintroduce)
+- [ ] Roll the composable pattern to the remaining features: users, roles, permissions,
+      system api-keys, personal api-keys, audit, account (extract per-feature composables first;
+      DRY a shared `useResourceList` once the common list shape is proven across a few)
 
 ## References
 - [Pinia Colada — Queries](https://pinia-colada.esm.dev/guide/queries.html) · [Reusable Queries (`defineQuery`)](https://pinia-colada.esm.dev/advanced/reusable-queries.html) · [Mutations](https://pinia-colada.esm.dev/guide/mutations.html)

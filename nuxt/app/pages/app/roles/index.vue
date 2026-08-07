@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
-import type { DropdownMenuItem, FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import { rolesListQuery, useCreateRole, useDeleteRole, useUpdateRole } from '~/queries/roles'
-import { createRoleSchema, type CreateRoleSchema, updateRoleSchema, type UpdateRoleSchema } from '~/schemas/role'
-import { getApiErrorMessage } from '~/api/client'
-import type { Role, RolesListFilters } from '~/types/role'
+import type { TableColumn } from '@nuxt/ui'
+import { createRoleSchema, updateRoleSchema } from '~/schemas/role'
+import type { Role } from '~/types/role'
 
-// P2 vertical — copy of pages/app/users/index.vue against /roles.
-const toast = useToast()
-const { hasPermission } = useAuth()
+// Roles vertical — logic in useRolesWorkspace; this file is display only.
+const {
+  canCreate,
+  filters,
+  rows,
+  status,
+  errorMessage,
+  rowMenu,
+  createOpen,
+  createState,
+  creating,
+  onCreate,
+  editOpen,
+  editTarget,
+  editState,
+  saving,
+  onSaveEdit,
+  deleteOpen,
+  deleteTarget,
+  deleting,
+  onConfirmDelete
+} = useRolesWorkspace()
 
-const filters = reactive<RolesListFilters>({ page: 1, limit: 100, search: '' })
-// Gate the fetch on the read permission too (see users/index.vue) — no wasted 403 for a
-// denied actor; the AppPermissionGate renders the same verdict in-place.
-const { data, status, error, refetch } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
-
-const rows = computed<Role[]>(() => data.value?.items ?? [])
-
+// --- Pure display config ---
 const columns: TableColumn<Role>[] = [
   { accessorKey: 'display_name', header: 'Display name' },
   { accessorKey: 'name', header: 'Name' },
@@ -25,102 +35,10 @@ const columns: TableColumn<Role>[] = [
   { accessorKey: 'status', header: 'Status' },
   { id: 'actions', header: '' }
 ]
-
-function rowMenu(role: Role): DropdownMenuItem[] {
-  return [
-    { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(role) },
-    { label: 'Delete', icon: 'i-lucide-trash', color: 'error', onSelect: () => openDelete(role) }
-  ]
-}
-
 const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
   active: 'success',
   inactive: 'neutral',
   archived: 'neutral'
-}
-
-const createOpen = ref(false)
-const createState = reactive<Partial<CreateRoleSchema>>({ name: '', display_name: '', description: '', is_global: false })
-const createRole = useCreateRole()
-const creating = ref(false)
-
-async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
-  creating.value = true
-  try {
-    await createRole.mutateAsync({
-      name: event.data.name,
-      display_name: event.data.display_name,
-      description: event.data.description,
-      is_global: event.data.is_global ?? false,
-      permissions: []
-    })
-    toast.add({ title: 'Role created', color: 'success', icon: 'i-lucide-check' })
-    createOpen.value = false
-    Object.assign(createState, { name: '', display_name: '', description: '', is_global: false })
-    await refetch()
-  } catch (err) {
-    toast.add({ title: 'Could not create role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    creating.value = false
-  }
-}
-
-// --- Edit ---
-const editOpen = ref(false)
-const editTarget = ref<Role | null>(null)
-const editState = reactive<UpdateRoleSchema>({ display_name: '', description: '' })
-const updateRole = useUpdateRole()
-const saving = ref(false)
-
-function openEdit(role: Role) {
-  editTarget.value = role
-  editState.display_name = role.display_name
-  editState.description = role.description ?? ''
-  editOpen.value = true
-}
-
-async function onSaveEdit(event: FormSubmitEvent<UpdateRoleSchema>) {
-  if (!editTarget.value) return
-  saving.value = true
-  try {
-    await updateRole.mutateAsync({
-      roleId: editTarget.value.id,
-      input: { display_name: event.data.display_name, description: event.data.description }
-    })
-    toast.add({ title: 'Role updated', color: 'success', icon: 'i-lucide-check' })
-    editOpen.value = false
-    await refetch()
-  } catch (err) {
-    toast.add({ title: 'Could not update role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    saving.value = false
-  }
-}
-
-// --- Delete ---
-const deleteOpen = ref(false)
-const deleteTarget = ref<Role | null>(null)
-const deleteRole = useDeleteRole()
-const deleting = ref(false)
-
-function openDelete(role: Role) {
-  deleteTarget.value = role
-  deleteOpen.value = true
-}
-
-async function onConfirmDelete() {
-  if (!deleteTarget.value) return
-  deleting.value = true
-  try {
-    await deleteRole.mutateAsync(deleteTarget.value.id)
-    toast.add({ title: 'Role deleted', color: 'success', icon: 'i-lucide-check' })
-    deleteOpen.value = false
-    await refetch()
-  } catch (err) {
-    toast.add({ title: 'Could not delete role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    deleting.value = false
-  }
 }
 </script>
 
@@ -133,7 +51,7 @@ async function onConfirmDelete() {
         </template>
         <template #right>
           <UButton
-            v-if="hasPermission('role:create')"
+            v-if="canCreate"
             icon="i-lucide-plus"
             label="Add role"
             @click="createOpen = true"
@@ -160,7 +78,7 @@ async function onConfirmDelete() {
           color="error"
           icon="i-lucide-triangle-alert"
           title="Could not load roles"
-          :description="getApiErrorMessage(error)"
+          :description="errorMessage"
           class="mb-4"
         />
 
