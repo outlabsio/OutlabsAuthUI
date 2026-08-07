@@ -1,30 +1,10 @@
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
-import { useForgotPassword } from '~/queries/session'
-import { describeAuthError } from '~/api/client'
+import { emailRequestSchema } from '~/schemas/auth-flows'
 
+// Forgot-password request — logic in useForgotPasswordForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const toast = useToast()
-const forgotPassword = useForgotPassword()
-const state = reactive<Partial<EmailRequestSchema>>({ email: '' })
-const loading = ref(false)
-const sent = ref(false)
-
-async function onSubmit(event: FormSubmitEvent<EmailRequestSchema>) {
-  loading.value = true
-  try {
-    await forgotPassword.mutateAsync({ email: event.data.email })
-    // Always show success (don't leak whether the account exists).
-    sent.value = true
-  } catch (err) {
-    const { title, description } = describeAuthError(err, 'Could not send reset link')
-    toast.add({ title, description, color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    loading.value = false
-  }
-}
+const { state, loading, sent, onSubmit } = useForgotPasswordForm()
 </script>
 
 <template>

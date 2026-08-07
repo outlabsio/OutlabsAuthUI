@@ -1,30 +1,10 @@
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { setPasswordSchema, type SetPasswordSchema } from '~/schemas/auth-flows'
-import { useAcceptInvite } from '~/queries/session'
-import { getApiErrorMessage } from '~/api/client'
+import { setPasswordSchema } from '~/schemas/auth-flows'
 
+// Accept-invitation — logic in useAcceptInviteForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const route = useRoute()
-const toast = useToast()
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
-
-const acceptInvite = useAcceptInvite()
-const state = reactive<SetPasswordSchema>({ new_password: '', confirm_password: '' })
-const loading = ref(false)
-
-async function onSubmit(event: FormSubmitEvent<SetPasswordSchema>) {
-  loading.value = true
-  try {
-    await acceptInvite.mutateAsync({ token: token.value, new_password: event.data.new_password })
-    await navigateTo('/app/dashboard', { replace: true })
-  } catch (err) {
-    toast.add({ title: 'Could not accept invitation', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    loading.value = false
-  }
-}
+const { token, state, loading, onSubmit } = useAcceptInviteForm()
 </script>
 
 <template>

@@ -1,31 +1,10 @@
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { setPasswordSchema, type SetPasswordSchema } from '~/schemas/auth-flows'
-import { useResetPassword } from '~/queries/session'
-import { getApiErrorMessage } from '~/api/client'
+import { setPasswordSchema } from '~/schemas/auth-flows'
 
+// Reset-password — logic in useResetPasswordForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const route = useRoute()
-const toast = useToast()
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
-
-const resetPassword = useResetPassword()
-const state = reactive<SetPasswordSchema>({ new_password: '', confirm_password: '' })
-const loading = ref(false)
-
-async function onSubmit(event: FormSubmitEvent<SetPasswordSchema>) {
-  loading.value = true
-  try {
-    await resetPassword.mutateAsync({ token: token.value, new_password: event.data.new_password })
-    toast.add({ title: 'Password reset', description: 'Sign in with your new password.', color: 'success', icon: 'i-lucide-check' })
-    await navigateTo('/auth/login', { replace: true })
-  } catch (err) {
-    toast.add({ title: 'Could not reset password', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    loading.value = false
-  }
-}
+const { token, state, loading, onSubmit } = useResetPasswordForm()
 </script>
 
 <template>

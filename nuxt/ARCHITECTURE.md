@@ -91,11 +91,15 @@ hand-roll a store for it.
   `app/auth/`.
 
 ## Cross-cutting side effects — shared helpers (use these, don't hand-roll)
-- **`useApiAction().run(fn, { success, error })`** wraps every mutation call: runs `fn`, toasts
-  success or a specific error, and returns a discriminated `{ ok: true, data } | { ok: false, error }`
-  so the caller can use the result (e.g. a one-time secret) and only close/reset its form on
-  success. Never write a raw `try/catch` + `toast` in a handler. (`useResourceCrud` re-exports this
-  `run` for the list features.)
+- **`useApiAction().run(fn, { success?, error })`** wraps every mutation call: runs `fn`, toasts
+  the outcome, and returns a discriminated `{ ok: true, data } | { ok: false, error }` so the
+  caller can use the result (e.g. a one-time secret) and only close/reset/navigate on success.
+  Never write a raw `try/catch` + `toast` in a handler. (`useResourceCrud` re-exports this `run`.)
+  Toast content is flexible so it fits CRUD **and** auth flows: `success` is optional (navigate-on-
+  success flows show none); `error` may be a title string (description defaults to the parsed API
+  error), a full `{ title, description }`, or a **function of the error** (e.g. `describeAuthError`
+  for 429 cooldowns). The only handlers that keep a bespoke `try/catch` are ones that show an
+  **inline** error instead of a toast (magic-link verify, the OAuth callback).
 - **`useApiErrorMessage(source)`** turns a query's `error` ref (or a getter) into the
   "Could not load …" string. Never re-derive it with a per-feature `computed(() => getApiErrorMessage(...))`.
 - **No manual refetch.** Mutations invalidate their domain root via `onSettled` (Layer 1), so
@@ -133,9 +137,13 @@ the `nuxt` branch (each feature is its own commit) to know exactly what's done a
 - [x] audit — `useAuditWorkspace`
 - [x] account — `useAccount`
 - [x] settings — `useSettings`
+- [x] auth pages — `useLoginForm`, `useAccessCodeForm`, `useMagicLinkForm`, `useForgotPasswordForm`,
+      `useResetPasswordForm`, `useAcceptInviteForm`, `useOAuthCallback` (login, access-code,
+      magic-link, forgot/reset password, accept-invite, OAuth callback)
 
-**Feature rollout complete** — every `app/pages/app/**` view is now template + one `useFeature()`
-call + pure display config; all feature logic lives in `app/composables/`.
+**Feature rollout complete** — every page under `app/pages/**` (the authed app **and** the auth
+flows) is now template + one `useFeature()` call + pure display config; all feature logic lives in
+`app/composables/`.
 
 - [x] DRY pass — extracted **`useApiAction`** (the `run` mutation-runner, adopted by all 11
       composables, replacing ~14 inline `try/catch`+`toast` blocks) and **`useApiErrorMessage`**

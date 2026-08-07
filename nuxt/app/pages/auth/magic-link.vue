@@ -1,49 +1,10 @@
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { emailRequestSchema, type EmailRequestSchema } from '~/schemas/auth-flows'
-import { useRequestMagicLink, useVerifyMagicLink } from '~/queries/session'
-import { describeAuthError, getApiErrorMessage } from '~/api/client'
+import { emailRequestSchema } from '~/schemas/auth-flows'
 
+// Magic-link sign-in — logic in useMagicLinkForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const route = useRoute()
-const toast = useToast()
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
-
-const requestMagicLink = useRequestMagicLink()
-const verifyMagicLink = useVerifyMagicLink()
-const state = reactive<Partial<EmailRequestSchema>>({ email: '' })
-const loading = ref(false)
-const sent = ref(false)
-const verifying = ref(false)
-const verifyError = ref('')
-
-// If the emailed link lands here with a token, verify it and sign the user in.
-onMounted(async () => {
-  if (!token.value) return
-  verifying.value = true
-  try {
-    await verifyMagicLink.mutateAsync({ token: token.value })
-    await navigateTo('/app/dashboard', { replace: true })
-  } catch (err) {
-    verifyError.value = getApiErrorMessage(err)
-  } finally {
-    verifying.value = false
-  }
-})
-
-async function onSubmit(event: FormSubmitEvent<EmailRequestSchema>) {
-  loading.value = true
-  try {
-    await requestMagicLink.mutateAsync({ email: event.data.email })
-    sent.value = true
-  } catch (err) {
-    const { title, description } = describeAuthError(err, 'Could not send magic link')
-    toast.add({ title, description, color: 'error', icon: 'i-lucide-triangle-alert' })
-  } finally {
-    loading.value = false
-  }
-}
+const { token, state, loading, sent, verifying, verifyError, onSubmit } = useMagicLinkForm()
 </script>
 
 <template>
