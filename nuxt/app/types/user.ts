@@ -39,6 +39,22 @@ export type InviteUserInput = {
   role_ids?: string[]
 }
 
+// Statuses an admin can set via PATCH /users/{id}/status ('deleted' is via DELETE, not here).
+export type UserStatusUpdateValue = 'active' | 'suspended' | 'banned'
+
+export type UpdateUserStatusInput = {
+  userId: string
+  status: UserStatusUpdateValue
+  suspended_until?: string
+  reason?: string
+}
+
+// PATCH /users/{id}/password — admin reset, no current password required.
+export type ResetUserPasswordInput = {
+  userId: string
+  new_password: string
+}
+
 export type User = {
   id: string
   email: string

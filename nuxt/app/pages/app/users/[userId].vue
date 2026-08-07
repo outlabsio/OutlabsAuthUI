@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { resetPasswordSchema } from '~/schemas/user'
 import type { User, UserRoleMembership } from '~/types/user'
 import type { UserSession } from '~/types/account'
 
@@ -15,7 +16,7 @@ const {
   sessionsStatus,
   roleMemberships,
   rolesStatus,
-  canManageRoles,
+  canManageUser,
   roleRowMenu,
   rolesPool,
   assignSelectedRoles,
@@ -27,7 +28,17 @@ const {
   removeOpen,
   removeTarget,
   removing,
-  onConfirmRemove
+  onConfirmRemove,
+  userActions,
+  statusOpen,
+  statusItems,
+  statusState,
+  savingStatus,
+  onSaveStatus,
+  resetOpen,
+  resetState,
+  resettingPassword,
+  onResetPassword
 } = useUserDetail(userId)
 
 // --- Pure display config ---
@@ -83,6 +94,17 @@ const sessionColumns: TableColumn<UserSession>[] = [
             aria-label="Back to users"
           />
         </template>
+        <template #right>
+          <UDropdownMenu v-if="userActions.length" :items="userActions">
+            <UButton
+              icon="i-lucide-settings-2"
+              color="neutral"
+              variant="outline"
+              label="Actions"
+              trailing-icon="i-lucide-chevron-down"
+            />
+          </UDropdownMenu>
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -126,7 +148,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
                   <span class="text-sm text-muted">{{ roleMemberships.length }}</span>
                 </div>
                 <UButton
-                  v-if="canManageRoles"
+                  v-if="canManageUser"
                   icon="i-lucide-plus"
                   size="xs"
                   variant="outline"
@@ -267,6 +289,94 @@ const sessionColumns: TableColumn<UserSession>[] = [
           @click="onConfirmRemove"
         />
       </div>
+    </template>
+  </UModal>
+
+  <!-- Change status -->
+  <UModal
+    v-model:open="statusOpen"
+    title="Change status"
+    :description="`Update ${user?.email ?? 'this user'}'s account status.`"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label for="user-status" class="block text-sm font-medium text-default">Status</label>
+          <USelect
+            id="user-status"
+            v-model="statusState.status"
+            :items="statusItems"
+            class="w-full"
+          />
+        </div>
+        <div v-if="statusState.status === 'suspended'" class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Suspended until</span>
+          <AppDateField v-model="statusState.suspendedUntil" placeholder="No auto-expiry" />
+        </div>
+        <div class="space-y-1.5">
+          <label for="user-status-reason" class="block text-sm font-medium text-default">Reason</label>
+          <UTextarea
+            id="user-status-reason"
+            v-model="statusState.reason"
+            :rows="2"
+            placeholder="Optional note for the audit log"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="statusOpen = false"
+        />
+        <UButton label="Save" :loading="savingStatus" @click="onSaveStatus" />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Reset password -->
+  <UModal
+    v-model:open="resetOpen"
+    title="Reset password"
+    :description="`Set a new password for ${user?.email ?? 'this user'}.`"
+  >
+    <template #body>
+      <UForm
+        :schema="resetPasswordSchema"
+        :state="resetState"
+        class="space-y-4"
+        @submit="onResetPassword"
+      >
+        <UFormField name="new_password" label="New password" required>
+          <UInput
+            v-model="resetState.new_password"
+            type="password"
+            autocomplete="new-password"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField name="confirm_password" label="Confirm password" required>
+          <UInput
+            v-model="resetState.confirm_password"
+            type="password"
+            autocomplete="new-password"
+            class="w-full"
+          />
+        </UFormField>
+        <div class="flex justify-end gap-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            label="Cancel"
+            @click="resetOpen = false"
+          />
+          <UButton type="submit" label="Reset password" :loading="resettingPassword" />
+        </div>
+      </UForm>
     </template>
   </UModal>
 </template>

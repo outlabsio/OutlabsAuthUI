@@ -4,7 +4,9 @@ import type {
   AssignUserRoleInput,
   CreateUserInput,
   InviteUserInput,
+  ResetUserPasswordInput,
   UpdateUserInput,
+  UpdateUserStatusInput,
   User,
   UserRoleMembership,
   UsersListFilters,
@@ -107,5 +109,23 @@ export function useRemoveUserRole() {
     mutation: ({ userId, roleId }: { userId: string, roleId: string }) =>
       apiClient.delete<undefined>(`/users/${userId}/roles/${roleId}`),
     onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
+  })
+}
+
+// Admin: change account status (activate / suspend / ban); 'deleted' is via DELETE, not here.
+export function useUpdateUserStatus() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: ({ userId, status, suspended_until, reason }: UpdateUserStatusInput) =>
+      apiClient.patch<User>(`/users/${userId}/status`, { body: { status, suspended_until, reason } }),
+    onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
+  })
+}
+
+// Admin: reset a user's password without their current one (PATCH /users/{id}/password → 204).
+export function useResetUserPassword() {
+  return useMutation({
+    mutation: ({ userId, new_password }: ResetUserPasswordInput) =>
+      apiClient.patch<undefined>(`/users/${userId}/password`, { body: { new_password } })
   })
 }

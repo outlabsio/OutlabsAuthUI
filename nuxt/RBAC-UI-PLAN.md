@@ -74,8 +74,10 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
    2. ~~**Invite user**~~ — DONE. "Invite" on the users page (`POST /auth/invite`): email, names,
       optional entity (+ scoped roles) or direct roles, superuser. In `useUsersWorkspace`; E2E
       `e2e/users/user-invite.spec.ts`. Also closes the entity-member-invite gap.
-   3. **Change status** (suspend/ban + suspendedUntil + reason) and **admin reset-password**.
-   4. **Membership management** (a user's memberships across entities).
+   3. ~~**Change status** (suspend/ban + suspendedUntil + reason) and **admin reset-password**~~ —
+      DONE. User-detail header **Actions** menu → two dialogs; `PATCH /users/{id}/status` and
+      `PATCH /users/{id}/password`. E2E `e2e/users/user-status-password.spec.ts`.
+   4. **Membership management** (a user's memberships across entities) — the last user-lifecycle flow.
 
 ## Open refinements (tracked, not yet done)
 - **"Include inactive" toggle** on the entity Users card — the members-details endpoint is

@@ -62,8 +62,10 @@ an existing form; **P3** = polish / edge.
   (scoped to that entity's org via `AppRolePicker` + `AppEffectivePermissions`) or direct account
   roles when no entity, plus superuser. This also covers inviting a *new* user into an entity
   (the entity-member-invite gap). E2E: `e2e/users/user-invite.spec.ts`.
-- **P1 Change status** (`update-user-status`: active/suspended/banned + `suspendedUntil` + reason) — suspend/ban a user. Nuxt only soft-deletes.
-- **P1 Reset password** (`reset-user-password`: new + confirm) — admin resets a user's password. Absent.
+- **~~P1 Change status~~ — DONE.** User-detail **Actions -> Change status**: active/suspended/banned
+  + `suspended_until` (shown for suspensions) + reason (`PATCH /users/{id}/status`).
+- **~~P1 Reset password~~ — DONE.** User-detail **Actions -> Reset password**: new + confirm
+  (`PATCH /users/{id}/password`). Both E2E: `e2e/users/user-status-password.spec.ts`.
 - **~~P1 Direct role assignment~~ — DONE.** User detail now has a manageable **Direct roles** card:
   assign (via `AppRolePicker` + live `AppEffectivePermissions`, pool scoped to the user's org) with a
   validity window, and remove. E2E: `e2e/users/user-roles.spec.ts`. (Editing an existing assignment's

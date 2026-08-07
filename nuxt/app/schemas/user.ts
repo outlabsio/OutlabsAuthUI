@@ -29,6 +29,19 @@ export const inviteUserSchema = z.object({
 
 export type InviteUserSchema = z.output<typeof inviteUserSchema>
 
+// Admin password reset — new password + confirmation (confirm isn't sent, just validated).
+export const resetPasswordSchema = z
+  .object({
+    new_password: z.string().min(8, 'Password must be at least 8 characters.').max(128),
+    confirm_password: z.string()
+  })
+  .refine(data => data.new_password === data.confirm_password, {
+    message: 'Passwords do not match.',
+    path: ['confirm_password']
+  })
+
+export type ResetPasswordSchema = z.output<typeof resetPasswordSchema>
+
 export const updateUserSchema = z.object({
   first_name: z.string().trim().max(120).optional(),
   last_name: z.string().trim().max(120).optional(),

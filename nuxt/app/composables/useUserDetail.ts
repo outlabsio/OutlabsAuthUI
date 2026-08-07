@@ -1,9 +1,11 @@
 import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
-import { useAssignUserRole, useRemoveUserRole, userDetailQuery, userRoleMembershipsQuery, userSessionsQuery } from '~/queries/users'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { useAssignUserRole, useRemoveUserRole, useResetUserPassword, useUpdateUserStatus, userDetailQuery, userRoleMembershipsQuery, userSessionsQuery } from '~/queries/users'
 import { rolesListQuery } from '~/queries/roles'
+import type { ResetPasswordSchema } from '~/schemas/user'
 import type { Role } from '~/types/role'
-import type { UserRoleMembership } from '~/types/user'
+import type { UserRoleMembership, UserStatusUpdateValue } from '~/types/user'
 
 // Feature logic for the user-detail page: profile + sessions (read) and direct role assignment
 // (write). The SFC binds this and owns pure display config. Direct role assignments are distinct
@@ -17,7 +19,7 @@ export function useUserDetail(userId: Ref<string>) {
   const { run } = useApiAction()
 
   const canRead = computed(() => hasPermission('user:read'))
-  const canManageRoles = computed(() => hasPermission('user:update'))
+  const canManageUser = computed(() => hasPermission('user:update'))
 
   const { data: user, status, error } = useQuery(() => ({ ...userDetailQuery(userId.value), enabled: canRead.value }))
   const errorMessage = useApiErrorMessage(error)
@@ -29,8 +31,8 @@ export function useUserDetail(userId: Ref<string>) {
 
   // Assignable roles = global + the user's root-org roles, minus roles already assigned directly.
   const rootEntityId = computed(() => user.value?.root_entity_id ?? undefined)
-  const { data: globalRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: canManageRoles.value }))
-  const { data: rootRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: rootEntityId.value }), enabled: canManageRoles.value && !!rootEntityId.value }))
+  const { data: globalRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, isGlobal: true }), enabled: canManageUser.value }))
+  const { data: rootRolesData } = useQuery(() => ({ ...rolesListQuery({ limit: 100, rootEntityId: rootEntityId.value }), enabled: canManageUser.value && !!rootEntityId.value }))
   const assignedRoleIds = computed(() => new Set(roleMemberships.value.map(m => m.role_id)))
   const rolesPool = computed<Role[]>(() => {
     const byId = new Map<string, Role>()
@@ -85,9 +87,65 @@ export function useUserDetail(userId: Ref<string>) {
   }
 
   function roleRowMenu(membership: UserRoleMembership) {
-    if (!canManageRoles.value) return []
+    if (!canManageUser.value) return []
     return [[{ label: 'Remove', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => openRemove(membership) }]]
   }
+
+  // --- Change status (activate / suspend / ban) ---
+  const updateStatus = useUpdateUserStatus()
+  const statusOpen = ref(false)
+  const savingStatus = ref(false)
+  const statusItems = [
+    { label: 'Active', value: 'active' as UserStatusUpdateValue },
+    { label: 'Suspended', value: 'suspended' as UserStatusUpdateValue },
+    { label: 'Banned', value: 'banned' as UserStatusUpdateValue }
+  ]
+  const statusState = reactive({ status: 'active' as UserStatusUpdateValue, suspendedUntil: '', reason: '' })
+  function openStatus() {
+    const current = user.value?.status
+    statusState.status = current === 'suspended' || current === 'banned' ? current : 'active'
+    statusState.suspendedUntil = ''
+    statusState.reason = ''
+    statusOpen.value = true
+  }
+  async function onSaveStatus() {
+    savingStatus.value = true
+    const res = await run(() => updateStatus.mutateAsync({
+      userId: userId.value,
+      status: statusState.status,
+      // suspended_until only applies to a suspension.
+      suspended_until: statusState.status === 'suspended' && statusState.suspendedUntil ? new Date(statusState.suspendedUntil).toISOString() : undefined,
+      reason: statusState.reason.trim() || undefined
+    }), { success: 'Status updated', error: 'Could not update status' })
+    if (res.ok) statusOpen.value = false
+    savingStatus.value = false
+  }
+
+  // --- Reset password (admin) ---
+  const resetPassword = useResetUserPassword()
+  const resetOpen = ref(false)
+  const resettingPassword = ref(false)
+  const resetState = reactive({ new_password: '', confirm_password: '' })
+  function openReset() {
+    resetState.new_password = ''
+    resetState.confirm_password = ''
+    resetOpen.value = true
+  }
+  async function onResetPassword(event: FormSubmitEvent<ResetPasswordSchema>) {
+    resettingPassword.value = true
+    const res = await run(() => resetPassword.mutateAsync({ userId: userId.value, new_password: event.data.new_password }), { success: 'Password reset', error: 'Could not reset password' })
+    if (res.ok) resetOpen.value = false
+    resettingPassword.value = false
+  }
+
+  // Header actions menu (both are user:update).
+  const userActions = computed(() => {
+    if (!canManageUser.value) return []
+    return [[
+      { label: 'Change status', icon: 'i-lucide-user-cog', onSelect: () => openStatus() },
+      { label: 'Reset password', icon: 'i-lucide-key-round', onSelect: () => openReset() }
+    ]]
+  })
 
   return {
     user,
@@ -97,7 +155,7 @@ export function useUserDetail(userId: Ref<string>) {
     sessionsStatus,
     roleMemberships,
     rolesStatus,
-    canManageRoles,
+    canManageUser,
     roleRowMenu,
     rolesPool,
     assignSelectedRoles,
@@ -109,6 +167,16 @@ export function useUserDetail(userId: Ref<string>) {
     removeOpen,
     removeTarget,
     removing,
-    onConfirmRemove
+    onConfirmRemove,
+    userActions,
+    statusOpen,
+    statusItems,
+    statusState,
+    savingStatus,
+    onSaveStatus,
+    resetOpen,
+    resetState,
+    resettingPassword,
+    onResetPassword
   }
 }
