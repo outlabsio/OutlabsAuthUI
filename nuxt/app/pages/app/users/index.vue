@@ -7,6 +7,8 @@ import type { User } from '~/types/user'
 const {
   canCreate,
   filters,
+  statusFilter,
+  statusItems,
   rows,
   total,
   status,
@@ -69,6 +71,14 @@ const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'erro
             icon="i-lucide-search"
             placeholder="Search users..."
             class="w-64"
+          />
+          <USelect
+            id="user-status-filter"
+            v-model="statusFilter"
+            :items="statusItems"
+            value-key="value"
+            class="w-40"
+            aria-label="Filter by status"
           />
         </template>
       </UDashboardToolbar>

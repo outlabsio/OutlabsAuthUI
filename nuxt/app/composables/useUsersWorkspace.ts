@@ -2,19 +2,36 @@ import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { usersListQuery, useCreateUser, useDeleteUser, useUpdateUser } from '~/queries/users'
 import type { CreateUserSchema, UpdateUserSchema } from '~/schemas/user'
-import type { User, UsersListFilters } from '~/types/user'
+import type { User, UsersListFilters, UserStatusValue } from '~/types/user'
 
 // Feature logic for the users workspace. Shared CRUD behavior (create gate, `run`, delete flow)
 // comes from useResourceCrud; the query + create/edit forms are per-resource.
+
+// The list filters by status, defaulting to Active so soft-deleted users (and other terminal
+// states) don't clutter the default roster — the same "active by default" stance as the System
+// API Keys panel. "All statuses" (and the specific statuses, incl. Deleted) stay reachable.
+type StatusFilter = UserStatusValue | 'all'
+const STATUS_ITEMS: { label: string, value: StatusFilter }[] = [
+  { label: 'Active', value: 'active' },
+  { label: 'Invited', value: 'invited' },
+  { label: 'Suspended', value: 'suspended' },
+  { label: 'Banned', value: 'banned' },
+  { label: 'Deleted', value: 'deleted' },
+  { label: 'All statuses', value: 'all' }
+]
 
 export function useUsersWorkspace() {
   const { hasPermission } = useAuth()
 
   const filters = reactive<UsersListFilters>({ page: 1, limit: 20, search: '' })
-  watch(() => filters.search, () => {
+  const statusFilter = ref<StatusFilter>('active')
+  watch([() => filters.search, statusFilter], () => {
     filters.page = 1
   })
-  const { data, status, error } = useQuery(() => ({ ...usersListQuery({ ...filters }), enabled: hasPermission('user:read') }))
+  const { data, status, error } = useQuery(() => ({
+    ...usersListQuery({ ...filters, status: statusFilter.value === 'all' ? undefined : statusFilter.value }),
+    enabled: hasPermission('user:read')
+  }))
   const rows = computed<User[]>(() => data.value?.items ?? [])
   const total = computed(() => data.value?.total ?? 0)
   const errorMessage = useApiErrorMessage(error)
@@ -75,6 +92,8 @@ export function useUsersWorkspace() {
   return {
     canCreate: crud.canCreate,
     filters,
+    statusFilter,
+    statusItems: STATUS_ITEMS,
     rows,
     total,
     status,

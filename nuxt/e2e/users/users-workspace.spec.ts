@@ -1,4 +1,5 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
+import { chooseSelect } from '../support/ui-select'
 
 // P2 users vertical — full CRUD row actions against the live backend.
 test.describe('users workspace', () => {
@@ -21,6 +22,12 @@ test.describe('users workspace', () => {
     await row.getByRole('button', { name: 'User actions' }).click()
     await page.getByRole('menuitem', { name: 'Delete' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+
+    // Soft-deleted → gone from the default Active view...
+    await page.getByPlaceholder('Search users...').fill(email)
+    await expect(page.getByRole('row').filter({ hasText: email })).toHaveCount(0)
+    // ...but still there under the Deleted filter.
+    await chooseSelect(page, 'user-status-filter', 'Deleted')
     await expect(page.getByRole('row').filter({ hasText: email })).toContainText(/deleted/i)
   })
 

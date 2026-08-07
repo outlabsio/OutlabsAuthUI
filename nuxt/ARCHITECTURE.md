@@ -108,6 +108,12 @@ hand-roll a store for it.
   `onError` net (root `colada.options.ts`) stays **deferred on purpose** — per-feature messages
   are more useful than any generic global handler.
 
+## List views
+- Default a list to its **non-terminal** rows and expose a **status filter** to reach the rest —
+  don't show soft-deleted / archived records in the default view. Users default to **Active**
+  (Deleted / All reachable via the filter); System API Keys shows **active** principals only.
+  (The backend soft-deletes, so terminal rows never leave the data — they're filtered at the query.)
+
 ## Definition of done (per feature)
 - SFC: template + one composable call; no queries/mutations/handlers/try-catch inline.
 - Logic in `composables/`; server IO in `queries/` with a key factory.
