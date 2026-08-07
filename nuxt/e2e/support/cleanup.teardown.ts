@@ -18,6 +18,9 @@ const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? 'Test123!!'
 // Names/slugs the tests use. `pw-` / `pwabac` for machine names, `PW ` for display names.
 const TEST_NAME = /^pw[-a-z]/i
 const TEST_DISPLAY = /^PW /
+// Users are also created by the account/invite specs with an `e2e-` prefix (e2e-crud-*,
+// e2e-invite-*), not just `pw-` — match both so the users list stays debris-free.
+const TEST_EMAIL = /^(pw|e2e)[-a-z]/i
 
 type Row = Record<string, string | null | undefined> & { id: string }
 
@@ -76,7 +79,7 @@ test.describe('e2e test-data cleanup', () => {
 
     // Users (pw…). Most user tests self-clean their roundtrip user; this catches strays.
     for (const u of await listAll('/users/')) {
-      if (TEST_NAME.test(u.email ?? '') && await del(`/users/${u.id}`)) bump('users')
+      if (TEST_EMAIL.test(u.email ?? '') && await del(`/users/${u.id}`)) bump('users')
     }
 
     // Entities (pw-… / "PW …"). Archive any entity-scoped service accounts first (they'd block
