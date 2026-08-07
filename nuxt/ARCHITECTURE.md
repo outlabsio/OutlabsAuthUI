@@ -114,6 +114,24 @@ hand-roll a store for it.
   (Deleted / All reachable via the filter); System API Keys shows **active** principals only.
   (The backend soft-deletes, so terminal rows never leave the data — they're filtered at the query.)
 
+## Roles & permissions — the shared kit
+Roles and permissions surface in many places (role detail, role create/edit, member add/edit, and
+soon user detail / invite). They are shown and picked **only through one kit** so they read
+identically everywhere — never ad-hoc badge lists or `USelectMenu`s:
+- **Display** — `AppPermissionList` (permission NAMES → grouped-by-resource, enriched via the
+  catalog; compact badges or `detailed` rows) and `AppEffectivePermissions` (the deduped union a set
+  of roles grants — the "what will they get" view).
+- **Pick** — `AppPermissionPicker` (permissions) and `AppRolePicker` (roles): both Nuxt UI
+  `UCommandPalette` multi-selects (fuzzy search + keyboard nav), bound to name/id arrays via
+  `value-key`. Callers pass the assignable pool (e.g. entity member roles are scoped to the org).
+- **Data** — `usePermissionCatalog` is the single cached permissions source (name → rich definition,
+  `groupByResource`). Effective permissions are the **client-side union** of each role's
+  `permissions` — no dedicated endpoint.
+
+When you need to show or choose a role/permission, reach for these and extend them; don't hand-roll a
+badge list or a select. Permission badges show the full sub-action (`create_tree`, not `create`) so
+tree variants stay distinct.
+
 ## Definition of done (per feature)
 - SFC: template + one composable call; no queries/mutations/handlers/try-catch inline.
 - Logic in `composables/`; server IO in `queries/` with a key factory.
