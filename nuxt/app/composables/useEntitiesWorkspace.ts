@@ -1,6 +1,5 @@
 import { useQuery } from '@pinia/colada'
 import { entitiesListQuery, useCreateEntity } from '~/queries/entities'
-import { getApiErrorMessage } from '~/api/client'
 import { buildEntityTree, filterEntityTree, type EntityTreeNode } from '~/utils/entity-tree'
 import type { CreateEntityInput, Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 
@@ -19,9 +18,9 @@ type EntityTreeItem = {
 }
 
 export function useEntitiesWorkspace() {
-  const toast = useToast()
   const route = useRoute()
   const { hasPermission } = useAuth()
+  const { run } = useApiAction()
 
   const canRead = computed(() => hasPermission('entity:read'))
   const canCreate = computed(() => hasPermission('entity:create'))
@@ -30,7 +29,7 @@ export function useEntitiesWorkspace() {
   // from it (built + filtered client-side, no server pagination).
   const { data, status, error } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: canRead.value }))
   const allEntities = computed<Entity[]>(() => data.value?.items ?? [])
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
   // The selected entity (right panel) lives in the URL (?entity=id) so it's deep-linkable and
   // the back button works; tree nodes are links that set it.
@@ -131,28 +130,22 @@ export function useEntitiesWorkspace() {
     if (createErrors.name || createErrors.displayName || createErrors.slug || createErrors.entityType) return
 
     creating.value = true
-    try {
-      const input: CreateEntityInput = {
-        name: createState.name.trim(),
-        display_name: createState.displayName.trim(),
-        slug: createState.slug.trim(),
-        entity_class: createState.entityClass,
-        entity_type: createState.entityType.trim()
-      }
-      if (createState.description.trim()) input.description = createState.description.trim()
-      if (createState.parentId && createState.parentId !== ROOT_PARENT) input.parent_entity_id = createState.parentId
-      if (createState.allowedChildClasses.length) input.allowed_child_classes = [...createState.allowedChildClasses]
-      const childTypes = parseChildTypes(createState.allowedChildTypes)
-      if (childTypes.length) input.allowed_child_types = childTypes
-
-      await createEntity.mutateAsync(input)
-      toast.add({ title: 'Entity created', color: 'success', icon: 'i-lucide-check' })
-      createOpen.value = false
-    } catch (err) {
-      toast.add({ title: 'Could not create entity', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creating.value = false
+    const input: CreateEntityInput = {
+      name: createState.name.trim(),
+      display_name: createState.displayName.trim(),
+      slug: createState.slug.trim(),
+      entity_class: createState.entityClass,
+      entity_type: createState.entityType.trim()
     }
+    if (createState.description.trim()) input.description = createState.description.trim()
+    if (createState.parentId && createState.parentId !== ROOT_PARENT) input.parent_entity_id = createState.parentId
+    if (createState.allowedChildClasses.length) input.allowed_child_classes = [...createState.allowedChildClasses]
+    const childTypes = parseChildTypes(createState.allowedChildTypes)
+    if (childTypes.length) input.allowed_child_types = childTypes
+
+    const res = await run(() => createEntity.mutateAsync(input), { success: 'Entity created', error: 'Could not create entity' })
+    if (res.ok) createOpen.value = false
+    creating.value = false
   }
 
   return {

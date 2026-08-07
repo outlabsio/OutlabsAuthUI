@@ -2,7 +2,6 @@ import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { permissionsListQuery, useCreatePermission, useDeletePermission } from '~/queries/permissions'
 import type { CreatePermissionSchema } from '~/schemas/permission'
-import { getApiErrorMessage } from '~/api/client'
 import type { Permission, PermissionsListFilters } from '~/types/permission'
 
 // Feature logic for the permissions workspace. The list is small and returned whole, so search
@@ -13,8 +12,8 @@ export function usePermissionsWorkspace() {
 
   const filters = reactive<PermissionsListFilters>({ page: 1, limit: 1000 })
   const search = ref('')
-  const { data, status, error, refetch } = useQuery(() => ({ ...permissionsListQuery({ ...filters }), enabled: hasPermission('permission:read') }))
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const { data, status, error } = useQuery(() => ({ ...permissionsListQuery({ ...filters }), enabled: hasPermission('permission:read') }))
+  const errorMessage = useApiErrorMessage(error)
 
   // Small list returned whole — filter client-side by name / display_name.
   const rows = computed<Permission[]>(() => {
@@ -24,7 +23,7 @@ export function usePermissionsWorkspace() {
     return all.filter(p => `${p.name} ${p.display_name}`.toLowerCase().includes(term))
   })
 
-  const crud = useResourceCrud<Permission>({ noun: 'permission', refetch, createPermission: 'permission:create', deleteMutation: useDeletePermission() })
+  const crud = useResourceCrud<Permission>({ noun: 'permission', createPermission: 'permission:create', deleteMutation: useDeletePermission() })
 
   function rowMenu(permission: Permission) {
     return [
@@ -39,8 +38,8 @@ export function usePermissionsWorkspace() {
   const creating = ref(false)
   async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
     creating.value = true
-    const ok = await crud.run(() => createPermission.mutateAsync(event.data), { success: 'Permission created', error: 'Could not create permission' })
-    if (ok) {
+    const res = await crud.run(() => createPermission.mutateAsync(event.data), { success: 'Permission created', error: 'Could not create permission' })
+    if (res.ok) {
       createOpen.value = false
       Object.assign(createState, { name: '', display_name: '', description: '' })
     }

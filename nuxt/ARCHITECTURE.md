@@ -4,6 +4,37 @@ Nuxt 4 SPA + Pinia Colada. One rule underlies everything: **one home per concern
 display and logic never mix. The layers below are grounded in the Pinia and Pinia Colada docs
 (links at the bottom).
 
+## Mental model: composables vs Pinia Colada vs Pinia stores
+
+The thing that trips people up: **Pinia Colada _is_ Pinia.** Its query cache is a real Pinia
+store (id `_pc_…`) holding every fetched record in memory, keyed by query key, and observable in
+the Vue/Pinia devtools. So "domain data in memory, inspectable in devtools" already exists — you
+do **not** hand-write a store per domain; `queries/<domain>.ts` + key factories organize the one
+shared cache.
+
+- **Server state → Pinia Colada.** Caching, dedup, background refetch, staleness, and
+  invalidation come for free. A hand-written Pinia store holding server data re-implements all of
+  that and is an anti-pattern here.
+- **Feature logic + ephemeral view state → composables.** They consume Colada; they are not the
+  data store.
+- **Global _client_ state → one plain Pinia store**, and only when such state actually exists
+  (none today).
+
+Want named, per-domain, store-like observable query state (what a store-per-domain would give
+you)? Colada's own primitive for that is **`defineQuery`** — "a tiny store" in the docs, a
+globally-instantiated shared query. We use per-component `useQuery` (fine for single-page use);
+promote a domain to `defineQuery` if it genuinely needs shared, named, observable state. Don't
+hand-roll a store for it.
+
+**Anti-patterns — do not do these:**
+- a Pinia store per domain holding server data (use Colada);
+- `useQuery` inside a Pinia store (immortal queries — read the cache via `useQueryCache()` if a
+  store ever needs server data);
+- re-deriving error messages or re-writing `try/catch` + `toast` per handler (use the shared
+  helpers under "Cross-cutting side effects");
+- manually `refetch()`-ing after a mutation (mutations invalidate their domain root, which
+  refreshes active queries automatically).
+
 ## Layers
 
 ### 1. Server state — Pinia Colada (`app/queries/<domain>.ts`)
@@ -30,9 +61,10 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
   shared across simultaneously-mounted components; otherwise a plain composable wrapping
   `useQuery` is enough. (SPA, so `defineQuery`'s "state isn't SSR-serialized" caveat doesn't
   apply to us.)
-- A composable per feature (`useEntitiesWorkspace`, `useEntityDetail`), plus shared building
-  blocks (e.g. `useResourceCrud` — the shared create-gate + toast-wrapped `run` + delete-confirm
-  flow used by the users/roles/permissions list features; each keeps its own query + forms).
+- A composable per feature (`useEntitiesWorkspace`, `useEntityDetail`, …), plus shared building
+  blocks used by all of them: **`useApiAction`** (the `run` mutation-runner), **`useApiErrorMessage`**
+  (query error → message), and **`useResourceCrud`** (create-gate + `run` + delete-confirm flow for
+  the users/roles/permissions list features; each still keeps its own query + create/edit forms).
 
 ### 3. Display — the `.vue` SFC
 - Template + presentational helpers + **exactly one** `const { … } = useFeature()`.
@@ -58,17 +90,25 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
   error/URL helpers (`getApiErrorMessage`, `buildApiUrl`) in `app/api/`, token storage in
   `app/auth/`.
 
-## Cross-cutting side effects
-- **Error and success toasts live in the feature composable**, with specific per-feature titles
-  ("Could not move entity" beats a generic "Something went wrong"). Components never toast or
-  `try/catch`.
-- A global PiniaColada `onError` net (via a root `colada.options.ts`) is available if we ever
-  want a catch-all for unhandled/background errors — **deferred on purpose**: the per-feature
-  toasts are the primary path and are more specific than any global handler.
+## Cross-cutting side effects — shared helpers (use these, don't hand-roll)
+- **`useApiAction().run(fn, { success, error })`** wraps every mutation call: runs `fn`, toasts
+  success or a specific error, and returns a discriminated `{ ok: true, data } | { ok: false, error }`
+  so the caller can use the result (e.g. a one-time secret) and only close/reset its form on
+  success. Never write a raw `try/catch` + `toast` in a handler. (`useResourceCrud` re-exports this
+  `run` for the list features.)
+- **`useApiErrorMessage(source)`** turns a query's `error` ref (or a getter) into the
+  "Could not load …" string. Never re-derive it with a per-feature `computed(() => getApiErrorMessage(...))`.
+- **No manual refetch.** Mutations invalidate their domain root via `onSettled` (Layer 1), so
+  active queries refresh on their own; `run` deliberately does not refetch.
+- Toasts carry **specific per-feature titles** ("Could not move entity"). A global PiniaColada
+  `onError` net (root `colada.options.ts`) stays **deferred on purpose** — per-feature messages
+  are more useful than any generic global handler.
 
 ## Definition of done (per feature)
 - SFC: template + one composable call; no queries/mutations/handlers/try-catch inline.
 - Logic in `composables/`; server IO in `queries/` with a key factory.
+- Mutations go through `useApiAction().run`; query errors through `useApiErrorMessage`; no raw
+  `try/catch`+`toast` and no manual `refetch()`.
 - typecheck + lint clean; the feature's E2E stays green.
 
 ## Rollout status
@@ -97,9 +137,12 @@ the `nuxt` branch (each feature is its own commit) to know exactly what's done a
 **Feature rollout complete** — every `app/pages/app/**` view is now template + one `useFeature()`
 call + pure display config; all feature logic lives in `app/composables/`.
 
-- [x] DRY'd shared CRUD behavior into `useResourceCrud` (create gate + toast-wrapped `run` +
-      delete-confirm flow), adopted by users/roles/permissions. The list query + create/edit forms
-      stay per-feature (inherently per-resource; the query is kept typed inline).
+- [x] DRY pass — extracted **`useApiAction`** (the `run` mutation-runner, adopted by all 11
+      composables, replacing ~14 inline `try/catch`+`toast` blocks) and **`useApiErrorMessage`**
+      (adopted by all 9 query-error spots). `useResourceCrud` (create gate + `run` + delete-confirm)
+      is used by users/roles/permissions. Manual `refetch()` removed — mutations invalidate their
+      domain root via `onSettled`. The per-resource query + create/edit forms stay in each feature
+      (kept typed inline).
 
 **Refactor complete.**
 

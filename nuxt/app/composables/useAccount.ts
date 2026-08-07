@@ -3,7 +3,6 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { mySessionsQuery, useChangePassword, useRevokeAllSessions, useRevokeSession, useUpdateProfile } from '~/queries/account'
 import { SESSION_KEY } from '~/queries/session'
 import type { ChangePasswordSchema, UpdateProfileSchema } from '~/schemas/account'
-import { getApiErrorMessage } from '~/api/client'
 import type { UserSession } from '~/types/account'
 
 // Feature logic for the account view — the actor's own profile, password, and active sessions.
@@ -12,7 +11,7 @@ import type { UserSession } from '~/types/account'
 export function useAccount() {
   const { user } = useAuth()
   const queryCache = useQueryCache()
-  const toast = useToast()
+  const { run } = useApiAction()
 
   // --- Profile ---
   const profileState = reactive<UpdateProfileSchema>({ first_name: '', last_name: '', phone: '' })
@@ -27,19 +26,14 @@ export function useAccount() {
   const savingProfile = ref(false)
   async function onSaveProfile(event: FormSubmitEvent<UpdateProfileSchema>) {
     savingProfile.value = true
-    try {
-      const updated = await updateProfile.mutateAsync({
-        first_name: event.data.first_name,
-        last_name: event.data.last_name,
-        phone: event.data.phone === '' ? null : event.data.phone
-      })
-      queryCache.setQueryData(SESSION_KEY, updated)
-      toast.add({ title: 'Profile updated', color: 'success', icon: 'i-lucide-check' })
-    } catch (err) {
-      toast.add({ title: 'Could not update profile', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      savingProfile.value = false
-    }
+    const res = await run(() => updateProfile.mutateAsync({
+      first_name: event.data.first_name,
+      last_name: event.data.last_name,
+      phone: event.data.phone === '' ? null : event.data.phone
+    }), { success: 'Profile updated', error: 'Could not update profile' })
+    // Keep the Colada-owned session in sync with the freshly-saved profile.
+    if (res.ok) queryCache.setQueryData(SESSION_KEY, res.data)
+    savingProfile.value = false
   }
 
   // --- Password ---
@@ -48,18 +42,12 @@ export function useAccount() {
   const changingPassword = ref(false)
   async function onChangePassword(event: FormSubmitEvent<ChangePasswordSchema>) {
     changingPassword.value = true
-    try {
-      await changePassword.mutateAsync({
-        current_password: event.data.current_password,
-        new_password: event.data.new_password
-      })
-      toast.add({ title: 'Password changed', color: 'success', icon: 'i-lucide-check' })
-      Object.assign(passwordState, { current_password: '', new_password: '', confirm_password: '' })
-    } catch (err) {
-      toast.add({ title: 'Could not change password', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      changingPassword.value = false
-    }
+    const res = await run(() => changePassword.mutateAsync({
+      current_password: event.data.current_password,
+      new_password: event.data.new_password
+    }), { success: 'Password changed', error: 'Could not change password' })
+    if (res.ok) Object.assign(passwordState, { current_password: '', new_password: '', confirm_password: '' })
+    changingPassword.value = false
   }
 
   // --- Sessions ---

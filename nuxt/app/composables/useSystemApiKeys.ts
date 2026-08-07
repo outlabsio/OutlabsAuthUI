@@ -12,7 +12,6 @@ import {
 } from '~/queries/api-keys'
 import { entitiesListQuery } from '~/queries/entities'
 import { rolesListQuery } from '~/queries/roles'
-import { getApiErrorMessage } from '~/api/client'
 import type { ApiKey, CreateMachineKeyInput, CreatePrincipalInput, IntegrationPrincipal } from '~/types/api-key'
 import type { Entity } from '~/types/entity'
 import type { Role } from '~/types/role'
@@ -25,6 +24,7 @@ import type { Role } from '~/types/role'
 export function useSystemApiKeys() {
   const toast = useToast()
   const { hasPermission } = useAuth()
+  const { run } = useApiAction()
   const canRead = computed(() => hasPermission('apikey:read'))
 
   // Scope: platform-global, or a chosen entity.
@@ -60,7 +60,7 @@ export function useSystemApiKeys() {
   })
 
   const { data: principalsData, status, error } = useQuery(() => ({ ...principalsQuery(scope.value), enabled: canRead.value && scopeReady.value }))
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
   const { data: grantable } = useQuery(() => ({ ...grantableScopesQuery, enabled: canRead.value }))
   const grantableScopes = computed<string[]>(() => grantable.value?.grantable_scopes ?? [])
 
@@ -143,23 +143,19 @@ export function useSystemApiKeys() {
     if (saErrors.name || saErrors.envelope) return
 
     creatingSa.value = true
-    try {
-      const input: CreatePrincipalInput = {
-        name: saState.name.trim(),
-        allowed_scopes: [...saState.scopes],
-        inherit_from_tree: saState.inherit
-      }
-      if (saState.roleIds.length) input.role_ids = [...saState.roleIds]
-      if (saState.description.trim()) input.description = saState.description.trim()
-      const created = await createPrincipal.mutateAsync({ scope: scope.value, input })
-      selectedId.value = created.id
-      createSaOpen.value = false
-      toast.add({ title: 'Service account created', color: 'success', icon: 'i-lucide-check' })
-    } catch (err) {
-      toast.add({ title: 'Could not create service account', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creatingSa.value = false
+    const input: CreatePrincipalInput = {
+      name: saState.name.trim(),
+      allowed_scopes: [...saState.scopes],
+      inherit_from_tree: saState.inherit
     }
+    if (saState.roleIds.length) input.role_ids = [...saState.roleIds]
+    if (saState.description.trim()) input.description = saState.description.trim()
+    const res = await run(() => createPrincipal.mutateAsync({ scope: scope.value, input }), { success: 'Service account created', error: 'Could not create service account' })
+    if (res.ok) {
+      selectedId.value = res.data.id
+      createSaOpen.value = false
+    }
+    creatingSa.value = false
   }
 
   // --- Create machine key ---
@@ -189,22 +185,18 @@ export function useSystemApiKeys() {
     if (keyErrors.name || keyErrors.scopes) return
 
     creatingKey.value = true
-    try {
-      const input: CreateMachineKeyInput = {
-        name: keyState.name.trim(),
-        scopes: [...keyState.scopes],
-        rate_limit_per_minute: Number(keyState.rateLimit)
-      }
-      if (keyState.expiresInDays !== '' && Number(keyState.expiresInDays) > 0) input.expires_in_days = Number(keyState.expiresInDays)
-      const created = await createMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, input })
-      createKeyOpen.value = false
-      revealSecret(created.api_key)
-      toast.add({ title: 'Machine key created', color: 'success', icon: 'i-lucide-check' })
-    } catch (err) {
-      toast.add({ title: 'Could not create machine key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creatingKey.value = false
+    const input: CreateMachineKeyInput = {
+      name: keyState.name.trim(),
+      scopes: [...keyState.scopes],
+      rate_limit_per_minute: Number(keyState.rateLimit)
     }
+    if (keyState.expiresInDays !== '' && Number(keyState.expiresInDays) > 0) input.expires_in_days = Number(keyState.expiresInDays)
+    const res = await run(() => createMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value!, input }), { success: 'Machine key created', error: 'Could not create machine key' })
+    if (res.ok) {
+      createKeyOpen.value = false
+      revealSecret(res.data.api_key)
+    }
+    creatingKey.value = false
   }
 
   // --- Rotate / revoke machine key ---
@@ -217,18 +209,15 @@ export function useSystemApiKeys() {
     rotateOpen.value = true
   }
   async function onRotate() {
-    if (!rotateTarget.value || !selectedId.value) return
+    const target = rotateTarget.value
+    if (!target || !selectedId.value) return
     rotating.value = true
-    try {
-      const rotated = await rotateMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, keyId: rotateTarget.value.id })
+    const res = await run(() => rotateMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value!, keyId: target.id }), { success: 'Machine key rotated', error: 'Could not rotate machine key' })
+    if (res.ok) {
       rotateOpen.value = false
-      revealSecret(rotated.api_key)
-      toast.add({ title: 'Machine key rotated', color: 'success', icon: 'i-lucide-check' })
-    } catch (err) {
-      toast.add({ title: 'Could not rotate machine key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      rotating.value = false
+      revealSecret(res.data.api_key)
     }
+    rotating.value = false
   }
 
   const revokeOpen = ref(false)
@@ -240,28 +229,20 @@ export function useSystemApiKeys() {
     revokeOpen.value = true
   }
   async function onRevoke() {
-    if (!revokeTarget.value || !selectedId.value) return
+    const target = revokeTarget.value
+    if (!target || !selectedId.value) return
     revoking.value = true
-    try {
-      await revokeMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value, keyId: revokeTarget.value.id })
-      revokeOpen.value = false
-      toast.add({ title: 'Machine key revoked', color: 'success', icon: 'i-lucide-check' })
-    } catch (err) {
-      toast.add({ title: 'Could not revoke machine key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      revoking.value = false
-    }
+    const res = await run(() => revokeMachineKey.mutateAsync({ scope: scope.value, principalId: selectedId.value!, keyId: target.id }), { success: 'Machine key revoked', error: 'Could not revoke machine key' })
+    if (res.ok) revokeOpen.value = false
+    revoking.value = false
   }
 
   const guideOpen = ref(false)
 
   return {
-    // scope
     scopeKind,
     entityId,
     entitySelectItems,
-    scopeReady,
-    // list/detail
     status,
     errorMessage,
     activeTab,
@@ -273,7 +254,6 @@ export function useSystemApiKeys() {
     keyMenu,
     inventoryKeys,
     inventoryStatus,
-    // create service account
     createSaOpen,
     saState,
     saErrors,
@@ -284,7 +264,6 @@ export function useSystemApiKeys() {
     creatingSa,
     openCreatePrincipal,
     onCreatePrincipal,
-    // create machine key
     createKeyOpen,
     keyState,
     keyErrors,
@@ -293,11 +272,9 @@ export function useSystemApiKeys() {
     creatingKey,
     openCreateKey,
     onCreateKey,
-    // one-time secret
     secretOpen,
     secret,
     copySecret,
-    // rotate / revoke
     rotateOpen,
     rotateTarget,
     rotating,
@@ -306,7 +283,6 @@ export function useSystemApiKeys() {
     revokeTarget,
     revoking,
     onRevoke,
-    // guide
     guideOpen
   }
 }

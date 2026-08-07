@@ -1,7 +1,6 @@
 import { useQuery } from '@pinia/colada'
 import { auditEventsQuery } from '~/queries/audit'
 import { auditFiltersFromQuery, auditFiltersToQuery, emptyAuditFilters, type AuditFilters } from '~/types/audit'
-import { getApiErrorMessage } from '~/api/client'
 
 // Feature logic for the audit workspace. Filters live in the route query so the view is
 // deep-linkable; page is local state and resets whenever the applied filters change. Gated by
@@ -29,7 +28,7 @@ export function useAuditWorkspace() {
     ...auditEventsQuery({ page: page.value, limit: LIMIT, filters: appliedFilters.value }),
     enabled: hasPermission('user:read')
   }))
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
   const events = computed(() => data.value?.items ?? [])
   const total = computed(() => data.value?.total ?? 0)

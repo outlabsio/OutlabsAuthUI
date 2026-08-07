@@ -2,7 +2,6 @@ import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { rolesListQuery, useCreateRole, useDeleteRole, useUpdateRole } from '~/queries/roles'
 import type { CreateRoleSchema, UpdateRoleSchema } from '~/schemas/role'
-import { getApiErrorMessage } from '~/api/client'
 import type { Role, RolesListFilters } from '~/types/role'
 
 // Feature logic for the roles workspace. Shared CRUD behavior from useResourceCrud; the query +
@@ -12,11 +11,11 @@ export function useRolesWorkspace() {
   const { hasPermission } = useAuth()
 
   const filters = reactive<RolesListFilters>({ page: 1, limit: 100, search: '' })
-  const { data, status, error, refetch } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
+  const { data, status, error } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
   const rows = computed<Role[]>(() => data.value?.items ?? [])
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
-  const crud = useResourceCrud<Role>({ noun: 'role', refetch, createPermission: 'role:create', deleteMutation: useDeleteRole() })
+  const crud = useResourceCrud<Role>({ noun: 'role', createPermission: 'role:create', deleteMutation: useDeleteRole() })
 
   function rowMenu(role: Role) {
     return [
@@ -32,14 +31,14 @@ export function useRolesWorkspace() {
   const creating = ref(false)
   async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
     creating.value = true
-    const ok = await crud.run(() => createRole.mutateAsync({
+    const res = await crud.run(() => createRole.mutateAsync({
       name: event.data.name,
       display_name: event.data.display_name,
       description: event.data.description,
       is_global: event.data.is_global ?? false,
       permissions: []
     }), { success: 'Role created', error: 'Could not create role' })
-    if (ok) {
+    if (res.ok) {
       createOpen.value = false
       Object.assign(createState, { name: '', display_name: '', description: '', is_global: false })
     }
@@ -62,11 +61,11 @@ export function useRolesWorkspace() {
     const target = editTarget.value
     if (!target) return
     saving.value = true
-    const ok = await crud.run(() => updateRole.mutateAsync({
+    const res = await crud.run(() => updateRole.mutateAsync({
       roleId: target.id,
       input: { display_name: event.data.display_name, description: event.data.description }
     }), { success: 'Role updated', error: 'Could not update role' })
-    if (ok) editOpen.value = false
+    if (res.ok) editOpen.value = false
     saving.value = false
   }
 

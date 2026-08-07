@@ -2,7 +2,6 @@ import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
 import { entitiesListQuery, entityDetailQuery, useMoveEntity, useUpdateEntity } from '~/queries/entities'
 import { entityMembersQuery } from '~/queries/memberships'
-import { getApiErrorMessage } from '~/api/client'
 import type { Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
 import type { EntityMember } from '~/types/membership'
 
@@ -13,15 +12,15 @@ import type { EntityMember } from '~/types/membership'
 const ROOT_PARENT = '__root__'
 
 export function useEntityDetail(entityId: Ref<string>) {
-  const toast = useToast()
   const { hasPermission } = useAuth()
+  const { run } = useApiAction()
 
   const canRead = computed(() => hasPermission('entity:read'))
   const canManage = computed(() => hasPermission('entity:update'))
   const canReadMembers = computed(() => hasPermission('membership:read'))
 
   const { data: entity, status, error } = useQuery(() => ({ ...entityDetailQuery(entityId.value), enabled: canRead.value }))
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
   const { data: childrenData, status: childrenStatus } = useQuery(() => ({
     ...entitiesListQuery({ parentId: entityId.value, limit: 100 }),
@@ -69,24 +68,18 @@ export function useEntityDetail(entityId: Ref<string>) {
 
   async function onEdit() {
     saving.value = true
-    try {
-      await updateEntity.mutateAsync({
-        entityId: entityId.value,
-        input: {
-          display_name: editState.displayName.trim(),
-          description: editState.description.trim() ? editState.description.trim() : null,
-          status: editState.status,
-          allowed_child_classes: [...editState.allowedChildClasses],
-          allowed_child_types: editState.allowedChildTypes.split(',').map(t => t.trim()).filter(Boolean)
-        }
-      })
-      toast.add({ title: 'Entity updated', color: 'success', icon: 'i-lucide-check' })
-      editOpen.value = false
-    } catch (err) {
-      toast.add({ title: 'Could not update entity', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      saving.value = false
-    }
+    const res = await run(() => updateEntity.mutateAsync({
+      entityId: entityId.value,
+      input: {
+        display_name: editState.displayName.trim(),
+        description: editState.description.trim() ? editState.description.trim() : null,
+        status: editState.status,
+        allowed_child_classes: [...editState.allowedChildClasses],
+        allowed_child_types: editState.allowedChildTypes.split(',').map(t => t.trim()).filter(Boolean)
+      }
+    }), { success: 'Entity updated', error: 'Could not update entity' })
+    if (res.ok) editOpen.value = false
+    saving.value = false
   }
 
   // --- Move ---
@@ -102,16 +95,10 @@ export function useEntityDetail(entityId: Ref<string>) {
 
   async function onMove() {
     moving.value = true
-    try {
-      const newParentId = moveParentId.value === ROOT_PARENT ? null : moveParentId.value
-      await moveEntity.mutateAsync({ entityId: entityId.value, newParentId })
-      toast.add({ title: 'Entity moved', color: 'success', icon: 'i-lucide-check' })
-      moveOpen.value = false
-    } catch (err) {
-      toast.add({ title: 'Could not move entity', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      moving.value = false
-    }
+    const newParentId = moveParentId.value === ROOT_PARENT ? null : moveParentId.value
+    const res = await run(() => moveEntity.mutateAsync({ entityId: entityId.value, newParentId }), { success: 'Entity moved', error: 'Could not move entity' })
+    if (res.ok) moveOpen.value = false
+    moving.value = false
   }
 
   return {

@@ -2,11 +2,10 @@ import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { usersListQuery, useCreateUser, useDeleteUser, useUpdateUser } from '~/queries/users'
 import type { CreateUserSchema, UpdateUserSchema } from '~/schemas/user'
-import { getApiErrorMessage } from '~/api/client'
 import type { User, UsersListFilters } from '~/types/user'
 
-// Feature logic for the users workspace. Shared CRUD behavior (create gate, toast-wrapped `run`,
-// delete flow) comes from useResourceCrud; the query + create/edit forms are per-resource.
+// Feature logic for the users workspace. Shared CRUD behavior (create gate, `run`, delete flow)
+// comes from useResourceCrud; the query + create/edit forms are per-resource.
 
 export function useUsersWorkspace() {
   const { hasPermission } = useAuth()
@@ -15,12 +14,12 @@ export function useUsersWorkspace() {
   watch(() => filters.search, () => {
     filters.page = 1
   })
-  const { data, status, error, refetch } = useQuery(() => ({ ...usersListQuery({ ...filters }), enabled: hasPermission('user:read') }))
+  const { data, status, error } = useQuery(() => ({ ...usersListQuery({ ...filters }), enabled: hasPermission('user:read') }))
   const rows = computed<User[]>(() => data.value?.items ?? [])
   const total = computed(() => data.value?.total ?? 0)
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
-  const crud = useResourceCrud<User>({ noun: 'user', refetch, createPermission: 'user:create', deleteMutation: useDeleteUser() })
+  const crud = useResourceCrud<User>({ noun: 'user', createPermission: 'user:create', deleteMutation: useDeleteUser() })
 
   function rowMenu(user: User) {
     return [
@@ -36,8 +35,8 @@ export function useUsersWorkspace() {
   const creating = ref(false)
   async function onCreate(event: FormSubmitEvent<CreateUserSchema>) {
     creating.value = true
-    const ok = await crud.run(() => createUser.mutateAsync(event.data), { success: 'User created', error: 'Could not create user' })
-    if (ok) {
+    const res = await crud.run(() => createUser.mutateAsync(event.data), { success: 'User created', error: 'Could not create user' })
+    if (res.ok) {
       createOpen.value = false
       Object.assign(createState, { email: '', password: '', first_name: '', last_name: '', is_superuser: false })
     }
@@ -61,7 +60,7 @@ export function useUsersWorkspace() {
     const target = editTarget.value
     if (!target) return
     saving.value = true
-    const ok = await crud.run(() => updateUser.mutateAsync({
+    const res = await crud.run(() => updateUser.mutateAsync({
       userId: target.id,
       input: {
         first_name: event.data.first_name,
@@ -69,7 +68,7 @@ export function useUsersWorkspace() {
         phone: event.data.phone === '' ? null : event.data.phone
       }
     }), { success: 'User updated', error: 'Could not update user' })
-    if (ok) editOpen.value = false
+    if (res.ok) editOpen.value = false
     saving.value = false
   }
 

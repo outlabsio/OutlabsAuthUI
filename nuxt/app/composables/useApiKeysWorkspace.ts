@@ -1,6 +1,5 @@
 import { useQuery } from '@pinia/colada'
 import { grantableScopesQuery, myApiKeysQuery, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '~/queries/api-keys'
-import { getApiErrorMessage } from '~/api/client'
 import type { ApiKey, CreateApiKeyInput } from '~/types/api-key'
 
 // Feature logic for personal API keys — mint (with a grantable-scope picker), rotate, revoke,
@@ -9,12 +8,13 @@ import type { ApiKey, CreateApiKeyInput } from '~/types/api-key'
 
 export function useApiKeysWorkspace() {
   const toast = useToast()
+  const { run } = useApiAction()
 
-  const { data, status, error, refetch } = useQuery(myApiKeysQuery)
+  const { data, status, error } = useQuery(myApiKeysQuery)
   const { data: grantable } = useQuery(grantableScopesQuery)
   const rows = computed<ApiKey[]>(() => data.value ?? [])
   const grantableScopes = computed<string[]>(() => grantable.value?.grantable_scopes ?? [])
-  const errorMessage = computed(() => getApiErrorMessage(error.value))
+  const errorMessage = useApiErrorMessage(error)
 
   function rowMenu(key: ApiKey) {
     const terminal = key.status === 'revoked' || key.status === 'expired'
@@ -73,27 +73,22 @@ export function useApiKeysWorkspace() {
     if (mintErrors.name || mintErrors.scopes) return
 
     creating.value = true
-    try {
-      const input: CreateApiKeyInput = {
-        name: mintState.name.trim(),
-        scopes: [...mintState.scopes],
-        key_kind: 'personal',
-        rate_limit_per_minute: mintState.unlimited ? 0 : Number(mintState.rateLimit)
-      }
-      if (mintState.description.trim()) input.description = mintState.description.trim()
-      if (mintState.expiresInDays !== '' && Number(mintState.expiresInDays) > 0) input.expires_in_days = Number(mintState.expiresInDays)
+    const input: CreateApiKeyInput = {
+      name: mintState.name.trim(),
+      scopes: [...mintState.scopes],
+      key_kind: 'personal',
+      rate_limit_per_minute: mintState.unlimited ? 0 : Number(mintState.rateLimit)
+    }
+    if (mintState.description.trim()) input.description = mintState.description.trim()
+    if (mintState.expiresInDays !== '' && Number(mintState.expiresInDays) > 0) input.expires_in_days = Number(mintState.expiresInDays)
 
-      const created = await createApiKey.mutateAsync(input)
+    const res = await run(() => createApiKey.mutateAsync(input), { success: 'API key created', error: 'Could not create API key' })
+    if (res.ok) {
       mintOpen.value = false
       secretTitle.value = 'Store the new API key now'
-      revealSecret(created.api_key)
-      toast.add({ title: 'API key created', color: 'success', icon: 'i-lucide-check' })
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not create API key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creating.value = false
+      revealSecret(res.data.api_key)
     }
+    creating.value = false
   }
 
   // --- Rotate ---
@@ -107,20 +102,16 @@ export function useApiKeysWorkspace() {
     rotateOpen.value = true
   }
   async function onRotate() {
-    if (!rotateTarget.value) return
+    const target = rotateTarget.value
+    if (!target) return
     rotating.value = true
-    try {
-      const rotated = await rotateApiKey.mutateAsync(rotateTarget.value.id)
+    const res = await run(() => rotateApiKey.mutateAsync(target.id), { success: 'API key rotated', error: 'Could not rotate API key' })
+    if (res.ok) {
       rotateOpen.value = false
       secretTitle.value = 'Store the new API key now'
-      revealSecret(rotated.api_key)
-      toast.add({ title: 'API key rotated', color: 'success', icon: 'i-lucide-check' })
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not rotate API key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      rotating.value = false
+      revealSecret(res.data.api_key)
     }
+    rotating.value = false
   }
 
   // --- Revoke ---
@@ -134,18 +125,12 @@ export function useApiKeysWorkspace() {
     revokeOpen.value = true
   }
   async function onRevoke() {
-    if (!revokeTarget.value) return
+    const target = revokeTarget.value
+    if (!target) return
     revoking.value = true
-    try {
-      await revokeApiKey.mutateAsync(revokeTarget.value.id)
-      revokeOpen.value = false
-      toast.add({ title: 'API key revoked', color: 'success', icon: 'i-lucide-check' })
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not revoke API key', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      revoking.value = false
-    }
+    const res = await run(() => revokeApiKey.mutateAsync(target.id), { success: 'API key revoked', error: 'Could not revoke API key' })
+    if (res.ok) revokeOpen.value = false
+    revoking.value = false
   }
 
   return {

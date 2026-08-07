@@ -1,6 +1,5 @@
 import { useQuery } from '@pinia/colada'
 import { entityTypeConfigQuery } from '~/queries/settings'
-import { getApiErrorMessage } from '~/api/client'
 
 // Feature logic for the settings view — runtime capabilities (from the Colada-owned session)
 // plus the read-only entity-type config. The SFC binds this and renders.
@@ -27,7 +26,7 @@ export function useSettings() {
     ...entityTypeConfigQuery,
     enabled: entityHierarchyOn.value
   }))
-  const configErrorMessage = computed(() => getApiErrorMessage(configError.value))
+  const configErrorMessage = useApiErrorMessage(configError)
 
   return {
     capabilities,
