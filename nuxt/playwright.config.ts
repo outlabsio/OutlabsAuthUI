@@ -30,18 +30,26 @@ export default defineConfig({
       testMatch: /e2e\/auth\//,
       use: { ...devices['Desktop Chrome'] }
     },
-    // Logs in once, persists storageState for the authenticated matrix.
+    // Logs in once, persists storageState for the authenticated matrix. Its teardown purges
+    // the pw/PW test data every full run so the DB (and the UI) stays uncluttered.
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      teardown: 'cleanup',
       use: { ...devices['Desktop Chrome'] }
     },
     // Authenticated app suites reuse the setup session.
     {
       name: 'chromium',
-      testIgnore: [/e2e\/auth\//, /.*\.setup\.ts/],
+      testIgnore: [/e2e\/auth\//, /.*\.setup\.ts/, /.*\.teardown\.ts/],
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' }
+    },
+    // Test-data cleanup — runs as setup's teardown, or on demand via `test:e2e:clean`.
+    {
+      name: 'cleanup',
+      testMatch: /.*\.teardown\.ts/,
+      use: { ...devices['Desktop Chrome'] }
     }
     // Weekly CI adds firefox / webkit projects; the inner loop stays chromium-only.
   ],

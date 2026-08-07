@@ -2,8 +2,11 @@
 import { useQuery } from '@pinia/colada'
 import type { TableColumn } from '@nuxt/ui'
 import { entitiesListQuery, entityDetailQuery, useMoveEntity, useUpdateEntity } from '~/queries/entities'
+import { entityMembersQuery } from '~/queries/memberships'
 import { getApiErrorMessage } from '~/utils/api'
 import type { Entity, EntityClassValue, EntityStatusValue } from '~/types/entity'
+import type { EntityMember } from '~/types/membership'
+import type { UserStatusValue } from '~/types/user'
 
 // The entity detail panel — the right column of the entities master-detail (and reused for the
 // deep-link route). entityId is a prop so it swaps as the tree selection changes.
@@ -22,6 +25,15 @@ const { data: childrenData, status: childrenStatus } = useQuery(() => ({
 // The full hierarchy for the move-target picker (the USelectMenu searches it client-side).
 const { data: parentPool } = useQuery(() => ({ ...entitiesListQuery({ limit: 1000 }), enabled: canRead.value }))
 const moveParentOptions = computed<Entity[]>(() => (parentPool.value?.items ?? []).filter(e => e.id !== entityId.value))
+
+// Members of this entity (users + their roles) for the Users card. Needs membership:read
+// (superusers pass); gated so a denied actor fires no guaranteed-403 call.
+const canReadMembers = computed(() => hasPermission('membership:read'))
+const { data: membersData, status: membersStatus } = useQuery(() => ({
+  ...entityMembersQuery(entityId.value),
+  enabled: canReadMembers.value
+}))
+const members = computed<EntityMember[]>(() => membersData.value ?? [])
 
 const entityStatusItems = [
   { label: 'Active', value: 'active' as EntityStatusValue },
@@ -53,6 +65,31 @@ const childColumns: TableColumn<Entity>[] = [
   { accessorKey: 'slug', header: 'Slug' },
   { accessorKey: 'entity_type', header: 'Type' }
 ]
+
+// Deterministic badge colour per entity_type, so the same type reads the same everywhere.
+const TYPE_COLORS = ['info', 'success', 'warning', 'secondary', 'accent', 'special'] as const
+function typeColor(type: string): (typeof TYPE_COLORS)[number] {
+  let hash = 0
+  for (let i = 0; i < type.length; i++) hash = (hash * 31 + type.charCodeAt(i)) >>> 0
+  return TYPE_COLORS[hash % TYPE_COLORS.length]!
+}
+
+const memberColumns: TableColumn<EntityMember>[] = [
+  { id: 'name', header: 'Name' },
+  { accessorKey: 'user_email', header: 'Email' },
+  { id: 'roles', header: 'Roles' },
+  { accessorKey: 'user_status', header: 'Status' }
+]
+const memberStatusColor: Record<UserStatusValue, 'success' | 'info' | 'warning' | 'error' | 'neutral'> = {
+  active: 'success',
+  invited: 'info',
+  suspended: 'warning',
+  banned: 'error',
+  deleted: 'neutral'
+}
+function memberName(m: EntityMember) {
+  return [m.user_first_name, m.user_last_name].filter(Boolean).join(' ').trim() || m.user_email
+}
 
 // --- Edit ---
 const editOpen = ref(false)
@@ -201,7 +238,73 @@ async function onMove() {
               :columns="childColumns"
               :loading="childrenStatus === 'pending'"
               :empty="'No child entities.'"
-            />
+            >
+              <template #display_name-cell="{ row }">
+                <ULink
+                  :to="{ query: { entity: row.original.id } }"
+                  class="font-medium text-highlighted hover:underline"
+                >
+                  {{ row.original.display_name }}
+                </ULink>
+              </template>
+              <template #entity_type-cell="{ row }">
+                <UBadge :color="typeColor(row.original.entity_type)" variant="subtle" size="sm">
+                  {{ row.original.entity_type }}
+                </UBadge>
+              </template>
+            </UTable>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-highlighted">
+                  Users
+                </h2>
+                <span class="text-sm text-muted">{{ members.length }}</span>
+              </div>
+            </template>
+            <AppPermissionGate permission="membership:read">
+              <UTable
+                :data="members"
+                :columns="memberColumns"
+                :loading="membersStatus === 'pending'"
+                :empty="'No users assigned to this entity.'"
+              >
+                <template #name-cell="{ row }">
+                  <ULink
+                    :to="`/app/users/${row.original.user_id}`"
+                    class="font-medium text-highlighted hover:underline"
+                  >
+                    {{ memberName(row.original) }}
+                  </ULink>
+                </template>
+                <template #roles-cell="{ row }">
+                  <div class="flex flex-wrap gap-1">
+                    <UBadge
+                      v-for="r in row.original.roles"
+                      :key="r.id"
+                      color="neutral"
+                      variant="subtle"
+                      size="sm"
+                    >
+                      {{ r.display_name || r.name }}
+                    </UBadge>
+                    <span v-if="!row.original.roles.length" class="text-sm text-dimmed">—</span>
+                  </div>
+                </template>
+                <template #user_status-cell="{ row }">
+                  <UBadge
+                    :color="memberStatusColor[row.original.user_status]"
+                    variant="subtle"
+                    size="sm"
+                    class="capitalize"
+                  >
+                    {{ row.original.user_status }}
+                  </UBadge>
+                </template>
+              </UTable>
+            </AppPermissionGate>
           </UCard>
         </div>
       </AppPermissionGate>

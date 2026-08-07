@@ -68,9 +68,11 @@ function principalsBase(scope: SystemScope): string {
     : '/admin/system/integration-principals'
 }
 
+// Active principals only — archived service accounts are terminal (the API archives on delete
+// rather than hard-deleting), so showing them would just clutter the manager with dead rows.
 export const principalsQuery = defineQueryOptions((scope: SystemScope) => ({
   key: [PRINCIPALS_ROOT, 'list', scope],
-  query: ctx => apiClient.get<IntegrationPrincipalsListResponse>(`${principalsBase(scope)}?page=1&limit=100`, { signal: ctx?.signal })
+  query: ctx => apiClient.get<IntegrationPrincipalsListResponse>(`${principalsBase(scope)}?page=1&limit=100&status=active`, { signal: ctx?.signal })
 }))
 
 export const principalKeysQuery = defineQueryOptions(({ scope, principalId }: { scope: SystemScope, principalId: string }) => ({

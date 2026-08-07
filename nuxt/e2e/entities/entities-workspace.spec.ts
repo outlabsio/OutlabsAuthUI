@@ -168,4 +168,38 @@ test.describe('entities workspace', () => {
     await expect(guidance).toBeVisible()
     await expect(guidance).toContainText('region')
   })
+
+  test('children in the detail are links that select the child, and the users card renders', async ({ page }) => {
+    const parent = await createEntityViaApi()
+    const child = await createEntityViaApi(parent.id)
+
+    await page.goto(`/app/entities?entity=${parent.id}`)
+    await expect(page.getByRole('heading', { name: parent.display_name })).toBeVisible()
+
+    // The child renders as a link in the Children card and selects into the detail on click.
+    const childLink = page.getByRole('link', { name: child.display_name })
+    await expect(childLink).toBeVisible()
+    await childLink.click()
+    await expect(page).toHaveURL(new RegExp(`entity=${child.id}`))
+    await expect(page.getByRole('heading', { name: child.display_name })).toBeVisible()
+
+    // The Users card is present on the detail.
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+  })
+
+  test('entity members link through to the user detail page', async ({ page }) => {
+    // The San Francisco Office is a seeded entity with a direct member (manager@sf.acme.com).
+    await page.goto('/app/entities')
+    await page.getByPlaceholder('Search entities...').fill('San Francisco Office')
+    await page.getByRole('link', { name: 'San Francisco Office' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    const memberRow = page.getByRole('row').filter({ hasText: 'manager@sf.acme.com' })
+    await expect(memberRow).toBeVisible()
+
+    // The member's name links to the user detail page.
+    await memberRow.getByRole('link').first().click()
+    await expect(page).toHaveURL(/\/app\/users\/[0-9a-f-]+/)
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+  })
 })

@@ -26,7 +26,8 @@
     "test:e2e:audit": "playwright test e2e/audit",
     "test:e2e:settings": "playwright test e2e/settings",
     "test:e2e:account": "playwright test e2e/account",
-    "test:e2e:a11y": "playwright test e2e/a11y"
+    "test:e2e:a11y": "playwright test e2e/a11y",
+    "test:e2e:clean": "playwright test --project=cleanup"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.121",
