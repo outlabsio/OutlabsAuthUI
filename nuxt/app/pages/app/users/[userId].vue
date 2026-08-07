@@ -1,13 +1,36 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
 import type { TableColumn } from '@nuxt/ui'
-import { userDetailQuery, userRolesQuery, userSessionsQuery } from '~/queries/users'
-import { getApiErrorMessage } from '~/api/client'
-import type { Role } from '~/types/role'
-import type { User } from '~/types/user'
+import type { User, UserRoleMembership } from '~/types/user'
 import type { UserSession } from '~/types/account'
 
-// Matches the users list badge palette (invited distinct from suspended).
+// User detail — logic in useUserDetail; this file is display only.
+const route = useRoute()
+const userId = computed(() => String(route.params.userId))
+
+const {
+  user,
+  status,
+  errorMessage,
+  sessions,
+  sessionsStatus,
+  roleMemberships,
+  rolesStatus,
+  canManageRoles,
+  roleRowMenu,
+  rolesPool,
+  assignSelectedRoles,
+  assignOpen,
+  assignState,
+  assigning,
+  openAssign,
+  onAssign,
+  removeOpen,
+  removeTarget,
+  removing,
+  onConfirmRemove
+} = useUserDetail(userId)
+
+// --- Pure display config ---
 const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'error' | 'neutral'> = {
   active: 'success',
   invited: 'info',
@@ -15,17 +38,6 @@ const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'erro
   banned: 'error',
   deleted: 'neutral'
 }
-
-const route = useRoute()
-const userId = computed(() => String(route.params.userId))
-const { hasPermission } = useAuth()
-
-// Gate every fetch on the read permission (see users/index.vue) — a denied actor sees the
-// AppPermissionGate verdict and fires no 403s.
-const canRead = computed(() => hasPermission('user:read'))
-const { data: user, status, error } = useQuery(() => ({ ...userDetailQuery(userId.value), enabled: canRead.value }))
-const { data: roles } = useQuery(() => ({ ...userRolesQuery(userId.value), enabled: canRead.value }))
-const { data: sessions, status: sessionsStatus } = useQuery(() => ({ ...userSessionsQuery(userId.value), enabled: canRead.value }))
 
 const profileItems = computed(() => {
   const u = user.value
@@ -44,14 +56,13 @@ const profileItems = computed(() => {
   ]
 })
 
-const roleRows = computed<Role[]>(() => roles.value ?? [])
-const roleColumns: TableColumn<Role>[] = [
-  { accessorKey: 'display_name', header: 'Role' },
-  { accessorKey: 'name', header: 'Name' },
-  { accessorKey: 'scope', header: 'Scope' }
+const roleColumns: TableColumn<UserRoleMembership>[] = [
+  { id: 'role', header: 'Role' },
+  { accessorKey: 'valid_until', header: 'Valid until' },
+  { id: 'validity', header: 'Status' },
+  { id: 'actions', header: '' }
 ]
 
-const sessionRows = computed<UserSession[]>(() => sessions.value ?? [])
 const sessionColumns: TableColumn<UserSession>[] = [
   { accessorKey: 'device_name', header: 'Device' },
   { accessorKey: 'ip_address', header: 'IP address' },
@@ -82,7 +93,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
           color="error"
           icon="i-lucide-triangle-alert"
           title="Could not load user"
-          :description="getApiErrorMessage(error)"
+          :description="errorMessage"
         />
 
         <div v-else class="mx-auto w-full max-w-3xl space-y-6">
@@ -107,13 +118,63 @@ const sessionColumns: TableColumn<UserSession>[] = [
 
           <UCard>
             <template #header>
-              <h2 class="font-semibold text-highlighted">
-                Roles
-              </h2>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <h2 class="font-semibold text-highlighted">
+                    Direct roles
+                  </h2>
+                  <span class="text-sm text-muted">{{ roleMemberships.length }}</span>
+                </div>
+                <UButton
+                  v-if="canManageRoles"
+                  icon="i-lucide-plus"
+                  size="xs"
+                  variant="outline"
+                  color="neutral"
+                  label="Assign roles"
+                  @click="openAssign"
+                />
+              </div>
             </template>
-            <UTable :data="roleRows" :columns="roleColumns" :empty="'No roles assigned.'">
-              <template #scope-cell="{ row }">
-                <span class="capitalize">{{ row.original.scope.replace('_', ' ') }}</span>
+            <UTable
+              :data="roleMemberships"
+              :columns="roleColumns"
+              :loading="rolesStatus === 'pending'"
+              :empty="'No roles assigned directly.'"
+            >
+              <template #role-cell="{ row }">
+                <div class="flex items-baseline gap-2">
+                  <ULink :to="`/app/roles/${row.original.role_id}`" class="font-medium text-highlighted hover:underline">
+                    {{ row.original.role.display_name }}
+                  </ULink>
+                  <span class="text-xs capitalize text-dimmed">{{ row.original.role.scope.replace('_', ' ') }}</span>
+                </div>
+              </template>
+              <template #valid_until-cell="{ row }">
+                {{ row.original.valid_until ? row.original.valid_until.slice(0, 10) : 'No expiry' }}
+              </template>
+              <template #validity-cell="{ row }">
+                <UBadge
+                  :color="row.original.is_currently_valid ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                  class="capitalize"
+                >
+                  {{ row.original.is_currently_valid ? 'Active' : (row.original.status || 'Inactive') }}
+                </UBadge>
+              </template>
+              <template #actions-cell="{ row }">
+                <div v-if="roleRowMenu(row.original).length" class="text-right">
+                  <UDropdownMenu :items="roleRowMenu(row.original)">
+                    <UButton
+                      icon="i-lucide-ellipsis-vertical"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Role actions"
+                    />
+                  </UDropdownMenu>
+                </div>
               </template>
             </UTable>
           </UCard>
@@ -124,7 +185,7 @@ const sessionColumns: TableColumn<UserSession>[] = [
                 Active sessions
               </h2>
             </template>
-            <UTable :data="sessionRows" :columns="sessionColumns" :loading="sessionsStatus === 'pending'">
+            <UTable :data="sessions" :columns="sessionColumns" :loading="sessionsStatus === 'pending'">
               <template #last_used_at-cell="{ row }">
                 {{ row.original.last_used_at ?? '—' }}
               </template>
@@ -134,4 +195,78 @@ const sessionColumns: TableColumn<UserSession>[] = [
       </AppPermissionGate>
     </template>
   </UDashboardPanel>
+
+  <!-- Assign roles -->
+  <UModal
+    v-model:open="assignOpen"
+    title="Assign roles"
+    :description="`Grant direct roles to ${user?.email ?? 'this user'}.`"
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <span class="block text-sm font-medium text-default">Roles</span>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <AppRolePicker v-model="assignState.roleIds" :roles="rolesPool" height-class="h-64" />
+            <div class="h-64 overflow-hidden rounded-md border border-default p-3">
+              <AppEffectivePermissions :roles="assignSelectedRoles" />
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid from</span>
+            <AppDateField v-model="assignState.validFrom" placeholder="Any time" />
+          </div>
+          <div class="space-y-1.5">
+            <span class="block text-sm font-medium text-default">Valid until</span>
+            <AppDateField v-model="assignState.validUntil" placeholder="No expiry" />
+          </div>
+        </div>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="assignOpen = false"
+        />
+        <UButton
+          label="Assign"
+          :loading="assigning"
+          :disabled="!assignState.roleIds.length"
+          @click="onAssign"
+        />
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Remove role -->
+  <UModal v-model:open="removeOpen" title="Remove role">
+    <template #body>
+      <p class="text-sm text-muted">
+        Remove <span class="font-medium text-default">{{ removeTarget?.role.display_name }}</span> from this user?
+        Permissions granted only by this role are revoked.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Cancel"
+          @click="removeOpen = false"
+        />
+        <UButton
+          color="error"
+          label="Remove"
+          :loading="removing"
+          @click="onConfirmRemove"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>

@@ -1,8 +1,32 @@
 import type { PaginatedResponse } from '~/types/auth'
+import type { Role } from '~/types/role'
 
 // Ported from the React users feature (src/features/users/types). Wire shapes only.
 
 export type UserStatusValue = 'active' | 'invited' | 'suspended' | 'banned' | 'deleted'
+
+// A role assigned DIRECTLY to a user (distinct from roles granted via entity membership), with its
+// validity window + the embedded role. From GET /users/{id}/role-memberships.
+export type UserRoleMembership = {
+  id: string
+  user_id: string
+  role_id: string
+  assigned_at?: string | null
+  valid_from?: string | null
+  valid_until?: string | null
+  status: string
+  is_currently_valid: boolean
+  can_grant_permissions: boolean
+  role: Role
+}
+
+// POST /users/{id}/roles — assign one direct role, optional validity window.
+export type AssignUserRoleInput = {
+  userId: string
+  roleId: string
+  valid_from?: string | null
+  valid_until?: string | null
+}
 
 export type User = {
   id: string

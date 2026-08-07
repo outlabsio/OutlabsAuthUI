@@ -16,6 +16,12 @@ npx playwright test --retries=1
 ```
 Dev preview runs on :3001 (CORS allows 3000/3001); Playwright starts its own :3000. Backend on :8004.
 
+**Dev gotcha — cached-module phantoms.** A long-lived preview browser tab that survived many HMR
+edits can throw errors from stale cached modules (seen: `defaultPlaceholder.copy is not a function`,
+`ENTITIES_ROOT is not defined`) that are NOT in the real code — different tabs show different phantoms
+at different `?v=` hashes. Don't chase them; open a brand-new tab (or trust the fresh-server E2E,
+which guards console errors in `user-roles.spec.ts`). typecheck/lint/E2E are the source of truth.
+
 ## Design decisions (locked)
 - **Redesign, don't port** the React layouts — keep the functionality, not the screens.
 - **One modal per action.**
@@ -62,8 +68,9 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
 1. **Kit step 4** — `AppRoleChip` (a role chip whose popover shows that role's permissions via
    AppPermissionList); retrofit the member-row roles and user-detail roles to use it.
 2. **User lifecycle (task #11)** on the user-detail page — build order:
-   1. **Direct role assignment** — drop `AppRolePicker` + `AppEffectivePermissions` onto user detail
-      (immediate kit reuse). Backend `direct-role-assignment` (roleIds + validity window).
+   1. ~~**Direct role assignment**~~ — DONE. `useUserDetail` + a manageable **Direct roles** card
+      (assign via `AppRolePicker` + `AppEffectivePermissions` with a validity window; remove). Pool
+      scoped to the user's org (global + `root_entity_id`). E2E: `e2e/users/user-roles.spec.ts`.
    2. **Invite user** (`invite-user`: email, first/last, entityId, roleIds, isSuperuser) — also
       covers "invite a new user into an entity" (entity-member-invite).
    3. **Change status** (suspend/ban + suspendedUntil + reason) and **admin reset-password**.

@@ -60,7 +60,10 @@ an existing form; **P3** = polish / edge.
 - **P1 Invite user** (`invite-user`: email, first/last, entityId, roleIds, isSuperuser) — invite vs create-with-password. Absent.
 - **P1 Change status** (`update-user-status`: active/suspended/banned + `suspendedUntil` + reason) — suspend/ban a user. Nuxt only soft-deletes.
 - **P1 Reset password** (`reset-user-password`: new + confirm) — admin resets a user's password. Absent.
-- **P1 Direct role assignment** (`direct-role-assignment`: roleIds + validity window) + edit assignment validity — Nuxt user detail lists roles **read-only**; can't assign.
+- **~~P1 Direct role assignment~~ — DONE.** User detail now has a manageable **Direct roles** card:
+  assign (via `AppRolePicker` + live `AppEffectivePermissions`, pool scoped to the user's org) with a
+  validity window, and remove. E2E: `e2e/users/user-roles.spec.ts`. (Editing an existing assignment's
+  validity — `role-memberships` PATCH — is a later refinement.)
 - **P1 Membership management** (`membership-access-dialog`) — manage a user's entity memberships. Absent.
 - **P2 Permission check** (`permission-check-dialog`) — "does this user have permission X (here)?" debugging tool. Absent.
 - **P3 Delete confirmation** — React requires typing the user's email to confirm; Nuxt is a plain confirm.

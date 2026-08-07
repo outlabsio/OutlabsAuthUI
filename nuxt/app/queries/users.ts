@@ -1,9 +1,11 @@
 import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
 import { apiClient } from '~/api/client'
 import type {
+  AssignUserRoleInput,
   CreateUserInput,
   UpdateUserInput,
   User,
+  UserRoleMembership,
   UsersListFilters,
   UsersListResponse
 } from '~/types/user'
@@ -70,6 +72,30 @@ export function useDeleteUser() {
   const queryCache = useQueryCache()
   return useMutation({
     mutation: (userId: string) => apiClient.delete<undefined>(`/users/${userId}`),
+    onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
+  })
+}
+
+// Direct role assignments (with validity), distinct from roles granted via entity membership.
+export const userRoleMembershipsQuery = defineQueryOptions((userId: string) => ({
+  key: [USERS_ROOT, 'detail', userId, 'role-memberships'],
+  query: ctx => apiClient.get<UserRoleMembership[]>(`/users/${userId}/role-memberships`, { signal: ctx?.signal })
+}))
+
+export function useAssignUserRole() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: ({ userId, roleId, valid_from, valid_until }: AssignUserRoleInput) =>
+      apiClient.post(`/users/${userId}/roles`, { body: { role_id: roleId, valid_from, valid_until } }),
+    onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
+  })
+}
+
+export function useRemoveUserRole() {
+  const queryCache = useQueryCache()
+  return useMutation({
+    mutation: ({ userId, roleId }: { userId: string, roleId: string }) =>
+      apiClient.delete<undefined>(`/users/${userId}/roles/${roleId}`),
     onSettled: () => queryCache.invalidateQueries({ key: [USERS_ROOT] })
   })
 }
