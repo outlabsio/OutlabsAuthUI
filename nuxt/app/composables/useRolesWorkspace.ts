@@ -5,23 +5,23 @@ import type { CreateRoleSchema, UpdateRoleSchema } from '~/schemas/role'
 import { getApiErrorMessage } from '~/api/client'
 import type { Role, RolesListFilters } from '~/types/role'
 
-// Feature logic for the roles workspace (list + create/edit/delete). The SFC binds this and
-// owns pure display config (columns, status colours); no queries/handlers in the template.
+// Feature logic for the roles workspace. Shared CRUD behavior from useResourceCrud; the query +
+// create/edit forms are per-resource.
 
 export function useRolesWorkspace() {
-  const toast = useToast()
   const { hasPermission } = useAuth()
-  const canCreate = computed(() => hasPermission('role:create'))
 
   const filters = reactive<RolesListFilters>({ page: 1, limit: 100, search: '' })
   const { data, status, error, refetch } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
   const rows = computed<Role[]>(() => data.value?.items ?? [])
   const errorMessage = computed(() => getApiErrorMessage(error.value))
 
+  const crud = useResourceCrud<Role>({ noun: 'role', refetch, createPermission: 'role:create', deleteMutation: useDeleteRole() })
+
   function rowMenu(role: Role) {
     return [
       { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openEdit(role) },
-      { label: 'Delete', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => openDelete(role) }
+      { label: 'Delete', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => crud.openDelete(role) }
     ]
   }
 
@@ -30,26 +30,20 @@ export function useRolesWorkspace() {
   const createState = reactive<Partial<CreateRoleSchema>>({ name: '', display_name: '', description: '', is_global: false })
   const createRole = useCreateRole()
   const creating = ref(false)
-
   async function onCreate(event: FormSubmitEvent<CreateRoleSchema>) {
     creating.value = true
-    try {
-      await createRole.mutateAsync({
-        name: event.data.name,
-        display_name: event.data.display_name,
-        description: event.data.description,
-        is_global: event.data.is_global ?? false,
-        permissions: []
-      })
-      toast.add({ title: 'Role created', color: 'success', icon: 'i-lucide-check' })
+    const ok = await crud.run(() => createRole.mutateAsync({
+      name: event.data.name,
+      display_name: event.data.display_name,
+      description: event.data.description,
+      is_global: event.data.is_global ?? false,
+      permissions: []
+    }), { success: 'Role created', error: 'Could not create role' })
+    if (ok) {
       createOpen.value = false
       Object.assign(createState, { name: '', display_name: '', description: '', is_global: false })
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not create role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creating.value = false
     }
+    creating.value = false
   }
 
   // --- Edit ---
@@ -58,60 +52,26 @@ export function useRolesWorkspace() {
   const editState = reactive<UpdateRoleSchema>({ display_name: '', description: '' })
   const updateRole = useUpdateRole()
   const saving = ref(false)
-
   function openEdit(role: Role) {
     editTarget.value = role
     editState.display_name = role.display_name
     editState.description = role.description ?? ''
     editOpen.value = true
   }
-
   async function onSaveEdit(event: FormSubmitEvent<UpdateRoleSchema>) {
-    if (!editTarget.value) return
+    const target = editTarget.value
+    if (!target) return
     saving.value = true
-    try {
-      await updateRole.mutateAsync({
-        roleId: editTarget.value.id,
-        input: { display_name: event.data.display_name, description: event.data.description }
-      })
-      toast.add({ title: 'Role updated', color: 'success', icon: 'i-lucide-check' })
-      editOpen.value = false
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not update role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      saving.value = false
-    }
-  }
-
-  // --- Delete ---
-  const deleteOpen = ref(false)
-  const deleteTarget = ref<Role | null>(null)
-  const deleteRole = useDeleteRole()
-  const deleting = ref(false)
-
-  function openDelete(role: Role) {
-    deleteTarget.value = role
-    deleteOpen.value = true
-  }
-
-  async function onConfirmDelete() {
-    if (!deleteTarget.value) return
-    deleting.value = true
-    try {
-      await deleteRole.mutateAsync(deleteTarget.value.id)
-      toast.add({ title: 'Role deleted', color: 'success', icon: 'i-lucide-check' })
-      deleteOpen.value = false
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not delete role', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      deleting.value = false
-    }
+    const ok = await crud.run(() => updateRole.mutateAsync({
+      roleId: target.id,
+      input: { display_name: event.data.display_name, description: event.data.description }
+    }), { success: 'Role updated', error: 'Could not update role' })
+    if (ok) editOpen.value = false
+    saving.value = false
   }
 
   return {
-    canCreate,
+    canCreate: crud.canCreate,
     filters,
     rows,
     status,
@@ -125,12 +85,10 @@ export function useRolesWorkspace() {
     editTarget,
     editState,
     saving,
-    openEdit,
     onSaveEdit,
-    deleteOpen,
-    deleteTarget,
-    deleting,
-    openDelete,
-    onConfirmDelete
+    deleteOpen: crud.deleteOpen,
+    deleteTarget: crud.deleteTarget,
+    deleting: crud.deleting,
+    onConfirmDelete: crud.confirmDelete
   }
 }

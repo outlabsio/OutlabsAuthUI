@@ -31,7 +31,8 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
   `useQuery` is enough. (SPA, so `defineQuery`'s "state isn't SSR-serialized" caveat doesn't
   apply to us.)
 - A composable per feature (`useEntitiesWorkspace`, `useEntityDetail`), plus shared building
-  blocks (e.g. `useResourceList` for list + search + pagination).
+  blocks (e.g. `useResourceCrud` — the shared create-gate + toast-wrapped `run` + delete-confirm
+  flow used by the users/roles/permissions list features; each keeps its own query + forms).
 
 ### 3. Display — the `.vue` SFC
 - Template + presentational helpers + **exactly one** `const { … } = useFeature()`.
@@ -96,7 +97,11 @@ the `nuxt` branch (each feature is its own commit) to know exactly what's done a
 **Feature rollout complete** — every `app/pages/app/**` view is now template + one `useFeature()`
 call + pure display config; all feature logic lives in `app/composables/`.
 
-- [ ] (optional) DRY a shared `useResourceList` now the list shape is proven across users/roles/permissions
+- [x] DRY'd shared CRUD behavior into `useResourceCrud` (create gate + toast-wrapped `run` +
+      delete-confirm flow), adopted by users/roles/permissions. The list query + create/edit forms
+      stay per-feature (inherently per-resource; the query is kept typed inline).
+
+**Refactor complete.**
 
 **Resume / verify** — per feature: follow "Definition of done" above, one commit each. Verify with
 `npm run typecheck && npm run lint`, then E2E. E2E needs the seeded enterprise_rbac backend on

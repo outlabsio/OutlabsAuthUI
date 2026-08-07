@@ -5,13 +5,11 @@ import type { CreatePermissionSchema } from '~/schemas/permission'
 import { getApiErrorMessage } from '~/api/client'
 import type { Permission, PermissionsListFilters } from '~/types/permission'
 
-// Feature logic for the permissions workspace (list + create + delete). The list is small and
-// returned whole, so search filters client-side. The SFC binds this and owns display config.
+// Feature logic for the permissions workspace. The list is small and returned whole, so search
+// filters client-side. Shared CRUD behavior (create gate, `run`, delete flow) from useResourceCrud.
 
 export function usePermissionsWorkspace() {
-  const toast = useToast()
   const { hasPermission } = useAuth()
-  const canCreate = computed(() => hasPermission('permission:create'))
 
   const filters = reactive<PermissionsListFilters>({ page: 1, limit: 1000 })
   const search = ref('')
@@ -26,9 +24,11 @@ export function usePermissionsWorkspace() {
     return all.filter(p => `${p.name} ${p.display_name}`.toLowerCase().includes(term))
   })
 
+  const crud = useResourceCrud<Permission>({ noun: 'permission', refetch, createPermission: 'permission:create', deleteMutation: useDeletePermission() })
+
   function rowMenu(permission: Permission) {
     return [
-      { label: 'Delete', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => openDelete(permission) }
+      { label: 'Delete', icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => crud.openDelete(permission) }
     ]
   }
 
@@ -37,50 +37,18 @@ export function usePermissionsWorkspace() {
   const createState = reactive<Partial<CreatePermissionSchema>>({ name: '', display_name: '', description: '' })
   const createPermission = useCreatePermission()
   const creating = ref(false)
-
   async function onCreate(event: FormSubmitEvent<CreatePermissionSchema>) {
     creating.value = true
-    try {
-      await createPermission.mutateAsync(event.data)
-      toast.add({ title: 'Permission created', color: 'success', icon: 'i-lucide-check' })
+    const ok = await crud.run(() => createPermission.mutateAsync(event.data), { success: 'Permission created', error: 'Could not create permission' })
+    if (ok) {
       createOpen.value = false
       Object.assign(createState, { name: '', display_name: '', description: '' })
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not create permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      creating.value = false
     }
-  }
-
-  // --- Delete (custom permissions only; system permissions are backend-protected) ---
-  const deleteOpen = ref(false)
-  const deleteTarget = ref<Permission | null>(null)
-  const deletePermission = useDeletePermission()
-  const deleting = ref(false)
-
-  function openDelete(permission: Permission) {
-    deleteTarget.value = permission
-    deleteOpen.value = true
-  }
-
-  async function onConfirmDelete() {
-    if (!deleteTarget.value) return
-    deleting.value = true
-    try {
-      await deletePermission.mutateAsync(deleteTarget.value.id)
-      toast.add({ title: 'Permission deleted', color: 'success', icon: 'i-lucide-check' })
-      deleteOpen.value = false
-      await refetch()
-    } catch (err) {
-      toast.add({ title: 'Could not delete permission', description: getApiErrorMessage(err), color: 'error', icon: 'i-lucide-triangle-alert' })
-    } finally {
-      deleting.value = false
-    }
+    creating.value = false
   }
 
   return {
-    canCreate,
+    canCreate: crud.canCreate,
     search,
     rows,
     status,
@@ -90,9 +58,9 @@ export function usePermissionsWorkspace() {
     createState,
     creating,
     onCreate,
-    deleteOpen,
-    deleteTarget,
-    deleting,
-    onConfirmDelete
+    deleteOpen: crud.deleteOpen,
+    deleteTarget: crud.deleteTarget,
+    deleting: crud.deleting,
+    onConfirmDelete: crud.confirmDelete
   }
 }
