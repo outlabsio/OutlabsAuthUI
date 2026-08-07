@@ -70,16 +70,40 @@ display and logic never mix. The layers below are grounded in the Pinia and Pini
 - Logic in `composables/`; server IO in `queries/` with a key factory.
 - typecheck + lint clean; the feature's E2E stays green.
 
-## Rollout
-- [x] Patterns doc
-- [x] Entities (pilot) — `useEntitiesWorkspace` + `useEntityDetail`, thin `index.vue` + `EntityDetail.vue`, `entityKeys` factory
-- [x] utils cleanup — dead barrel removed; token module moved to `app/auth/`
-- [x] Toast ownership decided — feature composables (specific titles); global catch-all net deferred
-- [x] Relocated HTTP client `utils/api.ts` → `app/api/client.ts` (33 imports repointed)
-- [x] Removed the orphan UI store (YAGNI — no global client state today; doc says when to reintroduce)
-- [ ] Roll the composable pattern to the remaining features: users, roles, permissions,
-      system api-keys, personal api-keys, audit, account (extract per-feature composables first;
-      DRY a shared `useResourceList` once the common list shape is proven across a few)
+## Rollout status
+
+Single source of truth for where this refactor is. Read this section + `git log --oneline` on
+the `nuxt` branch (each feature is its own commit) to know exactly what's done and what's next.
+
+**Infra & decisions — done**
+- [x] Patterns doc (this file)
+- [x] `utils/` cleanup — dead `index.ts` barrel removed; token singleton → `app/auth/tokens.ts`
+- [x] HTTP client relocated `utils/api.ts` → `app/api/client.ts` (33 imports repointed)
+- [x] Toast ownership — specific per-feature toasts in composables; global catch-all net deferred
+- [x] Orphan UI store removed (reintroduce per Layer 4 only when a real need appears)
+
+**Feature rollout — each SFC becomes template + one `useFeature()` call**
+- [x] entities (pilot) — `useEntitiesWorkspace` + `useEntityDetail` (+ `entityKeys` factory)
+- [x] users — `useUsersWorkspace`
+- [x] roles — `useRolesWorkspace`
+- [x] permissions — `usePermissionsWorkspace`
+- [ ] personal api-keys — `app/pages/app/api-keys.vue`
+- [ ] system api-keys — `app/pages/app/users/api-keys.vue` (largest: scope toggle + service accounts + machine keys + inventory tabs)
+- [ ] audit — `app/pages/app/audit.vue`
+- [ ] account — `app/pages/app/account.vue`
+- [ ] settings — `app/pages/app/settings.vue`
+- [ ] (optional) DRY a shared `useResourceList` now the list shape is proven across users/roles/permissions
+
+**Resume / verify** — per feature: follow "Definition of done" above, one commit each. Verify with
+`npm run typecheck && npm run lint`, then E2E. E2E needs the seeded enterprise_rbac backend on
+`:8004` with persona env matching the seed (the built-in test defaults do **not** match it):
+```
+E2E_API_BASE_URL=http://localhost:8004 \
+E2E_ADMIN_EMAIL=admin@acme.com E2E_ADMIN_PASSWORD=Testpass1! \
+E2E_AGENT_EMAIL=agent@sf.acme.com E2E_AGENT_PASSWORD=Testpass1! \
+npx playwright test --retries=1
+```
+The suite self-cleans its `pw`/`PW` test data via the cleanup teardown.
 
 ## References
 - [Pinia Colada — Queries](https://pinia-colada.esm.dev/guide/queries.html) · [Reusable Queries (`defineQuery`)](https://pinia-colada.esm.dev/advanced/reusable-queries.html) · [Mutations](https://pinia-colada.esm.dev/guide/mutations.html)
