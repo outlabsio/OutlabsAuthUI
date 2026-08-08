@@ -249,15 +249,7 @@ const entityStatusItems = [
                 </template>
                 <template #roles-cell="{ row }">
                   <div class="flex flex-wrap gap-1">
-                    <UBadge
-                      v-for="r in row.original.roles"
-                      :key="r.id"
-                      color="neutral"
-                      variant="subtle"
-                      size="sm"
-                    >
-                      {{ r.display_name || r.name }}
-                    </UBadge>
+                    <AppRoleChip v-for="r in row.original.roles" :key="r.id" :role="r" />
                     <span v-if="!row.original.roles.length" class="text-sm text-dimmed">—</span>
                   </div>
                 </template>

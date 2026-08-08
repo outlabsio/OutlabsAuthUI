@@ -190,7 +190,6 @@ export function useUserDetail(userId: Ref<string>) {
     .filter(e => entityRootOf(e.id) === user.value?.root_entity_id && !memberEntityIds.value.has(e.id))
     .map(e => ({ label: e.display_name, value: e.id })))
   const entityName = (entityId: string) => entityById.value.get(entityId)?.display_name ?? entityId
-  const membershipRoleNames = (roleIds: string[]) => roleIds.map(id => roleById.value.get(id)?.display_name ?? id)
 
   // Add membership
   const addMember = useAddMember()
@@ -321,7 +320,6 @@ export function useUserDetail(userId: Ref<string>) {
     membershipRowMenu,
     membershipEntityOptions,
     entityName,
-    membershipRoleNames,
     memberStatusItems,
     orgRoles,
     addMembershipOpen,

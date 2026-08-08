@@ -46,7 +46,6 @@ const {
   membershipRowMenu,
   membershipEntityOptions,
   entityName,
-  membershipRoleNames,
   memberStatusItems,
   orgRoles,
   addMembershipOpen,
@@ -270,15 +269,7 @@ const membershipColumns: TableColumn<Membership>[] = [
               </template>
               <template #roles-cell="{ row }">
                 <div class="flex flex-wrap gap-1">
-                  <UBadge
-                    v-for="name in membershipRoleNames(row.original.role_ids)"
-                    :key="name"
-                    color="neutral"
-                    variant="subtle"
-                    size="sm"
-                  >
-                    {{ name }}
-                  </UBadge>
+                  <AppRoleChip v-for="id in row.original.role_ids" :key="id" :role="{ id }" />
                   <span v-if="!row.original.role_ids.length" class="text-sm text-dimmed">—</span>
                 </div>
               </template>

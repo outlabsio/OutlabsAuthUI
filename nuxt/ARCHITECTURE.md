@@ -119,8 +119,10 @@ Roles and permissions surface in many places (role detail, role create/edit, mem
 soon user detail / invite). They are shown and picked **only through one kit** so they read
 identically everywhere — never ad-hoc badge lists or `USelectMenu`s:
 - **Display** — `AppPermissionList` (permission NAMES → grouped-by-resource, enriched via the
-  catalog; compact badges or `detailed` rows) and `AppEffectivePermissions` (the deduped union a set
-  of roles grants — the "what will they get" view).
+  catalog; compact badges or `detailed` rows), `AppEffectivePermissions` (the deduped union a set of
+  roles grants — the "what will they get" view), and `AppRoleChip` (a role as a chip; hover shows its
+  permissions via AppPermissionList, resolving the role from `useRoleCatalog`). Show a role/permission
+  through these, never a bare `UBadge`.
 - **Pick** — `AppPermissionPicker` (permissions) and `AppRolePicker` (roles): both Nuxt UI
   `UCommandPalette` multi-selects (fuzzy search + keyboard nav), bound to name/id arrays via
   `value-key`. Callers pass the assignable pool (e.g. entity member roles are scoped to the org).

@@ -81,7 +81,8 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
 - List filters: roles (type/scope/usage/system), permissions (resource/system/status/tag), users
   orphaned view.
 - API keys: IP allowlist, prefix type, machine-key access mode, key status/suspend.
-- Kit step 4: `AppRoleChip` (role chip → permissions popover) retrofit on member rows + user roles.
+- ~~Kit step 4: `AppRoleChip`~~ — DONE. Role chip with a hover popover of its permissions (resolved
+  via `useRoleCatalog`); retrofit on entity member rows + user membership roles. Guardrail updated.
 - Refinements: member "include inactive" toggle; role picker `assignable_at_types` filtering;
   account phone verification; access-code whatsapp/sms channels; edit an existing role-membership's
   validity (role-memberships PATCH).
