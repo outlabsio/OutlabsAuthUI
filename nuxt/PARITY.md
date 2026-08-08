@@ -80,7 +80,7 @@ an existing form; **P3** = polish / edge.
 - **P2 Permission check** (`permission-check-dialog`) — "does this user have permission X (here)?" debugging tool. Absent.
 - **P3 Delete confirmation** — React requires typing the user's email to confirm; Nuxt is a plain confirm.
 
-**List** (`users-search.schema`): React adds an **orphaned users** view + rootEntity filter; Nuxt has the status filter only. (P2 orphaned view, P3 rootEntity filter.)
+**List**: status filter + an **"Orphaned only"** toggle (switches to `GET /users/orphaned`) — DONE. (rootEntity filter still P3.)
 
 **Detail page**: React is tabbed — **details / access / history**. Nuxt = Profile + read-only Roles + Sessions. Missing: **P1 access tab** (role + membership management), **P2 history tab** (per-user audit).
 
@@ -102,13 +102,13 @@ an existing form; **P3** = polish / edge.
 
 E2E: `e2e/roles/role-type-scope.spec.ts` (root-scoped create).
 
-**List** (`roles-search.schema`): React filters by roleType, scope mode, root, assignable-type, usage (auto/manual), system; Nuxt = search only. (P2)
+**List**: search + **reach** (all/global/scoped, server) + **origin** (system/custom, client) — DONE. (Finer roleType/scope/usage filters still possible later.)
 
 ## Permissions
 
 **Create form** (`permission-form.schema`): React splits **`resource` + `action`** (regex-validated) and adds **`tagsText`** + **isSystem** / **isActive** toggles. Nuxt takes a single combined `name` (resource:action) + display_name + description. (P2 resource/action split + tags; P3 isSystem/isActive.)
 
-**List** (`permissions-search.schema`): React filters by resource, system (all/system/custom), status, tag; Nuxt = client-side search only. (P2)
+**List**: search + **resource** + **origin** (all/system/custom) filters (client-side over the whole list) — DONE. (tag filter still possible later.)
 
 ## API keys
 

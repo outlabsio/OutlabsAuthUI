@@ -9,6 +9,7 @@ const {
   filters,
   statusFilter,
   statusItems,
+  orphanedOnly,
   rows,
   total,
   status,
@@ -94,8 +95,10 @@ const statusColor: Record<User['status'], 'success' | 'info' | 'warning' | 'erro
             :items="statusItems"
             value-key="value"
             class="w-40"
+            :disabled="orphanedOnly"
             aria-label="Filter by status"
           />
+          <UCheckbox v-model="orphanedOnly" label="Orphaned only" />
         </template>
       </UDashboardToolbar>
     </template>

@@ -1,6 +1,6 @@
 import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { usersListQuery, useCreateUser, useDeleteUser, useInviteUser, useUpdateUser } from '~/queries/users'
+import { usersListQuery, usersOrphanedQuery, useCreateUser, useDeleteUser, useInviteUser, useUpdateUser } from '~/queries/users'
 import { entitiesListQuery } from '~/queries/entities'
 import { rolesListQuery } from '~/queries/roles'
 import type { CreateUserSchema, InviteUserSchema, UpdateUserSchema } from '~/schemas/user'
@@ -28,16 +28,23 @@ export function useUsersWorkspace() {
 
   const filters = reactive<UsersListFilters>({ page: 1, limit: 20, search: '' })
   const statusFilter = ref<StatusFilter>('active')
-  watch([() => filters.search, statusFilter], () => {
+  const orphanedOnly = ref(false) // orphaned = users with no entity membership (separate endpoint)
+  watch([() => filters.search, statusFilter, orphanedOnly], () => {
     filters.page = 1
   })
-  const { data, status, error } = useQuery(() => ({
+  const canRead = computed(() => hasPermission('user:read'))
+  const { data, status: usersStatus, error } = useQuery(() => ({
     ...usersListQuery({ ...filters, status: statusFilter.value === 'all' ? undefined : statusFilter.value }),
-    enabled: hasPermission('user:read')
+    enabled: canRead.value && !orphanedOnly.value
   }))
-  const rows = computed<User[]>(() => data.value?.items ?? [])
-  const total = computed(() => data.value?.total ?? 0)
-  const errorMessage = useApiErrorMessage(error)
+  const { data: orphanedData, status: orphanedStatus, error: orphanedError } = useQuery(() => ({
+    ...usersOrphanedQuery({ page: filters.page, limit: filters.limit, search: filters.search }),
+    enabled: canRead.value && orphanedOnly.value
+  }))
+  const rows = computed<User[]>(() => (orphanedOnly.value ? orphanedData.value?.items : data.value?.items) ?? [])
+  const total = computed(() => (orphanedOnly.value ? orphanedData.value?.total : data.value?.total) ?? 0)
+  const status = computed(() => (orphanedOnly.value ? orphanedStatus.value : usersStatus.value))
+  const errorMessage = useApiErrorMessage(() => (orphanedOnly.value ? orphanedError.value : error.value))
 
   const crud = useResourceCrud<User>({ noun: 'user', createPermission: 'user:create', deleteMutation: useDeleteUser() })
 
@@ -160,6 +167,7 @@ export function useUsersWorkspace() {
     filters,
     statusFilter,
     statusItems: STATUS_ITEMS,
+    orphanedOnly,
     rows,
     total,
     status,

@@ -7,6 +7,10 @@ import type { Role } from '~/types/role'
 const {
   canCreate,
   filters,
+  reachFilter,
+  originFilter,
+  reachItems,
+  originItems,
   rows,
   status,
   errorMessage,
@@ -72,6 +76,21 @@ const statusColor: Record<Role['status'], 'success' | 'neutral'> = {
             icon="i-lucide-search"
             placeholder="Search roles..."
             class="w-64"
+          />
+          <USelect
+            id="role-reach-filter"
+            v-model="reachFilter"
+            :items="reachItems"
+            value-key="value"
+            class="w-36"
+            aria-label="Filter by reach"
+          />
+          <USelect
+            v-model="originFilter"
+            :items="originItems"
+            value-key="value"
+            class="w-36"
+            aria-label="Filter by origin"
           />
         </template>
       </UDashboardToolbar>

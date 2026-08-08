@@ -12,16 +12,34 @@ export function usePermissionsWorkspace() {
 
   const filters = reactive<PermissionsListFilters>({ page: 1, limit: 1000 })
   const search = ref('')
+  const resourceFilter = ref('all')
+  const systemFilter = ref<'all' | 'system' | 'custom'>('all')
   const { data, status, error } = useQuery(() => ({ ...permissionsListQuery({ ...filters }), enabled: hasPermission('permission:read') }))
   const errorMessage = useApiErrorMessage(error)
 
-  // Small list returned whole — filter client-side by name / display_name.
+  const resourceOf = (p: Permission) => p.resource || p.name.split(':')[0] || 'other'
+
+  // Small list returned whole — filter client-side by search + resource + system/custom.
   const rows = computed<Permission[]>(() => {
-    const all = data.value?.items ?? []
     const term = search.value.trim().toLowerCase()
-    if (!term) return all
-    return all.filter(p => `${p.name} ${p.display_name}`.toLowerCase().includes(term))
+    return (data.value?.items ?? []).filter((p) => {
+      if (term && !`${p.name} ${p.display_name}`.toLowerCase().includes(term)) return false
+      if (resourceFilter.value !== 'all' && resourceOf(p) !== resourceFilter.value) return false
+      if (systemFilter.value === 'system' && !p.is_system) return false
+      if (systemFilter.value === 'custom' && p.is_system) return false
+      return true
+    })
   })
+
+  const resourceItems = computed(() => {
+    const set = new Set((data.value?.items ?? []).map(resourceOf))
+    return [{ label: 'All resources', value: 'all' }, ...[...set].sort().map(r => ({ label: r, value: r }))]
+  })
+  const systemItems = [
+    { label: 'All', value: 'all' as const },
+    { label: 'System', value: 'system' as const },
+    { label: 'Custom', value: 'custom' as const }
+  ]
 
   const crud = useResourceCrud<Permission>({ noun: 'permission', createPermission: 'permission:create', deleteMutation: useDeletePermission() })
 
@@ -49,6 +67,10 @@ export function usePermissionsWorkspace() {
   return {
     canCreate: crud.canCreate,
     search,
+    resourceFilter,
+    systemFilter,
+    resourceItems,
+    systemItems,
     rows,
     status,
     errorMessage,

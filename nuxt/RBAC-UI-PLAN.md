@@ -78,8 +78,8 @@ Full E2E: **89/89**. E2E specs: `e2e/entities/entity-members.spec.ts`,
 ## Remaining (P2 + polish)
 - P2 form fields: entity validity window (validFrom/validUntil), permission resource/action split +
   tags + isSystem/isActive, users create confirm-password + rootEntity.
-- List filters: roles (type/scope/usage/system), permissions (resource/system/status/tag), users
-  orphaned view.
+- ~~List filters~~ — DONE (main ones): roles reach + origin, permissions resource + origin, users
+  "orphaned" toggle. E2E `e2e/list-filters.spec.ts`. Finer filters (tag, usage, rootEntity) later.
 - API keys: IP allowlist, prefix type, machine-key access mode, key status/suspend.
 - ~~Kit step 4: `AppRoleChip`~~ — DONE. Role chip with a hover popover of its permissions (resolved
   via `useRoleCatalog`); retrofit on entity member rows + user membership roles. Guardrail updated.

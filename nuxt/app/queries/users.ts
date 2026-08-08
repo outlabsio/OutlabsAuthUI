@@ -44,6 +44,16 @@ export const userDetailQuery = defineQueryOptions((userId: string) => ({
   query: ctx => apiClient.get<User>(`/users/${userId}`, { signal: ctx?.signal })
 }))
 
+// Users with no entity membership (GET /users/orphaned) — a distinct list from the status-filtered one.
+export const usersOrphanedQuery = defineQueryOptions((filters: { page?: number, limit?: number, search?: string }) => {
+  const params = new URLSearchParams({ page: String(filters.page ?? 1), limit: String(filters.limit ?? 20) })
+  if (filters.search) params.set('search', filters.search)
+  return {
+    key: [USERS_ROOT, 'orphaned', filters],
+    query: (ctx: { signal?: AbortSignal }) => apiClient.get<UsersListResponse>(`/users/orphaned?${params.toString()}`, { signal: ctx?.signal })
+  }
+})
+
 export const userRolesQuery = defineQueryOptions((userId: string) => ({
   key: [USERS_ROOT, 'detail', userId, 'roles'],
   query: ctx => apiClient.get<Role[]>(`/users/${userId}/roles`, { signal: ctx?.signal })

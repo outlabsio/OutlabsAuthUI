@@ -7,6 +7,10 @@ import type { Permission } from '~/types/permission'
 const {
   canCreate,
   search,
+  resourceFilter,
+  systemFilter,
+  resourceItems,
+  systemItems,
   rows,
   status,
   errorMessage,
@@ -56,6 +60,20 @@ const columns: TableColumn<Permission>[] = [
             icon="i-lucide-search"
             placeholder="Search permissions..."
             class="w-64"
+          />
+          <USelect
+            v-model="resourceFilter"
+            :items="resourceItems"
+            value-key="value"
+            class="w-40"
+            aria-label="Filter by resource"
+          />
+          <USelect
+            v-model="systemFilter"
+            :items="systemItems"
+            value-key="value"
+            class="w-32"
+            aria-label="Filter by origin"
           />
         </template>
       </UDashboardToolbar>

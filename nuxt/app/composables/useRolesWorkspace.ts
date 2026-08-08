@@ -29,8 +29,30 @@ export function useRolesWorkspace() {
   const { hasPermission } = useAuth()
 
   const filters = reactive<RolesListFilters>({ page: 1, limit: 100, search: '' })
-  const { data, status, error } = useQuery(() => ({ ...rolesListQuery({ ...filters }), enabled: hasPermission('role:read') }))
-  const rows = computed<Role[]>(() => data.value?.items ?? [])
+  const reachFilter = ref<'all' | 'global' | 'scoped'>('all') // server (is_global)
+  const originFilter = ref<'all' | 'system' | 'custom'>('all') // client (is_system_role)
+  watch([() => filters.search, reachFilter], () => {
+    filters.page = 1
+  })
+  const { data, status, error } = useQuery(() => ({
+    ...rolesListQuery({ ...filters, isGlobal: reachFilter.value === 'all' ? undefined : reachFilter.value === 'global' }),
+    enabled: hasPermission('role:read')
+  }))
+  const rows = computed<Role[]>(() => {
+    const all = data.value?.items ?? []
+    if (originFilter.value === 'all') return all
+    return all.filter(r => (originFilter.value === 'system' ? r.is_system_role : !r.is_system_role))
+  })
+  const reachItems = [
+    { label: 'All reach', value: 'all' as const },
+    { label: 'Global', value: 'global' as const },
+    { label: 'Scoped', value: 'scoped' as const }
+  ]
+  const originItems = [
+    { label: 'All origins', value: 'all' as const },
+    { label: 'System', value: 'system' as const },
+    { label: 'Custom', value: 'custom' as const }
+  ]
   const errorMessage = useApiErrorMessage(error)
 
   const crud = useResourceCrud<Role>({ noun: 'role', createPermission: 'role:create', deleteMutation: useDeleteRole() })
@@ -142,6 +164,10 @@ export function useRolesWorkspace() {
   return {
     canCreate: crud.canCreate,
     filters,
+    reachFilter,
+    originFilter,
+    reachItems,
+    originItems,
     rows,
     status,
     errorMessage,
