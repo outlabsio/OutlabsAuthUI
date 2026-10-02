@@ -9,8 +9,9 @@ const APPEARANCE: { value: ColorPreference, label: string, icon: string }[] = [
 ]
 
 // The signed-in actor's menu in the sidebar footer (dashboard template idiom): who is signed in
-// (with their organization and a superuser mark), their own pages (Account, My API keys — from APP_SECTIONS, same gate as every nav item),
-// Appearance and Sign out. It works the same collapsed, expanded and in the mobile drawer.
+// (with their organization and a superuser mark), their own pages (Account, My API keys: the
+// 'user' nav group, in its own order, with the same gate as every nav item), Appearance and Sign
+// out. It works the same collapsed, expanded and in the mobile drawer.
 export function useUserMenu() {
   const { user, displayName, isSuperuser, isEnterprise } = useAuth()
   const { userSections } = useAppNavigation()

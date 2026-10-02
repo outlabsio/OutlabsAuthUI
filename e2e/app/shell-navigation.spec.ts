@@ -202,7 +202,7 @@ test.describe('app shell: user menu', () => {
     await expect(userMenuButton(page)).toBeVisible()
 
     const menu = await openUserMenu(page)
-    for (const name of ['My API keys', 'Account', 'Appearance', 'Sign out']) {
+    for (const name of ['Account', 'My API keys', 'Appearance', 'Sign out']) {
       await expect(menu.getByRole('menuitem', { name })).toBeVisible()
     }
 
@@ -233,6 +233,22 @@ test.describe('app shell: user menu', () => {
 
 test.describe('app shell: command palette', () => {
   test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+
+  // One order everywhere: "Go to" lists the sidebar top to bottom, then the user menu, so a
+  // destination sits in the same place in all three (v-auth-shell-07).
+  test('"Go to" lists the sections in the order of the sidebar and the user menu', async ({ page }) => {
+    await page.goto('/app/dashboard')
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    const sidebar = await sidebarNav(page).getByRole('link').allTextContents()
+    const userMenu = (await userMenuLinks(page)).map(link => link.name)
+    await page.getByRole('button', { name: /^Search/ }).click()
+    const palette = commandPalette(page)
+    const goTo = palette.getByRole('group', { name: 'Go to' }).getByRole('option')
+    await expect(goTo.first()).toBeVisible()
+    const names = (await goTo.allTextContents()).map(name => name.trim())
+    expect(names).toEqual([...sidebar.map(name => name.trim()), ...userMenu])
+    expect(userMenu).toEqual(['Account', 'My API keys'])
+  })
 
   test('jumps to a section and to a record found on the server', async ({ page, api }) => {
     const me = await api.me()

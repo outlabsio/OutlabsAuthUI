@@ -153,6 +153,9 @@ export type AppNavGroup = {
   // 'sidebar' = the main list, 'sidebar-bottom' = pinned to the bottom of the sidebar,
   // 'user-menu' = the footer user menu (and the command palette).
   placement: 'sidebar' | 'sidebar-bottom' | 'user-menu'
+  // The order of the group's sections when it is not APP_SECTIONS order (sections not listed
+  // follow in APP_SECTIONS order).
+  order?: readonly AppSectionId[]
 }
 
 export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
@@ -162,7 +165,8 @@ export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
   { id: 'integrations', label: 'Integrations', placement: 'sidebar' },
   { id: 'monitoring', label: 'Monitoring', placement: 'sidebar' },
   { id: 'system', placement: 'sidebar-bottom' },
-  { id: 'user', placement: 'user-menu' }
+  // The user menu reads Account, My API keys, Appearance, Sign out.
+  { id: 'user', placement: 'user-menu', order: ['account', 'api-keys'] }
 ]
 
 export type AppSection = {
@@ -172,7 +176,8 @@ export type AppSection = {
   label: string
   icon: string
   to: string
-  // Which shell group offers it (APP_NAV_GROUPS). Within a group, APP_SECTIONS order applies.
+  // Which shell group offers it (APP_NAV_GROUPS). Within a group, APP_SECTIONS order applies
+  // unless the group sets its own `order`.
   nav: AppNavGroupId
   requires: AccessRequirement
   // Former routes of the section: the route guard redirects them (and anything beneath them) to

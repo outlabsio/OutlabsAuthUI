@@ -64,9 +64,10 @@ async function expectEveryNavItemOpens(page: Page) {
 }
 
 // Each persona's sidebar + user-menu items, per preset (null = the preset has no such persona).
-const SECTIONS_ALL = ['Dashboard', 'Users', 'Entities', 'Roles', 'Permissions', 'Service accounts', 'Audit', 'Settings', 'My API keys', 'Account']
-const SECTIONS_SIMPLE_ADMIN = ['Dashboard', 'Users', 'Roles', 'Permissions', 'Service accounts', 'Settings', 'My API keys', 'Account']
-const MINIMAL = ['Dashboard', 'My API keys', 'Account']
+// The user menu reads Account, My API keys (v-auth-shell-07).
+const SECTIONS_ALL = ['Dashboard', 'Users', 'Entities', 'Roles', 'Permissions', 'Service accounts', 'Audit', 'Settings', 'Account', 'My API keys']
+const SECTIONS_SIMPLE_ADMIN = ['Dashboard', 'Users', 'Roles', 'Permissions', 'Service accounts', 'Settings', 'Account', 'My API keys']
+const MINIMAL = ['Dashboard', 'Account', 'My API keys']
 
 const MATRIX: Array<{ key: PersonaKey, who: string, nav: Record<Preset, string[] | null> }> = [
   { key: 'admin', who: 'superuser', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: SECTIONS_SIMPLE_ADMIN } },
@@ -78,22 +79,22 @@ const MATRIX: Array<{ key: PersonaKey, who: string, nav: Record<Preset, string[]
   {
     key: 'orgAdmin',
     who: 'delegated org admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'My API keys', 'Account'], SimpleRBAC: null }
+    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
   },
   {
     key: 'summitAdmin',
     who: 'second-organization admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'My API keys', 'Account'], SimpleRBAC: null }
+    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
   },
   {
     key: 'auditor',
     who: 'read-only auditor',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Audit', 'Settings', 'My API keys', 'Account'], SimpleRBAC: null }
+    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
   },
   {
     key: 'permissionsAdmin',
     who: 'permission-catalog admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Roles', 'Permissions', 'Audit', 'Settings', 'My API keys', 'Account'], SimpleRBAC: null }
+    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Roles', 'Permissions', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
   },
   { key: 'globalAdmin', who: 'non-superuser global admin', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: SECTIONS_SIMPLE_ADMIN } }
 ]

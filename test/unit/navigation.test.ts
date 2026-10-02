@@ -10,6 +10,7 @@ import {
   parsePanelMemory,
   planScroll,
   prunePanelMemory,
+  shellOrder,
   type PanelMemory
 } from '../../app/utils/navigation'
 
@@ -51,7 +52,8 @@ describe('groupAppSections', () => {
       ['integrations', ['service-accounts']],
       ['monitoring', ['audit']],
       ['system', ['settings']],
-      ['user', ['api-keys', 'account']]
+      // The user menu reads Account, My API keys, Appearance, Sign out (its own order).
+      ['user', ['account', 'api-keys']]
     ])
     expect(grouped.find(g => g.group.id === 'directory')?.group.label).toBe('Directory')
   })
@@ -64,6 +66,21 @@ describe('groupAppSections', () => {
   it('keeps APP_SECTIONS order inside a group whatever the input order', () => {
     const grouped = groupAppSections(sections('entities', 'users'))
     expect(grouped[0]!.sections.map(s => s.id)).toEqual(['users', 'entities'])
+  })
+})
+
+describe('shellOrder (v-auth-shell-07)', () => {
+  it('lists every section where the shell shows it: the sidebar top to bottom, then the user menu', () => {
+    expect(shellOrder(APP_SECTIONS).map(s => s.id)).toEqual([
+      'dashboard', 'users', 'entities', 'roles', 'permissions', 'service-accounts', 'audit', 'settings', 'account', 'api-keys'
+    ])
+  })
+
+  it('is the sidebar groups and the user menu, concatenated, whatever the input order', () => {
+    const visible = sections('api-keys', 'account', 'audit', 'entities', 'users', 'dashboard', 'roles')
+    const grouped = groupAppSections(visible).flatMap(g => g.sections.map(s => s.id))
+    expect(shellOrder(visible).map(s => s.id)).toEqual(grouped)
+    expect(grouped).toEqual(['dashboard', 'users', 'entities', 'roles', 'audit', 'account', 'api-keys'])
   })
 })
 

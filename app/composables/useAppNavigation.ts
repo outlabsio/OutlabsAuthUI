@@ -1,6 +1,6 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import { APP_SECTIONS, type AppSection } from '~/utils/capabilities'
-import { groupAppSections, navCurrentFor } from '~/utils/navigation'
+import { groupAppSections, navCurrentFor, shellOrder } from '~/utils/navigation'
 
 const CONFIG_TOAST_ID = 'auth-config-unavailable'
 const PERMISSIONS_TOAST_ID = 'permissions-unavailable'
@@ -13,9 +13,11 @@ export function useAppNavigation() {
   const { canAccess } = useAuth()
   const route = useRoute()
 
-  // Every section this actor may open, in APP_SECTIONS order.
-  const sections = computed<AppSection[]>(() => APP_SECTIONS.filter(section => canAccess(section.id)))
-  const groupings = computed(() => groupAppSections(sections.value))
+  // Every section this actor may open, in shell order (the sidebar top to bottom, then the user
+  // menu), so the command palette lists them where the shell shows them.
+  const visible = computed<AppSection[]>(() => APP_SECTIONS.filter(section => canAccess(section.id)))
+  const groupings = computed(() => groupAppSections(visible.value))
+  const sections = computed<AppSection[]>(() => shellOrder(visible.value))
 
   function toItem(section: AppSection): NavigationMenuItem {
     // The owning section stays active on its detail routes (/app/users/<id>), not only on the

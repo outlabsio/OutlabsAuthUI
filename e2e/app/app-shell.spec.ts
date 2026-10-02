@@ -38,9 +38,10 @@ test.describe('app shell', () => {
     // The actor's own pages moved out of the admin list, away from the service-account keys.
     await expect(sidebarNav(page).getByRole('link', { name: 'My API keys', exact: true })).toHaveCount(0)
     await expect(sidebarNav(page).getByRole('link', { name: 'Account', exact: true })).toHaveCount(0)
+    // Account first, as the design orders the user menu (v-auth-shell-07).
     expect(await userMenuLinks(page)).toEqual([
-      { name: 'My API keys', href: '/app/api-keys' },
-      { name: 'Account', href: '/app/account' }
+      { name: 'Account', href: '/app/account' },
+      { name: 'My API keys', href: '/app/api-keys' }
     ])
   })
 

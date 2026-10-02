@@ -27,7 +27,7 @@ function userLabel(user: User): string {
 
 // Feature logic for the shell's command palette (UDashboardSearch, Cmd/Ctrl+K or the sidebar's
 // Search button). "Go to" lists every section this actor may open (the same APP_SECTIONS gate as
-// the sidebar and user menu); Users, Roles and Entities search the server through the list
+// the sidebar and user menu), in the order the shell shows them; Users, Roles and Entities search the server through the list
 // queries each workspace already uses, and only when that section is readable (no request to
 // a surface the actor or the backend lacks). A delegated admin's entity search runs over their own
 // organisation (loaded once, filtered locally), never the unscoped server search (F-020).

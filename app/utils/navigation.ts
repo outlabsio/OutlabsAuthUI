@@ -19,13 +19,29 @@ function pathOnly(fullPath: string): string {
 
 export type AppNavGrouping = { group: AppNavGroup, sections: AppSection[] }
 
-// The visible sections in APP_NAV_GROUPS order, keeping APP_SECTIONS order inside each group.
-// Groups with no visible section are dropped, so an agent never sees an empty heading.
+// The visible sections in APP_NAV_GROUPS order, keeping APP_SECTIONS order inside each group
+// (or the group's own `order`). Groups with no visible section are dropped, so an agent never
+// sees an empty heading.
 export function groupAppSections(visible: readonly AppSection[]): AppNavGrouping[] {
   const ids = new Set(visible.map(section => section.id))
   return APP_NAV_GROUPS
-    .map(group => ({ group, sections: APP_SECTIONS.filter(section => section.nav === group.id && ids.has(section.id)) }))
+    .map((group) => {
+      const sections = APP_SECTIONS.filter(section => section.nav === group.id && ids.has(section.id))
+      const rank = (section: AppSection) => {
+        const index = group.order?.indexOf(section.id) ?? -1
+        return index === -1 ? Number.MAX_SAFE_INTEGER : index
+      }
+      // A stable sort: sections the group does not order keep APP_SECTIONS order.
+      return { group, sections: group.order ? [...sections].sort((a, b) => rank(a) - rank(b)) : sections }
+    })
     .filter(grouping => grouping.sections.length > 0)
+}
+
+// Every visible section in the order the shell shows them: the sidebar top to bottom, then the
+// user menu. The command palette's "Go to" and the dashboard launcher list them in this order,
+// so a destination sits in the same place everywhere.
+export function shellOrder(visible: readonly AppSection[]): AppSection[] {
+  return groupAppSections(visible).flatMap(grouping => grouping.sections)
 }
 
 // The owning section stays highlighted on its detail routes (/app/users/<id> keeps Users

@@ -1,6 +1,7 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
 import { backendHasSurface, isEnterpriseBackend, unmetRequirement } from '../support/capabilities'
 import { sidebarNav, userMenuLinks } from '../support/shell'
+import { createApiKeyButton } from '../support/api-keys'
 
 // Multi-persona access control. This spec runs in the chromium project but re-points at the
 // low-privilege agent persona's storage state, minted through the API by globalSetup
@@ -37,7 +38,7 @@ test.describe('access control (agent persona)', () => {
     // API keys are personal (own keys), capability-gated not RBAC-gated, so the agent keeps them.
     await page.goto('/app/api-keys')
     await expect(page).toHaveURL(/\/app\/api-keys/)
-    await expect(page.getByRole('button', { name: 'Create API key' })).toBeVisible()
+    await expect(createApiKeyButton(page)).toBeVisible()
     await expect(page.getByRole('heading', { name: /^No access to / })).toHaveCount(0)
   })
 
@@ -45,7 +46,7 @@ test.describe('access control (agent persona)', () => {
     await page.goto('/app/dashboard')
     // The surfaces it keeps: the dashboard in the sidebar, its own pages in the user menu.
     await expect(sidebarNav(page).getByRole('link', { name: 'Dashboard', exact: true })).toBeVisible()
-    expect((await userMenuLinks(page)).map(link => link.name)).toEqual(['My API keys', 'Account'])
+    expect((await userMenuLinks(page)).map(link => link.name)).toEqual(['Account', 'My API keys'])
     // The admin resources it does not — including Audit, which needs user:read even though
     // the backend reports activity_tracking as always on. No empty group headings either.
     for (const name of HIDDEN_NAV) {
