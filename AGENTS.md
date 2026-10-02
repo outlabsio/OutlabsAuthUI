@@ -89,7 +89,7 @@ change rule and fixture together and say why in the commit.
 ## Reuse before writing
 
 Forms and dialogs: `AppFormDialog`, `AppConfirmDialog`, `useDialogForm`, `useDialogGuard`,
-`useDirtyPatch` (send only changed fields), `useApiAction`. Lists: `useListQueryState`,
+`useDirtyPatch` (send only changed fields), `useApiAction`, `AppPasswordInput`, `codeSchemaFor`. Lists: `useListQueryState`,
 `AppQueryState`, `AppListPagination`, `utils/table.ts`. Display: `AppTimestamp` and
 `utils/format-date.ts`, `AppDetailList`, `utils/status.ts`. Pickers: `AppEntityPicker`,
 `AppUserPicker`, `AppRolePicker`, `AppPermissionPicker`, `AppScopePicker`, `AppDateField`.

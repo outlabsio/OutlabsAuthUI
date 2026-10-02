@@ -41,8 +41,8 @@ committed). The deploy reads that record.
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| No axe WCAG 2.1 A/AA violations on every route, record page, the main dialogs and the guest pages, in light and dark mode, at 1440px and 390px | Met, except colour contrast | `e2e/a11y/a11y-smoke.spec.ts` (including a dialog whose role picker is still loading), `e2e/auth/auth-a11y.spec.ts` |
-| Colour contrast (WCAG AA) in light mode | Open | Primary buttons and some status text fail AA; the fix overrides theme CSS variables and awaits an owner decision (F-032). The contrast rule is off until then. |
+| No axe WCAG 2.1 A/AA violations on every route, record page, the main dialogs and the guest pages, in light and dark mode, at 1440px and 390px | Met, except colour contrast (accepted, next row) | `e2e/a11y/a11y-smoke.spec.ts` (including a dialog whose role picker is still loading), `e2e/auth/auth-a11y.spec.ts` |
+| Colour contrast (WCAG AA) in light mode | Accepted | Owner decision 2026-10-02 (F-032): a known limitation. Primary buttons and some status text (the stock subtle amber badges) fall below AA on light backgrounds; the only fix overrides the theme's CSS variables, which the stock-theme rule forbids (AGENTS.md non-negotiable 5), so the stock theme stays. Consequence: colour contrast is not checked by the gate; the axe `color-contrast` rule stays off in both modes (`e2e/support/a11y.ts`), and every other WCAG A/AA rule is checked. |
 | Keyboard use: skip link, landmarks, titles, focus return from dialogs and menus, reduced motion | Met | `e2e/app/shell-navigation.spec.ts`, `e2e/app/dialog-kit.spec.ts` |
 | Every dialog swept by axe | Open | About 22 less central dialogs are not in the sweep yet |
 
@@ -113,7 +113,9 @@ access unless the risk is accepted.
   scopes readable by delegated admins (F-079), role holder counts (F-112), names on grants the
   admin cannot read (F-067, F-103), effective-permission sources with entity context (F-013,
   F-239), move-target validation (F-076), no rotation of a suspended key (F-080), resend and
-  restore by delegated inviters (F-244), and failed sign-in data beyond wrong passwords.
+  restore by delegated inviters (F-244), and failed sign-in data beyond wrong passwords (audit
+  events for unknown e-mails, locked accounts and wrong one-time codes, so the dashboard's
+  "Wrong passwords" tile could count every failed sign-in).
 
 ## 9. Per-deployment cutover checklist
 
@@ -124,7 +126,9 @@ Keep each deployment's answers in its own (private) records, not in this reposit
    the smoke in item 10 pass against it before cutover: the release check proves only the
    release it ran against.
 2. The deployment's `app-config.json` lives outside this repository; `apiBaseUrl` is `https`;
-   `frontendProfileKey` names a registered profile whose public origin is the console.
+   `frontendProfileKey` names a registered profile whose public origin is the console. Its
+   branding (`appName`, `appSubtitle`, `signInDescription`, `authBrand`, the logo) speaks for the
+   deployment: end users read the guest pages too (signup, invitations, password resets).
 3. The console is served at the root of its own hostname; if OAuth is enabled, on the same site
    as the API.
 4. The API's CORS allows the console origin exactly, with credentials; it sends

@@ -124,8 +124,10 @@ SVG URL to replace the default `/brand/outlabs-auth-logo.svg`, and optionally `a
 for dark mode (the sign-in layout renders both with `UColorModeImage`). Leave
 `authLogoDarkUrl` unset unless you have a dark variant (the template leaves it out): the
 default logo then uses its bundled light-ink variant, and a custom `authLogoUrl` is used in
-both modes. `signInDescription` is the line under the sign-in heading. The accessible brand name is
-controlled separately by `authBrand`.
+both modes. `signInDescription` is the line under the sign-in heading and `appSubtitle` the line
+under the card on every guest page; both are read by end users too (signup, invitations), so set
+them in the deployment's own words. The accessible brand name is controlled separately by
+`authBrand`.
 
 Phone country data and masks live in `app/data/phone-codes.ts`, bundled only with the lazily
 loaded phone fields (`AppAuthPhoneInput`), so email-only screens never download them. The
@@ -431,15 +433,14 @@ Open work, in the order it matters for a first cutover:
 2. **Per-deployment checks** (PRODUCTION.md section 9), notably a live sign-in against the
    outlabs-auth release the deployment runs when it is not 0.1.0a34, and same-site hosting where
    OAuth is on.
-3. **Light-mode colour contrast** (F-032, an owner decision): primary buttons and some status
-   text fail WCAG AA. The documented fix overrides theme CSS variables, which AGENTS.md forbids
-   without that decision, so the axe contrast rule stays off until it is made.
-4. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
+3. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
    Chromium were not run at the last release; one flaky spec was never reproduced; about 22
    dialogs are outside the axe sweep; there is no bundle-size budget.
-5. **Deferred console follow-ups:** 19 low-severity items, listed in CAPABILITIES.md
-   ("Deferred console follow-ups").
-6. **Not started:** extracting the console as a reusable dashboard starting point.
+4. **Not started:** extracting the console as a reusable dashboard starting point.
+
+Decided: light-mode colour contrast (F-032) is a known limitation the owner accepted on
+2026-10-02 to keep the stock theme (PRODUCTION.md section 3), and the low-severity console
+follow-ups of the 2026-10-02 QA pass are fixed, each with a spec.
 
 To resume: read [AGENTS.md](AGENTS.md); start both seeded example backends
 ([e2e/README.md](e2e/README.md) "Backends"); run `bun run release:check --enterprise <url>

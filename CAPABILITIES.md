@@ -31,7 +31,7 @@ that makes a row untrue.
 |---|---|---|---|---|
 | Password sign-in | Both | Built | `e2e/auth/auth-flow.spec.ts`, `e2e/static/static-build.spec.ts` | |
 | Magic link | Both | Built | `e2e/auth/passwordless-verify.spec.ts`, `e2e/auth/link-landings.spec.ts`, `e2e/auth/sign-in-steps.spec.ts` | Verifies only on click (mail scanners). A used, expired or invalid link offers "Request a new link", which opens sign-in on the email form. |
-| E-mail sign-in code | Both | Built | `e2e/auth/passwordless-verify.spec.ts`, `e2e/auth/sign-in-steps.spec.ts` | |
+| E-mail sign-in code | Both | Built | `e2e/auth/passwordless-verify.spec.ts`, `e2e/auth/sign-in-steps.spec.ts` | A wrong or expired code is said on the code field and stays there for the next try. |
 | Phone sign-in code (WhatsApp, SMS) | Both | Partial | `e2e/auth/passwordless-verify.spec.ts`, `e2e/auth/auth-flows.spec.ts` | The backend does not advertise whether messaging can deliver, so the console can promise a code that never arrives (F-099, backend). |
 | OAuth sign-in | Both | Partial | `e2e/app/session-lifecycle.spec.ts`, `e2e/auth/sign-in-steps.spec.ts` | Provider round trips are mocked; no live-provider smoke yet. Works only when console and API are same-site (F-150, docs/security-posture.md). The callback uses a session only in the tab that started the sign-in or signup, within 20 minutes; any other is revoked (login CSRF). |
 | Self-signup | Both | Built | `e2e/auth/signup.spec.ts` | Off with `authUi.signup: false`; the backend's register route stays mounted (disable it there too). Mentions phone sign-in codes only where they are offered. |
@@ -57,11 +57,11 @@ that makes a row untrue.
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
 | Profile: name and phone | Both | Built | `e2e/account/account-workspace.spec.ts` | |
-| E-mail change | Both | Not supported | — | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). An admin can still change their own sign-in e-mail from Users (Deferred console follow-ups). |
+| E-mail change | Both | Not supported | `e2e/users/user-profile.spec.ts` | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). Users › Edit profile shows an admin's own sign-in e-mail read-only and never sends it. |
 | Phone verification | Both | Built | `e2e/account/phone-verify.spec.ts`, `e2e/auth/signup.spec.ts` | |
 | Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | Accounts without a password see a form they cannot complete; the backend does not say whether one is set (F-098, backend). |
 | Own sessions: list, revoke one, sign out everywhere | Both | Partial | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This device" is inferred from the refresh token's issue time; other devices keep their access tokens until expiry (F-030, F-157, backend). |
-| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts` | Mocked provider; a failed link lands on the API's own error page (F-104, backend). A provider avatar (`avatar_url`) is blocked by the shipped CSP, so the row loses the provider icon (Deferred console follow-ups). |
+| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts`, `e2e/static/static-build.spec.ts` | Mocked provider; a failed link lands on the API's own error page (F-104, backend). Rows show the provider's icon: a provider picture (`avatar_url`) on another host is never loaded, as the CSP allows same-origin and `data:` images only. |
 | My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them (F-103, backend). |
 
 ## Users
@@ -71,10 +71,10 @@ that makes a row untrue.
 | List: search, status and type filters, server paging, URL state | Both | Built | `e2e/users/users-list.spec.ts`, `e2e/list-filters.spec.ts` | |
 | Orphaned accounts | Enterprise | Partial | `e2e/users/users-list.spec.ts` | Global admins only: the backend does not scope `GET /users/orphaned` to an organization (F-161, F-240, backend). |
 | Create (with organization) | Both | Partial | `e2e/users/users-workspace.spec.ts`, `e2e/users/org-admin-users.spec.ts` | The console limits delegated admins to their organization; the backend does not enforce it (F-012, F-040, backend). |
-| Invite (with entity and roles, or direct roles), resend an invitation | Both | Built | `e2e/users/user-invite.spec.ts`, `e2e/users/user-lifecycle.spec.ts`, `e2e/auth/passwordless-verify.spec.ts` | Resend runs on both presets; that it replaces the earlier link is checked only where the dev invite capture is mounted (EnterpriseRBAC). Resend and restore by delegated inviters need backend support (F-244). |
-| Edit profile (including e-mail) | Both | Built | `e2e/users/user-profile.spec.ts`, `e2e/users/users-workspace.spec.ts` | |
+| Invite (with entity and roles, or direct roles), resend an invitation | Both | Built | `e2e/users/user-invite.spec.ts`, `e2e/users/user-lifecycle.spec.ts`, `e2e/users/user-dialogs.spec.ts`, `e2e/auth/passwordless-verify.spec.ts` | Resend runs on both presets; that it replaces the earlier link is checked only where the dev invite capture is mounted (EnterpriseRBAC). Resend and restore by delegated inviters need backend support (F-244). |
+| Edit profile (including e-mail) | Both | Built | `e2e/users/user-profile.spec.ts`, `e2e/users/users-workspace.spec.ts` | A name the account has can be changed but not removed (the backend refuses to clear it); one's own sign-in e-mail is read-only (F-193). |
 | Status: suspend (timed), ban, reactivate | Both | Built | `e2e/users/user-status-password.spec.ts` | The backend treats a suspension end as advisory. |
-| Reset password (ends every session) | Both | Built | `e2e/users/user-status-password.spec.ts` | |
+| Reset password (ends every session) | Both | Built | `e2e/users/user-status-password.spec.ts`, `e2e/users/user-dialogs.spec.ts` | |
 | Superuser grant and revoke (reason, typed e-mail) | Both | Built | `e2e/users/user-lifecycle.spec.ts` | |
 | Delete (retained) and restore | Both | Built | `e2e/users/users-workspace.spec.ts`, `e2e/users/user-lifecycle.spec.ts` | |
 | Sessions of a user: revoke one, sign out everywhere | Both | Built | `e2e/users/user-sessions.spec.ts` | Issued access tokens stay valid until expiry unless the backend turns blacklisting on. |
@@ -165,9 +165,9 @@ that makes a row untrue.
 
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
-| Admin dashboard: counts linking to filtered lists, recent activity | Both | Built | `e2e/app/dashboard.spec.ts` | |
+| Admin dashboard: counts linking to filtered lists, recent activity | Both | Built | `e2e/app/dashboard.spec.ts` | The security tile counts wrong passwords on existing accounts: the backend audits no other failed sign-in (PRODUCTION.md section 8). |
 | Non-admin dashboard: own access and launcher | Both | Built | `e2e/app/dashboard.spec.ts` | |
-| Settings: contract, library, routers, sign-in methods, features (admins) | Both | Built | `e2e/settings/settings-workspace.spec.ts` | |
+| Settings: contract, library, routers, sign-in methods, audit log, features (admins) | Both | Built | `e2e/settings/settings-workspace.spec.ts` | Flags the backend reports as always on are not listed. |
 | API contract version check | Both | Built | `e2e/auth/api-contract.spec.ts`, `e2e/settings/settings-workspace.spec.ts` | |
 
 ## Shell, navigation and accessibility
@@ -179,7 +179,7 @@ that makes a row untrue.
 | Global search (command palette) | Both | Built | `e2e/app/shell-navigation.spec.ts` | |
 | Titles, landmarks, skip link, focus return, Back and Forward | Both | Built | `e2e/app/shell-navigation.spec.ts`, `e2e/app/browser-lifecycle.spec.ts`, `e2e/app/dialog-kit.spec.ts` | |
 | Phone width (390px) | Both | Built | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/app/shell-navigation.spec.ts` | |
-| WCAG 2.1 AA (axe) | Both | Partial | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/auth/auth-a11y.spec.ts` | The colour-contrast rule is off: light mode fails AA on primary buttons and some status text (F-032, owner decision pending). About 22 dialogs are not swept. |
+| WCAG 2.1 AA (axe) | Both | Partial | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/auth/auth-a11y.spec.ts` | The colour-contrast rule is off: light mode fails AA on primary buttons and some status text, a known limitation the owner accepted on 2026-10-02 to keep the stock theme (F-032, PRODUCTION.md section 3). About 22 dialogs are not swept. |
 | Visual regression baselines | Both | Missing | — | Need one fixed rendering environment for every machine that runs the release check (F-148). |
 | Firefox, WebKit, phone-sized Chromium | Both | Built | `playwright.config.ts` (`E2E_BROWSERS`) | On demand: `bun run release:check --browsers firefox,webkit,mobile-chrome`; the default release check runs Chromium only (PRODUCTION.md section 1). |
 | Languages other than English | Both | Not supported | — | Owner decision (F-225). |
@@ -197,37 +197,3 @@ that makes a row untrue.
 | OAuth with console and API on different sites | Not supported | — | Same-site hosting required (docs/security-posture.md). |
 | Error reporting and telemetry | Not supported | — | Owner decision: no external error reporting. |
 | Bundle size budget | Missing | — | PRODUCTION.md gate item. |
-
-## Deferred console follow-ups
-
-Low-severity console issues found in the 2026-10-02 QA pass and deferred. Re-check each against
-the current code before fixing; fix it with a spec, then delete its line.
-
-- **OAuth avatars:** Users and Connected accounts render a remote `avatar_url` (the OAuth
-  provider's picture), which the shipped CSP blocks (a CSP violation, and the provider icon is
-  lost). Bind an avatar only for a same-origin or `data:` URL; never widen `img-src`.
-- **One-time codes:** code entry (sign-in, access code, recovery, phone verification) is outside
-  UForm + Zod + UFormField; a wrong code is reported only in a toast.
-- **Settings:** "Activity tracking" says account events are recorded for the audit log, but the
-  flag is always on and is not about the audit log.
-- **Dashboard:** "Failed sign-ins" (last 24 hours) counts only wrong passwords on existing,
-  unlocked accounts (relabel it; the rest is a backend data gap); count tiles are links named only
-  by their title, so the number is not announced.
-- **Shell:** the command palette's "Go to" list and the user menu order sections differently from
-  the sidebar.
-- **Guest pages:** developer-facing default copy; set-password forms have no reveal toggle and no
-  way back.
-- **Users:** Edit profile marks names Optional, but the backend refuses clearing one (and allows
-  100 characters, the form 120); an admin can change their own sign-in e-mail from Users,
-  bypassing the read-only e-mail decision (F-193); SimpleRBAC shows organization and membership
-  wording in user dialogs and notices; the same lifecycle action reads differently on the list and
-  the detail page; terms differ between them ("Organization" and "Root entity", "Last sign-in" and
-  "Last login"); the Overview profile card separates the access-scope explanation from its field
-  and splits first and last name across rows; Reset password states no password rules (Add user
-  does); initial focus differs across user dialogs (only Invite focuses its first field); a direct
-  role's "Edit validity" also suspends or activates the assignment without saying so; Invite's
-  entity-or-direct-roles choice sits beside Email, and changing it silently clears the chosen
-  roles.
-- **Permission picker:** shows the base action for `_tree` permissions, so `create` and
-  `create_tree` look alike.
-- **API keys:** key-creation copy repeats within each dialog and differs between pages.

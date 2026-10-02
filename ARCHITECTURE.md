@@ -324,7 +324,8 @@ loading/empty copy, date formatting or one-off selects.
 | `useListQueryState({ filters, allowed, pageSize, searchParam, pageParam, debounce })` | List URL state; returns `search`, `searchTerm`, `page`, `pageSize`, `filters.<key>`, `values`, `isFiltered`, `reset()`, `syncTotal(getter)`. `keepPreviousData<T>` lives beside it. |
 | `<AppListPagination v-model:page :total :page-size noun>` | The total ("Showing 26–41 of 41 permissions", announced politely) and a named UPagination. |
 | `utils/pagination.ts` | `collectAllPages(fetchPage, { pageSize })` for catalogues (reports `complete: false` instead of capping), `slicePage`, `pageCount`, `clampPage`, `listSummary`. |
-| `<AppDetailList :items>` | Detail values with list-consistent badges (`badge`), a `type` of `datetime`, `date`, `boolean` or `code`, wrapping instead of truncation, `#value-<key>` slots. |
+| `<AppDetailList :items>` | Detail values with list-consistent badges (`badge`), a `type` of `datetime`, `date`, `boolean` or `code`, wrapping instead of truncation, `#value-<key>` slots, `full` rows, and a `description` under a value (the explanation stays with its row: a lockout, an access scope). |
+| `utils/avatar.ts` | `localImageSrc(url, origin)`: the avatar URL the CSP lets the console show (same-origin or `data:image/`), else undefined. An OAuth provider's picture is never bound; Connected accounts show the provider icon and Users the initials instead. Never widen `img-src` for avatars. |
 | `utils/status.ts` | `USER_STATUS_COLOR`, `DEFINITION_STATUS_COLOR`, `API_KEY_STATUS_COLOR`, `MEMBERSHIP_STATUS_COLOR`, `statusLabel`, `originLabel`, `yesNo`, `badgeColor`, `ENTITY_CLASS_BADGE`; a `BadgeStyle` binds the same way in a list (`<UBadge v-bind="ENTITY_CLASS_BADGE[entity.entity_class]" />`) and as a detail item's `badge:`. A role's type badge is `roleTypeBadge(role)` in `utils/role-definitions.ts` ('System-wide' / 'Organization' / 'Entity'). |
 | `utils/table.ts` | `srOnlyHeader('Actions')` for action columns; `hideBelowSm` / `hideBelowMd` column `meta` for secondary columns on phones. Row triggers are `size="sm"` with a name like "Role actions for Admin". |
 | `<AppSessionsTable :sessions :status :error :has-data revocable :revoking-id :current-session-id :signing-out @revoke @sign-out @retry>` | Refresh-token sessions (account, user detail): device from the user agent (`utils/user-agent.ts`) with the IP under it, last active and expiry (both relative, absolute in the tooltip). Fits a `max-w-3xl` card and a 390px phone without sideways scrolling; the Revoke column is pinned right. The `current-session-id` row comes first, is marked "This device" and offers Sign out (`sign-out`) instead of Revoke. |
@@ -596,7 +597,7 @@ loading/empty copy, date formatting or one-off selects.
     (stored active or suspended) by default, so a suspension never makes a row vanish; "Include
     ended" adds revoked and expired ones. Rows show the effective status, the window
     (`<AppGrantWindow>`), who granted it and when, and an ended grant's note.
-  - *Never re-grant (F-015).* Edit validity / Edit access open only on a live grant, with its real
+  - *Never re-grant (F-015).* Edit assignment / Edit access open only on a live grant, with its real
     status, send only what changed (`useDirtyPatch`) and re-read the record first (Reload /
     Overwrite; a grant ended meanwhile is a conflict). A suspended or ended grant offers
     **Reactivate** (`<AppAccessReactivateDialog :target>`, also on the entity Users card): it lists
@@ -669,7 +670,9 @@ loading/empty copy, date formatting or one-off selects.
 ## Dashboard and Settings (`useDashboard`, `useSettings`, `utils/capability-labels.ts`)
 - **Dashboard.** Admins get tiles, each the `total` of one `limit=1` request gated on its section
   (active, invited, suspended and membership-less users, roles, permissions, organizations or a
-  delegated admin's entities, failed sign-ins in 24 hours) and linking to the filtered list, plus
+  delegated admin's entities, and wrong passwords on existing accounts in 24 hours, the only failed
+  sign-ins outlabs-auth audits) and linking to the filtered list, each link named with its count
+  (`dashboardTileLabel`, `utils/dashboard.ts`), plus
   the latest audit events. Accounts with no admin tile get `AppDashboardMyAccessCard` (scope,
   permissions, memberships in force; the same reads as Account › Access) and a launcher of the
   sections they can open. The unknown-contract warning (`useApiContractNotice`) shows to admins
@@ -678,7 +681,9 @@ loading/empty copy, date formatting or one-off selects.
   grants count), resolved per backend by `resolveRequirement` / `consoleAdminPermissions`, so
   SimpleRBAC never asks for `entity:read`; a backend with no admin section leaves it to
   superusers. The Auth server card labels features, routers and sign-in methods through the one
-  label map (`featureList`, `surfaceLabel`, `enabledAuthMethods`). Entity types show where the
+  label map (`featureList`, `surfaceLabel`, `enabledAuthMethods`); `featureList` leaves out the
+  flags the backend reports as always on (`ALWAYS_ON_FEATURES`), and the Audit log line follows
+  the mounted `audit` router (`auditLogSummary`). Entity types show where the
   config router is mounted and `entity_hierarchy` is on; superusers edit them in an
   `AppFormDialog` with four `UInputTags`, sending only the changed groups; the only rule is the
   backend's (one root type across both classes).
@@ -746,13 +751,16 @@ Zod) is the only form system.
   anything changed), `dirty`, `changed` and `conflicts(serverState)`. The API has no version or
   ETag, so an edit that must not clobber a concurrent change re-reads the record before saving and
   shows AppFormDialog's `conflict` when a field it changed was changed by someone else (Edit
-  validity does this). Overwrite submits through the form (schema validation and the pending lock
+  assignment does this). Overwrite submits through the form (schema validation and the pending lock
   apply) and calls the `@overwrite` handler, awaited like `@submit`; the warning hides as soon as
   the admin edits the form after it appeared, and the next save checks the server again. Pure
   diffing lives in `utils/dirty-patch.ts`.
 - **`schemas/common.ts`** — shared Zod pieces: `requiredText(label, max?)`, `optionalText(max?)`,
   `emailText`, `reasonText`, `dateInput`, `tagList`, `validityWindowShape` + `checkValidityWindow`
-  (superRefine; the issue lands on `validUntil`). Keep schema keys in the form's visual order: the
+  (superRefine; the issue lands on `validUntil`), and the account-name rules: `newAccountNameText`
+  (optional, 100 characters) and `accountNameText(label, isSet, message)` (a name the account
+  already has can be changed but not removed, as outlabs-auth refuses to clear one; Account's
+  profile and the admin's Edit profile share it). Keep schema keys in the form's visual order: the
   first failing field is focused.
 - **Dates** — `AppDateField` (`v-model` 'YYYY-MM-DD', '' or `INCOMPLETE_DAY`; `label` for
   assistive technology) is Nuxt UI's `UInputDate` (typeable segments) with a calendar popover,
@@ -771,13 +779,23 @@ Zod) is the only form system.
   Never pass a text `placeholder` to UInputDate: the prop is a DateValue and a string crashes it
   (`defaultPlaceholder.copy is not a function`); say "leave empty for no expiry" in the help text
   instead.
+- **Passwords** — every password field is `<AppPasswordInput>` (a UInput with a Show/Hide toggle in
+  its trailing slot) inside its `UFormField`: sign-in, signup, invitation, reset, Account ›
+  Security and the admin dialogs that set one. New-password fields state the policy
+  (`PASSWORD_POLICY_HINT`) as `help`.
+- **One-time codes** — a code is a UForm field like any other: `<UForm :schema="codeSchemaFor(length)"
+  :state="{ code: digits }">` with `UPinInput` inside `<UFormField name="code">`; the last digit
+  submits the form (`@complete` → `form.submit()`), and Verify is a submit button. A code the
+  server refuses (`codeFieldError`, `utils/auth-messages.ts`) is the field's `error`, kept until the
+  next attempt while the boxes are cleared and refocused; rate limits and network failures stay
+  toasts. Shared by `AppAuthOtp` (sign-in, access code, recovery) and Account's phone verification.
 - **Conventions** — one dialog per action; "Create <noun>" for the trigger, title and submit of a create dialog; "Save
   changes" for edits; "<Verb> <noun>" for destructive buttons; setting-style booleans are a
   `USwitch` inside a `UFormField` with a label and description; lists are `UInputTags`; reset
   create dialogs on every open.
 
 The permissions create dialog (`pages/app/permissions/index.vue` + `usePermissionsWorkspace`) is the
-reference create dialog, Edit validity on the user detail page (`useUserRolesCard`) the reference
+reference create dialog, Edit assignment on the user detail page (`useUserRolesCard`) the reference
 edit dialog, and the user delete (`userDeleteCopy`, list and detail) the reference typed confirmation.
 
 ## Roles & permissions — the shared kit
@@ -876,10 +894,12 @@ menu in the footer) + `UDashboardSearch` + the page's `UDashboardPanel`s inside 
 - **Navigation data** — `APP_SECTIONS` entries carry `nav` (an `APP_NAV_GROUPS` id: overview,
   Directory, Access control, Integrations, Monitoring, the bottom `system` list, or `user` for the
   actor's own pages) and one `label`, used by the menus, the page and document title and the back
-  links alike. Within a group, `APP_SECTIONS` order applies.
+  links alike. Within a group, `APP_SECTIONS` order applies unless the group sets `order` (the
+  user menu reads Account, My API keys).
   Add or move a page by editing its entry; never hand-build a menu.
 - **`useAppNavigation()`** → `{ sections, sidebar, sidebarBottom, userSections }`, all filtered
-  by `canAccess`. `sidebar` is `NavigationMenuItem[][]` (one list per group, headed by its label);
+  by `canAccess`. `sections` is in shell order (`shellOrder`: the sidebar top to bottom, then the
+  user menu), which the command palette's "Go to" and the dashboard launcher follow. `sidebar` is `NavigationMenuItem[][]` (one list per group, headed by its label);
   items stay `active` on detail routes with `aria-current` `page`/`true` (`navCurrentFor`).
   `useCapabilitiesNotice()` (called once by the layout) owns the "can't load capabilities" toast.
 - **User menu** (`AppUserMenu`, `useUserMenu`) — Account, My API keys, Appearance (system /
@@ -960,8 +980,8 @@ Dated, append-only. Superseded decisions stay with their status changed.
   zinc (locked) plus secondary, success, info, warning, error, accent and special to distinct
   stock Tailwind palettes so badges are distinguishable. Any change goes through
   `app.config.ts` only. Light-mode contrast (primary buttons and some status text fail WCAG AA)
-  is a separate open owner decision, because the documented fix overrides CSS variables.
-  *Status: adopted.*
+  is a separate owner decision, because the documented fix overrides CSS variables (decided
+  2026-10-02, below). *Status: adopted.*
 - **2026-10-01 — `:ui` allowlist.** Only `UModal`/`USlideover` `content` max-width utilities and
   the dashboard template's `UDashboardPanel` `body` and `UDashboardSidebar` `footer` slots;
   enforced by `console/ui-allowlist`. *Status: adopted.*
@@ -980,6 +1000,12 @@ Dated, append-only. Superseded decisions stay with their status changed.
   repository root and the React console it replaces was removed with its tests, docs and CI.
   Deployments that still run the React console cut over per PRODUCTION.md; it stays in the
   history for rollback. *Status: adopted.*
+- **2026-10-02 — Light-mode colour contrast is accepted as a known limitation (F-032).** Primary
+  buttons and some status text (the stock subtle amber badges) fall below WCAG AA on light
+  backgrounds. Fixing them means overriding the theme's CSS variables, which non-negotiable 5
+  forbids, so the stock theme stays. Consequence: the axe `color-contrast` rule stays off in the
+  accessibility gate (`e2e/support/a11y.ts`), and PRODUCTION.md section 3 records the item as
+  Accepted. *Status: adopted.*
 - **2026-10-02 — A client-side refusal is a form rule.** A check the schema cannot express (a
   scope no longer offered) is an AppFormDialog `validate` rule, not an error set once on submit:
   UForm re-validates a field on blur, on change and 300 ms after typing and replaces its errors,

@@ -17,7 +17,7 @@ check"): the whole suite on the static build against both presets, before every 
 | Console | `chromium` (everything else) | every workspace as each persona | every release check, both presets |
 | Static build | `E2E_TARGET=static`, plus `chromium-static` (`e2e/static/`) | the generated artifact under its own `_headers`: no CSP violation, no third-party request, no blank icon, Workers asset semantics | every release check (it uses the static target) |
 | Session lifecycle | `session` (`e2e/session/`) | renewal, rotation, sign-out and password changes after an access token expires (expiry simulated client-side); another account signing in in another tab (no replay as that account, reload without a leave prompt) | every release check, both presets |
-| Accessibility | `e2e/a11y/`, `e2e/auth/auth-a11y.spec.ts`, axe calls inside area specs | WCAG 2.1 A/AA via axe in light and dark mode at 1440px and 390px; colour contrast off (F-032) | every release check |
+| Accessibility | `e2e/a11y/`, `e2e/auth/auth-a11y.spec.ts`, axe calls inside area specs | WCAG 2.1 A/AA via axe in light and dark mode at 1440px and 390px; colour contrast off (F-032, an accepted limitation) | every release check |
 | Other browsers | `E2E_BROWSERS=firefox,webkit,mobile-chrome` | the same specs in Firefox, WebKit and a phone-sized Chromium | `release:check --browsers firefox,webkit,mobile-chrome`, on demand (PRODUCTION.md section 1) |
 
 ## Persona × preset matrix
@@ -47,13 +47,12 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - A minted API key is never used against the API (`X-API-Key`).
 - No live OAuth provider: provider round trips are mocked (F-150; checked per deployment in
   PRODUCTION.md).
-- Mocked OAuth accounts carry no `avatar_url`, so no spec sees the CSP block real provider
-  avatars (CAPABILITIES.md, "Deferred console follow-ups").
 - Moving an entity to the top level (a new organization) has no spec.
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.
 - A non-superuser admin cannot save the entity-type configuration: not asserted.
-- About 22 less central dialogs are not in the axe sweep; colour contrast is off (F-032).
+- About 22 less central dialogs are not in the axe sweep; colour contrast is off, a known
+  limitation the owner accepted on 2026-10-02 (F-032, PRODUCTION.md section 3).
 - No screenshot baselines (F-148): they need one fixed rendering environment for every machine
   that runs the release check.
 - The rows marked Missing (test) or with no evidence in CAPABILITIES.md.

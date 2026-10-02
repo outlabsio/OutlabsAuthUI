@@ -355,7 +355,7 @@ test.describe('abac conditions', () => {
     await api(`/permissions/${permissionId}/conditions`, { method: 'POST', body: JSON.stringify({ attribute: 'env.on_call', operator: 'is_true', value_type: 'boolean', condition_group_id: group.id }) })
     await page.goto(`/app/permissions/${permissionId}`)
     await expect(page.getByText('resource.region')).toBeVisible()
-    // color-contrast stays out of the gate here too (see e2e/a11y/a11y-smoke.spec.ts).
+    // color-contrast stays out of the gate here too (F-032, an accepted limitation; e2e/support/a11y.ts).
     const axe = () => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).disableRules(['color-contrast']).analyze()
     const violations = (r: Awaited<ReturnType<typeof axe>>) => r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target.join(' ')) }))
     expect(violations(await axe())).toEqual([])

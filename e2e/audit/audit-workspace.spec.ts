@@ -393,6 +393,7 @@ test.describe('audit workspace', () => {
     await page.goto('/app/audit')
     await firstRow(page).getByRole('button', { name: /^Show details for / }).click()
     await expect(page.getByRole('button', { name: /^Hide details for / })).toBeVisible()
+    // color-contrast stays out, as in the a11y smoke (F-032, an accepted limitation).
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).disableRules(['color-contrast']).analyze()
     expect(results.violations.map(v => ({ id: v.id, nodes: v.nodes.length }))).toEqual([])
   })

@@ -227,10 +227,11 @@ The accessibility gate (`support/a11y.ts`, `a11y/a11y-smoke.spec.ts`, `auth/auth
 runs axe (WCAG 2 A/AA) over every console route, the record pages behind them, the main dialogs
 and every guest page, in light and dark at 1440 and 390px, without reloading between variants.
 It also fails on a select menu named "Show popup", on sideways page scroll at 390px, and on a
-dialog that does not return focus to the control that opened it. `color-contrast` stays out
-until the light-mode palette is decided. Two stock-component exceptions are waived node by node:
-the unnamed listbox of UCommandPalette pickers and UDashboardPanel's scrolling body without a tab
-stop (`scrollable-region-focusable`); keep pages linking what they show.
+dialog that does not return focus to the control that opened it. `color-contrast` stays out by
+owner decision: light-mode contrast is an accepted limitation (F-032, PRODUCTION.md section 3).
+Two stock-component exceptions are waived node by node: the unnamed listbox of UCommandPalette
+pickers and UDashboardPanel's scrolling body without a tab stop (`scrollable-region-focusable`);
+keep pages linking what they show.
 
 There are no screenshot baselines (`toHaveScreenshot`): they would need one fixed rendering
 environment (operating system, fonts, browser build) for every machine that runs the release

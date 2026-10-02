@@ -6,8 +6,9 @@ import { expect, type Locator, type Page } from '@playwright/test'
 //   - no select menu trigger is named "Show popup" (reka's default, which hides the field's label);
 //   - at phone width the page never scrolls sideways (F-148).
 //
-// color-contrast stays out of the gate until the owner decides the light-mode palette (F-032):
-// stock subtle amber badges are below AA on light backgrounds, and the theme is not overridden.
+// color-contrast stays out of the gate by owner decision (F-032, accepted 2026-10-02 as a known
+// limitation; PRODUCTION.md section 3, ARCHITECTURE.md "Decisions"): stock subtle amber badges
+// and primary buttons are below AA on light backgrounds, and the theme is not overridden.
 //
 // One scoped exception: the listbox inside a stock UCommandPalette (the role, permission and
 // scope pickers) has no accessible name and its scrolling viewport no tab stop. It is operated
