@@ -13,7 +13,9 @@ import type { FormConflict } from '~/composables/useDialogForm'
 //
 // - Errors: `error` (useApiAction's `inline` ref) renders at the top of the body; server issues
 //   land on fields when run() gets `form: useDialogForm('<ref>')`. Client-side validation
-//   failures move focus to the first invalid field.
+//   failures move focus to the first invalid field. A flagged field follows the typing: while
+//   any field shows a message, every change to the state re-validates the flagged fields at
+//   once, so a message never waits for focus to leave its field before it clears (see below).
 // - `validate`: client-side rules the schema cannot express because they depend on more than the
 //   state (what the server offers, what the dialog opened with). UForm runs it with the schema on
 //   every validation, so its errors block the submit and stay on their fields. Never set such an
@@ -81,7 +83,11 @@ const open = defineModel<boolean>('open', { default: false })
 const { onCloseAutoFocus } = useDialogReturnFocus(open)
 
 const formId = useId()
-const form = useTemplateRef<ActionForm & { loading: boolean, submit: () => Promise<void> }>('form')
+const form = useTemplateRef<ActionForm & {
+  loading: boolean
+  submit: () => Promise<void>
+  validate: (options: { name: string[], silent: true }) => Promise<unknown>
+}>('form')
 
 // Dirty by default = the state differs from what it was when the dialog opened.
 const snapshot = ref<string | null>(null)
@@ -102,6 +108,21 @@ watch(open, (isOpen) => {
   if (!isOpen) opened.value = false
 })
 const validateOn = computed<FormInputEvents[]>(() => (opened.value ? ['input', 'blur', 'change'] : ['input', 'change']))
+
+// A flagged field follows the typing. On its own, UForm re-validates a typed-in field 300 ms after
+// the last keystroke, and only once focus has left that field before; otherwise its message
+// clears when focus leaves it. A press on the submit button moves the focus, so a message that
+// was still up cleared between the press and the release: the centred dialog got shorter, the
+// footer moved, the release landed beside the button and nothing was submitted. So while any
+// field shows a message, every change to the state re-validates the flagged fields at once
+// (cross-field rules included), and leaving a field has nothing left to clear. Leaving a field can
+// still flag it (punish late, as before); a click lost to that shift is one the form would refuse.
+watch(() => props.state, () => {
+  const instance = form.value
+  if (!instance || instance.loading) return
+  const flagged = [...new Set(instance.getErrors().flatMap(error => (error.name ? [error.name] : [])))]
+  if (flagged.length) void instance.validate({ name: flagged, silent: true })
+}, { deep: true })
 
 // The conflict warning stays up only while the form holds what it was raised for.
 const conflictState = ref<string | null>(null)

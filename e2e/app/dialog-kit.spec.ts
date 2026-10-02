@@ -17,7 +17,8 @@ import { openUserMenuPage, sidebarNav } from '../support/shell'
 //   their trigger as they close), and a partly typed date is flagged, never saved as "not set".
 //   Enter in a tags field adds the tag and never submits the dialog, empty or filled (it once
 //   saved the F-019 permission edit half-way); a click on the submit button right after still
-//   submits.
+//   submits. A flagged field follows the typing, so the footer does not move under the click that
+//   comes straight after a correction.
 
 test.use({ errorGuardMode: 'strict' })
 
@@ -199,6 +200,57 @@ test.describe('validation while a dialog opens', () => {
     await page.keyboard.press('Tab')
     await expect(required).toBeVisible()
   })
+})
+
+test.describe('a corrected field and the click straight after', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+
+  // The dialog is centred, so a field message that appears or clears changes its height and moves
+  // the footer (here 13 px for a one-line message; more when one wraps). When a corrected field's
+  // message cleared only as focus left the field, which the press on the submit button itself
+  // does, the button moved between press and release: a click on its lower part was released
+  // beside it and submitted nothing. A flagged field follows the typing now, so the footer is
+  // already where it stays when the click comes. Both ways a field gets flagged: leaving it, and a
+  // refused submit while it was never visited (no message of its own would follow the typing).
+  for (const flaggedBy of ['leaving it', 'a refused submit'] as const) {
+    test(`a field flagged by ${flaggedBy}, then corrected, is saved by the very next click`, async ({ page, testData }) => {
+      const posts: Array<Record<string, unknown>> = []
+      await page.route(/\/permissions\/?$/, async (route) => {
+        if (route.request().method() === 'POST') posts.push(route.request().postDataJSON() as Record<string, unknown>)
+        await route.fallback()
+      })
+
+      await page.goto('/app/permissions')
+      await page.getByRole('button', { name: 'Create permission' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Create permission' })
+      // Fields validate on blur once the open transition has finished.
+      await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)))
+      const save = dialog.getByRole('button', { name: 'Create permission' })
+      const resource = dialog.getByLabel('Resource', { exact: true })
+      await dialog.getByLabel('Display name', { exact: true }).fill('PW corrected field')
+      await dialog.getByLabel('Action', { exact: true }).fill('read')
+      if (flaggedBy === 'leaving it') {
+        await resource.fill('Not a resource')
+        await resource.press('Tab')
+        await expect(dialog.getByText('Use lowercase letters, numbers, _ and - (or *).')).toBeVisible()
+      } else {
+        await save.click()
+        await expect(dialog.getByText('Resource is required.')).toBeVisible()
+      }
+      expect(posts).toHaveLength(0)
+
+      const name = testData.resource('corrected')
+      await resource.fill(name)
+      // Straight after the correction, near the bottom edge of the button.
+      const box = await save.boundingBox()
+      if (!box) throw new Error('The submit button has no box.')
+      await save.click({ position: { x: box.width / 2, y: box.height - 4 } })
+      await expect(dialog).toBeHidden()
+      await expect(page.getByText('Permission created', { exact: true })).toBeVisible()
+      expect(posts).toHaveLength(1)
+      expect(posts[0]).toMatchObject({ name: `${name}:read` })
+    })
+  }
 })
 
 test.describe('pending lock (F-206)', () => {

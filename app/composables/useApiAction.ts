@@ -197,11 +197,12 @@ function valueAt(state: unknown, path: string): string {
  * returns the function that stops doing so.
  *
  * UForm re-validates a field on blur, on change and 300 ms after the last keystroke
- * (validateOnInputDelay), replacing that field's errors with the client-side result. For a value
- * the server refused that result is a pass, so a submit made inside that window (retype the
- * email, press Enter) would lose the server's error a moment after it landed. The errors are put
- * back while the field still holds the submitted value; once it changes, UForm's own validation
- * owns the field again. Keeping stops at the form's next submit, when the form unmounts (the
+ * (validateOnInputDelay), and AppFormDialog re-validates flagged fields on every state change,
+ * each replacing that field's errors with the client-side result. For a value the server refused
+ * that result is a pass, so a submit made inside that window (retype the email, press Enter) or
+ * an edit to another field would lose the server's error a moment after it landed. The errors
+ * are put back while the field still holds the submitted value; once it changes, the form's own
+ * validation owns the field again. Keeping stops at the form's next submit, when the form unmounts (the
  * dialog closed) or when `run` starts again for it.
  */
 function keepServerErrors(

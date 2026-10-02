@@ -206,8 +206,9 @@ One protocol, owned by the client and the session queries; features never handle
     listed. `fieldMap` renames wire paths (`{ password: 'new_password' }`; `null` = never a field);
     an entry for a field also covers its members (`value.str`, `role_ids.0`). A server issue stays
     on its field until the user changes that value: UForm re-validates a field on blur, on change
-    and 300 ms after typing, which would otherwise replace it with the (passing) client result when
-    the user submits straight after typing. Keeping ends at the next submit and when the form
+    and 300 ms after typing, and AppFormDialog re-validates flagged fields on every change to its
+    state, which would otherwise replace it with the (passing) client result when the user submits
+    straight after typing or edits another field. Keeping ends at the next submit and when the form
     unmounts. It reads the form's own `state` prop, so any `UForm` ref works as is.
   - `fieldErrors?`: `(error) => { name, message }[]` for answers that belong on a field without
     being validation issues, e.g. a wrong current password (401 `INVALID_CREDENTIALS`) on Current
@@ -710,14 +711,22 @@ Zod) is the only form system.
   default slot as `<UFormField name label required>`. It exposes its inner UForm for
   `useDialogForm`. Fields validate on blur only once the open transition has finished: a dialog
   opened from a dropdown menu sees focus leave and come back while it opens (the menu hands focus
-  to its trigger as it closes), and that blur must not flag an untouched field. Enter submits
-  from any text field except a tags field (`UInputTags`), where it only adds the tag, empty or
-  filled (`utils/tags-enter-guard.ts`): the footer button is the form's default button, and
-  reka's tags input cancels Enter only after a tick and never on an empty field, so the browser
-  would otherwise submit a half-finished form. Capture-phase `keydown`/`keypress` listeners on a
-  wrapper around the form arm the guard until the next task, and a capture-phase `submit` while
-  armed is cancelled before UForm runs. The key event itself is never cancelled (reka would then
-  skip adding the tag), and a click on the submit button right after a tag Enter still submits.
+  to its trigger as it closes), and that blur must not flag an untouched field. A flagged field
+  follows the typing: while any field shows a message, every change to the state re-validates the
+  flagged fields at once (UForm's `validate({ name, silent })`, as AppConfirmDialog does for its
+  typed text), so no message is left for focus leaving a field to clear. That is what keeps the
+  footer still under a click: the dialog is centred, so a message that clears makes it shorter and
+  moves the footer, and the press on Save is itself what moves focus out of the corrected field
+  (Decisions, 2026-10-02). Leaving a field still flags it; UForm's own rules (blur, change, 300 ms
+  after typing in a field already left once) decide when an unflagged field is first checked.
+  Enter submits from any text field except a tags field (`UInputTags`), where it only adds the
+  tag, empty or filled (`utils/tags-enter-guard.ts`): the footer button is the form's default
+  button, and reka's tags input cancels Enter only after a tick and never on an empty field, so
+  the browser would otherwise submit a half-finished form. Capture-phase `keydown`/`keypress`
+  listeners on a wrapper around the form arm the guard until the next task, and a capture-phase
+  `submit` while armed is cancelled before UForm runs. The key event itself is never cancelled
+  (reka would then skip adding the tag), and a click on the submit button right after a tag Enter
+  still submits.
 - **`useDialogForm(refName)`** — the `form` option for `useApiAction().run`, for the
   `<AppFormDialog ref="refName">` of the calling component: server issues land on the fields.
 - **`AppConfirmDialog`** (`components/app/ConfirmDialog.vue`) + **`useConfirmAction`** — the one
@@ -730,7 +739,8 @@ Zod) is the only form system.
   read; `confirm-disabled` keeps Confirm off until it is satisfied (entity archive: the cascade
   acknowledgement checkbox). The
   typed text is checked on submit (Enter) only; the disabled confirm button is the live feedback,
-  so the field never opens flagged. The
+  so the field never opens flagged. After a flagged submit the message follows the typing and
+  clears on a match, never on blur, so Confirm does not move under the click that follows. The
   controller holds `open`, `target`, `pending`, `error` and the `dialog` props; `ask(row)` opens it,
   `confirm()` runs the action and closes on success (a gone record closes it with a toast).
 - **`useDialogGuard({ open, dirty?, pending?, hold?, discard? })`** — used by both dialogs; for a
@@ -1011,6 +1021,24 @@ Dated, append-only. Superseded decisions stay with their status changed.
   UForm re-validates a field on blur, on change and 300 ms after typing and replaces its errors,
   which erased the refusal a moment after it appeared (F-082). Server errors are kept on their
   fields by `useApiAction` for the same reason. *Status: adopted.*
+- **2026-10-02 — A flagged field in a dialog follows the typing; the footer does not move under a
+  click.** Amends the build plan's guidance to accept UForm's default validate-on (input, blur,
+  change) in dialogs. With the defaults, a corrected field's message cleared 300 ms after the last
+  keystroke (and only in a field the admin had left once, not one flagged by a refused submit) or
+  when focus left the field, and a press on Save is what moves focus. The centred dialog got
+  shorter between press and release, the footer moved up (13 px for a one-line message, more when
+  it wraps), and a click on the lower part of Save was released beside it: nothing was submitted.
+  AppFormDialog now re-validates the flagged fields on every change to the state while any is
+  shown, so the footer is already where it stays when the click comes. Considered and not taken:
+  dropping blur and change from validate-on (fields would no longer be flagged when left, and the
+  date field reports a partly typed day through change), immediate and eager input validation for
+  every field (flags a field from its first keystroke), and a footer pinned independently of the
+  body (a slideover or a fixed-height modal changes every dialog's layout). Leaving an invalid
+  field still flags it and can still move the footer; the click that lands beside the button then
+  is one the form would have refused. AppConfirmDialog already behaved this way (no blur
+  validation; its typed text follows the typing). Covered by `e2e/app/dialog-kit.spec.ts` "a
+  corrected field and the click straight after", which failed without the change.
+  *Status: adopted.*
 
 ## Status
 
