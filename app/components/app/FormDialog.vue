@@ -15,7 +15,9 @@ import type { FormConflict } from '~/composables/useDialogForm'
 //   land on fields when run() gets `form: useDialogForm('<ref>')`. Client-side validation
 //   failures move focus to the first invalid field. A flagged field follows the typing: while
 //   any field shows a message, every change to the state re-validates the flagged fields at
-//   once, so a message never waits for focus to leave its field before it clears (see below).
+//   once. A press on the footer holds the form until its click: nothing validates and nothing
+//   the press commits (a number field writes its value on blur) moves the footer from under the
+//   pointer before the click lands (see below).
 // - `validate`: client-side rules the schema cannot express because they depend on more than the
 //   state (what the server offers, what the dialog opened with). UForm runs it with the schema on
 //   every validation, so its errors block the submit and stay on their fields. Never set such an
@@ -107,29 +109,73 @@ const opened = ref(false)
 watch(open, (isOpen) => {
   if (!isOpen) opened.value = false
 })
-const validateOn = computed<FormInputEvents[]>(() => (opened.value ? ['input', 'blur', 'change'] : ['input', 'change']))
+
+// A press on the footer (or on the conflict warning: Overwrite, Reload) holds the form until the
+// click it makes. The dialog is centred, so a message that appears or clears changes its height
+// and moves the footer. The press itself takes the focus out of the field being edited, and
+// leaving a field is when UForm validates it and when some inputs write what was typed: a number
+// field (UInputNumber) commits only on blur or Enter, a tags field with add-on-blur adds the typed
+// tag. A message that changed then moved the footer between press and release, the release landed
+// beside the button and nothing was submitted. So from the press until its click nothing
+// validates (validate-on is empty, the follow-the-typing re-check below waits) and the conflict
+// warning stays as it was. The click's submit validates everything; a press that submitted
+// nothing re-checks the flagged fields when it ends. A mouse or pen click comes in the same task
+// as the release, so the hold ends in the next task. A touch moves the focus and clicks only after
+// the finger lifts, so it waits for that click and gives up after a second when none comes.
+const holding = ref(false)
+let releaseTimer: ReturnType<typeof setTimeout> | undefined
+function hold(event: PointerEvent) {
+  if (event.button !== 0) return
+  clearTimeout(releaseTimer)
+  holding.value = true
+}
+function release(delay = 0) {
+  if (!holding.value) return
+  clearTimeout(releaseTimer)
+  releaseTimer = setTimeout(() => {
+    holding.value = false
+    recheckFlagged()
+  }, delay)
+}
+useEventListener(window, 'click', () => release(), { capture: true, passive: true })
+useEventListener(window, 'pointerup', (event: PointerEvent) => release(event.pointerType === 'touch' ? 1000 : 0), { capture: true, passive: true })
+useEventListener(window, 'pointercancel', () => release(), { capture: true, passive: true })
+watch(open, (isOpen) => {
+  if (isOpen) return
+  clearTimeout(releaseTimer)
+  holding.value = false
+})
+onScopeDispose(() => clearTimeout(releaseTimer))
+
+const validateOn = computed<FormInputEvents[]>(() => (holding.value ? [] : opened.value ? ['input', 'blur', 'change'] : ['input', 'change']))
 
 // A flagged field follows the typing. On its own, UForm re-validates a typed-in field 300 ms after
 // the last keystroke, and only once focus has left that field before; otherwise its message
-// clears when focus leaves it. A press on the submit button moves the focus, so a message that
-// was still up cleared between the press and the release: the centred dialog got shorter, the
-// footer moved, the release landed beside the button and nothing was submitted. So while any
-// field shows a message, every change to the state re-validates the flagged fields at once
-// (cross-field rules included), and leaving a field has nothing left to clear. Leaving a field can
-// still flag it (punish late, as before); a click lost to that shift is one the form would refuse.
-watch(() => props.state, () => {
+// clears when focus leaves it. So while any field shows a message, every change to the state
+// re-validates the flagged fields at once (cross-field rules included). A field whose input writes
+// the state only on blur (a number field) cannot follow the typing; the press hold above is what
+// keeps its message, and the footer, where they are until the click. Leaving a field can still
+// flag it (punish late, as before).
+function recheckFlagged() {
   const instance = form.value
-  if (!instance || instance.loading) return
+  if (!instance || instance.loading || holding.value) return
   const flagged = [...new Set(instance.getErrors().flatMap(error => (error.name ? [error.name] : [])))]
   if (flagged.length) void instance.validate({ name: flagged, silent: true })
-}, { deep: true })
+}
+watch(() => props.state, recheckFlagged, { deep: true })
 
 // The conflict warning stays up only while the form holds what it was raised for.
 const conflictState = ref<string | null>(null)
 watch(() => props.conflict, (conflict) => {
   conflictState.value = conflict ? JSON.stringify(props.state) : null
 }, { immediate: true })
-const shownConflict = computed(() => (props.conflict && JSON.stringify(props.state) === conflictState.value ? props.conflict : null))
+const currentConflict = computed(() => (props.conflict && JSON.stringify(props.state) === conflictState.value ? props.conflict : null))
+// Held with the form during a press (above): a value the press commits would hide the warning
+// between press and release, taking Overwrite from under the pointer and moving the footer.
+const shownConflict = ref<FormConflict | null>(null)
+watch([currentConflict, holding], ([conflict, held]) => {
+  if (!held) shownConflict.value = conflict
+}, { immediate: true })
 
 // Overwrite goes through UForm's submit, so the schema validates first (and the form locks
 // while it runs); `overwriting` routes the validated submit to onOverwrite.
@@ -200,13 +246,15 @@ defineExpose({ form })
               { label: 'Overwrite', color: 'warning', loading: pending, onClick: overwrite }
             ]"
             data-testid="form-conflict"
+            @pointerdown="hold"
           />
           <slot />
         </UForm>
       </div>
     </template>
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
+      <!-- A press here holds the form until its click (see the script). -->
+      <div class="flex w-full justify-end gap-2" @pointerdown="hold">
         <UButton
           color="neutral"
           variant="ghost"

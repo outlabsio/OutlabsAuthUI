@@ -714,11 +714,17 @@ Zod) is the only form system.
   to its trigger as it closes), and that blur must not flag an untouched field. A flagged field
   follows the typing: while any field shows a message, every change to the state re-validates the
   flagged fields at once (UForm's `validate({ name, silent })`, as AppConfirmDialog does for its
-  typed text), so no message is left for focus leaving a field to clear. That is what keeps the
-  footer still under a click: the dialog is centred, so a message that clears makes it shorter and
-  moves the footer, and the press on Save is itself what moves focus out of the corrected field
-  (Decisions, 2026-10-02). Leaving a field still flags it; UForm's own rules (blur, change, 300 ms
-  after typing in a field already left once) decide when an unflagged field is first checked.
+  typed text). A press on the footer (or on the conflict warning) holds the form until the click
+  it makes: validate-on is empty, that re-check waits and the conflict warning keeps its state.
+  The dialog is centred, so a message that appears or clears moves the footer, and the press on
+  Save is itself what takes the focus out of the field being edited: that is when UForm validates
+  the field, and when a number field (`UInputNumber`, which writes its value only on blur or
+  Enter) or a tags field with `add-on-blur` writes what was typed. Without the hold the release
+  could land beside the button (Decisions, 2026-10-02). The click's submit validates everything;
+  a press that submitted nothing re-checks the flagged fields when it ends (the next task after a
+  mouse or pen release; a touch waits for its click, at most a second). Leaving a field still
+  flags it; UForm's own rules (blur, change, 300 ms after typing in a field already left once)
+  decide when an unflagged field is first checked.
   Enter submits from any text field except a tags field (`UInputTags`), where it only adds the
   tag, empty or filled (`utils/tags-enter-guard.ts`): the footer button is the form's default
   button, and reka's tags input cancels Enter only after a tick and never on an empty field, so
@@ -1038,7 +1044,33 @@ Dated, append-only. Superseded decisions stay with their status changed.
   is one the form would have refused. AppConfirmDialog already behaved this way (no blur
   validation; its typed text follows the typing). Covered by `e2e/app/dialog-kit.spec.ts` "a
   corrected field and the click straight after", which failed without the change.
-  *Status: adopted.*
+  *Status: adopted; amended 2026-10-02 (next entry): the re-check alone does not keep the footer
+  still for an input that writes its value only on blur, and a field left invalid by the press no
+  longer moves the footer.*
+- **2026-10-02 — A press on a dialog's footer holds the form until its click.** Amends the entry
+  above. Its re-check follows the state, and a number field (`UInputNumber`, reka's number field)
+  writes what was typed only on blur or Enter: while the admin typed a correction the state did
+  not change and the message stayed up, and the press on Save, which blurs the field, committed
+  the value and cleared the message between press and release. Found in review on the ABAC
+  condition value: the footer moved 14 px and a click on the lower part of the button was lost 3
+  out of 3 times; a tap was lost the same way. AppFormDialog now holds the form from a pointerdown
+  on its footer (or on the conflict warning) until the click that press makes: validate-on is
+  empty, the re-check waits and the conflict warning keeps its state. The click's submit
+  validates everything; a press that submitted nothing re-checks the flagged fields when it ends
+  (the next task after a mouse or pen release; a touch waits for its click, at most a second).
+  The hold also covers a tags field that adds its typed tag on blur, and a field left invalid by
+  the press: its message now comes with the refused submit instead of moving the footer before
+  the click. The hold alone keeps the footer still (the dialog-kit cases pass with the re-check
+  removed); the re-check stays as feedback while typing. Considered and not taken: a number-field
+  wrapper that writes the value as it is typed (it would repeat reka's parsing, clamping and step
+  snapping, and a value the blur clamps or snaps would still change under the press), and the
+  alternatives listed in the entry above. Known residual: what a commit on blur changes besides
+  validation, such as a committed tag that wraps a tags field onto a second line, can still
+  resize the dialog under the press. The page forms outside dialogs (account, auth) are not
+  covered. Covered by `e2e/app/dialog-kit.spec.ts`: "a number field flagged by a refused submit,
+  then corrected, is saved by the very next click" and its tap variant (EnterpriseRBAC, the ABAC
+  value), and "a field left invalid by the press on the submit button is refused by that same
+  click" (both presets), each of which failed without the change. *Status: adopted.*
 
 ## Status
 

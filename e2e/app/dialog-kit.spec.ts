@@ -3,6 +3,7 @@ import { backendConfigured, expect, test, type ApiClient } from '../support/fixt
 import { shownDay, typeDay } from '../support/date-field'
 import { searchUsersList } from '../support/lists'
 import { openUserMenuPage, sidebarNav } from '../support/shell'
+import { chooseSelect, field } from '../support/ui-select'
 
 // The forms-and-dialogs kit (AppFormDialog, AppConfirmDialog, useDialogGuard, useDirtyPatch,
 // AppDateField). Runs on both presets: permissions, users and direct roles exist everywhere.
@@ -17,8 +18,9 @@ import { openUserMenuPage, sidebarNav } from '../support/shell'
 //   their trigger as they close), and a partly typed date is flagged, never saved as "not set".
 //   Enter in a tags field adds the tag and never submits the dialog, empty or filled (it once
 //   saved the F-019 permission edit half-way); a click on the submit button right after still
-//   submits. A flagged field follows the typing, so the footer does not move under the click that
-//   comes straight after a correction.
+//   submits. A flagged field follows the typing and a press on the footer holds the form until its
+//   click, so the footer does not move under the click (or tap) that comes straight after a
+//   correction, a number field's included.
 
 test.use({ errorGuardMode: 'strict' })
 
@@ -206,12 +208,14 @@ test.describe('a corrected field and the click straight after', () => {
   test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
 
   // The dialog is centred, so a field message that appears or clears changes its height and moves
-  // the footer (here 13 px for a one-line message; more when one wraps). When a corrected field's
-  // message cleared only as focus left the field, which the press on the submit button itself
-  // does, the button moved between press and release: a click on its lower part was released
-  // beside it and submitted nothing. A flagged field follows the typing now, so the footer is
-  // already where it stays when the click comes. Both ways a field gets flagged: leaving it, and a
-  // refused submit while it was never visited (no message of its own would follow the typing).
+  // the footer (here 13 px for a one-line message; more when one wraps). The press on the submit
+  // button itself takes the focus out of the corrected field, and a message that cleared then
+  // moved the button between press and release: a click on its lower part was released beside it
+  // and submitted nothing. Now a flagged field follows the typing, and a press on the footer holds
+  // the form until its click. Both ways a field gets flagged: leaving it, and a refused submit
+  // while it was never visited. (Without either change the "leaving it" case fails only when the
+  // click comes within UForm's 300 ms input delay; the refused-submit and number-field cases do
+  // not depend on timing.)
   for (const flaggedBy of ['leaving it', 'a refused submit'] as const) {
     test(`a field flagged by ${flaggedBy}, then corrected, is saved by the very next click`, async ({ page, testData }) => {
       const posts: Array<Record<string, unknown>> = []
@@ -251,6 +255,95 @@ test.describe('a corrected field and the click straight after', () => {
       expect(posts[0]).toMatchObject({ name: `${name}:read` })
     })
   }
+
+  // The press can also be what leaves an invalid field that was never left before (so not yet
+  // flagged). Its message then appeared between press and release and moved the footer down: a
+  // click near the top of the button was lost and nothing showed where to look. Held, the click
+  // lands, the submit is refused and the focus moves to the field.
+  test('a field left invalid by the press on the submit button is refused by that same click', async ({ page }) => {
+    const posts: unknown[] = []
+    await page.route(/\/permissions\/?$/, async (route) => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON())
+      await route.fallback()
+    })
+
+    await page.goto('/app/permissions')
+    await page.getByRole('button', { name: 'Create permission' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create permission' })
+    await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)))
+    const save = dialog.getByRole('button', { name: 'Create permission' })
+    const resource = dialog.getByLabel('Resource', { exact: true })
+    await dialog.getByLabel('Display name', { exact: true }).fill('PW left by the press')
+    await dialog.getByLabel('Action', { exact: true }).fill('read')
+    await resource.fill('Not a resource')
+    const message = dialog.getByText('Use lowercase letters, numbers, _ and - (or *).')
+    await expect(message).toHaveCount(0)
+
+    const box = await save.boundingBox()
+    if (!box) throw new Error('The submit button has no box.')
+    await save.click({ position: { x: box.width / 2, y: 4 } })
+    await expect(message).toBeVisible()
+    await expect(resource).toBeFocused()
+    await expect(dialog).toBeVisible()
+    expect(posts).toHaveLength(0)
+  })
+
+  // A number field (UInputNumber, reka's number field) writes what was typed only when focus
+  // leaves it or on Enter, so its message cannot follow the typing: the state has not changed yet.
+  // The press on the submit button is what blurs it, and the value it commits then cleared the
+  // message between press and release. A press on the footer holds the form until its click, so
+  // the message clears only once the click has landed. A touch moves the focus only after the
+  // finger lifts, so the hold waits for the tap's click too. EnterpriseRBAC: the ABAC value.
+  async function correctNumberThenSave(page: Page, api: ApiClient, press: 'click' | 'tap') {
+    const permission = await api.createPermission({ kind: 'numfield' })
+    const posts: Array<Record<string, unknown>> = []
+    await page.route(/\/conditions\/?$/, async (route) => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON() as Record<string, unknown>)
+      await route.fallback()
+    })
+
+    await page.goto(`/app/permissions/${permission.id}`)
+    await page.getByRole('button', { name: 'Add condition', exact: true }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'Add condition' })
+    await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)))
+    await chooseSelect(page, field(dialog, 'Context'), 'time')
+    await field(dialog, 'Attribute').fill('hour')
+    await field(dialog, 'Operator').click()
+    await page.getByRole('option').filter({ has: page.getByText('less_than', { exact: true }) }).click()
+    const save = dialog.getByRole('button', { name: 'Add condition' })
+    await save.click()
+    const message = dialog.getByText('Enter a whole number.')
+    await expect(message).toBeVisible()
+    expect(posts).toHaveLength(0)
+
+    await field(dialog, 'Value').fill('17')
+    // Typed but not yet written: the message is still up when the press comes.
+    await expect(message).toBeVisible()
+    const box = await save.boundingBox()
+    if (!box) throw new Error('The submit button has no box.')
+    const position = { x: box.width / 2, y: box.height - 4 }
+    if (press === 'tap') await save.tap({ position })
+    else await save.click({ position })
+    await expect(dialog).toBeHidden()
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toMatchObject({ attribute: 'time.hour', operator: 'less_than', value: 17, value_type: 'integer' })
+    const stored = await api.get<Array<{ attribute: string, value: string }>>(`/permissions/${permission.id}/conditions`)
+    expect(stored).toEqual([expect.objectContaining({ attribute: 'time.hour', value: '17' })])
+  }
+
+  test('a number field flagged by a refused submit, then corrected, is saved by the very next click', async ({ page, api, requires }) => {
+    await requires({ features: ['abac'] })
+    await correctNumberThenSave(page, api, 'click')
+  })
+
+  test.describe('on a touch screen', () => {
+    test.use({ hasTouch: true })
+
+    test('a number field flagged by a refused submit, then corrected, is saved by the very next tap', async ({ page, api, requires }) => {
+      await requires({ features: ['abac'] })
+      await correctNumberThenSave(page, api, 'tap')
+    })
+  })
 })
 
 test.describe('pending lock (F-206)', () => {
