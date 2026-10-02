@@ -3,10 +3,10 @@
   "authApiPrefix": "/v1",
   "frontendProfileKey": "console",
   "appName": "OutlabsAuth UI",
-  "appSubtitle": "Shared auth admin console",
+  "appSubtitle": "Account and access management",
   "authBrand": "OutlabsAuth",
   "authLogoUrl": "/brand/outlabs-auth-logo.svg",
-  "signInDescription": "Sign in against the configured auth backend to access this console.",
+  "signInDescription": "Sign in to your account.",
   "authUi": {
     "signup": true,
     "identifier": "email-or-phone",

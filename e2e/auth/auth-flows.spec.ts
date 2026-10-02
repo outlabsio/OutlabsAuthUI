@@ -50,6 +50,41 @@ test.describe('auth flows', () => {
     await expect(page.getByRole('button', { name: 'Accept and sign in' })).toBeVisible()
   })
 
+  // Where a password is chosen it can be checked before it is sent, as on sign-in, and a link
+  // opened by mistake has a way back to sign-in (v-auth-shell-09).
+  for (const { path, heading, fields } of [
+    { path: '/auth/reset-password?token=demo-token&redirect=/app/users', heading: 'Choose a new password', fields: ['New password', 'Confirm new password'] },
+    { path: '/auth/accept-invite?token=demo-token&redirect=/app/users', heading: 'Accept your invitation', fields: ['Password', 'Confirm password'] },
+    { path: '/auth/signup?redirect=/app/users', heading: 'Create your account', fields: ['Password', 'Confirm password'] }
+  ]) {
+    test(`${path.split('?')[0]}: every password field can be revealed`, async ({ page }) => {
+      await page.goto(path)
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible()
+      for (const label of fields) {
+        const input = page.getByLabel(label, { exact: true })
+        await input.fill('Secret-pass1!')
+        await expect(input).toHaveAttribute('type', 'password')
+        // The toggle sits inside the field, next to its input.
+        const toggle = input.locator('xpath=..').getByRole('button', { name: 'Show password' })
+        await toggle.click()
+        await expect(input).toHaveAttribute('type', 'text')
+        await expect(input.locator('xpath=..').getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true')
+      }
+      if (!path.startsWith('/auth/signup')) {
+        const back = page.getByRole('link', { name: 'Back to sign in' })
+        await expect(back).toHaveAttribute('href', /^\/auth\/login\?redirect=(%2F|\/)app(%2F|\/)users$/)
+        await back.click()
+        await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+      }
+    })
+  }
+
+  test('guest pages speak to the person signing in, not to the operator', async ({ page }) => {
+    await page.goto('/auth/login')
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByText(/configured auth backend|admin console/i)).toHaveCount(0)
+  })
+
   // ── F1: retired standalone pages fold into the unified flow ──
 
   test('magic-link without a token redirects into the unified sign-in', async ({ page }) => {

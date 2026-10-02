@@ -144,11 +144,13 @@ const builtInDefaults: RuntimeConfig = {
   authApiPrefix: '/v1',
   frontendProfileKey: undefined,
   appName: 'OutlabsAuth UI',
-  appSubtitle: 'Shared auth admin console',
+  // Shown to everyone on the guest pages (sign-in, signup, invitations), end users included, so
+  // the defaults address them, not the operator.
+  appSubtitle: 'Account and access management',
   authBrand: 'OutlabsAuth',
   authLogoUrl: '/brand/outlabs-auth-logo.svg',
   authLogoDarkUrl: '/brand/outlabs-auth-logo-dark.svg',
-  signInDescription: 'Sign in against the configured auth backend to access this console.',
+  signInDescription: 'Sign in to your account.',
   oauthProviders: [],
   authUi: builtInAuthUiDefaults
 }

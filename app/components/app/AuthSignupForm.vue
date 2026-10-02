@@ -60,18 +60,16 @@ function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
       :help="PASSWORD_POLICY_HINT"
       required
     >
-      <UInput
+      <AppPasswordInput
         v-model="state.password"
-        type="password"
         autocomplete="new-password"
         class="w-full"
       />
     </UFormField>
 
     <UFormField name="confirm_password" label="Confirm password" required>
-      <UInput
+      <AppPasswordInput
         v-model="state.confirm_password"
-        type="password"
         autocomplete="new-password"
         class="w-full"
       />

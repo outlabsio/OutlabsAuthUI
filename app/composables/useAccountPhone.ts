@@ -3,10 +3,11 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { describeAuthError } from '~/api/client'
 import { useConfirmPhoneVerification, useRequestPhoneVerification, useUpdateProfile } from '~/queries/account'
 import { SESSION_KEY } from '~/queries/session'
-import { normalizePhone } from '~/schemas/auth-flows'
+import { codeSchemaFor, normalizePhone } from '~/schemas/auth-flows'
 import type { PhoneNumberSchema } from '~/schemas/account'
 import type { SessionUser } from '~/types/auth'
 import { phoneChannelsText } from '~/utils/account'
+import { codeFieldError } from '~/utils/auth-messages'
 import { cooldownKey } from '~/utils/request-cooldown'
 
 // The Profile tab's phone number: add, change or remove it (a dialog with the sign-in
@@ -16,7 +17,9 @@ import { cooldownKey } from '~/utils/request-cooldown'
 // phone channel (useAuthUiConfig().phoneEnabled). Without it the number is plain profile data:
 // no verification step and no promise of sign-in codes (F-099). A verified number stops being
 // verified as soon as it changes or is removed, so both say so first (F-101), and a new number
-// goes straight to its verification step (F-100).
+// goes straight to its verification step (F-100). The code is a UForm field ('code', the shared
+// code schema): the last digit submits the form, and a code the server refuses is said on the
+// field until the next attempt, not only in a toast.
 
 export function useAccountPhone() {
   const { user } = useAuth()
@@ -95,6 +98,14 @@ export function useAccountPhone() {
   const step = ref<'idle' | 'verify'>('idle')
   const digits = ref<number[]>([])
   const code = computed(() => digits.value.join(''))
+  const codeState = reactive({ code: digits })
+  const codeSchema = computed(() => codeSchemaFor(otpLength.value))
+  const codeError = ref('')
+  const codeForm = useTemplateRef<{ submit: () => Promise<void> }>('phoneCodeForm')
+  // The last digit submits the form, so the schema runs before the request (as Verify does).
+  function submitCode() {
+    void codeForm.value?.submit()
+  }
   const sending = ref(false)
   const confirming = ref(false)
   const requestCode = useRequestPhoneVerification()
@@ -107,16 +118,27 @@ export function useAccountPhone() {
   watch(phone, () => {
     step.value = 'idle'
     digits.value = []
+    codeError.value = ''
   })
 
   // The code input takes focus when the step appears, so the code can be typed (or pasted from
   // the one-time-code autofill) straight away.
   const codeInput = useTemplateRef<{ inputsRef?: Array<{ $el?: HTMLElement } | null> }>('phoneCodeInput')
-  watch(step, async (current) => {
-    if (current !== 'verify') return
+  async function focusCode() {
     await nextTick()
-    const first = codeInput.value?.inputsRef?.[0]?.$el
-    if (first && document.activeElement !== first) first.focus()
+    // UForm keeps its inputs disabled until the submit handler has returned and re-renders after
+    // that, so focus once that render is done (a disabled box cannot take the focus).
+    setTimeout(() => {
+      const first = codeInput.value?.inputsRef?.[0]?.$el
+      if (first && document.activeElement !== first) first.focus()
+    }, 0)
+  }
+  watch(step, (current) => {
+    if (current === 'verify') void focusCode()
+  })
+  // A refused code: the boxes were disabled while it was checked, so the focus comes back to them.
+  watch(() => [codeError.value, confirming.value] as const, ([error, busy]) => {
+    if (error && !busy) void focusCode()
   })
 
   async function sendCode() {
@@ -129,6 +151,7 @@ export function useAccountPhone() {
     if (res.ok) {
       sendCooldown.start()
       digits.value = []
+      codeError.value = ''
       step.value = 'verify'
     } else {
       sendCooldown.startFromError(res.error)
@@ -139,14 +162,17 @@ export function useAccountPhone() {
   async function onConfirm() {
     if (code.value.length < otpLength.value || confirming.value || confirmCooldown.active.value) return
     confirming.value = true
+    codeError.value = ''
     const res = await run(() => confirmCode.mutateAsync(code.value), {
       success: 'Phone number verified',
-      error: err => describeAuthError(err, 'Could not verify the phone number')
+      // A refused code is said on the code field; anything else (a rate limit) in a toast.
+      error: err => (codeFieldError(err) ? null : describeAuthError(err, 'Could not verify the phone number'))
     })
     if (res.ok) {
       storeUser(res.data)
       step.value = 'idle'
     } else {
+      codeError.value = codeFieldError(res.error) ?? ''
       confirmCooldown.startFromError(res.error)
     }
     digits.value = []
@@ -156,6 +182,7 @@ export function useAccountPhone() {
   function onUseDifferentNumber() {
     step.value = 'idle'
     digits.value = []
+    codeError.value = ''
     openDialog()
   }
 
@@ -176,6 +203,10 @@ export function useAccountPhone() {
     step,
     digits,
     code,
+    codeState,
+    codeSchema,
+    codeError,
+    submitCode,
     sending,
     confirming,
     sendCooldown: sendCooldown.remaining,

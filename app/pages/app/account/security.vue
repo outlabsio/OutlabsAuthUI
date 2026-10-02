@@ -48,9 +48,8 @@ const {
       @error="focusFirstFormError"
     >
       <UFormField name="current_password" label="Current password" required>
-        <UInput
+        <AppPasswordInput
           v-model="passwordState.current_password"
-          type="password"
           autocomplete="current-password"
           class="w-full"
         />
@@ -61,17 +60,15 @@ const {
         :help="PASSWORD_POLICY_HINT"
         required
       >
-        <UInput
+        <AppPasswordInput
           v-model="passwordState.new_password"
-          type="password"
           autocomplete="new-password"
           class="w-full"
         />
       </UFormField>
       <UFormField name="confirm_password" label="Confirm new password" required>
-        <UInput
+        <AppPasswordInput
           v-model="passwordState.confirm_password"
-          type="password"
           autocomplete="new-password"
           class="w-full"
         />

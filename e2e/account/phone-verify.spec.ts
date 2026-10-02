@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../support/fixtures'
 import { patchAuthConfig } from '../support/capabilities'
 import { apiUrl } from '../support/env'
-import { corsHeaders } from '../support/mocks'
+import { corsHeaders, jsonResponse } from '../support/mocks'
 
 // Account phone verification (F-099, F-100, F-101). Runs as the admin persona with its
 // /users/me answer given a phone and the code requests mocked, so nothing is sent and the
@@ -59,6 +59,33 @@ test.describe('Account phone verification', () => {
     await expect(dialog.getByLabel('Phone number')).toHaveValue(PHONE)
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByRole('button', { name: /^Send verification code/ })).toBeVisible()
+  })
+
+  // The code is a form field: a refused code is said on it and stays after the boxes clear,
+  // instead of only in a toast (c-guardrails-03).
+  test('a wrong code is said on the code field, not only in a toast', async ({ page, errorGuard }) => {
+    errorGuard.allow({ status: 401, url: /phone\/verify-code/ })
+    errorGuard.allow({ console: /status of 401/ })
+    await withAccessCodes(page, true)
+    await withPhone(page, false)
+    await countCodeRequests(page)
+    let confirms = 0
+    await page.route(url => url.pathname.endsWith('/users/me/phone/verify-code'), (route) => {
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders('POST,OPTIONS') })
+      confirms += 1
+      return route.fulfill(jsonResponse(401, { error: 'TOKEN_INVALID', message: 'Invalid or expired verification code' }, 'POST,OPTIONS'))
+    })
+
+    await page.goto('/app/account')
+    await page.getByRole('button', { name: 'Send verification code' }).click()
+    for (let i = 0; i < 6; i++) await page.getByRole('textbox', { name: `pin input ${i + 1} of 6` }).fill(String(i + 1))
+    const message = 'This code is wrong or has expired. Check it and try again, or resend the code.'
+    await expect(page.getByRole('alert').filter({ hasText: message })).toBeVisible()
+    expect(confirms).toBe(1)
+    await expect(page.locator('[aria-label="Phone verification code"]')).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByText('Could not verify the phone number', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('textbox', { name: 'pin input 1 of 6' })).toHaveValue('')
+    await expect(page.getByRole('textbox', { name: 'pin input 1 of 6' })).toBeFocused()
   })
 
   test('a verified number warns before it is changed', async ({ page }) => {

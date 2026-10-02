@@ -29,6 +29,7 @@ const {
   channelCooldown,
   otpLength,
   digits,
+  codeError,
   verifying,
   resending,
   sentTo,
@@ -199,6 +200,7 @@ const runtimeConfig = useState<RuntimeConfig | null>('app:runtime-config')
     <AppAuthOtp
       v-else-if="step === 'otp'"
       v-model:digits="digits"
+      :error="codeError"
       :sent-to="sentTo"
       :length="otpLength"
       :verifying="verifying"

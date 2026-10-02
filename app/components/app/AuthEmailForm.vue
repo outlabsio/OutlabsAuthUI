@@ -29,7 +29,6 @@ const emit = defineEmits<{
 const state = defineModel<Partial<EmailPasswordSchema>>('state', { required: true })
 
 const form = useTemplateRef('form')
-const showPassword = ref(false)
 
 // UForm validates before emitting — pass its event straight through.
 function onSubmit(event: FormSubmitEvent<EmailPasswordSchema>) {
@@ -67,24 +66,11 @@ async function requestAlternate(kind: 'magicLink' | 'emailCode') {
       </UFormField>
 
       <UFormField name="password" label="Password" required>
-        <UInput
+        <AppPasswordInput
           v-model="state.password"
-          :type="showPassword ? 'text' : 'password'"
           autocomplete="current-password"
           class="w-full"
-        >
-          <template #trailing>
-            <UButton
-              color="neutral"
-              variant="link"
-              size="sm"
-              :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-              :aria-label="showPassword ? 'Hide password' : 'Show password'"
-              :aria-pressed="showPassword"
-              @click="showPassword = !showPassword"
-            />
-          </template>
-        </UInput>
+        />
       </UFormField>
 
       <UButton

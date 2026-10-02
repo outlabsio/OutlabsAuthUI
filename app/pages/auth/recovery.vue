@@ -24,6 +24,7 @@ const {
   sendPhoneCode,
   channelCooldown,
   digits,
+  codeError,
   verifying,
   resending,
   sentTo,
@@ -165,6 +166,7 @@ const { withIntent } = useAuthIntent()
     <AppAuthOtp
       v-else-if="step === 'otp'"
       v-model:digits="digits"
+      :error="codeError"
       :sent-to="sentTo"
       :length="otpLength"
       :verifying="verifying"

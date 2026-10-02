@@ -165,6 +165,46 @@ test.describe('sign-in steps', () => {
     await expect(page.getByRole('button', { name: /^Verify and sign in in \d+s$/ })).toBeDisabled()
   })
 
+  // The code is a form field: a code the server refuses is said on it, tied to it for assistive
+  // technology, and stays there after the boxes clear for the next try, instead of passing in a
+  // toast (c-guardrails-03).
+  test('a wrong code is said on the code field and stays after the boxes clear', async ({ page, errorGuard }) => {
+    errorGuard.allow({ status: 401, url: /access-code\/verify/ })
+    errorGuard.allow({ console: /status of 401/ })
+    await allMethods(page)
+    await mockPost(page, '/auth/access-code/request', () => ({ status: 204 }))
+    const verifies = await mockPost(page, '/auth/access-code/verify', () => ({
+      status: 401,
+      body: { error: 'TOKEN_INVALID', message: 'Invalid or expired access code' }
+    }))
+    await page.goto('/auth/login')
+    await openEmailForm(page)
+    await page.getByLabel('Email').fill('wrong-code@example.com')
+    await page.getByRole('button', { name: 'Email me a code instead' }).click()
+    await expect(page.getByRole('heading', { name: 'Enter your code' })).toBeVisible()
+
+    await fillOtp(page, '123456')
+    const message = 'This code is wrong or has expired. Check it and try again, or resend the code.'
+    const fieldError = page.getByRole('alert').filter({ hasText: message })
+    await expect(fieldError).toBeVisible()
+    expect(verifies()).toBe(1)
+    const code = page.locator('[aria-label="Access code"]')
+    await expect(code).toHaveAttribute('aria-invalid', 'true')
+    await expect(code).toHaveAttribute('aria-describedby', /-error$/)
+    // Not a toast: nothing else repeats it.
+    await expect(page.getByText('Invalid code', { exact: true })).toHaveCount(0)
+    // The boxes are emptied and focused for the next try; the reason stays in view.
+    const first = page.getByRole('textbox', { name: 'pin input 1 of 6' })
+    await expect(first).toHaveValue('')
+    await expect(first).toBeFocused()
+    await first.fill('9')
+    await expect(fieldError).toBeVisible()
+    // The next attempt starts clean.
+    await fillOtp(page, '654321')
+    await expect.poll(verifies).toBe(2)
+    await expect(fieldError).toBeVisible()
+  })
+
   test('phone steps are in the history, and focus lands on each step', async ({ page }) => {
     await allMethods(page)
     await mockPost(page, '/auth/access-code/request', () => ({ status: 204 }))
@@ -436,7 +476,7 @@ test.describe('sign-in steps', () => {
         await expect(logo).toHaveAttribute('src', scheme === 'dark' ? /outlabs-auth-logo-dark\.svg$/ : /outlabs-auth-logo\.svg$/)
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa'])
-          // color-contrast stays out until the owner's light-mode palette decision (F-032).
+          // color-contrast stays out: light-mode contrast is an accepted limitation (F-032).
           .disableRules(['color-contrast'])
           .analyze()
         expect(results.violations.map(v => ({ path, id: v.id, nodes: v.nodes.length }))).toEqual([])

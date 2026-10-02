@@ -44,6 +44,8 @@ export function useResetPasswordForm() {
   }
 
   const requestLinkTo = computed(() => withIntent('/auth/recovery'))
+  // A way back for someone who opened the link by mistake (or remembered their password).
+  const signInTo = computed(() => withIntent('/auth/login'))
 
-  return { token, state, loading, onSubmit, linkProblem, requestLinkTo }
+  return { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo }
 }

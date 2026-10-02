@@ -4,7 +4,7 @@ import { PASSWORD_POLICY_HINT, setPasswordSchema } from '~/schemas/auth-flows'
 // Reset-password — logic in useResetPasswordForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const { token, state, loading, onSubmit, linkProblem, requestLinkTo } = useResetPasswordForm()
+const { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo } = useResetPasswordForm()
 </script>
 
 <template>
@@ -12,6 +12,13 @@ const { token, state, loading, onSubmit, linkProblem, requestLinkTo } = useReset
     <template v-if="!token">
       <AppAuthStepHeading title="Invalid reset link" description="This link is missing its token. Request a new one." />
       <UButton :to="requestLinkTo" block label="Request a reset link" />
+      <UButton
+        :to="signInTo"
+        variant="ghost"
+        color="neutral"
+        icon="i-lucide-arrow-left"
+        label="Back to sign in"
+      />
     </template>
 
     <template v-else>
@@ -39,17 +46,15 @@ const { token, state, loading, onSubmit, linkProblem, requestLinkTo } = useReset
           :help="PASSWORD_POLICY_HINT"
           required
         >
-          <UInput
+          <AppPasswordInput
             v-model="state.new_password"
-            type="password"
             autocomplete="new-password"
             class="w-full"
           />
         </UFormField>
         <UFormField name="confirm_password" label="Confirm new password" required>
-          <UInput
+          <AppPasswordInput
             v-model="state.confirm_password"
-            type="password"
             autocomplete="new-password"
             class="w-full"
           />
@@ -61,6 +66,13 @@ const { token, state, loading, onSubmit, linkProblem, requestLinkTo } = useReset
           label="Reset password"
         />
       </UForm>
+      <UButton
+        :to="signInTo"
+        variant="ghost"
+        color="neutral"
+        icon="i-lucide-arrow-left"
+        label="Back to sign in"
+      />
     </template>
   </div>
 </template>

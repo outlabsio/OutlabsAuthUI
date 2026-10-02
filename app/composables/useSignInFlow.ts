@@ -11,7 +11,7 @@ import {
   savePendingChallenge,
   type PendingChallenge
 } from '~/auth/pending-challenge'
-import { accessCodeChannelLabel, oauthErrorMessage, type AuthMessage } from '~/utils/auth-messages'
+import { accessCodeChannelLabel, codeFieldError, oauthErrorMessage, type AuthMessage } from '~/utils/auth-messages'
 import { cooldownKey } from '~/utils/request-cooldown'
 import {
   useLogin,
@@ -218,6 +218,8 @@ export function useSignInFlow() {
   const verifyAccessCode = useVerifyAccessCode()
   const digits = ref<number[]>([])
   const code = computed(() => digits.value.join(''))
+  // A code the server refused, said on the code field until the next attempt (AppAuthOtp).
+  const codeError = ref('')
   const verifying = ref(false)
   const resending = ref(false)
   const pendingCode = computed(() => pending.value?.code ?? null)
@@ -242,13 +244,17 @@ export function useSignInFlow() {
       ? { email: target.identifier, channel: target.channel, code: code.value }
       : { phone: target.identifier, channel: target.channel, code: code.value }
     applicationError.value = ''
+    codeError.value = ''
     const res = await run(() => verifyAccessCode.mutateAsync(input), {
-      error: error => (isWrongApplicationError(error) ? null : describeAuthError(error, 'Invalid code'))
+      // A refused code is said on the code field, a console this account may not use inline;
+      // anything else (a rate limit, the network) in a toast.
+      error: error => (isWrongApplicationError(error) || codeFieldError(error) ? null : describeAuthError(error, 'Invalid code'))
     })
     if (res.ok) {
       await finish(res.data.nextUrl)
     } else {
       digits.value = []
+      codeError.value = codeFieldError(res.error) ?? ''
       verifyCooldown.startFromError(res.error)
       noteSignInFailure(res.error)
     }
@@ -259,6 +265,7 @@ export function useSignInFlow() {
     const target = pendingCode.value
     if (!target || resendCooldown.active.value) return
     resending.value = true
+    codeError.value = ''
     await requestCode(target.channel, target.identifier)
     resending.value = false
   }
@@ -275,6 +282,7 @@ export function useSignInFlow() {
 
   async function backToMethods() {
     digits.value = []
+    codeError.value = ''
     forget()
     await goTo('methods')
   }
@@ -359,6 +367,7 @@ export function useSignInFlow() {
     enterCode,
     otpLength,
     digits,
+    codeError,
     verifying,
     resending,
     sentTo,

@@ -19,6 +19,7 @@ const {
   enterCode,
   otpLength,
   digits,
+  codeError,
   verifying,
   resending,
   sentTo,
@@ -58,6 +59,7 @@ function onIdentifierSubmit(input: AuthIdentifierSubmit) {
     <AppAuthOtp
       v-if="step === 'otp'"
       v-model:digits="digits"
+      :error="codeError"
       :sent-to="sentTo"
       :length="otpLength"
       :verifying="verifying"

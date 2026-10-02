@@ -106,9 +106,20 @@ export const registerSchema = z
   })
 export type RegisterSchema = z.output<typeof registerSchema>
 
-// Note: the access code has no schema — it's entered via UPinInput, whose fixed length
-// (useAuthUiConfig().otpLength) is the validation; verify stays disabled until every slot is
-// filled.
+// ── One-time codes (sign-in, access code, recovery, phone verification) ──
+
+// A code typed into UPinInput, whose model holds one number per box. Every box must hold a digit;
+// the length is the deployment's (useAuthUiConfig().otpLength). A code the server refuses is set
+// on the same `code` field by the flow (codeFieldError in utils/auth-messages.ts).
+export function codeSchemaFor(length: number) {
+  return z.object({
+    code: z.array(z.unknown()).refine(
+      digits => digits.length === length && digits.every(digit => typeof digit === 'number' && Number.isInteger(digit) && digit >= 0 && digit <= 9),
+      `Enter all ${length} digits of the code.`
+    )
+  })
+}
+export type CodeSchema = { code: number[] }
 
 // Used by both reset-password and accept-invite (set a brand-new password + confirm).
 export const setPasswordSchema = z

@@ -14,6 +14,7 @@ import {
 import { authRouteAllowsSignedIn, postSignInDestination, safeAuthRedirect } from '~/utils/auth-redirect'
 import {
   accessCodeChannelLabel,
+  codeFieldError,
   magicLinkFailure,
   oauthErrorMessage,
   oauthProviderLabel,
@@ -23,6 +24,7 @@ import { PENDING_CHALLENGE_TTL_MS, parsePendingChallenge } from '~/auth/pending-
 import { PENDING_OAUTH_TTL_MS, parsePendingOAuth } from '~/auth/pending-oauth'
 import { PHONE_CODES, phoneCodeFor } from '~/data/phone-codes'
 import {
+  codeSchemaFor,
   E164_PHONE_RE,
   emailIdentifierSchema,
   newPasswordSchema,
@@ -31,6 +33,7 @@ import {
   setPasswordSchema
 } from '~/schemas/auth-flows'
 import { resolveProductionRuntimeConfig } from '~/utils/runtime-config'
+import { ApiError } from '~/api/errors'
 
 const NOW = Date.UTC(2026, 8, 30, 12, 0, 0)
 
@@ -304,5 +307,36 @@ describe('runtime config: auth branding and code length', () => {
     expect(fromEnv.status === 'ready' && fromEnv.config.authUi.otpLength).toBe(4)
     const invalid = resolveProductionRuntimeConfig({ ...base, authUi: { otpLength: 20 } })
     expect(invalid.status === 'ready' && invalid.config.authUi.otpLength).toBeUndefined()
+  })
+})
+
+describe('one-time code entry (c-guardrails-03)', () => {
+  const apiError = (status: number, data: Record<string, unknown> | null, kind?: 'session_ended' | 'network') =>
+    new ApiError({ message: 'Request failed', status, statusText: '', data, ...(kind ? { kind } : {}) })
+
+  it('asks for every digit of the deployment\'s code length', () => {
+    const schema = codeSchemaFor(6)
+    expect(schema.safeParse({ code: [1, 2, 3, 4, 5, 6] }).success).toBe(true)
+    const short = schema.safeParse({ code: [1, 2, 3] })
+    expect(short.error?.issues.map(issue => [issue.path.join('.'), issue.message])).toEqual([['code', 'Enter all 6 digits of the code.']])
+    expect(schema.safeParse({ code: [1, 2, 3, 4, 5, undefined] }).success).toBe(false)
+    expect(schema.safeParse({ code: [1, 2, 3, 4, 5, 10] }).success).toBe(false)
+    expect(codeSchemaFor(8).safeParse({ code: [1, 2, 3, 4, 5, 6] }).success).toBe(false)
+  })
+
+  it('puts a refused code on the code field, and nothing else', () => {
+    // outlabs-auth answers a wrong or used code with 401 TOKEN_INVALID, an expired one with TOKEN_EXPIRED.
+    expect(codeFieldError(apiError(401, { error: 'TOKEN_INVALID', message: 'Invalid or expired access code' })))
+      .toBe('This code is wrong or has expired. Check it and try again, or resend the code.')
+    expect(codeFieldError(apiError(401, { error: 'TOKEN_EXPIRED', message: 'Verification code has expired' })))
+      .toBe('This code has expired. Resend the code to get a new one.')
+    // Reported elsewhere: a rate limit, the network, the server, a locked account, a console the
+    // account may not use, an ended session.
+    expect(codeFieldError(apiError(429, { error: 'RATE_LIMIT_EXCEEDED', message: 'Too many attempts' }))).toBeNull()
+    expect(codeFieldError(apiError(0, null, 'network'))).toBeNull()
+    expect(codeFieldError(apiError(500, { error: 'INTERNAL_SERVER_ERROR', message: 'boom' }))).toBeNull()
+    expect(codeFieldError(apiError(401, { error: 'ACCOUNT_LOCKED', message: 'Account locked' }))).toBeNull()
+    expect(codeFieldError(apiError(403, { error: 'HTTP_ERROR', message: 'No', details: { code: 'wrong_application' } }))).toBeNull()
+    expect(codeFieldError(apiError(401, null, 'session_ended'))).toBeNull()
   })
 })

@@ -19,8 +19,11 @@ const {
   onSaveNumber,
   remove,
   step,
-  digits,
   code,
+  codeState,
+  codeSchema,
+  codeError,
+  submitCode,
   sending,
   confirming,
   sendCooldown,
@@ -190,26 +193,37 @@ const {
           <p class="text-sm text-muted" role="status">
             We sent a {{ otpLength }}-digit code to {{ phone }}.
           </p>
-          <div class="flex flex-col items-start gap-4">
-            <UPinInput
-              ref="phoneCodeInput"
-              v-model="digits"
-              :length="otpLength"
-              type="number"
-              otp
-              autofocus
-              size="lg"
-              aria-label="Phone verification code"
-              :disabled="confirming"
-              @complete="onConfirm"
-            />
+          <UForm
+            ref="phoneCodeForm"
+            :schema="codeSchema"
+            :state="codeState"
+            class="flex flex-col items-start gap-4"
+            @submit="onConfirm"
+          >
+            <UFormField name="code" label="Phone verification code" :error="codeError || undefined">
+              <UPinInput
+                ref="phoneCodeInput"
+                v-model="codeState.code"
+                :length="otpLength"
+                type="number"
+                otp
+                autofocus
+                size="lg"
+                aria-label="Phone verification code"
+                :disabled="confirming"
+                @complete="submitCode"
+              />
+              <template #error="{ error }">
+                <span role="alert">{{ error }}</span>
+              </template>
+            </UFormField>
             <UButton
+              type="submit"
               :label="cooldownLabel('Verify phone number', confirmCooldown)"
               :loading="confirming"
               :disabled="code.length < otpLength || confirmCooldown > 0"
-              @click="onConfirm"
             />
-          </div>
+          </UForm>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <UButton
               variant="link"

@@ -1,3 +1,4 @@
+import { normalizeApiError } from '~/api/errors'
 import type { AccessCodeChannel } from '~/types/auth'
 import { isWrongApplicationError, wrongApplicationMessage } from './frontend-profile'
 
@@ -185,4 +186,22 @@ export function passwordRequirementsSummary(requirements: unknown): string | nul
   if (!parts.length) return null
   const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
   return `It needs ${list}.`
+}
+
+/**
+ * A one-time code the server refused (wrong, expired or already used), as the message for the
+ * code field, where it stays after the boxes are cleared for the next attempt. Null for failures
+ * that are not about the code itself, which are reported elsewhere: a rate limit (a toast and the
+ * button's countdown), the network or the server (a toast), a console this account may not use
+ * (inline), a locked or inactive account (a toast with the server's reason).
+ */
+export function codeFieldError(error: unknown): string | null {
+  if (isWrongApplicationError(error)) return null
+  const normalized = normalizeApiError(error)
+  if (normalized.sessionEnded || normalized.code?.startsWith('ACCOUNT_')) return null
+  if (normalized.code === 'TOKEN_EXPIRED') return 'This code has expired. Resend the code to get a new one.'
+  if (normalized.kind === 'unauthorized' || normalized.code === 'TOKEN_INVALID') {
+    return 'This code is wrong or has expired. Check it and try again, or resend the code.'
+  }
+  return null
 }

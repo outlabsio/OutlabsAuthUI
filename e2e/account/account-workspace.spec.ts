@@ -54,6 +54,12 @@ test.describe('account workspace', () => {
     await page.getByRole('button', { name: 'Change password' }).click()
     await expect(page.getByText('Add an uppercase letter.')).toBeVisible()
     await expect(page.getByText('Passwords must match.')).toBeVisible()
+    // Each password can be revealed to check what was typed (v-auth-shell-09).
+    await expect(page.getByRole('button', { name: 'Show password' })).toHaveCount(3)
+    const newPassword = page.getByLabel('New password', { exact: true })
+    await newPassword.locator('xpath=..').getByRole('button', { name: 'Show password' }).click()
+    await expect(newPassword).toHaveAttribute('type', 'text')
+    await expect(page.getByLabel('Current password')).toHaveAttribute('type', 'password')
   })
 
   test('saves only the changed name; Save waits for a change and Reset restores it', async ({ api, sessionContext }) => {

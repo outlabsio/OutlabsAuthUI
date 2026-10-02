@@ -64,17 +64,15 @@ const { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut,
           :help="PASSWORD_POLICY_HINT"
           required
         >
-          <UInput
+          <AppPasswordInput
             v-model="state.new_password"
-            type="password"
             autocomplete="new-password"
             class="w-full"
           />
         </UFormField>
         <UFormField name="confirm_password" label="Confirm password" required>
-          <UInput
+          <AppPasswordInput
             v-model="state.confirm_password"
-            type="password"
             autocomplete="new-password"
             class="w-full"
           />
@@ -86,6 +84,13 @@ const { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut,
           label="Accept and sign in"
         />
       </UForm>
+      <UButton
+        :to="signInTo"
+        variant="ghost"
+        color="neutral"
+        icon="i-lucide-arrow-left"
+        label="Back to sign in"
+      />
     </template>
   </div>
 </template>

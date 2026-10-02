@@ -9,7 +9,7 @@ import {
   type PendingChallenge
 } from '~/auth/pending-challenge'
 import { cooldownKey } from '~/utils/request-cooldown'
-import { accessCodeChannelLabel } from '~/utils/auth-messages'
+import { accessCodeChannelLabel, codeFieldError } from '~/utils/auth-messages'
 import { isWrongApplicationError, wrongApplicationMessage } from '~/utils/frontend-profile'
 import { getRuntimeConfig } from '~/utils/runtime-config'
 import { useForgotPassword, useRequestAccessCode, useVerifyAccessCode } from '~/queries/session'
@@ -158,6 +158,8 @@ export function useRecoveryFlow() {
   const verifyAccessCode = useVerifyAccessCode()
   const digits = ref<number[]>([])
   const code = computed(() => digits.value.join(''))
+  // A code the server refused, said on the code field until the next attempt (AppAuthOtp).
+  const codeError = ref('')
   const verifying = ref(false)
   const resending = ref(false)
   const pendingCode = computed(() => pending.value?.code ?? null)
@@ -179,9 +181,11 @@ export function useRecoveryFlow() {
     if (!target || code.value.length < otpLength.value || verifying.value || verifyCooldown.active.value) return
     verifying.value = true
     applicationError.value = ''
+    codeError.value = ''
     const res = await run(
       () => verifyAccessCode.mutateAsync({ phone: target.identifier, channel: target.channel, code: code.value }),
-      { error: error => (isWrongApplicationError(error) ? null : describeAuthError(error, 'Invalid code')) }
+      // A refused code is said on the code field; a console this account may not use, inline.
+      { error: error => (isWrongApplicationError(error) || codeFieldError(error) ? null : describeAuthError(error, 'Invalid code')) }
     )
     if (res.ok) {
       // Keep showing this step until Account opens (no flash back to the identifier step).
@@ -192,6 +196,7 @@ export function useRecoveryFlow() {
       await navigateTo({ path: '/app/account', query: { recover: 'password', reset: outcome } }, { replace: true })
     } else {
       digits.value = []
+      codeError.value = codeFieldError(res.error) ?? ''
       verifyCooldown.startFromError(res.error)
       if (isWrongApplicationError(res.error)) applicationError.value = wrongApplicationMessage(getRuntimeConfig().frontendProfileKey)
     }
@@ -214,12 +219,14 @@ export function useRecoveryFlow() {
     const target = pendingCode.value
     if (!target || resendCooldown.active.value) return
     resending.value = true
+    codeError.value = ''
     await requestCode(target.channel, target.identifier)
     resending.value = false
   }
 
   async function backToIdentifier() {
     digits.value = []
+    codeError.value = ''
     emailDraft.value = ''
     applicationError.value = ''
     forget()
@@ -244,6 +251,7 @@ export function useRecoveryFlow() {
     sendPhoneCode,
     channelCooldown,
     digits,
+    codeError,
     verifying,
     resending,
     sentTo,
