@@ -175,7 +175,8 @@ test.describe('non-superuser global admin (globalAdmin)', () => {
     expect(me.is_superuser).toBe(false)
 
     await page.goto('/app/dashboard')
-    await expect(page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: 'Active users', exact: true })).toHaveAttribute('href', /^\/app\/users/)
+    // Each tile's link is named with its count (v-auth-shell-06).
+    await expect(page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: /^Active users: / })).toHaveAttribute('href', /^\/app\/users/)
 
     await page.goto('/app/users')
     await expect(page.getByRole('button', { name: 'Add user', exact: true })).toBeVisible()

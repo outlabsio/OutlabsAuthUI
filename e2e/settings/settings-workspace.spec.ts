@@ -32,9 +32,20 @@ test.describe('settings workspace', () => {
     if (config?.auth_methods?.password) await expect(card.getByText(/^Password/)).toBeVisible()
     // Features by their labels, never as raw keys ('Abac', 'Api keys').
     const features = card.getByRole('list', { name: 'Features' })
-    await expect(features.getByText('Activity tracking', { exact: true })).toBeVisible()
-    await expect(features.getByText('Personal API keys', { exact: true })).toBeVisible()
+    await expect(features.getByText('Invitations', { exact: true })).toBeVisible()
     await expect(card.getByText(/^Abac$|^Api keys$/)).toHaveCount(0)
+    // The flags outlabs-auth reports as always on say nothing, so they are not checked off; and
+    // activity tracking is no claim about the audit log (v-auth-shell-02).
+    for (const label of ['Activity tracking', 'Personal API keys', 'Service accounts', 'Account status']) {
+      await expect(features.getByText(label, { exact: true })).toHaveCount(0)
+    }
+    await expect(card.getByText(/recorded for the audit log/)).toHaveCount(0)
+    // The audit log line follows the mounted routers: SimpleRBAC records events but mounts no
+    // audit router.
+    await expect(card.getByText('Audit log', { exact: true })).toBeVisible()
+    await expect(card.getByText(await backendHasSurface('audit')
+      ? 'Account events are recorded, and this server exposes the audit log.'
+      : 'Account events are recorded, but this server does not expose the audit log.', { exact: true })).toBeVisible()
     // The retired available_permissions count is gone.
     await expect(page.getByText(/permissions available/)).toHaveCount(0)
   })

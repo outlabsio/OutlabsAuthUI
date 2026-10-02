@@ -17,7 +17,7 @@ import {
   type AccessContext
 } from '../../app/utils/capabilities'
 import { PermissionMatcher } from '../../app/utils/permissions'
-import { enabledAuthMethods, FEATURE_LABELS, featureLabel, featureList, surfaceLabel } from '../../app/utils/capability-labels'
+import { ALWAYS_ON_FEATURES, auditLogSummary, enabledAuthMethods, FEATURE_LABELS, featureLabel, featureList, surfaceLabel } from '../../app/utils/capability-labels'
 import type { AuthConfig } from '../../app/types/auth'
 
 // Live /auth/config shapes of the two supported presets (outlabs-auth 0.1.0a34 examples).
@@ -233,6 +233,23 @@ describe('capability labels (F-186)', () => {
       ['Shiny new thing', true]
     ])
     expect(featureList(null)).toEqual([])
+  })
+
+  it('leaves out the flags the backend always reports on, unless one is ever off (v-auth-shell-02)', () => {
+    expect(ALWAYS_ON_FEATURES).toEqual(['api_keys', 'system_api_keys', 'user_status', 'activity_tracking'])
+    // The live SimpleRBAC answer: every constant flag on, so none of them is listed.
+    expect(featureList(simple.features).map(f => f.key)).toEqual(['entity_hierarchy', 'context_aware_roles', 'abac', 'tree_permissions', 'invitations', 'magic_links', 'access_codes'])
+    expect(featureList({ activity_tracking: false, invitations: true }).map(f => [f.label, f.on])).toEqual([
+      ['Activity tracking', false],
+      ['Invitations', true]
+    ])
+    // Activity tracking is usage counting, not the audit log.
+    expect(FEATURE_LABELS.activity_tracking.description).not.toMatch(/audit/i)
+  })
+
+  it('says whether the audit log can be read, from the mounted routers', () => {
+    expect(auditLogSummary(true)).toBe('Account events are recorded, and this server exposes the audit log.')
+    expect(auditLogSummary(false)).toBe('Account events are recorded, but this server does not expose the audit log.')
   })
 
   it('labels routers and sign-in methods, unknown keys humanized', () => {

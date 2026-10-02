@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { auditEventLabel } from '~/utils/audit'
 
-// Dashboard — logic in useDashboard (admins: counts, failed sign-ins, recent activity; everyone
+// Dashboard — logic in useDashboard (admins: counts, wrong passwords, recent activity; everyone
 // else: their access and a launcher); this file is display only.
 const {
   displayName,
@@ -75,6 +75,7 @@ const {
               :description="tile.description"
               :icon="tile.icon"
               :to="tile.to"
+              :aria-label="tile.ariaLabel"
               variant="subtle"
               :data-testid="`dashboard-tile-${tile.key}`"
             >

@@ -2,6 +2,7 @@ import type { Page, Response } from '@playwright/test'
 import { backendConfigured, expect, test } from '../support/fixtures'
 import { backendHasSurface, isEnterpriseBackend, liveAuthConfig, patchAuthConfig } from '../support/capabilities'
 import { personaState } from '../support/personas'
+import { jsonResponse } from '../support/mocks'
 
 // The dashboard (WP-18, F-089). Admins get live counts, each the total of one `limit=1` request
 // made with their own token (so a delegated admin's tiles are their organization's numbers) and
@@ -28,7 +29,9 @@ const TILES: Record<string, Tile> = {
   'roles': { key: 'roles', label: 'Roles', href: '/app/roles', matches: listCall('/roles/') },
   'permissions': { key: 'permissions', label: 'Permissions', href: '/app/permissions', matches: listCall('/permissions/') },
   'organizations': { key: 'organizations', label: 'Organizations', href: '/app/entities', matches: listCall('/entities/', { root_only: 'true' }) },
-  'failed-sign-ins': { key: 'failed-sign-ins', label: 'Failed sign-ins', href: '/app/audit?eventType=user.login_failed&range=24h', matches: listCall('/audit-events', { event_type: 'user.login_failed' }) }
+  // outlabs-auth audits only wrong passwords on existing accounts as user.login_failed, so the
+  // tile says so (v-auth-shell-05).
+  'failed-sign-ins': { key: 'failed-sign-ins', label: 'Wrong passwords', href: '/app/audit?eventType=user.login_failed&range=24h', matches: listCall('/audit-events', { event_type: 'user.login_failed' }) }
 }
 
 // A tile's count, and the tiles in page order (UPageCard puts the test id on its link).
@@ -51,8 +54,10 @@ async function expectTiles(page: Page, order: string[]) {
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
   await expect.poll(() => tileKeys(page)).toEqual(order)
   for (const tile of tiles) {
-    await expect(tileValue(page, tile.key), tile.label).toHaveText(totals.get(tile.key)!.toLocaleString('en-US'))
-    await expect(page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: tile.label, exact: true })).toHaveAttribute('href', tile.href)
+    const total = totals.get(tile.key)!.toLocaleString('en-US')
+    await expect(tileValue(page, tile.key), tile.label).toHaveText(total)
+    // Each tile is one link, named with its count, which is the point of the tile (v-auth-shell-06).
+    await expect(page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: `${tile.label}: ${total}`, exact: true })).toHaveAttribute('href', tile.href)
   }
 }
 
@@ -95,11 +100,37 @@ test.describe('dashboard: admin', () => {
   test('a tile opens the list it counts, filtered', async ({ page, requires }) => {
     await requires({ features: ['invitations'], surfaces: ['users'] })
     await page.goto('/app/dashboard')
-    // The whole card is one link (an overlay anchor named by the card title); open it from the keyboard.
-    await page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: 'Pending invitations', exact: true }).focus()
+    // The whole card is one link (an overlay anchor named by the title and the count); open it
+    // from the keyboard.
+    await page.getByRole('region', { name: 'Overview' }).getByRole('link', { name: /^Pending invitations: \d/ }).focus()
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/\/app\/users\?status=invited$/)
     await expect(page.getByRole('combobox', { name: 'Filter by status' }).first()).toContainText('Invited')
+  })
+
+  test('a tile names its count, and says when the count is loading or could not load (v-auth-shell-06)', async ({ page, errorGuard }) => {
+    errorGuard.allow({ status: 500 }, { kind: 'console', console: /status of 500/ })
+    // Roles: held until checked; Permissions: refused by the server.
+    let releaseRoles: () => void = () => {}
+    const rolesHeld = new Promise<void>((resolve) => {
+      releaseRoles = resolve
+    })
+    await page.route(url => url.pathname.endsWith('/roles/') && url.searchParams.get('limit') === '1', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      await rolesHeld
+      return route.fallback()
+    })
+    await page.route(url => url.pathname.endsWith('/permissions/') && url.searchParams.get('limit') === '1', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      return route.fulfill({ ...jsonResponse(500, { error: 'INTERNAL_SERVER_ERROR', message: 'boom' }) })
+    })
+    await page.goto('/app/dashboard')
+    // The link is the card's zero-size overlay anchor: attached and named, not "visible".
+    const overview = page.getByRole('region', { name: 'Overview' })
+    await expect(overview.getByRole('link', { name: 'Roles: loading', exact: true })).toBeAttached()
+    await expect(overview.getByRole('link', { name: 'Permissions: could not load', exact: true })).toBeAttached()
+    releaseRoles()
+    await expect(overview.getByRole('link', { name: /^Roles: \d/ })).toBeAttached()
   })
 
   test('an unverifiable API contract is flagged on the admin dashboard too', async ({ page }) => {

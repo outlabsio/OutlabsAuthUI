@@ -3,10 +3,11 @@ import { entityTypeConfigQuery, useUpdateEntityTypeConfig } from '~/queries/sett
 import { normalizeTypeList, type EntityTypeConfigSchema } from '~/schemas/settings'
 import type { ActionError } from '~/composables/useApiAction'
 import type { DetailItem } from '~/types/display'
-import { enabledAuthMethods, featureList, surfaceLabel } from '~/utils/capability-labels'
+import { auditLogSummary, enabledAuthMethods, featureList, surfaceLabel } from '~/utils/capability-labels'
 
 // Settings (admins only: the 'settings' section requirement, F-186). The auth server's
-// capabilities in one labelled list (the shared capability label map), and the entity-type
+// capabilities in one labelled list (the shared capability label map; flags the backend reports
+// as always on are left out, and the audit log line follows the mounted routers), and the entity-type
 // taxonomy of an EnterpriseRBAC host: read by every admin, edited by superusers (the PUT needs
 // one), in an AppFormDialog with tag inputs (F-187).
 
@@ -25,6 +26,7 @@ export function useSettings() {
       { key: 'library', label: 'Library version', value: c?.library_version ?? null, type: 'code', fallback: 'Not reported' },
       { key: 'contract', label: 'API contract', value: apiContract.value.version ?? null, type: 'code', fallback: 'Not reported' },
       { key: 'methods', label: 'Sign-in methods', value: enabledAuthMethods(c?.auth_methods).join(', ') || null, fallback: 'None reported' },
+      ...(c ? [{ key: 'audit', label: 'Audit log', value: auditLogSummary(hasSurface('audit')), full: true }] : []),
       { key: 'surfaces', label: 'Mounted routers', full: true },
       { key: 'features', label: 'Features', full: true }
     ]
