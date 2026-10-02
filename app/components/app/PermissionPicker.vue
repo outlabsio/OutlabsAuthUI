@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
+import { permissionSubAction } from '~/utils/permissions'
 
 // value-key="name" makes the palette require a non-optional `name` on each item (the bound value).
 type PermissionItem = CommandPaletteItem & { name: string }
@@ -44,7 +45,8 @@ const groups = computed<CommandPaletteGroup<PermissionItem>[]>(() => {
       // `name` is the value (value-key); label/suffix/description drive display + fuzzy search.
       name: p.name,
       label: p.displayName,
-      suffix: p.action || p.name,
+      // The full sub-action, so `create_tree` never reads as `create` (the role detail's wording).
+      suffix: permissionSubAction(p),
       description: p.blocked
         ? 'You don\'t hold this permission, so you can\'t grant it.'
         : p.inactive

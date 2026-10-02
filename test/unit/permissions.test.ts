@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parsePermissionName, PermissionMatcher, permissionSetAllows } from '../../app/utils/permissions'
+import { parsePermissionName, PermissionMatcher, permissionSetAllows, permissionSubAction } from '../../app/utils/permissions'
 
 // Mirrors the outlabsAuth backend's own rule table (tests/unit/services/
 // test_role_permission_service_helpers.py) so the console grants exactly what the API grants.
@@ -140,5 +140,19 @@ describe('PermissionMatcher.allowsFromAncestor (backend _permission_set_allows_f
   it('an unscoped grant held on an ancestor does not propagate', () => {
     const matcher = new PermissionMatcher(['user:read'])
     expect(matcher.allowsFromAncestor('user:read')).toBe(false)
+  })
+})
+
+describe('permissionSubAction (v-access-06)', () => {
+  it('keeps the scope, so a tree variant never reads as its base action', () => {
+    // The API reports api_key:create_tree as action 'create' with scope 'tree'.
+    expect(permissionSubAction({ name: 'api_key:create_tree', resource: 'api_key', action: 'create' })).toBe('create_tree')
+    expect(permissionSubAction({ name: 'api_key:create', resource: 'api_key', action: 'create' })).toBe('create')
+    expect(permissionSubAction({ name: 'user:read_all', resource: 'user', action: 'read' })).toBe('read_all')
+  })
+
+  it('reads the resource from the name when the record lacks it', () => {
+    expect(permissionSubAction({ name: 'entity:update_tree' })).toBe('update_tree')
+    expect(permissionSubAction({ name: 'reports', action: 'view' })).toBe('view')
   })
 })

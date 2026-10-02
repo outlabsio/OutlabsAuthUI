@@ -131,4 +131,31 @@ test.describe('role permission assignment', () => {
     await expect(rows).toHaveCount(1)
     await expect(rows.first()).toContainText(permission.name)
   })
+
+  // The API reports `x:create_tree` as action `create` with scope `tree`; the editor names the full
+  // sub-action, as the role detail does, so the subtree variant never reads as the base action
+  // (v-access-06).
+  test('the permission picker tells a _tree permission from its base action', async ({ page, api, requires }) => {
+    await requires({ features: ['tree_permissions'] })
+    const base = await api.createPermission({ kind: 'tree-variant', action: 'create' })
+    const resource = base.name.split(':')[0]!
+    const tree = await api.post<{ name: string, display_name?: string }>('/permissions/', {
+      name: `${resource}:create_tree`,
+      display_name: `${base.display_name} subtree`,
+      description: ''
+    })
+
+    await page.goto('/app/roles')
+    await page.getByRole('button', { name: 'Add role' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add role' })
+    await dialog.getByPlaceholder('Search permissions...').fill(resource)
+    const options = dialog.getByTestId('permission-picker').getByRole('option').filter({ hasText: base.display_name! })
+    await expect(options).toHaveCount(2)
+    // Sorted by the sub-action: create, then create_tree.
+    await expect(options.nth(0)).toContainText(base.display_name!)
+    await expect(options.nth(0)).toContainText('create')
+    await expect(options.nth(0)).not.toContainText('create_tree')
+    await expect(options.nth(1)).toContainText(tree.display_name!)
+    await expect(options.nth(1)).toContainText('create_tree')
+  })
 })

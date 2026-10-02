@@ -109,3 +109,12 @@ export class PermissionMatcher {
 export function permissionSetAllows(required: string, granted: Iterable<string>): boolean {
   return new PermissionMatcher(granted).allows(required)
 }
+
+// How a permission's action reads next to its resource: everything after `resource:`, so the
+// scoped variants read distinctly (`create` and `create_tree`). The API reports `create_tree` as
+// action `create` plus scope `tree`, so its `action` alone would label both the same. The role
+// detail (AppPermissionList) and the role editor (AppPermissionPicker) share it.
+export function permissionSubAction(permission: { name: string, resource?: string | null, action?: string | null }): string {
+  const resource = permission.resource || parsePermissionName(permission.name).resource
+  return permission.name.startsWith(`${resource}:`) ? permission.name.slice(resource.length + 1) : (permission.action || permission.name)
+}

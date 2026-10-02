@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ResolvedPermission } from '~/types/permission'
+import { permissionSubAction } from '~/utils/permissions'
 
 // Canonical permission renderer for the whole app: a set of permission NAMES shown grouped by
 // resource. `detailed` gives rows with display name + description (role detail, previews); the
@@ -32,7 +33,7 @@ const formatResource = (resource: string) => resource.replace(/[_-]/g, ' ')
 const tooltip = (p: ResolvedPermission) => (p.description ? `${p.displayName} — ${p.description}` : p.displayName)
 // The full sub-action (everything after the resource) so tree variants read distinctly
 // (create vs create_tree), not two badges both labelled with the base action.
-const subAction = (p: ResolvedPermission) => (p.name.startsWith(`${p.resource}:`) ? p.name.slice(p.resource.length + 1) : (p.action || p.name))
+const subAction = (p: ResolvedPermission) => permissionSubAction(p)
 </script>
 
 <template>
