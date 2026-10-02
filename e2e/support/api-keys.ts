@@ -20,6 +20,14 @@ export type ApiKeyRow = {
   ip_whitelist?: string[] | null
 }
 
+/**
+ * The My API keys page's "Create API key" button in the navbar. An empty list repeats the same
+ * action in its empty state, so the name alone is not unique there; the navbar's comes first.
+ */
+export function createApiKeyButton(page: Page): Locator {
+  return page.getByRole('button', { name: 'Create API key' }).first()
+}
+
 /** A scope this actor may grant on every preset: user:read where offered, else the first one. */
 export async function grantableScope(api: ApiClient): Promise<string | undefined> {
   const scopes = await api.grantableScopes()

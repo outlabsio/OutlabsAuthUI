@@ -1,7 +1,7 @@
 import { expect, test } from '../support/fixtures'
 import { apiUrl } from '../support/env'
 import { piniaPathsTo } from '../support/pinia-probe'
-import { grantableScope, pickScope } from '../support/api-keys'
+import { createApiKeyButton, grantableScope, pickScope } from '../support/api-keys'
 import { chooseSelect, field } from '../support/ui-select'
 
 // AppSecretReveal (F-183), exercised through the personal API keys page: the dialog names the
@@ -24,7 +24,7 @@ test.describe('one-time secret reveal', () => {
     const me = await api.me()
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     await page.getByLabel('Name', { exact: true }).fill(name)
     await pickScope(page.getByRole('dialog', { name: 'Create personal API key' }), scope!)
     // A key that never expires, so the reveal's expiry reads Never.

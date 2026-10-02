@@ -146,7 +146,8 @@ export function useServiceAccountKeyDialog(
     description: computed(() => target.value?.name ?? 'Acts as this service account.'),
     note: computed(() => (target.value
       ? `A key of ${account.value.name}. Changes apply to the next request signed with it; its secret stays the same.`
-      : `The key acts as ${account.value.name}, with at most the scopes you choose here. Its secret is shown once.`)),
+      // The header already says the key acts as this service account.
+      : 'Its secret is shown once.')),
     onSubmit
   }
 }

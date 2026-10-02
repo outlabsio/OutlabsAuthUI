@@ -122,6 +122,10 @@ test.describe('service accounts', () => {
     await expect(page.getByText('No keys yet')).toBeVisible()
     await page.getByRole('button', { name: 'New key' }).click()
     const keyDialog = page.getByRole('dialog', { name: 'New key' })
+    // Said once, in the header (v-keys-audit-07).
+    await expect(keyDialog.getByText('Acts as this service account.', { exact: true })).toBeVisible()
+    await expect(keyDialog.getByText('Its secret is shown once.', { exact: true })).toBeVisible()
+    await expect(keyDialog.getByText(/The key acts as /)).toHaveCount(0)
     await keyDialog.getByLabel('Name').fill(keyName)
     await keyDialog.getByTestId('scope-picker').getByRole('option').first().click()
     await keyDialog.getByRole('radio', { name: /^Test/ }).check()
@@ -349,7 +353,7 @@ test.describe('service accounts', () => {
   test('the account page, its tabs and dialogs have no a11y violations', async ({ page, testData, api }) => {
     const account = await createAccount(api, testData.name('sa-a11y'))
     await createKey(api, account, testData.name('key'))
-    // color-contrast is out of this gate, as in the a11y smoke (owner decision on the theme).
+    // color-contrast is out of this gate, as in the a11y smoke (F-032, an accepted limitation).
     // The role and permission pickers' option lists (UCommandPalette's inner Reka listbox) are
     // left out: Nuxt UI gives a consumer no way to name that listbox, and it scrolls with the
     // keyboard through its search box rather than by tabbing in. Follow-up, not this page's.

@@ -125,7 +125,7 @@ export function useApiKeyFormDialog(
   const scopesHelp = computed(() => {
     const actions = allowedActions.value
     const kinds = actions.length ? ` whose action is ${actions.length > 1 ? `${actions.slice(0, -1).join(', ')} or ${actions.at(-1)}` : actions[0]}` : ''
-    return `A personal key acts as you. It can carry only permissions you hold${kinds}, and never key management.`
+    return `The key can carry only permissions you hold${kinds}, and never key management.`
   })
   const scopesEmptyText = computed(() => (state.entity_id
     ? 'You hold no permission a personal key may carry at this entity.'
@@ -218,7 +218,8 @@ export function useApiKeyFormDialog(
   const note = computed(() => {
     if (mode.value === 'edit') return 'Changes apply to the next request signed with this key; its secret stays the same.'
     if (mode.value === 'replace') return 'A new key with the expired key\'s settings and a new expiry. The secret is shown once; the expired key stays listed as expired.'
-    return 'The key acts as you, with at most the scopes you choose here. Its secret is shown once.'
+    // The header already says the key acts as you within the chosen scopes.
+    return 'Its secret is shown once.'
   })
 
   return {

@@ -4,7 +4,7 @@ import { backendConfigured, expect, persona, test } from '../support/fixtures'
 import { corsHeaders, jsonResponse } from '../support/mocks'
 import { chooseSelect, field } from '../support/ui-select'
 import { searchUsersList } from '../support/lists'
-import { grantableScope, pickScope } from '../support/api-keys'
+import { createApiKeyButton, grantableScope, pickScope } from '../support/api-keys'
 
 // The error model end to end (F-117, F-118, F-119, F-120): a successful write is never reported
 // as failed because the refetch after it failed (and a one-time secret survives), server
@@ -55,7 +55,7 @@ test.describe('a failed refetch never fails the write (F-120)', () => {
     const failedRefetch = page.waitForResponse(r => /\/api-keys\/$/.test(r.url()) && r.request().method() === 'GET' && r.status() === 500)
     await failListRefetchAfter(page, /\/api-keys\/$/, /\/api-keys\/$/)
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     await page.getByLabel('Name', { exact: true }).fill(name)
     await pickScope(page.getByRole('dialog', { name: 'Create personal API key' }), scope!)
     await page.getByRole('button', { name: 'Create key' }).click()

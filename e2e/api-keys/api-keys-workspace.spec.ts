@@ -3,7 +3,7 @@ import { backendConfigured, expect, personaState, test } from '../support/fixtur
 import { apiUrl } from '../support/env'
 import { chooseSelect, chooseSelectMenu, field } from '../support/ui-select'
 import { piniaPathsTo } from '../support/pinia-probe'
-import { type ApiKeyRow, grantableScope, pastExpiry, pickScope, rewriteKeys, storeSecret } from '../support/api-keys'
+import { type ApiKeyRow, createApiKeyButton, grantableScope, pastExpiry, pickScope, rewriteKeys, storeSecret } from '../support/api-keys'
 
 // My API keys (WP-17): the signed-in account's own keys, on either preset. Keys are arranged
 // through the API with a scope the admin may grant there (user:read on both example seeds) and
@@ -52,7 +52,7 @@ test.describe('my API keys', () => {
     })
     await page.goto('/app/api-keys')
     await expect(page.getByRole('heading', { name: 'My API keys' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Create API key' })).toBeVisible()
+    await expect(createApiKeyButton(page)).toBeVisible()
     await expect(page.getByLabel('Filter by status', { exact: true })).toContainText('Active and suspended')
     await expect.poll(() => lists.length).toBeGreaterThan(0)
     for (const list of lists) {
@@ -68,10 +68,15 @@ test.describe('my API keys', () => {
     const writes = recordWrites(page, LIST)
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     // Test keys are a label only (F-087).
     await expect(dialog).toContainText('A label only: test and live keys have the same access.')
+    // The header says once that the key acts as you; the note adds only what it does not
+    // (v-keys-audit-07).
+    await expect(dialog.getByText('Acts as you, within the scopes you choose.', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Its secret is shown once.', { exact: true })).toBeVisible()
+    await expect(dialog.getByText(/The key acts as you/)).toHaveCount(0)
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await pickScope(dialog, scope!)
     await dialog.getByRole('button', { name: 'Create key' }).click()
@@ -90,6 +95,23 @@ test.describe('my API keys', () => {
     await expect(keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })).toHaveText('Active')
   })
 
+  // One verb per action on a page: the empty list repeats the navbar's action (v-keys-audit-07).
+  test('an empty list offers the navbar\'s own Create API key', async ({ page }) => {
+    await page.route(url => url.pathname.endsWith('/api-keys/'), async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const response = await route.fetch()
+      const body = await response.json() as unknown[] | { items: unknown[], total?: number }
+      return route.fulfill({ response, json: Array.isArray(body) ? [] : { ...body, items: [], total: 0 } })
+    })
+    await page.goto('/app/api-keys')
+    await expect(page.getByText('No API keys yet', { exact: true })).toBeVisible()
+    const actions = page.getByRole('button', { name: 'Create API key', exact: true })
+    await expect(actions).toHaveCount(2)
+    await expect(page.getByRole('button', { name: 'Create a key' })).toHaveCount(0)
+    await actions.last().click()
+    await expect(page.getByRole('dialog', { name: 'Create personal API key' })).toBeVisible()
+  })
+
   test('sends the chosen key type, IP allowlist, no rate limit and no expiry', async ({ page, api, testData }) => {
     const scope = await grantableScope(api)
     test.skip(!scope, 'The admin persona has no grantable API key scope.')
@@ -97,7 +119,7 @@ test.describe('my API keys', () => {
     const writes = recordWrites(page, LIST)
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await pickScope(dialog, scope!)
@@ -129,7 +151,7 @@ test.describe('my API keys', () => {
     const writes = recordWrites(page, LIST)
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     await dialog.getByLabel('Name', { exact: true }).fill(testData.name('rate'))
     await pickScope(dialog, scope!)
@@ -389,7 +411,7 @@ test.describe('my API keys restricted to an entity (EnterpriseRBAC, F-083)', () 
     const writes = recordWrites(page, LIST)
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await chooseSelectMenu(page, field(page, 'Restrict to entity'), entity.display_name)
@@ -414,7 +436,7 @@ test.describe('my API keys as a low-privilege account', () => {
     const expected = [...await apiAs('agent').grantableScopes()].sort()
 
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click()
+    await createApiKeyButton(page).click()
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     const picker = dialog.getByTestId('scope-picker')
     if (!expected.length) {

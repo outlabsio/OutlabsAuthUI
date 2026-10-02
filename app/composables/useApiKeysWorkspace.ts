@@ -77,7 +77,8 @@ export function useApiKeysWorkspace() {
       return {
         title: 'No API keys yet',
         description: 'Create a key to call the API as yourself from a script or an integration.',
-        actions: [{ label: 'Create a key', icon: 'i-lucide-plus', onClick: () => openCreate() }] satisfies ButtonProps[]
+        // The navbar's own label, as every list's empty state repeats its page's action.
+        actions: [{ label: 'Create API key', icon: 'i-lucide-plus', onClick: () => openCreate() }] satisfies ButtonProps[]
       }
     }
     return {

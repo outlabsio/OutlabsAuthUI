@@ -3,6 +3,7 @@ import { ACCESS_TOKEN_KEY, apiUrl, REFRESH_TOKEN_KEY } from '../support/env'
 import { expect, test } from '../support/fixtures'
 import { expireAccessToken, mintFreshSession, type SessionTokens } from '../support/sessions'
 import { userMenuButton } from '../support/shell'
+import { createApiKeyButton } from '../support/api-keys'
 
 // Another account signing in while this tab is still working (session lane). Tabs of one browser
 // profile share the tokens in localStorage, so a sign-in as someone else in another tab (a
@@ -89,7 +90,7 @@ test.describe('identity switch in another tab', () => {
     const context = await sessionContext(tokens)
     const page = await context.newPage()
     await page.goto('/app/api-keys')
-    await page.getByRole('button', { name: 'Create API key' }).click(BOOT)
+    await createApiKeyButton(page).click(BOOT)
     const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
     await dialog.getByLabel('Name', { exact: true }).fill('Unsaved key')
 
