@@ -1,29 +1,47 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-playwright-report
-test-results
-playwright/.auth
+# Misc
+.DS_Store
+# Local agent screenshots and scratch output
+.codex-*
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+!.env.deploy.example
+
+# VSC
+.history
+
+# Runtime config (per-deployment, resolved at boot — never committed)
 public/app-config.json
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-.codex-*
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Release check record and reports (bun run release:check; local to this machine)
+/.release
+
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+e2e/.auth
+/e2e/.static
+
+# Wrangler local state (wrangler dev)
+.wrangler

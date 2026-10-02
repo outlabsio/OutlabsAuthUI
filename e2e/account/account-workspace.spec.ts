@@ -1,159 +1,134 @@
-import type { Page } from '@playwright/test'
+import type { Page, Request } from '@playwright/test'
+import { backendConfigured, expect, persona, test } from '../support/fixtures'
+import { apiUrl } from '../support/env'
+import { mintFreshSession } from '../support/sessions'
 
-import { expect, test } from '../support/auth-fixture'
-import { authPersonas, e2eBaseURL } from '../support/auth-personas'
-import {
-  skipIfPhoneVerifyCaptureDisabled,
-  waitForCapturedPhoneVerifyCode,
-} from '../support/phone-verify-capture'
+// Account (WP-19): the tabs, the overview, the names form and the phone number. Profile writes
+// run as fresh run-marked users with their own session (never the shared personas); the
+// rendering checks use the admin persona read-only.
 
-async function openAccountWorkspace(page: Page) {
-  await page.goto('/app/dashboard')
+const BOOT = { timeout: 30_000 }
 
-  const trigger = page.getByRole('button', {
-    name: 'Open account menu for admin@acme.com',
-  })
+const isPatchMe = (request: Request) => request.method() === 'PATCH' && request.url() === apiUrl('/users/me')
 
-  await expect(trigger).toBeVisible()
-  await trigger.click()
-  await page.getByRole('menuitem', { name: 'Account' }).click()
-
-  await expect(page).toHaveURL(/\/app\/account$/)
-  await expect(page.getByRole('button', { name: 'Open Account guide' })).toBeVisible()
+function tabs(page: Page) {
+  return page.getByRole('navigation', { name: 'Account sections' })
 }
 
-test.describe('Account Workspace', () => {
-  test('admin can open account and update self profile details', async ({
-    page,
-  }) => {
-    await openAccountWorkspace(page)
+test.describe('account workspace', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+  test.use({ errorGuardMode: 'strict' })
 
-    const firstNameField = page.locator('#account-first-name')
-    const lastNameField = page.locator('#account-last-name')
-    const emailField = page.locator('#account-email')
-    const originalFirstName = await firstNameField.inputValue()
-    const originalLastName = await lastNameField.inputValue()
-    const updatedFirstName = originalFirstName || 'Admin'
-    const updatedLastName = `${originalLastName || 'Admin'} UI`
+  test('opens on Profile with the overview, and lists the account tabs', async ({ page }) => {
+    const admin = persona('admin')
+    await page.goto('/app/account')
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
+    await expect(tabs(page).getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page')
+    await expect(tabs(page).getByRole('link', { name: 'Security' })).toBeVisible()
+    await expect(tabs(page).getByRole('link', { name: 'Access' })).toBeVisible()
 
-    await expect(emailField).toHaveValue('admin@acme.com')
+    // Overview: verification, superuser, sign-in email explained, last sign-in and member since.
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
+    await expect(page.getByText(`${admin.email} is your sign-in email. Contact an administrator to change it.`)).toBeVisible()
+    await expect(page.getByText('Email verified', { exact: true })).toBeVisible()
+    await expect(page.getByText('Superuser', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Last sign-in', { exact: true })).toBeVisible()
+    await expect(page.getByText('Member since', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Phone number' })).toBeVisible()
 
-    await firstNameField.fill(updatedFirstName)
-    await lastNameField.fill(updatedLastName)
-    await page.getByRole('button', { name: 'Save profile' }).click()
-
-    await expect(firstNameField).toHaveValue(updatedFirstName)
-    await expect(lastNameField).toHaveValue(updatedLastName)
-
-    const trigger = page.getByRole('button', {
-      name: 'Open account menu for admin@acme.com',
-    })
-    await trigger.click()
-    const accountMenu = page.getByRole('menu').filter({
-      has: page.getByRole('menuitem', { name: 'Account' }),
-    })
-    await expect(accountMenu.getByText(`${updatedFirstName} ${updatedLastName}`)).toBeVisible()
-
-    await page.getByRole('menuitem', { name: 'Account' }).click()
-    await expect(page).toHaveURL(/\/app\/account$/)
-
-    await firstNameField.fill(originalFirstName)
-    await lastNameField.fill(originalLastName)
-    await page.getByRole('button', { name: 'Save profile' }).click()
-
-    await expect(firstNameField).toHaveValue(originalFirstName)
-    await expect(lastNameField).toHaveValue(originalLastName)
+    await tabs(page).getByRole('link', { name: 'Security' }).click()
+    await expect(page).toHaveURL(/\/app\/account\/security$/)
+    await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Active sessions' })).toBeVisible()
+    await expect(page).toHaveTitle(/^Security · Account · /)
   })
 
-  test('account password form validates confirmation before submit', async ({
-    page,
-  }) => {
-    await openAccountWorkspace(page)
-
-    await page.locator('#account-current-password').fill('Testpass1!')
-    await page.locator('#account-new-password').fill('Newpass123!')
-    await page.locator('#account-confirm-password').fill('Mismatch123!')
-    await page.getByRole('button', { name: 'Update password' }).click()
-
+  test('validates the new password against the policy and the confirmation', async ({ page }) => {
+    await page.goto('/app/account/security')
+    // The policy is stated up front, and checked before any request.
+    await expect(page.getByText(/At least 8 characters, with an uppercase/)).toBeVisible()
+    await page.getByLabel('Current password').fill('Whatever-1!')
+    await page.getByLabel('New password', { exact: true }).fill('longenough1')
+    await page.getByLabel('Confirm new password').fill('doesnotmatch1')
+    await page.getByRole('button', { name: 'Change password' }).click()
+    await expect(page.getByText('Add an uppercase letter.')).toBeVisible()
     await expect(page.getByText('Passwords must match.')).toBeVisible()
   })
 
-  test('admin can view active sessions and linked accounts on account page', async ({
-    page,
-  }) => {
-    await openAccountWorkspace(page)
+  test('saves only the changed name; Save waits for a change and Reset restores it', async ({ api, sessionContext }) => {
+    const { user, tokens } = await mintFreshSession(api, 'profile-names')
+    const page = await (await sessionContext(tokens)).newPage()
+    await page.goto('/app/account')
+    const save = page.getByRole('button', { name: 'Save profile' })
+    await expect(save).toBeDisabled(BOOT)
 
-    await expect(page.getByText('Active sessions', { exact: true })).toBeVisible()
-    await expect(page.getByText('Linked accounts', { exact: true })).toBeVisible()
-    await expect(
-      page
-        .getByRole('heading', { name: 'No linked accounts' })
-        .or(page.getByText(/Verified email|Unverified email/i))
-    ).toBeVisible()
+    const first = page.getByLabel('First name')
+    await expect(first).toHaveValue('E2E')
+    await first.fill('Edited')
+    await expect(save).toBeEnabled()
+    await page.getByRole('button', { name: 'Reset' }).click()
+    await expect(first).toHaveValue('E2E')
+    await expect(save).toBeDisabled()
+
+    // A name the account has cannot be emptied (the server cannot clear it).
+    await first.fill('')
+    await save.click()
+    await expect(page.getByText('Enter your first name. It can be changed but not removed.')).toBeVisible()
+
+    await first.fill('Renamed')
+    const patched = page.waitForRequest(isPatchMe)
+    await save.click()
+    expect((await patched).postDataJSON()).toEqual({ first_name: 'Renamed' })
+    await expect(page.getByText('Profile updated', { exact: true })).toBeVisible()
+    await expect(save).toBeDisabled()
+    await expect.poll(async () => (await api.get<{ first_name?: string }>(`/users/${user.id}`)).first_name).toBe('Renamed')
   })
 
-  test('Link Google completes via mocked associate authorize + linked callback', async ({
-    page,
-  }) => {
-    const linkedCallback = new URL('/app/account', e2eBaseURL)
-    linkedCallback.searchParams.set('linked', 'google')
+  test('an account without a name adds a phone number, and a name being typed survives the save', async ({ api, sessionContext }) => {
+    const { user, tokens } = await mintFreshSession(api, 'nameless-phone', { named: false })
+    const page = await (await sessionContext(tokens)).newPage()
+    await page.goto('/app/account')
+    await expect(page.getByRole('heading', { name: 'Phone number' })).toBeVisible(BOOT)
+    await expect(page.getByText('No phone number.')).toBeVisible()
+    // Without a name the email stands in for it once, not again as its subtitle; the sentence
+    // below still names it as the sign-in email.
+    const overview = page.getByRole('heading', { name: 'Overview' }).locator('xpath=ancestor::*[@data-slot="root"][1]')
+    await expect(overview.getByText(user.email, { exact: true })).toHaveCount(1)
+    await expect(overview.getByText(`${user.email} is your sign-in email.`, { exact: false })).toBeVisible()
 
-    await page.route('**/oauth-associate/google/authorize**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        json: {
-          authorization_url: linkedCallback.toString(),
-        },
-      })
-    })
-
-    await openAccountWorkspace(page)
-
-    const linkGoogle = page.getByRole('button', { name: 'Link Google' })
-    test.skip(
-      !(await linkGoogle.isVisible()),
-      'Link Google is unavailable when Google is already linked for this account.'
-    )
-
-    await linkGoogle.click()
-
-    await expect(page).toHaveURL(/\/app\/account(?:\?.*)?$/)
-    await expect(page.getByText('Google linked to your account.')).toBeVisible()
-    await expect(page).toHaveURL(/\/app\/account$/)
-  })
-
-  test('live phone verification completes via fixture code capture', async ({
-    page,
-  }) => {
-    await skipIfPhoneVerifyCaptureDisabled()
+    // A draft name, not saved: the phone save updates the session but must not overwrite it.
+    await page.getByLabel('Last name').fill('Draft')
 
     const phone = `+1555${String(Date.now()).slice(-7)}`
-    const email = authPersonas.admin.email
+    await page.getByRole('button', { name: 'Add phone number' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add phone number' })
+    await dialog.getByLabel('Phone number').fill(phone)
+    const patched = page.waitForRequest(isPatchMe)
+    await dialog.getByRole('button', { name: 'Save number' }).click()
+    // Only the phone is sent: no empty names for the server to refuse (F-095).
+    expect((await patched).postDataJSON()).toEqual({ phone })
+    await expect(page.getByText('Phone number saved', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('account-phone')).toHaveText(phone)
+    await expect(page.getByLabel('Last name')).toHaveValue('Draft')
+    await expect.poll(async () => (await api.get<{ phone?: string | null }>(`/users/${user.id}`)).phone).toBe(phone)
 
-    await openAccountWorkspace(page)
+    // Removing it asks first and says what it does.
+    await page.getByRole('button', { name: `Remove phone number ${phone}` }).click()
+    const confirm = page.getByRole('dialog', { name: `Remove phone number ${phone}` })
+    await expect(confirm.getByTestId('confirm-effects')).toBeVisible()
+    await confirm.getByRole('button', { name: 'Remove phone number' }).click()
+    await expect(page.getByText('No phone number.')).toBeVisible()
+    await expect.poll(async () => (await api.get<{ phone?: string | null }>(`/users/${user.id}`)).phone ?? null).toBeNull()
+  })
 
-    await page.locator('#account-phone').fill(phone)
-    await page.getByRole('button', { name: 'Save profile' }).click()
-    await expect(
-      page.getByText('WhatsApp phone unverified', { exact: true })
-    ).toBeVisible()
-
-    await page.getByRole('button', { name: 'Send verification code' }).click()
-    const captured = await waitForCapturedPhoneVerifyCode(email, { phone })
-
-    await page.locator('#account-phone-verify-code').fill(captured.code)
-    await page.getByRole('button', { name: 'Verify phone' }).click()
-
-    await expect(
-      page.getByText('WhatsApp phone verified', { exact: true })
-    ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Verify WhatsApp phone' })
-    ).toBeHidden()
-
-    await page.locator('#account-phone').fill('')
-    await page.getByRole('button', { name: 'Save profile' }).click()
-    await expect(page.locator('#account-phone')).toHaveValue('')
+  test('works at phone width without sideways scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const path of ['/app/account', '/app/account/security', '/app/account/access']) {
+      await page.goto(path)
+      await expect(page.getByRole('heading').filter({ hasText: /^(Overview|Change password|Permissions)$/ }).first()).toBeVisible()
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(0)
+    }
   })
 })

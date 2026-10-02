@@ -1,0 +1,5 @@
+/* Non-negotiable: the only two lines allowed here. No @theme, no custom palette,
+   no bespoke CSS. Theme lives in app.config.ts (semantic colors only). amber is a
+   stock Tailwind color, so `primary: 'amber'` needs no palette definition. */
+@import "tailwindcss";
+@import "@nuxt/ui";

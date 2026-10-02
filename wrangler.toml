@@ -1,6 +1,31 @@
-name = "outlabs-auth-ui"
-compatibility_date = "2024-04-03"
+# Cloudflare Workers deployment of the static console (`bun run generate` → .output/public).
+#
+# The assets are served first: files as-is, browser navigations that match no file get
+# index.html (SPA fallback). With a compatibility_date on or after 2025-04-01, only
+# non-navigation misses (missing chunks, stale build manifests, an absent app-config.json)
+# reach the Worker in cloudflare/not-found-worker.js, which answers a real 404.
+# scripts/serve-static.mjs mirrors these rules for local previews and the static E2E target.
+#
+# Deploy with `bun run deploy:cloudflare -- --env <name> --config <app-config.json>`; see
+# README "Deploy". The top level describes a preview on workers.dev. Each real deployment
+# gets its own [env.<name>] with a custom domain and workers_dev = false; a consumer can also
+# keep its environments in its own wrangler file and pass --wrangler-config.
+name = "outlabs-auth-ui-nuxt"
+main = "cloudflare/not-found-worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+preview_urls = false
 
 [assets]
-directory = "dist"
+directory = ".output/public"
 not_found_handling = "single-page-application"
+# /app/users is served directly instead of 307-redirecting to /app/users/.
+html_handling = "drop-trailing-slash"
+
+# Example deployment environment (copy, rename and fill in; do not commit real hostnames to a
+# public fork):
+#
+# [env.production]
+# name = "auth-console"
+# workers_dev = false
+# routes = [{ pattern = "auth-console.example.com", custom_domain = true }]

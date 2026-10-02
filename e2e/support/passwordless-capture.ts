@@ -1,192 +1,123 @@
-import { expect, test } from '@playwright/test'
+// Test-only capture of passwordless tokens/codes. The outlabsAuth example apps expose
+// dev-mode debug endpoints (app root, NOT under the auth prefix) that return the latest
+// token/code emailed to an address — so E2E can exercise the *verify* side of the flows
+// end-to-end without reading real email. Gated by ACCESS_CODE_DEBUG_CODES /
+// MAGIC_LINK_DEBUG_TOKENS / INVITE_DEBUG_TOKENS on the backend (on by default in dev).
+// Which kinds a backend exposes is probed per kind (`captureAvailable` in capabilities.ts).
+import { captureAvailable, type CaptureKind } from './capabilities'
+import { authApiBase, backendUrl } from './env'
+import { personaByEmail, personaToken } from './personas'
+import { loginTokens } from './sessions'
 
-import { e2eApiBaseURL } from './auth-personas'
-
-type MagicLinkCapture = {
-  email: string
-  token: string
-  magic_link_url: string
+async function capture(path: string, params: Record<string, string>, field: 'code' | 'token'): Promise<string | null> {
+  const query = new URLSearchParams(params).toString()
+  const res = await fetch(`${backendUrl(path)}?${query}`)
+  if (!res.ok) return null
+  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
+  const value = data?.[field]
+  return typeof value === 'string' ? value : null
 }
 
-type AccessCodeCapture = {
-  email: string
-  phone?: string | null
-  code: string
-  access_code_url: string
-}
+export const captureAccessCode = (email: string) =>
+  capture('/dev/auth/access-code/latest', { email }, 'code')
 
-function getCaptureDetail(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
-    return null
-  }
+export const captureAccessCodeByPhone = (phone: string) =>
+  capture('/dev/auth/access-code/latest', { phone }, 'code')
 
-  const record = payload as Record<string, unknown>
-  const details = record.details
+export const captureMagicLinkToken = (email: string) =>
+  capture('/dev/auth/magic-link/latest', { email }, 'token')
 
-  if (details && typeof details === 'object') {
-    const detail = (details as Record<string, unknown>).detail
-    if (typeof detail === 'string') {
-      return detail
-    }
-  }
+export const captureInviteToken = (email: string) =>
+  capture('/dev/auth/invite/latest', { email }, 'token')
 
-  if (typeof record.detail === 'string') {
-    return record.detail
-  }
+export const captureResetToken = (email: string) =>
+  capture('/dev/auth/reset-password/latest', { email }, 'token')
 
-  if (typeof record.message === 'string') {
-    return record.message
-  }
+export const capturePhoneVerifyCode = (email: string) =>
+  capture('/dev/auth/phone-verify/latest', { email }, 'code')
 
-  return null
-}
+// Admin-side helpers so the invite E2E can send an invite through the API (the invite send
+// requires an authenticated superuser; the accept side is then driven through the UI).
+//
+// A persona's email resolves to the session globalSetup already minted — no login. Any other
+// account (a fresh user a test just created) logs in once per worker and is cached: the
+// backend's password-login limiter is small and shared by the whole run.
+const tokenCache = new Map<string, string>()
 
-async function fetchCaptureEndpoint(
-  path: string,
-  params: { email?: string; phone?: string }
-) {
-  const search = new URLSearchParams()
-
-  if (params.email) {
-    search.set('email', params.email)
-  }
-
-  if (params.phone) {
-    search.set('phone', params.phone)
-  }
-
-  const response = await fetch(`${e2eApiBaseURL}${path}?${search.toString()}`)
-  const payload = (await response.json().catch(() => null)) as unknown
-
-  return {
-    ok: response.ok,
-    status: response.status,
-    detail: getCaptureDetail(payload),
-    payload,
+export async function apiLogin(email: string, password: string): Promise<string> {
+  const persona = personaByEmail(email)
+  if (persona) return personaToken(persona)
+  const cached = tokenCache.get(email)
+  if (cached) return cached
+  try {
+    const token = (await loginTokens(email, password)).access_token
+    tokenCache.set(email, token)
+    return token
+  } catch {
+    return ''
   }
 }
 
-export async function skipIfPasswordlessCaptureDisabled(
-  kind: 'magic-link' | 'access-code'
-) {
-  const path =
-    kind === 'magic-link'
-      ? '/dev/auth/magic-link/latest'
-      : '/dev/auth/access-code/latest'
-  const probe = await fetchCaptureEndpoint(path, {
-    email: 'capture-probe@example.com',
+export async function apiInvite(accessToken: string, email: string): Promise<void> {
+  await fetch(`${authApiBase}/auth/invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+    body: JSON.stringify({ email })
   })
-
-  if (probe.status === 404 && probe.detail === 'Not found') {
-    test.skip(
-      true,
-      `${kind} debug capture is disabled on the enterprise fixture (enable MAGIC_LINK_DEBUG_TOKENS / ACCESS_CODE_DEBUG_CODES in development).`
-    )
-  }
 }
 
-export async function waitForCapturedMagicLink(email: string) {
-  let captured: MagicLinkCapture | null = null
-
-  await expect
-    .poll(
-      async () => {
-        const result = await fetchCaptureEndpoint(
-          '/dev/auth/magic-link/latest',
-          { email }
-        )
-
-        if (result.status === 404 && result.detail === 'Not found') {
-          throw new Error('Magic-link debug capture is disabled.')
-        }
-
-        if (!result.ok || !result.payload || typeof result.payload !== 'object') {
-          return null
-        }
-
-        const record = result.payload as Record<string, unknown>
-        if (
-          typeof record.token !== 'string' ||
-          typeof record.magic_link_url !== 'string'
-        ) {
-          return null
-        }
-
-        captured = {
-          email: String(record.email ?? email),
-          token: record.token,
-          magic_link_url: record.magic_link_url,
-        }
-        return captured
-      },
-      {
-        timeout: 15_000,
-      }
-    )
-    .not.toBeNull()
-
-  if (!captured) {
-    throw new Error(`No magic link captured for ${email}`)
-  }
-
-  return captured
+// Admin creates an active user with a password (UserCreateRequest) — fresh per run so the
+// phone-verify rate limits never collide across runs. Returns the new user's id ('' on failure).
+export async function apiCreateUser(accessToken: string, email: string, password: string): Promise<string> {
+  const res = await fetch(`${authApiBase}/users/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+    body: JSON.stringify({ email, password, first_name: 'E2E', last_name: 'Phone' })
+  })
+  if (!res.ok) return ''
+  const data = (await res.json().catch(() => null)) as { id?: string } | null
+  return data?.id ?? ''
 }
 
-export async function waitForCapturedAccessCode(
-  identifier: { email: string } | { phone: string }
-) {
-  let captured: AccessCodeCapture | null = null
-  const lookupLabel =
-    'email' in identifier ? identifier.email : identifier.phone
+// Admin lookups for lifecycle tests (gap-backlog #2).
+export async function apiFindUserId(accessToken: string, email: string): Promise<string> {
+  const res = await fetch(`${authApiBase}/users/?search=${encodeURIComponent(email)}&limit=1`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  const data = (await res.json().catch(() => null)) as { items?: Array<{ id?: string }> } | null
+  return data?.items?.[0]?.id ?? ''
+}
 
-  await expect
-    .poll(
-      async () => {
-        const result = await fetchCaptureEndpoint(
-          '/dev/auth/access-code/latest',
-          identifier
-        )
+// Self-service phone loop (F2/F3 path): set an E.164 number, request + confirm the
+// verification code, after which the number can sign in by OTP.
+export async function apiSetMyPhone(accessToken: string, phone: string): Promise<boolean> {
+  const res = await fetch(`${authApiBase}/users/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+    body: JSON.stringify({ phone })
+  })
+  return res.ok
+}
 
-        if (result.status === 404 && result.detail === 'Not found') {
-          throw new Error('Access-code debug capture is disabled.')
-        }
+export async function apiRequestPhoneVerify(accessToken: string): Promise<boolean> {
+  const res = await fetch(`${authApiBase}/users/me/phone/request-code`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  return res.ok || res.status === 204
+}
 
-        if (!result.ok || !result.payload || typeof result.payload !== 'object') {
-          return null
-        }
+export async function apiConfirmPhoneVerify(accessToken: string, code: string): Promise<boolean> {
+  const res = await fetch(`${authApiBase}/users/me/phone/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+    body: JSON.stringify({ code })
+  })
+  return res.ok
+}
 
-        const record = result.payload as Record<string, unknown>
-        if (typeof record.code !== 'string') {
-          return null
-        }
-
-        if (
-          'phone' in identifier &&
-          String(record.phone ?? '') !== identifier.phone
-        ) {
-          return null
-        }
-
-        captured = {
-          email: String(record.email ?? ''),
-          phone:
-            typeof record.phone === 'string' || record.phone === null
-              ? record.phone
-              : null,
-          code: record.code,
-          access_code_url: String(record.access_code_url ?? ''),
-        }
-        return captured
-      },
-      {
-        timeout: 15_000,
-      }
-    )
-    .not.toBeNull()
-
-  if (!captured) {
-    throw new Error(`No access code captured for ${lookupLabel}`)
-  }
-
-  return captured
+// Whether the backend exposes the dev capture route for `kind` (default: access codes, the
+// historical probe). Prefer `requires({ capture: ['reset-password'] })` in new specs.
+export function captureEnabled(kind: CaptureKind = 'access-code'): Promise<boolean> {
+  return captureAvailable(kind)
 }

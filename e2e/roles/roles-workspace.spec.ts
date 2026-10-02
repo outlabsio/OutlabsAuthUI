@@ -1,296 +1,175 @@
 import type { Page } from '@playwright/test'
+import { backendConfigured, expect, test } from '../support/fixtures'
+import { isEnterpriseBackend } from '../support/capabilities'
+import { openRowMenu } from '../support/lists'
 
-import { expect, test } from '../support/auth-fixture'
-import { selectBaseUiOption } from '../support/base-ui-select'
-import { typeIntoBaseUiField } from '../support/base-ui-text'
+// The roles list and role detail (WP-14): the shared list kit (route query, server pages, true
+// total), one Type column (EnterpriseRBAC), Origin and Permissions columns, row menus built
+// from permission and state (system roles: View + Duplicate only), Archive with a typed name,
+// and the detail's not-found state. Runs on every preset.
 
-const rolesPath = '/app/roles'
+type ApiRole = { id: string, name: string, display_name: string, is_system_role?: boolean, permissions?: string[], root_entity_id?: string | null }
 
-async function gotoRolesWorkspace(page: Page) {
-  await page.goto(rolesPath)
-
-  await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
-  await expect(page.getByRole('button', { name: 'Open Roles guide' })).toBeVisible()
-  await expect(page.getByRole('table')).toBeVisible()
+// Search the roles list and wait until the table shows the search's answer. The rows already on
+// screen re-render when the filtered answer lands, which closes a row menu opened in between.
+async function searchRoles(page: Page, term: string) {
+  const filtered = page.waitForResponse(response => response.request().method() === 'GET'
+    && /\/roles\/?$/.test(new URL(response.url()).pathname)
+    && new URL(response.url()).searchParams.get('search') === term)
+  await page.getByRole('searchbox', { name: 'Search roles' }).fill(term)
+  await expect(page).toHaveURL(new RegExp(`[?&]q=${encodeURIComponent(term).replace(/%20/g, '\\+')}`))
+  const { items } = await (await filtered).json() as { items: unknown[] }
+  await expect(page.locator('tbody tr')).toHaveCount(items.length)
 }
 
-function getRoleRow(page: Page, roleName: string) {
-  return page
-    .locator('tbody tr')
-    .filter({
-      has: page.getByText(roleName, { exact: true }),
-    })
-    .first()
-}
+test.describe('roles workspace', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
 
-async function openRole(page: Page, roleName: string) {
-  if (!page.url().includes('/app/roles?') && !page.url().endsWith('/app/roles')) {
-    await page.getByRole('button', { name: 'Back to roles' }).click()
-    await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
-  }
-
-  const roleRow = getRoleRow(page, roleName)
-
-  await expect(roleRow).toBeVisible()
-  await roleRow.click()
-  await expect(page).toHaveURL(/\/app\/roles\/.+/)
-  await expect(
-    page.getByRole('heading', {
-      name: roleName,
-    })
-  ).toBeVisible()
-}
-
-function getConditionGroupCard(page: Page, description: string) {
-  return page
-    .locator('div.rounded-2xl')
-    .filter({
-      hasText: description,
-    })
-    .first()
-}
-
-function getConditionCard(page: Page, attribute: string) {
-  return page
-    .locator('div.rounded-2xl')
-    .filter({
-      has: page.getByText(attribute, { exact: true }),
-    })
-    .first()
-}
-
-test.describe('Roles Workspace', () => {
-  test('admin can inspect seeded role types and ABAC details', async ({ page }) => {
-    await gotoRolesWorkspace(page)
-
-    await expect(
-      page.getByText('Visible everywhere. Managed by superusers only.')
-    ).toHaveCount(0)
-    await page.getByRole('button', { name: 'Open Roles guide' }).click()
-    await expect(
-      page.getByText('Visible everywhere. Managed by superusers only.')
-    ).toBeVisible()
-    await expect(
-      page.getByText('Owned by one root scope and assignable across that organization.')
-    ).toBeVisible()
-    await expect(
-      page.getByText(
-        'Defined at one entity. Scope mode decides whether it stays local or inherits down the tree.'
-      )
-    ).toBeVisible()
-    await page.getByRole('button', { name: 'Close' }).click()
-
-    await openRole(page, 'West Coast After Hours Override')
-    await expect(page.getByText('ABAC conditions', { exact: true })).toBeVisible()
-    await expect(
-      page.getByText('Only allow after-hours override from approved backoffice workflows.')
-    ).toBeVisible()
-    await expect(page.getByText('Restrict to backoffice-originated requests.')).toBeVisible()
-
-    await openRole(page, 'SF Team Default Member')
-    await expect(page.getByText('Automatic baseline access')).toBeVisible()
-    await expect(page.getByText('Defined at SF Residential Team', { exact: true }).last()).toBeVisible()
-  })
-
-  test('admin can create and delete a root-scoped role', async ({ page }) => {
-    await gotoRolesWorkspace(page)
-
-    const roleTimestamp = Date.now()
-    const displayName = `Playwright Root Role ${roleTimestamp}`
-    const systemName = `playwright_root_role_${roleTimestamp}`
-
-    await page.getByRole('button', { name: 'Create role' }).click()
-
-    const dialog = page.getByRole('dialog', { name: 'Create role' })
-    await expect(dialog).toBeVisible()
-
-    await typeIntoBaseUiField(dialog, 'Display name', displayName)
-    await typeIntoBaseUiField(dialog, 'System name', systemName)
-    await typeIntoBaseUiField(
-      dialog,
-      'How should admins use this role?',
-      'Created by Playwright to validate the root-scoped role flow.'
-    )
-
-    await selectBaseUiOption({
-      page,
-      container: dialog,
-      fieldLabel: 'Owning organization',
-      optionName: 'ACME Realty',
-    })
-
-    await dialog.getByRole('checkbox', { name: /Role Read/i }).first().click()
-    await dialog.getByRole('button', { name: 'Create role' }).click()
-
-    await expect(
-      page.getByRole('heading', {
-        name: displayName,
-      })
-    ).toBeVisible()
-    await expect(page.getByText('Owned by ACME Realty', { exact: true }).first()).toBeVisible()
-
-    await page.getByRole('button', { name: 'Edit role' }).click()
-    await expect(
-      page.getByText('Update the permissions and operational behavior for this role.')
-    ).toBeVisible()
-    const editForm = page
-      .locator('form')
-      .filter({
-        has: page.getByRole('button', { name: 'Save changes' }),
-      })
-      .first()
-    await expect(editForm).toBeVisible()
-    await selectBaseUiOption({
-      page,
-      container: editForm,
-      fieldLabel: 'Lifecycle',
-      optionName: 'Inactive',
-    })
-    await page.getByRole('button', { name: 'Save changes' }).click()
-
-    await expect(page.getByText('Inactive', { exact: true }).first()).toBeVisible()
-
-    await page.getByRole('button', { name: 'Delete', exact: true }).click()
-
-    const deleteDialog = page.getByRole('dialog', { name: 'Delete role' })
-    await expect(deleteDialog).toBeVisible()
-    await deleteDialog.getByRole('button', { name: 'Delete role' }).click()
-
-    await expect(page).toHaveURL(/\/app\/roles(?:\?.*)?$/)
-    await expect(
-      getRoleRow(page, displayName)
-    ).toHaveCount(0)
-  })
-
-  test('admin can create, edit, and delete ABAC artifacts on a custom role', async ({
-    page,
-  }) => {
-    const timestamp = Date.now()
-    const groupDescription = `Playwright ABAC group ${timestamp}`
-    const conditionAttribute = `request.playwright_${timestamp}`
-    const initialConditionValue = `seed-${timestamp}`
-    const updatedConditionValue = `updated-${timestamp}`
-    const updatedConditionDescription = `Playwright ABAC condition ${timestamp} updated`
-
-    await gotoRolesWorkspace(page)
-    await openRole(page, 'West Coast After Hours Override')
-
-    try {
-      await page.getByRole('button', { name: 'Add group' }).click()
-
-      const groupDialog = page.getByRole('dialog', { name: 'Add condition group' })
-      await expect(groupDialog).toBeVisible()
-      await selectBaseUiOption({
-        page,
-        container: groupDialog,
-        fieldLabel: 'Operator',
-        optionName: 'OR',
-      })
-      await typeIntoBaseUiField(groupDialog, 'Description', groupDescription)
-      await groupDialog.getByRole('button', { name: 'Create group' }).click()
-      await expect(groupDialog).toBeHidden()
-      await expect(page.getByText(groupDescription, { exact: true })).toBeVisible()
-
-      await page.getByRole('button', { name: 'Add condition' }).click()
-
-      const conditionDialog = page.getByRole('dialog', { name: 'Add condition' })
-      await expect(conditionDialog).toBeVisible()
-      await typeIntoBaseUiField(conditionDialog, 'Attribute path', conditionAttribute)
-      await selectBaseUiOption({
-        page,
-        container: conditionDialog,
-        fieldLabel: 'Condition group',
-        optionName: 'OR group',
-      })
-      await typeIntoBaseUiField(conditionDialog, 'Value', initialConditionValue)
-      await typeIntoBaseUiField(
-        conditionDialog,
-        'Description',
-        `Playwright ABAC condition ${timestamp}`
-      )
-      await conditionDialog.getByRole('button', { name: 'Create condition' }).click()
-      await expect(conditionDialog).toBeHidden()
-      await expect(page.getByText(conditionAttribute, { exact: true })).toBeVisible()
-      await expect(page.getByText(initialConditionValue, { exact: true })).toBeVisible()
-
-      const conditionCard = getConditionCard(page, conditionAttribute)
-      await conditionCard
-        .getByRole('button', { name: `Edit condition ${conditionAttribute}` })
-        .click()
-
-      const editConditionDialog = page.getByRole('dialog', { name: 'Edit condition' })
-      await expect(editConditionDialog).toBeVisible()
-      await typeIntoBaseUiField(editConditionDialog, 'Value', updatedConditionValue)
-      await typeIntoBaseUiField(
-        editConditionDialog,
-        'Description',
-        updatedConditionDescription
-      )
-      await editConditionDialog.getByRole('button', { name: 'Save changes' }).click()
-      await expect(editConditionDialog).toBeHidden()
-      await expect(page.getByText(updatedConditionValue, { exact: true })).toBeVisible()
-      await expect(page.getByText(updatedConditionDescription, { exact: true })).toBeVisible()
-    } finally {
-      const conditionCard = getConditionCard(page, conditionAttribute)
-
-      if (await conditionCard.isVisible().catch(() => false)) {
-        await conditionCard
-          .getByRole('button', { name: `Delete condition ${conditionAttribute}` })
-          .click()
-        await expect(page.getByText(conditionAttribute, { exact: true })).toHaveCount(0)
-      }
-
-      const groupCard = getConditionGroupCard(page, groupDescription)
-
-      if (await groupCard.isVisible().catch(() => false)) {
-        await groupCard.getByRole('button', { name: 'Delete OR group' }).click()
-        await expect(page.getByText(groupDescription, { exact: true })).toHaveCount(0)
-      }
+  test('lists the seeded roles with their type, origin, permission count and status', async ({ page, api }) => {
+    const roles = await api.listAll<ApiRole>('/roles/')
+    const enterprise = await isEnterpriseBackend()
+    // EnterpriseRBAC seeds an organization role; SimpleRBAC seeds system roles only.
+    const seeded = roles.find(role => role.name === 'acme_auditor') ?? roles.find(role => role.is_system_role)!
+    await page.goto('/app/roles')
+    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add role' })).toBeVisible()
+    await searchRoles(page, seeded.name)
+    const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: seeded.display_name, exact: true }) })
+    await expect(row).toContainText(seeded.name)
+    await expect(row.getByRole('cell').nth(enterprise ? 2 : 1)).toHaveText(String(seeded.permissions?.length ?? 0))
+    await expect(row).toContainText(seeded.is_system_role ? 'System' : 'Custom')
+    await expect(row).toContainText('Active')
+    if (enterprise) {
+      await expect(page.getByRole('columnheader', { name: 'Type' })).toBeVisible()
+      // Where an organization role lives is part of its type (F-068).
+      await expect(row.getByRole('cell').nth(1)).toContainText('Organization')
+      await expect(row.getByRole('cell').nth(1)).toContainText('ACME Realty')
+    } else {
+      // SimpleRBAC roles are flat: no type column or filter (F-008).
+      await expect(page.getByRole('columnheader', { name: 'Type' })).toHaveCount(0)
+      await expect(page.getByLabel('Filter by type', { exact: true })).toHaveCount(0)
     }
   })
 
-  test.describe('Scoped admin UX', () => {
-    test.use({ persona: 'regionalAdmin' })
-
-    test('regional admin can manage ACME-scoped roles but cannot create globals or cross-root roles', async ({
-      page,
-    }) => {
-      await gotoRolesWorkspace(page)
-
-      await expect(
-        getRoleRow(page, 'West Coast Hierarchy Admin')
-      ).toBeVisible()
-      await expect(
-        getRoleRow(page, 'ACME Org Admin')
-      ).toBeVisible()
-      await expect(
-        getRoleRow(page, 'SF Office Local Admin')
-      ).toBeVisible()
-      await expect(
-        getRoleRow(page, 'East Coast Hierarchy Admin')
-      ).toBeVisible()
-
-      await page.getByRole('button', { name: 'Create role' }).click()
-      const dialog = page.getByRole('dialog', { name: 'Create role' })
-      await expect(dialog).toBeVisible()
-      await expect(dialog.getByText('Global', { exact: true })).toHaveCount(0)
-      await expect(dialog.getByText('Organization', { exact: true })).toBeVisible()
-      await expect(dialog.getByText('Entity-defined', { exact: true })).toBeVisible()
-      await dialog.getByRole('button', { name: 'Cancel' }).click()
-    })
+  test('opens the create-role dialog, reset on every open (F-205)', async ({ page }) => {
+    await page.goto('/app/roles')
+    await page.getByRole('button', { name: 'Add role' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add role' })
+    await expect(dialog.getByLabel('Display name')).toBeVisible()
+    await expect(dialog.getByLabel('Name', { exact: true })).toBeVisible()
+    // The name follows the display name until edited (F-069).
+    await dialog.getByLabel('Display name').fill('Regional Admin (West)')
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('regional_admin_west')
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('dialog', { name: 'Discard changes?' }).getByRole('button', { name: 'Discard' }).click()
+    await expect(dialog).toBeHidden()
+    await page.getByRole('button', { name: 'Add role' }).click()
+    await expect(dialog.getByLabel('Display name')).toHaveValue('')
   })
 
-  test.describe('Read-only UX', () => {
-    test.use({ persona: 'auditor' })
-
-    test('auditor can inspect roles but not mutate them', async ({ page }) => {
-      await gotoRolesWorkspace(page)
-
-      await expect(page.getByRole('button', { name: 'Create role' })).toHaveCount(0)
-
-      await openRole(page, 'ACME Auditor')
-      await expect(page.getByRole('button', { name: 'Edit role' })).toBeDisabled()
-      await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled()
+  test('the list pages on the server with the true total (F-126)', async ({ page, api }) => {
+    const total = (await api.get<{ total: number }>('/roles/', { query: { limit: 1 } })).total
+    // Past one page of 25.
+    for (let i = total; i < 27; i++) await api.createRole({ kind: 'page' })
+    const pageRequests: string[] = []
+    page.on('request', (request) => {
+      const url = new URL(request.url())
+      if (request.method() === 'GET' && /\/roles\/$/.test(url.pathname) && url.searchParams.get('limit') === '25') pageRequests.push(url.searchParams.get('page') ?? '')
     })
+    await page.goto('/app/roles')
+    const summary = page.getByRole('status').filter({ hasText: /Showing 1–25 of \d+ roles/ })
+    await expect(summary).toBeVisible()
+    await page.getByRole('navigation', { name: 'Roles pages' }).getByRole('button', { name: 'Page 2' }).click()
+    await expect(page).toHaveURL(/[?&]page=2/)
+    await expect(page.getByRole('status').filter({ hasText: /Showing 26–/ })).toBeVisible()
+    expect(pageRequests).toContain('2')
+    // Back keeps the page in the route query.
+    await page.reload()
+    await expect(page.getByRole('status').filter({ hasText: /Showing 26–/ })).toBeVisible()
+  })
+
+  test('archiving a role states the effect and takes the typed name (F-112)', async ({ page, api }) => {
+    const role = await api.createRole()
+    const archived: string[] = []
+    await page.route(/\/roles\/[^/]+$/, async (route) => {
+      if (route.request().method() === 'DELETE') archived.push(route.request().url())
+      await route.continue()
+    })
+
+    await page.goto('/app/roles')
+    await searchRoles(page, role.name)
+    await expect(page.getByRole('row').filter({ hasText: role.name })).toHaveCount(1)
+    await openRowMenu(page, `Role actions for ${role.display_name}`)
+    await page.getByRole('menuitem', { name: 'Archive' }).click()
+
+    const confirm = page.getByRole('dialog', { name: `Archive role ${role.display_name}` })
+    await expect(confirm).toContainText('can\'t be restored from the console')
+    await expect(confirm.getByTestId('confirm-effects')).toContainText('loses the permissions it grants immediately')
+    const archive = confirm.getByRole('button', { name: 'Archive role' })
+    await expect(archive).toBeDisabled()
+    const typed = confirm.getByLabel(`Type ${role.name} to confirm`)
+    await typed.fill(`${role.name}-typo`)
+    await expect(archive).toBeDisabled()
+    await typed.fill(role.name)
+    await archive.click()
+    await expect(confirm).toBeHidden()
+    await expect(page.getByText('Role archived', { exact: true })).toBeVisible()
+    expect(archived).toHaveLength(1)
+    await expect(page.getByRole('row').filter({ hasText: role.name })).toHaveCount(0)
+  })
+
+  test('system roles offer no Edit or Archive; Duplicate as custom role creates an editable copy (F-053)', async ({ page, api, testData }) => {
+    const roles = await api.listAll<ApiRole>('/roles/')
+    const system = roles.filter(role => role.is_system_role).sort((a, b) => (a.permissions?.length ?? 0) - (b.permissions?.length ?? 0))[0]
+    test.skip(!system, 'No system role on this backend.')
+    const posts: Array<Record<string, unknown>> = []
+    await page.route(/\/roles\/?$/, async (route) => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON() as Record<string, unknown>)
+      await route.fallback()
+    })
+
+    await page.goto('/app/roles')
+    await searchRoles(page, system!.name)
+    await openRowMenu(page, `Role actions for ${system!.display_name}`)
+    await expect(page.getByRole('menuitem', { name: 'View' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Edit' })).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: 'Archive' })).toHaveCount(0)
+    await page.getByRole('menuitem', { name: 'Duplicate as custom role' }).click()
+
+    const dialog = page.getByRole('dialog', { name: `Duplicate role ${system!.display_name}` })
+    await expect(dialog.getByLabel('Display name')).toHaveValue(`${system!.display_name} (copy)`)
+    for (const name of system!.permissions ?? []) await expect(dialog.getByRole('button', { name: `Remove ${name}` })).toBeVisible()
+    const displayName = testData.displayName('dup')
+    const name = testData.name('dup')
+    await dialog.getByLabel('Display name').fill(displayName)
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByRole('button', { name: 'Create role' }).click()
+
+    // The copy opens: custom, with the source's permissions, and editable.
+    await expect(page.getByRole('heading', { name: displayName })).toBeVisible()
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toEqual(expect.objectContaining({ name, display_name: displayName, is_auto_assigned: false }))
+    expect([...(posts[0]!.permissions as string[])].sort()).toEqual([...(system!.permissions ?? [])].sort())
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+    await expect(page.getByTestId('role-locked')).toHaveCount(0)
+
+    // The system role's own page says why it is locked and offers no Edit.
+    await page.goto(`/app/roles/${system!.id}`)
+    await expect(page.getByTestId('role-locked')).toContainText('can\'t be changed')
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'More role actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'Duplicate as custom role' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Archive' })).toHaveCount(0)
+  })
+
+  test('a role link that does not resolve shows not found with a way back (F-122)', async ({ page, errorGuard }) => {
+    errorGuard.allow({ kind: 'api', status: 404, url: /\/roles\/[0-9a-f-]{36}$/ })
+    errorGuard.allow({ kind: 'console', console: /404/ })
+    await page.goto('/app/roles/not-a-role-id')
+    await expect(page.getByText('Role not found')).toBeVisible()
+    await page.goto('/app/roles/00000000-0000-4000-8000-000000000000')
+    await expect(page.getByText('Role not found')).toBeVisible()
+    await page.getByRole('link', { name: 'Back to roles' }).filter({ hasText: 'Back to roles' }).click()
+    await expect(page).toHaveURL(/\/app\/roles$/)
   })
 })

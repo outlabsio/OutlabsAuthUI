@@ -1,0 +1,8 @@
+<div class="ol-boot" role="status" aria-live="polite"><span class="ol-boot-spin"></span><span>Loading console</span></div>
+<style>
+.ol-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#fff;color:#71717a;font:14px/1.4 system-ui,sans-serif}
+.ol-boot-spin{width:24px;height:24px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ol-boot-spin .8s linear infinite}
+@keyframes ol-boot-spin{to{transform:rotate(360deg)}}
+@media (prefers-color-scheme:dark){.ol-boot{background:#18181b;color:#a1a1aa}}
+@media (prefers-reduced-motion:reduce){.ol-boot-spin{animation-duration:2.4s}}
+</style>

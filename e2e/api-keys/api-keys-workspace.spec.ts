@@ -1,622 +1,432 @@
-import type { Locator, Page } from '@playwright/test'
+import type { Page, Request } from '@playwright/test'
+import { backendConfigured, expect, personaState, test } from '../support/fixtures'
+import { apiUrl } from '../support/env'
+import { chooseSelect, chooseSelectMenu, field } from '../support/ui-select'
+import { piniaPathsTo } from '../support/pinia-probe'
+import { type ApiKeyRow, grantableScope, pastExpiry, pickScope, rewriteKeys, storeSecret } from '../support/api-keys'
 
-import { expect, test } from '../support/auth-fixture'
-import { selectBaseUiOption } from '../support/base-ui-select'
+// My API keys (WP-17): the signed-in account's own keys, on either preset. Keys are arranged
+// through the API with a scope the admin may grant there (user:read on both example seeds) and
+// named through testData, so cleanup revokes what a run leaves behind. States the backend cannot
+// be put in quickly (an expiry date in the past, an owner who cannot sign in) are served by
+// rewriting the real list and detail responses.
 
-const systemApiKeysPath = '/app/users/api-keys'
+type Key = { id: string, name: string, prefix: string, status: string, scopes: string[], rate_limit_per_minute: number, ip_whitelist: string[] | null, description: string | null, entity_ids: string[] | null, inherit_from_tree: boolean }
 
-function getIntegrationRow(page: Parameters<typeof test>[0]['page'], name: string) {
-  return page
-    .locator('tbody tr')
-    .filter({
-      has: page.getByText(name, { exact: true }),
-    })
-    .first()
+const LIST = /\/api-keys\/$/
+const DETAIL = /\/api-keys\/[0-9a-f-]{36}$/
+
+function keyRow(page: Page, name: string) {
+  return page.getByRole('row').filter({ hasText: name })
 }
 
-async function gotoApiKeysWorkspace(page: Parameters<typeof test>[0]['page']) {
-  await page.goto(systemApiKeysPath)
-
-  await expect(page).toHaveURL(/\/app\/users\/api-keys(?:\?.*)?$/)
-  await expect(page.getByRole('button', { name: 'Open System API Keys guide' })).toBeVisible()
-  await expect(
-    page.getByRole('heading', {
-      name: 'System API Keys',
-    })
-  ).toBeVisible()
+async function openMenu(page: Page, name: string) {
+  await page.getByRole('button', { name: `API key actions for ${name}`, exact: true }).click()
 }
 
-async function gotoPersonalApiKeysWorkspace(page: Parameters<typeof test>[0]['page']) {
-  await page.goto('/app/api-keys')
-
-  await expect(page).toHaveURL(/\/app\/api-keys$/)
-  await expect(page.getByRole('button', { name: 'Open API Keys guide' })).toBeVisible()
-  await expect(
-    page.getByRole('heading', {
-      name: 'API Keys',
-      exact: true,
-    })
-  ).toBeVisible()
-}
-
-async function typeIntoField(
-  page: Parameters<typeof test>[0]['page'],
-  selector: string,
-  value: string
-) {
-  const control = page.locator(selector)
-  await expect(control).toBeVisible()
-  await control.scrollIntoViewIfNeeded()
-  await control.fill(value)
-  await expect(control).toHaveValue(value)
-}
-
-async function openCreatePersonalApiKeyDialog(page: Page) {
-  await gotoPersonalApiKeysWorkspace(page)
-
-  await page.locator('header').getByRole('button', { name: 'Create API key' }).click()
-
-  const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
-  await expect(dialog).toBeVisible()
-
-  return dialog
-}
-
-async function choosePersonalKeyAnchor(
-  page: Page,
-  dialog: Locator,
-  optionName: string | RegExp
-) {
-  await selectBaseUiOption({
-    page,
-    container: dialog,
-    fieldLabel: 'Anchor entity',
-    optionName,
-  })
-}
-
-async function choosePersonalKeyPermission(
-  dialog: Locator,
-  permissionName: string
-) {
-  const checkbox = dialog.getByRole('checkbox', { name: permissionName })
-
-  await expect(checkbox).toBeVisible()
-  await checkbox.check()
-  await expect(checkbox).toBeChecked()
-}
-
-async function selectComboboxOption(
-  page: Parameters<typeof test>[0]['page'],
-  selector: string,
-  searchValue: string,
-  optionText: string
-) {
-  const control = page.locator(selector)
-
-  await expect(control).toBeVisible()
-  const currentValue = (await control.textContent())?.trim()
-  if (currentValue === optionText) {
-    return
-  }
-
-  await control.click()
-  await control.fill(searchValue)
-  await page
-    .locator('[data-slot="combobox-content"]')
-    .getByText(optionText, { exact: true })
-    .first()
-    .click()
-}
-
-async function toggleRole(
-  page: Parameters<typeof test>[0]['page'],
-  dialogName: string,
-  roleName: string,
-  checked: boolean
-) {
-  const dialog = page.getByRole('dialog', { name: dialogName })
-  const checkbox = dialog.getByRole('checkbox', { name: roleName }).first()
-
-  await expect(checkbox).toBeVisible()
-
-  if (checked) {
-    await checkbox.check()
-  } else {
-    await checkbox.uncheck()
-  }
-}
-
-async function setKeyAccessMode(
-  page: Parameters<typeof test>[0]['page'],
-  mode: 'full' | 'restricted'
-) {
-  const dialog = page.getByRole('dialog', {
-    name: /Create machine API key|Edit machine API key/,
-  })
-  const label = mode === 'full' ? 'Full service-account access' : 'Restricted access'
-  await dialog.getByText(label, { exact: true }).click()
-}
-
-async function selectRestrictedPermission(
-  page: Parameters<typeof test>[0]['page'],
-  permissionLabel: string
-) {
-  const dialog = page.getByRole('dialog', {
-    name: /Create machine API key|Edit machine API key/,
-  })
-  await dialog.getByRole('textbox', { name: 'Search role permissions' }).fill(permissionLabel)
-  await dialog.getByRole('checkbox', { name: permissionLabel }).check()
-}
-
-async function createEntityServiceAccount(
-  page: Parameters<typeof test>[0]['page'],
-  {
-    entityName,
-    principalName,
-    roleName,
-  }: {
-    entityName: string
-    principalName: string
-    roleName: string
-  }
-) {
-  await gotoApiKeysWorkspace(page)
-  await selectComboboxOption(page, '#api-keys-entity', entityName, entityName)
-
-  await page.getByRole('button', { name: 'Create service account' }).click()
-
-  const dialog = page.getByRole('dialog', { name: 'Create service account' })
-  await expect(dialog).toBeVisible()
-
-  await typeIntoField(page, '#integration-principal-name', principalName)
-  await typeIntoField(
-    page,
-    '#integration-principal-description',
-    'Created by Playwright to validate the EnterpriseRBAC service-account workflow.'
-  )
-  await toggleRole(page, 'Create service account', roleName, true)
-  await dialog.getByRole('button', { name: 'Create service account' }).click()
-
-  const createdRow = getIntegrationRow(page, principalName)
-  await expect(createdRow).toBeVisible()
-  await createdRow.click()
-}
-
-async function createPlatformGlobalServiceAccount(
-  page: Parameters<typeof test>[0]['page'],
-  {
-    principalName,
-    roleName,
-  }: {
-    principalName: string
-    roleName: string
-  }
-) {
-  await gotoApiKeysWorkspace(page)
-
-  await selectBaseUiOption({
-    page,
-    container: page.locator('body'),
-    fieldLabel: 'Scope model',
-    optionName: 'Platform global',
-  })
-
-  await page.getByRole('button', { name: 'Create service account' }).click()
-
-  const dialog = page.getByRole('dialog', { name: 'Create service account' })
-  await expect(dialog).toBeVisible()
-
-  await typeIntoField(page, '#integration-principal-name', principalName)
-  await typeIntoField(
-    page,
-    '#integration-principal-description',
-    'Created by Playwright to validate the platform-global service-account workflow.'
-  )
-  await toggleRole(page, 'Create service account', roleName, true)
-  await dialog.getByRole('button', { name: 'Create service account' }).click()
-
-  const createdRow = getIntegrationRow(page, principalName)
-  await expect(createdRow).toBeVisible()
-  await createdRow.click()
-}
-
-async function createMachineKey(
-  page: Parameters<typeof test>[0]['page'],
-  {
-    keyName,
-    accessMode,
-    permissionLabel,
-  }: {
-    keyName: string
-    accessMode: 'full' | 'restricted'
-    permissionLabel?: string
-  }
-) {
-  await page.locator('header').getByRole('button', { name: 'Create machine key' }).click()
-
-  const dialog = page.getByRole('dialog', { name: 'Create machine API key' })
-  await expect(dialog).toBeVisible()
-
-  await typeIntoField(page, '#system-api-key-name', keyName)
-  await typeIntoField(
-    page,
-    '#system-api-key-description',
-    'Created by Playwright to validate machine-key lifecycle behavior in the UI.'
-  )
-
-  if (accessMode === 'restricted') {
-    await setKeyAccessMode(page, 'restricted')
-    if (permissionLabel) {
-      await selectRestrictedPermission(page, permissionLabel)
+function recordWrites(page: Page, pattern: RegExp) {
+  const writes: { method: string, url: string, body: Record<string, unknown> }[] = []
+  page.on('request', (request: Request) => {
+    if (request.method() !== 'GET' && pattern.test(request.url())) {
+      writes.push({ method: request.method(), url: request.url(), body: (request.postDataJSON() ?? {}) as Record<string, unknown> })
     }
-  }
-
-  await dialog.getByRole('button', { name: 'Create key' }).click()
-
-  const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-  await expect(secretDialog).toBeVisible()
-  await secretDialog.getByRole('button', { name: 'Done' }).click()
-
-  const keyRow = getIntegrationRow(page, keyName)
-  await expect(keyRow).toBeVisible()
-  await expect(keyRow.getByText('Active', { exact: true })).toBeVisible()
-  await expect(keyRow.getByText('Effective', { exact: true })).toBeVisible()
-  await keyRow.click()
+  })
+  return writes
 }
 
-test.describe('API Keys Workspace', () => {
-  test('admin can self-manage a personal API key from the API Keys workspace', async ({
-    page,
-  }) => {
-    const timestamp = Date.now()
-    const keyName = `Playwright Personal Key ${timestamp}`
+test.describe('my API keys', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+  test.use({ errorGuardMode: 'strict' })
 
-    const dialog = await openCreatePersonalApiKeyDialog(page)
-
-    await typeIntoField(page, '#api-key-name', keyName)
-    await typeIntoField(
-      page,
-      '#api-key-description',
-      'Created by Playwright to validate the self-service personal API key workflow.'
-    )
-
-    await choosePersonalKeyAnchor(page, dialog, /San Francisco Office$/)
-    await dialog.getByRole('switch', { name: 'Include descendant entities' }).click()
-
-    await choosePersonalKeyPermission(dialog, 'entity:read_tree')
-    await dialog.getByRole('button', { name: 'Create API key' }).click()
-
-    const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-    await expect(secretDialog).toBeVisible()
-    await secretDialog.getByRole('button', { name: 'Done' }).click()
-
-    const keyRow = getIntegrationRow(page, keyName)
-    await expect(keyRow).toBeVisible()
-    await keyRow.click()
-    await expect(page.getByText('Descendants allowed', { exact: true })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Edit key' }).click()
-    const editDialog = page.getByRole('dialog', { name: 'Edit API key' })
-    await expect(editDialog).toBeVisible()
-    await typeIntoField(page, '#api-key-description', 'Updated by Playwright after create.')
-    await editDialog.getByRole('button', { name: 'Save changes' }).click()
-
-    await page.getByRole('button', { name: 'Rotate key' }).click()
-    const rotateDialog = page.getByRole('dialog', { name: 'Rotate API key' })
-    await expect(rotateDialog).toBeVisible()
-    await rotateDialog.getByRole('button', { name: 'Rotate key' }).click()
-
-    const rotatedSecretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-    await expect(rotatedSecretDialog).toBeVisible()
-    await rotatedSecretDialog.getByRole('button', { name: 'Done' }).click()
-
-    await page.getByRole('button', { name: 'Revoke key' }).click()
-    const revokeDialog = page.getByRole('dialog', { name: 'Revoke API key' })
-    await expect(revokeDialog).toBeVisible()
-    await revokeDialog.getByRole('button', { name: 'Revoke key' }).click()
-
-    await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible()
+  test.beforeEach(async ({ requires }) => {
+    await requires({ surfaces: ['api_keys'] })
   })
 
-  test('personal API key form exposes grantable permissions and sends the policy payload', async ({
-    page,
-  }) => {
-    const timestamp = Date.now()
-    const keyName = `Playwright Personal Policy Key ${timestamp}`
-    const createApiKeyRequests: unknown[] = []
-
-    await page.route('**/v1/api-keys', async (route) => {
-      const request = route.request()
-      if (request.method() === 'POST') {
-        createApiKeyRequests.push(request.postDataJSON())
+  test('lists keys from GET /api-keys/ with its trailing slash, never through a redirect (F-088)', async ({ page }) => {
+    const lists: { url: string, status: number }[] = []
+    const listUrls = [apiUrl('/api-keys'), apiUrl('/api-keys/')]
+    page.on('response', (response) => {
+      if (listUrls.includes(response.url().split('?')[0]!) && response.request().method() === 'GET') {
+        lists.push({ url: response.url(), status: response.status() })
       }
-
-      await route.continue()
     })
-
-    const dialog = await openCreatePersonalApiKeyDialog(page)
-    const rateLimitInput = dialog.locator('#api-key-rate-limit')
-    const unlimitedSwitch = dialog.getByRole('switch', { name: 'Use unlimited rate limit' })
-    const descendantsSwitch = dialog.getByRole('switch', {
-      name: 'Include descendant entities',
-    })
-
-    await expect(dialog.getByText('Grantable permissions', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('Personal key', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('Allowed action prefixes:')).toBeVisible()
-    await expect(dialog.getByText('req/min', { exact: true })).toBeVisible()
-    await expect(dialog.getByText('Separate addresses or CIDR blocks with commas or new lines.')).toBeVisible()
-    await expect(descendantsSwitch).toBeDisabled()
-    await expect(rateLimitInput).toHaveValue('60')
-
-    await unlimitedSwitch.click()
-    await expect(rateLimitInput).toBeDisabled()
-    await expect(rateLimitInput).toHaveValue('0')
-
-    await unlimitedSwitch.click()
-    await expect(rateLimitInput).toBeEnabled()
-    await expect(rateLimitInput).toHaveValue('60')
-
-    await typeIntoField(page, '#api-key-name', keyName)
-    await typeIntoField(
-      page,
-      '#api-key-description',
-      'Created by Playwright to verify the personal-key policy form payload.'
-    )
-    await typeIntoField(page, '#api-key-rate-limit', '125')
-    await typeIntoField(page, '#api-key-expires-days', '14')
-    await typeIntoField(page, '#api-key-ip-whitelist', '203.0.113.10, 198.51.100.0/24')
-    await choosePersonalKeyAnchor(page, dialog, /San Francisco Office$/)
-    await expect(descendantsSwitch).toBeEnabled()
-    await descendantsSwitch.click()
-    await choosePersonalKeyPermission(dialog, 'entity:read_tree')
-
-    await dialog.getByRole('button', { name: 'Create API key' }).click()
-
-    const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-    await expect(secretDialog).toBeVisible()
-    await secretDialog.getByRole('button', { name: 'Done' }).click()
-
-    expect(createApiKeyRequests).toHaveLength(1)
-    expect(createApiKeyRequests[0]).toEqual(
-      expect.objectContaining({
-        name: keyName,
-        description: 'Created by Playwright to verify the personal-key policy form payload.',
-        scopes: ['entity:read_tree'],
-        key_kind: 'personal',
-        inherit_from_tree: true,
-        rate_limit_per_minute: 125,
-        expires_in_days: 14,
-        ip_whitelist: ['203.0.113.10', '198.51.100.0/24'],
-      })
-    )
-    expect((createApiKeyRequests[0] as { entity_ids?: unknown[] }).entity_ids).toHaveLength(1)
-
-    const keyRow = getIntegrationRow(page, keyName)
-    await expect(keyRow).toBeVisible()
-    await keyRow.click()
-    await expect(page.getByText('Descendants allowed', { exact: true })).toBeVisible()
-    await expect(page.getByText('125 requests/minute', { exact: true })).toBeVisible()
-    await expect(page.getByRole('main').getByText('Permissions', { exact: true })).toBeVisible()
-    await expect(page.getByText('entity:read_tree', { exact: true }).first()).toBeVisible()
+    await page.goto('/app/api-keys')
+    await expect(page.getByRole('heading', { name: 'My API keys' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create API key' })).toBeVisible()
+    await expect(page.getByLabel('Filter by status', { exact: true })).toContainText('Active and suspended')
+    await expect.poll(() => lists.length).toBeGreaterThan(0)
+    for (const list of lists) {
+      expect(list.url).toBe(apiUrl('/api-keys/'))
+      expect(list.status).toBe(200)
+    }
   })
 
-  test('service account forms expose role-backed access and send scoped machine-key payloads', async ({
-    page,
-  }) => {
-    const timestamp = Date.now()
-    const principalName = `Playwright Service Payload ${timestamp}`
-    const keyName = `Playwright Restricted Machine Payload ${timestamp}`
-    const createPrincipalRequests: unknown[] = []
-    const createMachineKeyRequests: unknown[] = []
+  test('creates a key through the sectioned form, sending the defaults (F-086, F-114)', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('mint')
+    const writes = recordWrites(page, LIST)
 
-    await page.route('**/v1/admin/entities/*/integration-principals**', async (route) => {
-      const request = route.request()
-      const requestUrl = request.url()
+    await page.goto('/app/api-keys')
+    await page.getByRole('button', { name: 'Create API key' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+    // Test keys are a label only (F-087).
+    await expect(dialog).toContainText('A label only: test and live keys have the same access.')
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await pickScope(dialog, scope!)
+    await dialog.getByRole('button', { name: 'Create key' }).click()
+    await storeSecret(page)
 
-      if (request.method() === 'POST' && !requestUrl.includes('/api-keys')) {
-        createPrincipalRequests.push(request.postDataJSON())
-      }
-
-      await route.continue()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]!.body).toEqual({
+      name,
+      scopes: [scope],
+      key_kind: 'personal',
+      prefix_type: 'sk_live',
+      rate_limit_per_minute: 60,
+      expires_in_days: 90
     })
-
-    await page.route('**/v1/admin/entities/*/integration-principals/*/api-keys', async (route) => {
-      const request = route.request()
-
-      if (request.method() === 'POST') {
-        createMachineKeyRequests.push(request.postDataJSON())
-      }
-
-      await route.continue()
-    })
-
-    await gotoApiKeysWorkspace(page)
-    await selectComboboxOption(page, '#api-keys-entity', 'San Francisco Office', 'San Francisco Office')
-
-    await page.getByRole('button', { name: 'Create service account' }).click()
-
-    const createPrincipalDialog = page.getByRole('dialog', { name: 'Create service account' })
-    await expect(createPrincipalDialog).toBeVisible()
-    await expect(createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' })).toBeVisible()
-    await expect(createPrincipalDialog.getByText('Let this service account inherit access below the selected anchor.')).toBeVisible()
-    await expect(createPrincipalDialog.getByText('Role envelope', { exact: true })).toBeVisible()
-    await expect(createPrincipalDialog.getByText('Derived permissions', { exact: true })).toBeVisible()
-
-    await typeIntoField(page, '#integration-principal-name', principalName)
-    await typeIntoField(
-      page,
-      '#integration-principal-description',
-      'Created by Playwright to verify the role-backed service-account payload.'
-    )
-
-    await createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' }).click()
-    await expect(
-      createPrincipalDialog.getByRole('switch', { name: 'Include descendant entities' })
-    ).toBeChecked()
-
-    await createPrincipalDialog.getByRole('textbox', { name: 'Search roles' }).fill('ACME Auditor')
-    await expect(createPrincipalDialog.getByText('ACME Auditor', { exact: true })).toBeVisible()
-    await expect(createPrincipalDialog.getByText('acme_auditor', { exact: true })).toHaveCount(0)
-    await expect(createPrincipalDialog.getByText('Owned by ACME Realty', { exact: true })).toHaveCount(1)
-
-    await toggleRole(page, 'Create service account', 'ACME Auditor', true)
-    await expect(createPrincipalDialog.getByText('1 selected', { exact: true })).toHaveCount(2)
-    await expect(createPrincipalDialog.getByText('7 permissions', { exact: true })).toHaveCount(2)
-
-    await createPrincipalDialog.getByRole('switch', { name: 'Show selected roles only' }).click()
-    await expect(
-      createPrincipalDialog
-        .getByLabel('Assignable roles')
-        .getByText('ACME Auditor', { exact: true })
-    ).toBeVisible()
-
-    await createPrincipalDialog.getByRole('button', { name: 'Create service account' }).click()
-
-    const createdPrincipalRow = getIntegrationRow(page, principalName)
-    await expect(createdPrincipalRow).toBeVisible()
-    await createdPrincipalRow.click()
-
-    expect(createPrincipalRequests).toHaveLength(1)
-    expect(createPrincipalRequests[0]).toEqual(
-      expect.objectContaining({
-        name: principalName,
-        description: 'Created by Playwright to verify the role-backed service-account payload.',
-        allowed_scopes: [],
-        inherit_from_tree: true,
-      })
-    )
-    expect((createPrincipalRequests[0] as { role_ids?: unknown[] }).role_ids).toHaveLength(1)
-
-    await page.locator('header').getByRole('button', { name: 'Create machine key' }).click()
-
-    const createKeyDialog = page.getByRole('dialog', { name: 'Create machine API key' })
-    await expect(createKeyDialog).toBeVisible()
-    await expect(createKeyDialog.getByText(principalName, { exact: true })).toBeVisible()
-    await expect(createKeyDialog.getByText('7 permissions', { exact: true })).toBeVisible()
-
-    await typeIntoField(page, '#system-api-key-name', keyName)
-    await typeIntoField(
-      page,
-      '#system-api-key-description',
-      'Created by Playwright to verify restricted machine-key policy payloads.'
-    )
-    await setKeyAccessMode(page, 'restricted')
-    await selectRestrictedPermission(page, 'Entity Read Tree')
-    await typeIntoField(page, '#system-api-key-rate-limit', '75')
-    await typeIntoField(page, '#system-api-key-expires-days', '21')
-    await typeIntoField(page, '#system-api-key-ip-whitelist', '203.0.113.10\n198.51.100.0/24')
-
-    await createKeyDialog.getByRole('button', { name: 'Create key' }).click()
-
-    const secretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-    await expect(secretDialog).toBeVisible()
-    await secretDialog.getByRole('button', { name: 'Done' }).click()
-
-    expect(createMachineKeyRequests).toHaveLength(1)
-    expect(createMachineKeyRequests[0]).toEqual(
-      expect.objectContaining({
-        name: keyName,
-        description: 'Created by Playwright to verify restricted machine-key policy payloads.',
-        scopes: ['entity:read_tree'],
-        prefix_type: 'sk_live',
-        ip_whitelist: ['203.0.113.10', '198.51.100.0/24'],
-        rate_limit_per_minute: 75,
-        expires_in_days: 21,
-      })
-    )
-
-    const keyRow = getIntegrationRow(page, keyName)
-    await expect(keyRow).toBeVisible()
-    await expect(keyRow.getByText('Active', { exact: true })).toBeVisible()
-    await expect(keyRow.getByText('Effective', { exact: true })).toBeVisible()
-    await keyRow.click()
-
-    await expect(page.getByText('75 requests/minute', { exact: true })).toBeVisible()
-    await expect(page.getByText('entity:read_tree', { exact: true }).first()).toBeVisible()
-    await expect(page.getByText('203.0.113.10', { exact: true })).toBeVisible()
-    await expect(page.getByText('198.51.100.0/24', { exact: true })).toBeVisible()
+    await expect(keyRow(page, name)).toBeVisible()
+    await expect(keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })).toHaveText('Active')
   })
 
-  test('admin can manage an entity service account and revoke its restricted machine key from inventory', async ({
-    page,
-  }) => {
-    const timestamp = Date.now()
-    const principalName = `Playwright Entity Service Account ${timestamp}`
-    const keyName = `Playwright Entity Key ${timestamp}`
+  test('sends the chosen key type, IP allowlist, no rate limit and no expiry', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('opts')
+    const writes = recordWrites(page, LIST)
 
-    await createEntityServiceAccount(page, {
-      entityName: 'San Francisco Office',
-      principalName,
-      roleName: 'Office Manager',
-    })
+    await page.goto('/app/api-keys')
+    await page.getByRole('button', { name: 'Create API key' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await pickScope(dialog, scope!)
+    await dialog.getByRole('radio', { name: /^Test/ }).check()
+    const ips = dialog.getByLabel('IP allowlist', { exact: true })
+    for (const ip of ['203.0.113.4', '198.51.100.0/24', '10.0.0.1']) {
+      await ips.fill(ip)
+      await ips.press('Enter')
+    }
+    await dialog.getByRole('switch', { name: 'No rate limit' }).click()
+    await expect(dialog.getByLabel('Rate limit', { exact: true })).toBeDisabled()
+    await chooseSelect(page, field(page, 'Expires after'), 'Never')
+    await dialog.getByRole('button', { name: 'Create key' }).click()
+    await storeSecret(page)
 
-    await createMachineKey(page, {
-      keyName,
-      accessMode: 'restricted',
-      permissionLabel: 'Entity Read Tree',
-    })
-
-    await page.getByRole('button', { name: 'Rotate key' }).click()
-    const rotateDialog = page.getByRole('dialog', { name: 'Rotate API key' })
-    await expect(rotateDialog).toBeVisible()
-    await rotateDialog.getByRole('button', { name: 'Rotate key' }).click()
-
-    const rotatedSecretDialog = page.getByRole('dialog', { name: 'Store the new API key now' })
-    await expect(rotatedSecretDialog).toBeVisible()
-    await rotatedSecretDialog.getByRole('button', { name: 'Done' }).click()
-
-    await page.getByRole('button', { name: 'Edit service account' }).click()
-    const editServiceAccountDialog = page.getByRole('dialog', { name: 'Edit service account' })
-    await expect(editServiceAccountDialog).toBeVisible()
-    await toggleRole(page, 'Edit service account', 'Office Manager', false)
-    await toggleRole(page, 'Edit service account', 'Agent', true)
-    await editServiceAccountDialog.getByRole('button', { name: 'Save changes' }).click()
-
-    await expect(page.getByText('Ineffective', { exact: true }).first()).toBeVisible()
-
-    await page.getByRole('tab', { name: 'Entity inventory' }).click()
-    await expect(page.getByRole('tab', { name: 'Entity inventory', selected: true })).toBeVisible()
-    await typeIntoField(page, '#api-keys-inventory-search', keyName)
-
-    const inventoryRow = getIntegrationRow(page, keyName)
-    await expect(inventoryRow).toBeVisible()
-    await expect(inventoryRow.getByText('System Integration', { exact: true })).toBeVisible()
-    await expect(inventoryRow.getByText('Ineffective', { exact: true })).toBeVisible()
-    await inventoryRow.click()
-
-    await expect(page.getByText(principalName, { exact: true }).first()).toBeVisible()
-    await page.getByRole('button', { name: 'Revoke key' }).click()
-
-    const revokeDialog = page.getByRole('dialog', { name: 'Revoke API key' })
-    await expect(revokeDialog).toBeVisible()
-    await revokeDialog.getByRole('button', { name: 'Revoke key' }).click()
-
-    await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]!.body).toEqual(expect.objectContaining({
+      name,
+      prefix_type: 'sk_test',
+      ip_whitelist: ['203.0.113.4', '198.51.100.0/24', '10.0.0.1'],
+      rate_limit_per_minute: 0
+    }))
+    expect(writes[0]!.body).not.toHaveProperty('expires_in_days')
   })
 
-  test('admin can create a platform-global service account and inherited machine key', async ({ page }) => {
-    const timestamp = Date.now()
-    const principalName = `Playwright Global Service Account ${timestamp}`
-    const keyName = `Playwright Global Key ${timestamp}`
+  test('refuses a blank, fractional or invalid rate limit instead of sending it (F-114)', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const writes = recordWrites(page, LIST)
 
-    await createPlatformGlobalServiceAccount(page, {
-      principalName,
-      roleName: 'Service Reader',
+    await page.goto('/app/api-keys')
+    await page.getByRole('button', { name: 'Create API key' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+    await dialog.getByLabel('Name', { exact: true }).fill(testData.name('rate'))
+    await pickScope(dialog, scope!)
+    const rate = dialog.getByLabel('Rate limit', { exact: true })
+    await rate.fill('')
+    await dialog.getByRole('button', { name: 'Create key' }).click()
+    await expect(dialog.getByText(/Enter a rate limit, or turn on No rate limit\.|Enter a whole number\./)).toBeVisible()
+    // A negative limit would refuse every request: the field never holds one.
+    await rate.fill('-5')
+    await rate.blur()
+    await expect(rate).not.toHaveValue('-5')
+    expect(writes).toHaveLength(0)
+    await expect(dialog).toBeVisible()
+  })
+
+  test('edits scopes, IP allowlist and rate limit, sending only what changed (F-082)', async ({ page, api, testData }) => {
+    const scopes = await api.grantableScopes()
+    test.skip(scopes.length < 2, 'Needs two grantable scopes.')
+    const [first, second] = scopes.includes('user:read') ? ['user:read', scopes.find(s => s !== 'user:read')!] : [scopes[0]!, scopes[1]!]
+    const name = testData.name('edit')
+    const key = await api.post<Key>('/api-keys/', { name, scopes: [first], key_kind: 'personal', rate_limit_per_minute: 60 })
+    const writes = recordWrites(page, DETAIL)
+
+    await page.goto('/app/api-keys')
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit API key' })
+    await expect(dialog).toContainText(name)
+    await expect(dialog.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+    // The expiry is fixed once created.
+    await expect(dialog.getByLabel('Expires after', { exact: true })).toHaveCount(0)
+    await pickScope(dialog, second)
+    const ips = dialog.getByLabel('IP allowlist', { exact: true })
+    await ips.fill('203.0.113.9')
+    await ips.press('Enter')
+    await dialog.getByLabel('Rate limit', { exact: true }).fill('30')
+    await dialog.getByRole('button', { name: 'Save changes' }).click()
+    await expect(dialog).toBeHidden()
+
+    expect(writes).toHaveLength(1)
+    expect(writes[0]!.method).toBe('PATCH')
+    expect(writes[0]!.body).toEqual({ scopes: [first, second].sort(), ip_whitelist: ['203.0.113.9'], rate_limit_per_minute: 30 })
+    const saved = await api.get<Key>(`/api-keys/${key.id}`)
+    expect([...saved.scopes].sort()).toEqual([first, second].sort())
+    expect(saved.ip_whitelist).toEqual(['203.0.113.9'])
+    expect(saved.rate_limit_per_minute).toBe(30)
+
+    // The detail shows what the key can do now.
+    await page.getByRole('button', { name: `View key ${name}`, exact: true }).click()
+    const detail = page.getByTestId('api-key-detail')
+    await expect(detail).toContainText('30 requests per minute')
+    await expect(detail).toContainText('203.0.113.9')
+    await expect(detail).toContainText('2 scopes')
+  })
+
+  test('an edit that changes the scopes is refused on the field while a scope no longer offered remains (F-082)', async ({ page, api, testData }) => {
+    const scopes = await api.grantableScopes()
+    test.skip(scopes.length < 2, 'Needs two grantable scopes.')
+    const [first, second] = scopes.includes('user:read') ? ['user:read', scopes.find(s => s !== 'user:read')!] : [scopes[0]!, scopes[1]!]
+    const name = testData.name('flag')
+    await api.post<Key>('/api-keys/', { name, scopes: [first], key_kind: 'personal' })
+    // The server no longer offers the key's scope.
+    await page.route(/\/api-keys\/grantable-scopes(\?.*)?$/, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue()
+      const response = await route.fetch()
+      const body = await response.json() as { grantable_scopes: string[] }
+      await route.fulfill({ response, json: { ...body, grantable_scopes: body.grantable_scopes.filter(scope => scope !== first) } })
     })
+    const writes = recordWrites(page, DETAIL)
 
-    await expect(page.getByText('Platform Global', { exact: true }).first()).toBeVisible()
+    await page.goto('/app/api-keys')
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit API key' })
+    const picker = dialog.getByTestId('scope-picker')
+    await expect(picker.getByRole('button', { name: `Remove ${first}`, exact: true })).toContainText('not grantable here')
+    await pickScope(dialog, second)
+    await dialog.getByRole('button', { name: 'Save changes' }).click()
+    const refusal = `Remove ${first}: it is not grantable.`
+    await expect(dialog).toContainText(refusal)
+    // The field validates itself again (here on blur; also 300 ms after typing). The refusal is a
+    // rule of the form, so it is derived again instead of being replaced by the schema's pass.
+    const search = picker.getByRole('textbox', { name: 'Scopes', exact: true })
+    await search.focus()
+    await search.blur()
+    await expect(dialog).toContainText(refusal)
+    await expect(dialog).toBeVisible()
+    expect(writes).toEqual([])
+    // Removing the flagged scope lifts the refusal at once: the picker reports the change.
+    await dialog.getByTestId('scope-picker').getByRole('button', { name: `Remove ${first}`, exact: true }).click()
+    await expect(dialog).not.toContainText(refusal)
+  })
 
-    await createMachineKey(page, {
-      keyName,
-      accessMode: 'full',
+  test('a suspended key cannot be rotated; menu and detail say why (F-080)', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('suspended')
+    const key = await api.post<Key>('/api-keys/', { name, scopes: [scope], key_kind: 'personal' })
+    await api.patch(`/api-keys/${key.id}`, { status: 'suspended' })
+
+    await page.goto('/app/api-keys')
+    await expect(keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })).toHaveText('Suspended')
+    await openMenu(page, name)
+    const rotate = page.getByRole('menuitem', { name: /^Rotate/ })
+    await expect(rotate).toBeDisabled()
+    await expect(rotate).toContainText('Reactivate the key first: rotating it would issue an active key.')
+    await expect(page.getByRole('menuitem', { name: 'Reactivate', exact: true })).toBeEnabled()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: `View key ${name}`, exact: true }).click()
+    const slideover = page.getByRole('dialog', { name })
+    await expect(slideover.getByTestId('api-key-ineffective')).toContainText('This key is suspended')
+    await expect(slideover.getByRole('button', { name: 'Rotate' })).toBeDisabled()
+    await expect(slideover.getByTestId('api-key-disabled-actions')).toContainText('Reactivate the key first')
+  })
+
+  test('rotate issues a fresh one-time secret that no store keeps', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('rotate')
+    await api.post('/api-keys/', { name, scopes: [scope], key_kind: 'personal' })
+
+    await page.goto('/app/api-keys')
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Rotate' }).click()
+    await page.getByRole('dialog', { name: `Rotate API key ${name}` }).getByRole('button', { name: 'Rotate key' }).click()
+    const secret = await storeSecret(page)
+    expect(await page.evaluate(piniaPathsTo, secret)).toEqual([])
+    // The old key is revoked and hidden by default; the new one carries the same name.
+    await expect(keyRow(page, name)).toHaveCount(1)
+  })
+
+  test('revoke hides the key from the live list; the Revoked filter shows it', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('revoke')
+    await api.post('/api-keys/', { name, scopes: [scope], key_kind: 'personal' })
+
+    await page.goto('/app/api-keys')
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Revoke' }).click()
+    await page.getByRole('dialog', { name: `Revoke API key ${name}` }).getByRole('button', { name: 'Revoke key' }).click()
+    await expect(keyRow(page, name)).toHaveCount(0)
+
+    await chooseSelect(page, field(page, 'Filter by status'), 'Revoked')
+    await expect(page).toHaveURL(/[?&]status=revoked/)
+    await expect(keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })).toHaveText('Revoked')
+    // Nothing to do with a revoked key: no menu.
+    await expect(page.getByRole('button', { name: `API key actions for ${name}`, exact: true })).toHaveCount(0)
+  })
+
+  test('suspend then reactivate a key', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('suspend')
+    await api.post('/api-keys/', { name, scopes: [scope], key_kind: 'personal' })
+    const status = () => keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })
+
+    await page.goto('/app/api-keys')
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Suspend' }).click()
+    await page.getByRole('dialog', { name: `Suspend API key ${name}` }).getByRole('button', { name: 'Suspend key' }).click()
+    await expect(status()).toHaveText('Suspended')
+
+    await openMenu(page, name)
+    await page.getByRole('menuitem', { name: 'Reactivate', exact: true }).click()
+    await page.getByRole('dialog', { name: `Reactivate API key ${name}` }).getByRole('button', { name: 'Reactivate key' }).click()
+    await expect(status()).toHaveText('Active')
+  })
+
+  test('a key past its expiry date reads Expired with the reason, and is replaced with a fresh expiry (F-027, F-080)', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('expired')
+    const key = await api.post<Key>('/api-keys/', { name, scopes: [scope], key_kind: 'personal', expires_in_days: 30, description: 'Nightly report' })
+    const edit = (k: ApiKeyRow) => (k.id === key.id ? pastExpiry(k) : k)
+    await rewriteKeys(page, LIST, edit)
+    await rewriteKeys(page, DETAIL, edit)
+    const writes = recordWrites(page, LIST)
+
+    await page.goto('/app/api-keys')
+    // Expired keys leave the default live view.
+    await expect(page.getByRole('heading', { name: 'My API keys' })).toBeVisible()
+    await expect(keyRow(page, name)).toHaveCount(0)
+    await chooseSelect(page, field(page, 'Filter by status'), 'Expired')
+    const status = keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })
+    await expect(status).toContainText('Expired')
+    await expect(status).toContainText('Its expiry date has passed.')
+
+    // Rotating would drop the expiry: an expired key offers a replacement instead.
+    await openMenu(page, name)
+    await expect(page.getByRole('menuitem')).toHaveText(['View details', 'Create replacement'])
+    await page.getByRole('menuitem', { name: 'Create replacement' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create replacement key' })
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue(name)
+    await expect(dialog.getByTestId('scope-selection').getByRole('button', { name: `Remove ${scope}`, exact: true })).toBeVisible()
+    await expect(dialog.getByLabel('Expires after', { exact: true })).toContainText('30 days')
+    await dialog.getByRole('button', { name: 'Create key' }).click()
+    await storeSecret(page)
+    expect(writes).toHaveLength(1)
+    expect(writes[0]!.body).toEqual(expect.objectContaining({ name, scopes: [scope], description: 'Nightly report', expires_in_days: 30 }))
+  })
+
+  test('an active key the server refuses reads Not in effect, with the reason, and is not rotated (F-027)', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('refused')
+    const key = await api.post<Key>('/api-keys/', { name, scopes: [scope], key_kind: 'personal' })
+    const edit = (k: ApiKeyRow) => (k.id === key.id ? { ...k, is_currently_effective: false, ineffective_reasons: ['owner_inactive'] } : k)
+    await rewriteKeys(page, LIST, edit)
+    await rewriteKeys(page, DETAIL, edit)
+
+    await page.goto('/app/api-keys')
+    const status = keyRow(page, name).getByTestId('api-key-status').filter({ visible: true })
+    await expect(status).toContainText('Not in effect')
+    await expect(status).toContainText('The account that owns it cannot sign in')
+    await page.getByRole('button', { name: `View key ${name}`, exact: true }).click()
+    const slideover = page.getByRole('dialog', { name })
+    await expect(slideover.getByTestId('api-key-ineffective')).toContainText('This key is not in effect')
+    await expect(slideover.getByTestId('api-key-ineffective')).toContainText('The account that owns it cannot sign in')
+    await expect(slideover.getByRole('button', { name: 'Rotate' })).toBeDisabled()
+  })
+
+  test('search and status filter live in the URL', async ({ page, api, testData }) => {
+    const scope = await grantableScope(api)
+    test.skip(!scope, 'The admin persona has no grantable API key scope.')
+    const name = testData.name('search')
+    await api.post('/api-keys/', { name, scopes: [scope], key_kind: 'personal', description: 'searchable' })
+
+    await page.goto('/app/api-keys')
+    await page.getByRole('searchbox', { name: 'Search keys' }).fill(name)
+    await expect(page).toHaveURL(new RegExp(`[?&]q=${name}`))
+    await expect(page.getByRole('button', { name: /^View key / })).toHaveCount(1)
+    await page.reload()
+    await expect(page.getByRole('searchbox', { name: 'Search keys' })).toHaveValue(name)
+    await expect(keyRow(page, name)).toBeVisible()
+  })
+})
+
+test.describe('my API keys restricted to an entity (EnterpriseRBAC, F-083)', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+  test.use({ errorGuardMode: 'strict' })
+
+  test('restricts a key to an entity and its children, refetching what may be granted there', async ({ page, api, requires, testData }) => {
+    await requires({ preset: 'EnterpriseRBAC', surfaces: ['api_keys', 'memberships', 'entities'] })
+    const memberships = await api.get<{ entity_id: string, is_currently_valid: boolean }[]>('/memberships/me')
+    const anchor = memberships.find(m => m.is_currently_valid)
+    test.skip(!anchor, 'The admin persona holds no membership in force.')
+    const entity = await api.get<{ id: string, display_name: string }>(`/entities/${anchor!.entity_id}`)
+    const scope = (await api.grantableScopes(entity.id))[0]
+    test.skip(!scope, 'Nothing grantable at the entity.')
+    const name = testData.name('anchored')
+    const grantable: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/api-keys/grantable-scopes')) grantable.push(new URL(request.url()).search)
     })
+    const writes = recordWrites(page, LIST)
 
-    await expect(page.getByText('Platform Global', { exact: true }).first()).toBeVisible()
-    await expect(
-      page.getByText('This key inherits all permissions from its service account.')
-    ).toBeVisible()
-    await expect(page.getByText(keyName, { exact: true }).first()).toBeVisible()
+    await page.goto('/app/api-keys')
+    await page.getByRole('button', { name: 'Create API key' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await chooseSelectMenu(page, field(page, 'Restrict to entity'), entity.display_name)
+    await expect.poll(() => grantable.some(q => q.includes(`entity_id=${entity.id}`) && q.includes('inherit_from_tree=false'))).toBe(true)
+    await dialog.getByRole('switch', { name: 'Include child entities' }).click()
+    await expect.poll(() => grantable.some(q => q.includes(`entity_id=${entity.id}`) && q.includes('inherit_from_tree=true'))).toBe(true)
+    await pickScope(dialog, scope!)
+    await dialog.getByRole('button', { name: 'Create key' }).click()
+    await storeSecret(page)
+
+    expect(writes[0]!.body).toEqual(expect.objectContaining({ name, entity_ids: [entity.id], inherit_from_tree: true }))
+    await expect(keyRow(page, name)).toContainText(`${entity.display_name} and below`)
+  })
+})
+
+test.describe('my API keys as a low-privilege account', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+  test.use({ storageState: personaState('agent'), errorGuardMode: 'strict' })
+
+  test('the scope picker offers exactly what the account may grant', async ({ page, apiAs, requires }) => {
+    await requires({ surfaces: ['api_keys'], personas: ['agent'] })
+    const expected = [...await apiAs('agent').grantableScopes()].sort()
+
+    await page.goto('/app/api-keys')
+    await page.getByRole('button', { name: 'Create API key' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create personal API key' })
+    const picker = dialog.getByTestId('scope-picker')
+    if (!expected.length) {
+      await expect(picker.getByTestId('scope-picker-empty')).toBeVisible()
+      return
+    }
+    await expect(picker.getByRole('option')).toHaveCount(expected.length)
+    for (const scope of expected) {
+      await picker.getByPlaceholder('Search scopes...').fill(scope)
+      await picker.getByRole('option').first().click()
+    }
+    const chips = await picker.getByTestId('scope-selection').getByRole('button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label')?.replace(/^Remove /, '')))
+    expect(chips.sort()).toEqual(expected)
   })
 })

@@ -1,0 +1,9 @@
+{
+  // Type-checks the Vitest unit layer against the app's own compiler settings and aliases
+  // (`bun run typecheck:tests`). Requires `nuxt prepare` (postinstall) to have generated .nuxt/.
+  "extends": "../../.nuxt/tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["../../.nuxt/nuxt.d.ts", "./**/*.ts"]
+}
