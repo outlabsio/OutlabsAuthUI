@@ -11,7 +11,8 @@ import { type TestData, testData } from './test-data'
 // The harness fixtures every spec imports (`import { test, expect } from '../support/fixtures'`).
 //
 //   context / page  — every context serves the harness app-config (app-config.ts), not a local
-//                     public/app-config.json, and is watched by the error guard.
+//                     public/app-config.json, and is watched by the error guard. Their routes
+//                     are dropped at teardown, so a handler still in flight can't fail the run.
 //   errorGuard      — auto fixture; `errorGuard.allow(...)` for expected failures (error-guard.ts).
 //   requires        — `await requires({ surfaces: ['entities'] })` skips unless the backend has it.
 //   api / apiAs     — typed API client as the admin persona / any persona (api-client.ts).
@@ -53,6 +54,14 @@ export const test = base.extend<HarnessFixtures & HarnessOptions>({
     await prepareContext(context)
     await errorGuard.attach(context)
     await use(context)
+    await context.unrouteAll({ behavior: 'ignoreErrors' })
+  },
+
+  // A route handler still awaiting route.fetch() when its test ends would otherwise fail the
+  // run with "route.fetch: Test ended" outside any test.
+  page: async ({ page }, use) => {
+    await use(page)
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 
   // eslint-disable-next-line no-empty-pattern -- Playwright resolves fixture deps via destructuring.
