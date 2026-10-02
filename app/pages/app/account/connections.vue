@@ -12,6 +12,7 @@ const {
   linkableProviders,
   providerLabel,
   accountLabel,
+  accountAvatar,
   unlink,
   linkingProvider,
   onLink
@@ -54,7 +55,7 @@ const {
           >
             <UUser
               :name="account.display_name || account.email"
-              :avatar="account.avatar_url ? { src: account.avatar_url, alt: account.display_name || account.email } : { icon: `i-simple-icons-${account.provider}`, alt: providerLabel(account.provider) }"
+              :avatar="accountAvatar(account)"
               class="min-w-0"
             >
               <template #description>

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { openEmailForm } from '../support/sign-in'
 import { personaState } from '../support/personas'
 import { commandPalette, openUserMenu } from '../support/shell'
+import { corsHeaders, jsonResponse } from '../support/mocks'
 
 // Shipped-artifact smoke. Runs only with E2E_TARGET=static, where Playwright serves the
 // generated .output/public through scripts/serve-static.mjs with the generated _headers and
@@ -101,6 +102,46 @@ test.describe('static build', () => {
       expect(watch.violations).toEqual([])
       expect(watch.foreignRequests).toEqual([])
       expect(watch.iconWarnings).toEqual([])
+    })
+
+    // OAuth providers report pictures on their own hosts (avatar_url). img-src stays 'self' data:,
+    // so the console never binds such a URL: Connected accounts shows the provider icon and the
+    // users list the initials, with no violation and no third-party request
+    // (c-security-csp-blocks-provider-avatars).
+    test('a provider picture on another host causes no CSP violation and no third-party request', async ({ page, baseURL }) => {
+      const watch = await watchPage(page, baseURL!)
+      const picture = 'https://lh3.googleusercontent.com/a/e2e-photo.jpg'
+      await page.route(url => url.pathname.endsWith('/users/me/social-accounts'), async (route) => {
+        if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders('GET,OPTIONS') })
+        return route.fulfill(jsonResponse(200, [{
+          id: 'sa-1',
+          provider: 'google',
+          provider_user_id: 'g-123',
+          email: 'admin.google@example.com',
+          email_verified: true,
+          display_name: 'Admin Example',
+          avatar_url: picture,
+          linked_at: '2026-08-01T10:00:00Z',
+          last_used_at: null
+        }], 'GET,OPTIONS'))
+      })
+      // The API's list (`/users/`), not the console's own /app/users page.
+      await page.route(url => /\/users\/$/.test(url.pathname) && !url.pathname.startsWith('/app/'), async (route) => {
+        if (route.request().method() !== 'GET') return route.fallback()
+        const response = await route.fetch()
+        const body = await response.json() as { items: Array<{ avatar_url?: string | null }> }
+        for (const item of body.items) item.avatar_url = picture
+        return route.fulfill({ response, json: body })
+      })
+
+      await page.goto('/app/account/connections')
+      await expect(page.getByText('Admin Example')).toBeVisible()
+      await page.goto('/app/users')
+      await expect(page.locator('tbody tr').first()).toBeVisible()
+      await page.waitForLoadState('networkidle')
+      await expect(page.locator(`img[src="${picture}"]`)).toHaveCount(0)
+      expect(watch.violations).toEqual([])
+      expect(watch.foreignRequests).toEqual([])
     })
 
     test('the shell\'s user menu and command palette render their icons under the CSP', async ({ page, baseURL }) => {

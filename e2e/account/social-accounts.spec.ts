@@ -34,8 +34,8 @@ async function withGoogleProvider(page: Page, frontendProfileKey?: string) {
 }
 
 // One linked account; DELETE answers with `deleteStatus` (204 unlinks it).
-async function withLinkedAccount(page: Page, deleteStatus = 204) {
-  let linked = [LINKED]
+async function withLinkedAccount(page: Page, deleteStatus = 204, account: typeof LINKED | (Omit<typeof LINKED, 'avatar_url'> & { avatar_url: string }) = LINKED) {
+  let linked = [account]
   const deleted: string[] = []
   await page.route('**/v1/users/me/social-accounts**', async (route) => {
     const request = route.request()
@@ -116,6 +116,23 @@ test.describe('social accounts', () => {
     await expect.poll(() => deleted).toEqual(['sa-1'])
     await expect(page.getByText('Google account unlinked', { exact: true })).toBeVisible()
     await expect(page.getByText('Admin Example')).toHaveCount(0)
+  })
+
+  // The shipped CSP allows images from the console's origin and data: only, so a provider's
+  // picture would be blocked and logged as a violation; the row shows the provider icon instead
+  // (c-security-csp-blocks-provider-avatars, v-auth-shell-10). The static target checks the CSP.
+  test('a provider picture on another host is never requested: the row shows the provider icon', async ({ page }) => {
+    const remote: string[] = []
+    page.on('request', (request) => {
+      if (new URL(request.url()).hostname === 'lh3.googleusercontent.com') remote.push(request.url())
+    })
+    await withLinkedAccount(page, 204, { ...LINKED, avatar_url: 'https://lh3.googleusercontent.com/a/e2e-photo.jpg' })
+    await page.goto('/app/account/connections')
+    const row = page.getByRole('listitem').filter({ hasText: 'Admin Example' })
+    await expect(row).toBeVisible()
+    await expect(row.locator('img')).toHaveCount(0)
+    await expect(row.locator('[data-slot="avatar"] [data-slot="icon"]')).toBeVisible()
+    expect(remote).toEqual([])
   })
 
   test('unlinking the last sign-in method shows the server\'s refusal in the dialog', async ({ page, errorGuard }) => {

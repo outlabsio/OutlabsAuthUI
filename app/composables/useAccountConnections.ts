@@ -1,9 +1,12 @@
+import type { AvatarProps } from '@nuxt/ui'
 import { useStartSocialLink, useUnlinkSocialAccount } from '~/queries/account'
 import type { SocialAccount } from '~/types/account'
+import { localImageSrc } from '~/utils/avatar'
 
 // The Connected accounts tab: OAuth accounts linked to this account, unlinking one (after a
 // confirmation naming it, F-094) and linking another provider (needs the backend's
-// oauth_associate router, F-007).
+// oauth_associate router, F-007). Each row shows the provider's icon: the provider's own picture
+// (avatar_url) is on a third-party host the CSP does not allow (utils/avatar.ts).
 
 export function useAccountConnections() {
   const { run } = useApiAction()
@@ -15,6 +18,14 @@ export function useAccountConnections() {
   const linkableProviders = computed(() =>
     linkableOauthProviders.value.filter(provider => !rows.value.some(account => account.provider === provider))
   )
+
+  // The provider is the useful cue; a same-origin or data: picture is shown when there is one.
+  function accountAvatar(account: SocialAccount): AvatarProps {
+    const src = localImageSrc(account.avatar_url, window.location.origin)
+    return src
+      ? { src, alt: account.display_name || account.email || providerLabel(account.provider) }
+      : { icon: `i-simple-icons-${account.provider}`, alt: providerLabel(account.provider) }
+  }
 
   const unlinkSocial = useUnlinkSocialAccount()
   const accountLabel = (account: SocialAccount) => `${providerLabel(account.provider)} account ${account.email || account.display_name || account.provider_user_id}`
@@ -58,6 +69,7 @@ export function useAccountConnections() {
     linkableProviders,
     providerLabel,
     accountLabel,
+    accountAvatar,
     unlink,
     linkingProvider,
     onLink

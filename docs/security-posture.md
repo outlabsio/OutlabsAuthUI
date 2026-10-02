@@ -52,9 +52,10 @@ mitigations:
   not used on backend data.
 - **No third-party origins.** Icons are bundled (no runtime icon API), fonts and images are
   same-origin or the deployment's own logo host, and there is no analytics or error-reporting
-  script (owner decision). OAuth provider avatars (`avatar_url`) on Users and Connected accounts
-  are blocked by this policy today, a known console defect (CAPABILITIES.md, "Deferred console
-  follow-ups"): render them only for same-origin or `data:` URLs rather than widening `img-src`.
+  script (owner decision). OAuth provider pictures (`avatar_url`) are never loaded: the console
+  binds an avatar only for a same-origin or `data:` URL (`app/utils/avatar.ts`) and otherwise
+  shows the provider's icon (Connected accounts) or the initials (Users). Keep it that way rather
+  than widening `img-src`; `e2e/static/static-build.spec.ts` fails on the violation.
 - **Short-lived access tokens.** Recommended for console deployments: an access-token lifetime
   of 15 minutes or less (the library default is 15) and refresh-token rotation with reuse
   detection (the library default). Shorten the refresh-token lifetime (default 30 days) for
