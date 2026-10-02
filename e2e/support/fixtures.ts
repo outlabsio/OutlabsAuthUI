@@ -41,6 +41,11 @@ type HarnessFixtures = {
 // E2E_ERROR_GUARD=report only records them (e.g. while triaging a new backend).
 const defaultGuardMode = (['off', 'report', 'strict'] as const).find(m => m === process.env.E2E_ERROR_GUARD) ?? 'strict'
 
+// Teardown only: a page or context the test already closed has no routes left to drop.
+function ignoreClosed(error: unknown) {
+  if (!String(error).includes('has been closed')) throw error
+}
+
 export const test = base.extend<HarnessFixtures & HarnessOptions>({
   errorGuardMode: [defaultGuardMode, { option: true }],
 
@@ -54,14 +59,14 @@ export const test = base.extend<HarnessFixtures & HarnessOptions>({
     await prepareContext(context)
     await errorGuard.attach(context)
     await use(context)
-    await context.unrouteAll({ behavior: 'ignoreErrors' })
+    await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(ignoreClosed)
   },
 
   // A route handler still awaiting route.fetch() when its test ends would otherwise fail the
-  // run with "route.fetch: Test ended" outside any test.
+  // run with "route.fetch: Test ended" outside any test. A test may close its own page.
   page: async ({ page }, use) => {
     await use(page)
-    await page.unrouteAll({ behavior: 'ignoreErrors' })
+    if (!page.isClosed()) await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(ignoreClosed)
   },
 
   // eslint-disable-next-line no-empty-pattern -- Playwright resolves fixture deps via destructuring.
