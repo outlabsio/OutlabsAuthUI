@@ -164,12 +164,12 @@ test.describe('user access', () => {
     await assign.getByRole('button', { name: 'Cancel' }).click()
     await expect(assign).toBeHidden()
 
-    // Suspended: Edit validity opens on Suspended; a window change sends only the window.
+    // Suspended: Edit assignment opens on Suspended; a window change sends only the window.
     await pausedRow.getByRole('button', { name: `Role actions for ${pausedName}` }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const edit = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const edit = page.getByRole('dialog', { name: 'Edit role assignment' })
     await expect(edit.getByLabel('Status', { exact: true })).toContainText('Suspended')
-    await page.getByRole('dialog', { name: 'Edit validity' }).getByRole('group', { name: 'Valid until', exact: true }).getByRole('spinbutton').first().click()
+    await page.getByRole('dialog', { name: 'Edit role assignment' }).getByRole('group', { name: 'Valid until', exact: true }).getByRole('spinbutton').first().click()
     await page.keyboard.type('01152030')
     await edit.getByRole('button', { name: 'Save changes' }).click()
     await expect(edit).toBeHidden()
@@ -181,7 +181,7 @@ test.describe('user access', () => {
     const endedRow = card.getByRole('row').filter({ hasText: endedName })
     await expect(endedRow.getByText('Revoked', { exact: true })).toBeVisible()
     await endedRow.getByRole('button', { name: `Role actions for ${endedName}` }).click()
-    await expect(page.getByRole('menuitem', { name: 'Edit validity' })).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: 'Edit assignment' })).toHaveCount(0)
     await expect(page.getByRole('menuitem', { name: 'Remove' })).toHaveCount(0)
     await page.getByRole('menuitem', { name: 'Reactivate' }).click()
     const reactivate = page.getByRole('dialog', { name: `Reactivate role ${endedName}` })

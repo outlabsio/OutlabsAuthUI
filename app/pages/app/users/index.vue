@@ -14,6 +14,7 @@ const {
   canInvite,
   isSuperuser,
   isEnterprise,
+  superuserDescription,
   search,
   statusFilter,
   statusItems,
@@ -34,6 +35,7 @@ const {
   error,
   fetching,
   retry,
+  avatarOf,
   emptyState,
   rowMenu,
   createOpen,
@@ -56,6 +58,7 @@ const {
   inviteRolesStatus,
   inviteRolesEmptyText,
   inviteRolesTruncated,
+  inviteRolesHelp,
   editOpen,
   editTarget,
   restoreUser,
@@ -256,7 +259,7 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
                     <div class="flex flex-wrap items-center gap-2">
                       <UUser
                         :description="nameOf(row.original) ? row.original.user.email : undefined"
-                        :avatar="{ src: row.original.user.avatar_url ?? undefined, alt: nameOf(row.original) ?? row.original.user.email }"
+                        :avatar="avatarOf(row.original.user)"
                         size="sm"
                       >
                         <template #name>
@@ -389,6 +392,7 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
         autocomplete="off"
         class="w-full"
         placeholder="you@example.com"
+        autofocus
       />
     </UFormField>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -406,17 +410,15 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
         required
         :help="PASSWORD_POLICY_HINT"
       >
-        <UInput
+        <AppPasswordInput
           v-model="createState.password"
-          type="password"
           autocomplete="new-password"
           class="w-full"
         />
       </UFormField>
       <UFormField name="confirm_password" label="Confirm password" required>
-        <UInput
+        <AppPasswordInput
           v-model="createState.confirm_password"
-          type="password"
           autocomplete="new-password"
           class="w-full"
         />
@@ -446,7 +448,7 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
       <UFormField
         name="is_superuser"
         label="Superuser"
-        description="Bypasses every permission check across every organization. Grant only to platform operators."
+        :description="superuserDescription"
       >
         <USwitch v-model="createState.is_superuser" />
       </UFormField>
@@ -476,33 +478,16 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
     size="xl"
     @submit="onInvite"
   >
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <UFormField name="email" label="Email" required>
-        <UInput
-          v-model="inviteState.email"
-          type="email"
-          autocomplete="off"
-          class="w-full"
-          placeholder="you@example.com"
-          autofocus
-        />
-      </UFormField>
-      <UFormField
-        v-if="inviteRule.offered"
-        name="entity_id"
-        label="Entity"
-        :required="inviteRule.required"
-        :hint="inviteRule.required ? undefined : 'Optional'"
-        :help="inviteRule.required ? 'The account joins this entity, which keeps it in your organization.' : 'Leave empty to grant direct account roles instead.'"
-      >
-        <AppEntityPicker
-          id="invite-entity"
-          v-model="inviteState.entity_id"
-          aria-label="Entity"
-          :placeholder="inviteRule.required ? 'Select an entity' : 'No entity (direct roles)'"
-        />
-      </UFormField>
-    </div>
+    <UFormField name="email" label="Email" required>
+      <UInput
+        v-model="inviteState.email"
+        type="email"
+        autocomplete="off"
+        class="w-full"
+        placeholder="you@example.com"
+        autofocus
+      />
+    </UFormField>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <UFormField name="first_name" label="First name" hint="Optional">
         <UInput v-model="inviteState.first_name" class="w-full" />
@@ -511,7 +496,28 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
         <UInput v-model="inviteState.last_name" class="w-full" />
       </UFormField>
     </div>
-    <UFormField name="role_ids" label="Roles" hint="Optional">
+    <!-- Where the account gets its roles: decided right before choosing them. -->
+    <UFormField
+      v-if="inviteRule.offered"
+      name="entity_id"
+      label="Entity"
+      :required="inviteRule.required"
+      :hint="inviteRule.required ? undefined : 'Optional'"
+      :help="inviteRule.required ? 'The account joins this entity, which keeps it in your organization.' : 'Leave empty to grant direct account roles instead.'"
+    >
+      <AppEntityPicker
+        id="invite-entity"
+        v-model="inviteState.entity_id"
+        aria-label="Entity"
+        :placeholder="inviteRule.required ? 'Select an entity' : 'No entity (direct roles)'"
+      />
+    </UFormField>
+    <UFormField
+      name="role_ids"
+      label="Roles"
+      hint="Optional"
+      :help="inviteRolesHelp"
+    >
       <AppRoleAccessEditor
         v-model="inviteState.role_ids"
         :grant="inviteGrant"
@@ -526,7 +532,7 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
       <UFormField
         name="is_superuser"
         label="Superuser"
-        description="Bypasses every permission check across every organization. Grant only to platform operators."
+        :description="superuserDescription"
       >
         <USwitch v-model="inviteState.is_superuser" />
       </UFormField>

@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import { useUpdateUser } from '~/queries/users'
-import type { UpdateUserSchema } from '~/schemas/user'
+import { updateUserSchemaFor, type UpdateUserSchema } from '~/schemas/user'
 import type { ActionError } from '~/composables/useApiAction'
 import type { User } from '~/types/user'
 
@@ -9,13 +9,30 @@ import type { User } from '~/types/user'
 // is filled from the record each time it opens, only changed fields are sent (useDirtyPatch),
 // and server problems land on the field (a taken email on Email) or in the dialog's alert.
 // Called by the component itself, so `useDialogForm('profileDialog')` resolves its own dialog.
+//
+// Two backend rules shape the form: a name the account already has can be changed but not
+// removed (the schema requires it, and Optional is shown only for a name it lacks), and the
+// admin's own sign-in email is read-only (F-193: outlabs-auth changes it without
+// re-authentication, so a hijacked session plus a password reset would take the account over).
+// On one's own record Email is disabled and never sent; names and phone stay editable.
 export function useUserProfileForm(target: MaybeRefOrGetter<User | null>, open: Ref<boolean>) {
   const { run } = useApiAction()
+  const { user: actor } = useAuth()
   const form = useDialogForm('profileDialog')
   const error = ref<ActionError | null>(null)
+  const isSelf = computed(() => {
+    const user = toValue(target)
+    return Boolean(user && actor.value?.id && actor.value.id === user.id)
+  })
+  const schema = computed(() => updateUserSchemaFor(toValue(target)))
+  // Which names the account has, so the fields say Optional only where a name may stay empty.
+  const namesSet = computed(() => {
+    const user = toValue(target)
+    return { first: Boolean(user?.first_name?.trim()), last: Boolean(user?.last_name?.trim()) }
+  })
   const state = reactive<UpdateUserSchema>({ email: '', first_name: '', last_name: '', phone: '' })
   const changes = useDirtyPatch(state, s => ({
-    email: s.email.trim(),
+    ...(isSelf.value ? {} : { email: s.email.trim() }),
     first_name: (s.first_name ?? '').trim(),
     last_name: (s.last_name ?? '').trim(),
     phone: s.phone.trim() === '' ? null : s.phone.trim()
@@ -38,7 +55,7 @@ export function useUserProfileForm(target: MaybeRefOrGetter<User | null>, open: 
   // unverified: said next to the field once it differs.
   const emailChanged = computed(() => {
     const user = toValue(target)
-    return Boolean(user) && state.email.trim().toLowerCase() !== user!.email.toLowerCase()
+    return Boolean(user) && !isSelf.value && state.email.trim().toLowerCase() !== user!.email.toLowerCase()
   })
 
   const updateUser = useUpdateUser()
@@ -62,5 +79,5 @@ export function useUserProfileForm(target: MaybeRefOrGetter<User | null>, open: 
     if (res.ok) open.value = false
   }
 
-  return { state, error, dirty: changes.dirty, emailChanged, onSubmit }
+  return { state, schema, error, dirty: changes.dirty, isSelf, namesSet, emailChanged, onSubmit }
 }

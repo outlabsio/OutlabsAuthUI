@@ -14,4 +14,7 @@ export type DetailItem = {
   full?: boolean
   // Shown instead of '—' when the value is missing.
   fallback?: string
+  // A short explanation under the value, in the same row (why an account reaches every
+  // organization, what a lockout means).
+  description?: string
 }

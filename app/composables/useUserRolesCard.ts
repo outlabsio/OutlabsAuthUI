@@ -19,7 +19,7 @@ import type { MembershipStatusValue } from '~/types/membership'
 //
 // The card reads every assignment (include_inactive) and shows the live ones (active and
 // suspended) by default, so a suspension never makes a row vanish; "Include ended" adds revoked
-// and expired ones. Writes follow the F-015 rule (utils/access-grants.ts): Edit validity opens
+// and expired ones. Writes follow the F-015 rule (utils/access-grants.ts): Edit assignment opens
 // only on a live assignment, with its real status, and sends only what changed; an ended one is
 // offered Reactivate instead.
 
@@ -67,7 +67,7 @@ export function useUserRolesCard(user: Ref<User>) {
   // are listed disabled. It excludes roles with a live (active or suspended) assignment: the API
   // reactivates any non-active row in place with the dialog's window, so offering a suspended
   // role here would quietly bring it back and drop its stored window (F-015); that is what the
-  // row's Reactivate or Edit validity is for. An ended (revoked, expired) one is assignable again.
+  // row's Reactivate or Edit assignment is for. An ended (revoked, expired) one is assignable again.
   const assignedRoleIds = computed(() => new Set(allAssignments.value.filter(grantIsLive).map(m => m.role_id)))
   const directRoles = useAssignableRoles(
     () => ({ kind: 'direct', rootEntityId: user.value.root_entity_id ?? null }),
@@ -183,7 +183,9 @@ export function useUserRolesCard(user: Ref<User>) {
     reactivateOpen.value = true
   }
 
-  // --- Edit validity (live assignments only) ---
+  // --- Edit assignment (live assignments only) ---
+  // Named for both things it changes, like a membership's Edit access: it is also where a direct
+  // role assignment is suspended (there is no separate Suspend item).
   // The validity window and status (active/suspended) of a live assignment. Which role is
   // granted isn't editable here: changing it means remove + re-assign. The PATCH carries only
   // the fields the admin changed (the endpoint applies exactly the fields it receives), so an
@@ -288,7 +290,7 @@ export function useUserRolesCard(user: Ref<User>) {
     const actions = grantActions(membership, { edit: true, remove: true, reactivate: roleActive })
     const items: DropdownMenuItem[] = []
     if (actions.includes('reactivate')) items.push({ label: 'Reactivate', icon: 'i-lucide-rotate-ccw', onSelect: () => openReactivate(membership) })
-    if (actions.includes('edit')) items.push({ label: 'Edit validity', icon: 'i-lucide-pencil', onSelect: () => openEditRole(membership) })
+    if (actions.includes('edit')) items.push({ label: 'Edit assignment', icon: 'i-lucide-pencil', onSelect: () => openEditRole(membership) })
     const groups: DropdownMenuItem[][] = items.length ? [items] : []
     if (actions.includes('remove')) groups.push([{ label: 'Remove', icon: 'i-lucide-trash', color: 'error', onSelect: () => removeRole.ask(membership) }])
     return groups

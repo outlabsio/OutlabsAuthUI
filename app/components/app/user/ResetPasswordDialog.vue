@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PASSWORD_POLICY_HINT } from '~/schemas/auth-flows'
 import { resetPasswordSchema } from '~/schemas/user'
 import type { User } from '~/types/user'
 
@@ -38,18 +39,22 @@ const { state, error, effects, onSubmit } = useUserResetPasswordDialog(user, ope
         </ul>
       </template>
     </UAlert>
-    <UFormField name="new_password" label="New password" required>
-      <UInput
+    <UFormField
+      name="new_password"
+      label="New password"
+      :help="PASSWORD_POLICY_HINT"
+      required
+    >
+      <AppPasswordInput
         v-model="state.new_password"
-        type="password"
         autocomplete="new-password"
         class="w-full"
+        autofocus
       />
     </UFormField>
     <UFormField name="confirm_password" label="Confirm password" required>
-      <UInput
+      <AppPasswordInput
         v-model="state.confirm_password"
-        type="password"
         autocomplete="new-password"
         class="w-full"
       />

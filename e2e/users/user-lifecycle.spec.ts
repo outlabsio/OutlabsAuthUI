@@ -1,4 +1,4 @@
-import { backendConfigured, expect, test } from '../support/fixtures'
+import { backendConfigured, expect, expectSeeded, personaState, test } from '../support/fixtures'
 import type { ApiUser } from '../support/api-client'
 import { captureAvailable } from '../support/capabilities'
 import { captureInviteToken } from '../support/passwordless-capture'
@@ -27,6 +27,8 @@ test.describe('user lifecycle actions', () => {
 
     await page.goto(`/app/users/${invited!.id}`)
     await expect(page.getByTestId('user-state-notice')).toContainText('Invitation pending')
+    // The notice names Resend invite because this admin is offered it (v-users-04).
+    await expect(page.getByTestId('user-state-notice')).toContainText('Resend invite sends a new link.')
     await userActionsButton(page).click()
     const menu = page.getByRole('menu')
     await expect(menu.getByRole('menuitem', { name: 'Resend invite' })).toBeVisible()
@@ -115,5 +117,28 @@ test.describe('user lifecycle actions', () => {
     await userActionsButton(page).click()
     await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Restore user'])
     await page.keyboard.press('Escape')
+  })
+})
+
+// The invited notice names Resend invite only where the admin is offered it: user:update and the
+// invitations feature (v-users-04). The read-only auditor (EnterpriseRBAC seed) has user:read
+// only; an account of its organization is answered as invited.
+test.describe('user lifecycle: read-only auditor', () => {
+  test.skip(!backendConfigured, 'Needs the backend + seeded admin (E2E_API_BASE_URL).')
+  test.use({ errorGuardMode: 'strict', storageState: personaState('auditor') })
+
+  test('an invited account\'s notice does not point to an action the admin lacks', async ({ page, api, requires }) => {
+    await requires({ personas: ['auditor'], features: ['invitations'] })
+    const agent = await api.findUserByEmail('agent@sf.acme.com')
+    expectSeeded(agent, 'the agent of the first organization')
+    await page.route(url => url.pathname.endsWith(`/users/${agent!.id}`) && !url.pathname.startsWith('/app/'), async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const response = await route.fetch()
+      return route.fulfill({ response, json: { ...(await response.json() as object), status: 'invited' } })
+    })
+    await page.goto(`/app/users/${agent!.id}`)
+    const notice = page.getByTestId('user-state-notice')
+    await expect(notice).toContainText('The account has no password until the invitation is accepted.')
+    await expect(notice).not.toContainText('Resend invite')
   })
 })

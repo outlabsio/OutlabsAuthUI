@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { createUserSchemaFor, inviteUserSchemaFor, resetPasswordSchema, superuserChangeSchemaFor, updateUserSchema, userStatusSchemaFor } from '~/schemas/user'
+import { createUserSchemaFor, inviteUserSchemaFor, resetPasswordSchema, superuserChangeSchemaFor, updateUserSchema, updateUserSchemaFor, userStatusSchemaFor } from '~/schemas/user'
 import {
   canChangeStatus,
+  deletedAccountSummary,
   inviteEntityRule,
   isUuid,
   membershipHistoryChanges,
@@ -12,6 +13,7 @@ import {
   resendInviteCopy,
   statusChangeAction,
   superuserChangeEffects,
+  superuserSwitchDescription,
   SUSPENSION_END_NOTE,
   suspendedUntilForSave,
   userDeleteCopy,
@@ -181,6 +183,24 @@ describe('users dialog schemas', () => {
     expect(issuePaths(updateUserSchema.safeParse({ ...edit, email: 'not-an-email' }))).toEqual(['email'])
     expect(issuePaths(updateUserSchema.safeParse({ ...edit, phone: '555' }))).toEqual(['phone'])
   })
+
+  it('edit: a name the account has can be changed but not removed; 100 characters at most (v-users-01)', () => {
+    const edit = { email: 'user@example.com', first_name: '', last_name: '', phone: '' }
+    // No names yet: both may stay empty.
+    expect(updateUserSchemaFor({ first_name: null, last_name: '' }).safeParse(edit).success).toBe(true)
+    // A first name the server would refuse to clear ('first_name is required').
+    const named = updateUserSchemaFor({ first_name: 'Jane', last_name: null })
+    const cleared = named.safeParse({ ...edit, first_name: '  ' })
+    expect(issuePaths(cleared)).toEqual(['first_name'])
+    expect(cleared.error!.issues[0]!.message).toBe('Enter a first name. It can be changed but not removed.')
+    expect(named.safeParse({ ...edit, first_name: 'Joan' }).success).toBe(true)
+    // The API caps names at 100 characters, for an edit, a new account and an invitation alike.
+    expect(issuePaths(named.safeParse({ ...edit, first_name: 'x'.repeat(101) }))).toEqual(['first_name'])
+    expect(named.safeParse({ ...edit, first_name: 'x'.repeat(100) }).success).toBe(true)
+    expect(issuePaths(createUserSchemaFor({ rootRequired: false }).safeParse({ ...create, last_name: 'x'.repeat(101) }))).toEqual(['last_name'])
+    const invite = { email: 'new@example.com', first_name: 'x'.repeat(101), last_name: '', entity_id: undefined, role_ids: [], is_superuser: false }
+    expect(issuePaths(inviteUserSchemaFor({ entityRequired: false }).safeParse(invite))).toEqual(['first_name'])
+  })
 })
 
 describe('isUuid', () => {
@@ -232,8 +252,25 @@ describe('user lifecycle rules', () => {
     const restore = restoreUserCopy(user, { hasMemberships: true })
     expect(restore.title).toBe('Restore user ana@example.com')
     expect(restore.effects!.join(' ')).toContain('stay revoked')
-    expect(superuserChangeEffects(true, { hasMemberships: true })[0]).toContain('bypassed')
-    expect(superuserChangeEffects(false, { hasMemberships: false }).join(' ')).toContain('what their roles grant')
+    expect(superuserChangeEffects(true, { hasMemberships: true, isEnterprise: true })[0]).toContain('bypassed')
+    expect(superuserChangeEffects(false, { hasMemberships: false, isEnterprise: false }).join(' ')).toContain('what their roles grant')
+  })
+
+  it('restore reads the same from the list and the detail, and says a lockout or suspension end is cleared (v-users-04)', () => {
+    const effects = restoreUserCopy({ email: 'ana@example.com' }, { hasMemberships: true }).effects!
+    expect(effects).toContain('Any lockout or timed suspension is cleared.')
+    expect(effects.join(' ')).toContain('entity memberships')
+    expect(restoreUserCopy({ email: 'ana@example.com' }, { hasMemberships: false }).effects!.join(' ')).not.toContain('membership')
+  })
+
+  it('SimpleRBAC copy names no organizations or memberships (v-users-03)', () => {
+    expect(superuserSwitchDescription({ isEnterprise: true })).toContain('across every organization')
+    expect(superuserSwitchDescription({ isEnterprise: false })).toBe('Bypasses every permission check. Grant only to platform operators.')
+    expect(superuserChangeEffects(true, { hasMemberships: true, isEnterprise: true })[0]).toBe('Every permission check is bypassed for them, in every organization.')
+    const simpleGrant = superuserChangeEffects(true, { hasMemberships: false, isEnterprise: false }).join(' ')
+    expect(simpleGrant).not.toMatch(/organization|workspace|membership/)
+    expect(deletedAccountSummary({ hasMemberships: true })).toContain('memberships')
+    expect(deletedAccountSummary({ hasMemberships: false })).toBe('Its roles, sessions and API keys were revoked. Restoring it brings back the identity only.')
   })
 
   it('status form: a new suspension end may not be in the past, the stored one may stay', () => {

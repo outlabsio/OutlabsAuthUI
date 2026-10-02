@@ -235,12 +235,12 @@ const emptyDescription = computed(() => {
   <!-- Reactivate a suspended or ended assignment -->
   <AppAccessReactivateDialog v-model:open="reactivateOpen" :target="reactivateTarget" />
 
-  <!-- Edit role validity -->
+  <!-- Edit a role assignment: its status and validity window -->
   <AppFormDialog
     ref="editRoleDialog"
     v-model:open="editRoleOpen"
-    title="Edit validity"
-    :description="`${editRoleTarget?.role.display_name ?? 'This'} role. Only the fields you change are saved.`"
+    title="Edit role assignment"
+    :description="`${editRoleTarget?.role.display_name ?? 'This'} role. Update the assignment's status and validity window. Only the fields you change are saved.`"
     :schema="roleAssignmentEditSchema"
     :state="editRoleState"
     :error="editRoleError"

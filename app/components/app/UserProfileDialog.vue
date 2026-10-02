@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { updateUserSchema } from '~/schemas/user'
 import type { User } from '~/types/user'
 
 // "Edit profile" for another account (F-064): one dialog for the users list's row menu and the
@@ -8,7 +7,7 @@ import type { User } from '~/types/user'
 const open = defineModel<boolean>('open', { default: false })
 const props = defineProps<{ user: User | null }>()
 
-const { state, error, dirty, emailChanged, onSubmit } = useUserProfileForm(() => props.user, open)
+const { state, schema, error, dirty, isSelf, namesSet, emailChanged, onSubmit } = useUserProfileForm(() => props.user, open)
 </script>
 
 <template>
@@ -17,7 +16,7 @@ const { state, error, dirty, emailChanged, onSubmit } = useUserProfileForm(() =>
     v-model:open="open"
     :title="`Edit ${user?.email ?? 'user'}`"
     description="Changes apply to the account right away."
-    :schema="updateUserSchema"
+    :schema="schema"
     :state="state"
     :error="error"
     :dirty="dirty"
@@ -28,21 +27,34 @@ const { state, error, dirty, emailChanged, onSubmit } = useUserProfileForm(() =>
     <UFormField
       name="email"
       label="Email"
-      required
-      :help="emailChanged ? 'This becomes the sign-in email, and the address is marked unverified until the user confirms it.' : undefined"
+      :required="!isSelf"
+      :help="isSelf
+        ? 'Your own sign-in email is read-only.'
+        : emailChanged ? 'This becomes the sign-in email, and the address is marked unverified until the user confirms it.' : undefined"
     >
       <UInput
         v-model="state.email"
         type="email"
         autocomplete="off"
         class="w-full"
+        :disabled="isSelf"
       />
     </UFormField>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <UFormField name="first_name" label="First name" hint="Optional">
+      <UFormField
+        name="first_name"
+        label="First name"
+        :required="namesSet.first"
+        :hint="namesSet.first ? undefined : 'Optional'"
+      >
         <UInput v-model="state.first_name" class="w-full" />
       </UFormField>
-      <UFormField name="last_name" label="Last name" hint="Optional">
+      <UFormField
+        name="last_name"
+        label="Last name"
+        :required="namesSet.last"
+        :hint="namesSet.last ? undefined : 'Optional'"
+      >
         <UInput v-model="state.last_name" class="w-full" />
       </UFormField>
     </div>

@@ -232,12 +232,14 @@ export function resendInviteCopy(user: Pick<User, 'email'>): ConfirmCopy {
 }
 
 // POST /users/{id}/restore brings back the identity only (outlabs-auth keeps memberships, role
-// assignments, sessions and API keys revoked).
+// assignments, sessions and API keys revoked) and clears a lockout and a suspension end. One copy
+// for the users list's row menu and the user detail.
 export function restoreUserCopy(user: Pick<User, 'email'>, options: { hasMemberships: boolean }): ConfirmCopy {
   return {
     title: `Restore user ${user.email}`,
     effects: [
       'The account becomes active again and can sign in with its existing credentials.',
+      'Any lockout or timed suspension is cleared.',
       options.hasMemberships
         ? 'Its direct roles, entity memberships, sessions and API keys stay revoked: grant access again as needed.'
         : 'Its roles, sessions and API keys stay revoked: grant access again as needed.'
@@ -247,11 +249,27 @@ export function restoreUserCopy(user: Pick<User, 'email'>, options: { hasMembers
   }
 }
 
+// The notice on a deleted account's profile (F-008: no memberships on SimpleRBAC).
+export function deletedAccountSummary(options: { hasMemberships: boolean }): string {
+  return options.hasMemberships
+    ? 'Its roles, memberships, sessions and API keys were revoked. Restoring it brings back the identity only.'
+    : 'Its roles, sessions and API keys were revoked. Restoring it brings back the identity only.'
+}
+
+// The Superuser switch of Add user and Invite (organizations exist on EnterpriseRBAC only, F-008).
+export function superuserSwitchDescription(options: { isEnterprise: boolean }): string {
+  return options.isEnterprise
+    ? 'Bypasses every permission check across every organization. Grant only to platform operators.'
+    : 'Bypasses every permission check. Grant only to platform operators.'
+}
+
 // What a superuser grant or revoke does (PATCH /users/{id}/superuser).
-export function superuserChangeEffects(granting: boolean, options: { hasMemberships: boolean }): string[] {
+export function superuserChangeEffects(granting: boolean, options: { hasMemberships: boolean, isEnterprise: boolean }): string[] {
   return granting
     ? [
-        'Every permission check is bypassed for them, on every workspace and in every organization.',
+        options.isEnterprise
+          ? 'Every permission check is bypassed for them, in every organization.'
+          : 'Every permission check is bypassed for them.',
         'They can manage every user, role, permission and API key, and grant or revoke superuser for others.',
         'The change and its reason are recorded in the audit log.'
       ]

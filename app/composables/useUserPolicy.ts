@@ -8,7 +8,7 @@ import { userRowPolicy } from '~/utils/users'
 // account is managed from Account, so no status change, password reset or session revoke on
 // oneself. Null while the account is not loaded: nothing is offered then (F-209).
 export function useUserPolicy(user: Ref<User | null | undefined>) {
-  const { hasPermission, user: actor } = useAuth()
+  const { hasPermission, user: actor, can } = useAuth()
   const { isGlobal } = useActorReach()
 
   const policy = computed(() => (user.value
@@ -25,6 +25,10 @@ export function useUserPolicy(user: Ref<User | null | undefined>) {
   // Lifecycle writes on another account (status, password reset, sessions, superuser): the
   // admin's own account goes through Account instead.
   const canManage = computed(() => canEdit.value && !isSelf.value)
+  // Resend invite (POST /users/{id}/resend-invite): an invited account, user:update and the
+  // backend's invitations feature. The action menu offers it and the invited notice mentions it
+  // under the same rule.
+  const canResendInvite = computed(() => canEdit.value && user.value?.status === 'invited' && can('invitations'))
 
-  return { policy, isSelf, canEdit, canManage }
+  return { policy, isSelf, canEdit, canManage, canResendInvite }
 }

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, expectSeeded, persona, personaState, test } from '../support/fixtures'
 import type { ApiEntity, ApiUser } from '../support/api-client'
 import { jsonResponse } from '../support/mocks'
-import { userTabs } from '../support/users'
+import { detailItem, userTabs } from '../support/users'
 
 // The shared role/access kit (WP-05) against the live seed:
 // - F-017 role pools hold only roles the backend accepts for the target (NYC Office excludes the
@@ -219,7 +219,7 @@ test.describe('role access kit (EnterpriseRBAC, superuser)', () => {
     await page.goto(`/app/users/${user.id}`)
     // F-009: the page states where the account reaches (once the direct roles have loaded; a
     // cold dev server can take a while to answer them).
-    await expect(page.getByTestId('user-access-scope')).toContainText('Limited to this organization', { timeout: 20_000 })
+    await expect(detailItem(page, 'Access scope')).toContainText('Limited to this organization', { timeout: 20_000 })
 
     await userTabs(page).getByRole('link', { name: 'Access' }).click()
     await page.getByRole('button', { name: 'Assign roles' }).click()

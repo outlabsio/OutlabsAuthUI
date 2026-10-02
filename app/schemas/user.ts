@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { dateInput, emailText, optionalText, reasonText, requiredText } from '~/schemas/common'
+import { accountNameText, dateInput, emailText, newAccountNameText, reasonText, requiredText } from '~/schemas/common'
 import { newPasswordSchema } from '~/schemas/auth-flows'
 import { NO_ROOT_ORG } from '~/utils/users'
 
@@ -8,7 +8,8 @@ import { NO_ROOT_ORG } from '~/utils/users'
 // "required" reads on the field like every other rule; the `*SchemaFor` builders take the
 // actor-dependent rules (newUserRootChoice / inviteEntityRule in utils/users.ts).
 
-const nameField = optionalText(120)
+// Names of a new account: optional, at most the API's 100 characters.
+const nameField = newAccountNameText
 
 export type CreateUserRules = {
   // A delegated admin must place the account in their organization (F-012).
@@ -114,18 +115,25 @@ export function superuserChangeSchemaFor(rules: { granting: boolean, email: stri
 export type SuperuserChangeSchema = z.output<ReturnType<typeof superuserChangeSchemaFor>>
 
 // Admin profile edit (PATCH /users/{id}). Changing the email changes the sign-in identifier and
-// marks the address unverified (F-064).
-export const updateUserSchema = z.object({
-  email: emailText,
-  first_name: nameField,
-  last_name: nameField,
-  phone: z
-    .string()
-    .trim()
-    .refine(
-      value => value === '' || /^\+[1-9]\d{6,14}$/.test(value),
-      'Phone must be E.164 format (e.g. +15551234567), or left blank.'
-    )
-})
+// marks the address unverified (F-064); an admin's own sign-in email is read-only (F-193, the
+// dialog shows it disabled and never sends it). The names follow the account's own rule: one it
+// already has can be changed but not removed (accountNameText), which Account applies too.
+export function updateUserSchemaFor(current: { first_name?: string | null, last_name?: string | null } | null) {
+  const name = (label: string, isSet: boolean) =>
+    accountNameText(label, isSet, `Enter a ${label.toLowerCase()}. It can be changed but not removed.`)
+  return z.object({
+    email: emailText,
+    first_name: name('First name', Boolean(current?.first_name?.trim())),
+    last_name: name('Last name', Boolean(current?.last_name?.trim())),
+    phone: z
+      .string()
+      .trim()
+      .refine(
+        value => value === '' || /^\+[1-9]\d{6,14}$/.test(value),
+        'Phone must be E.164 format (e.g. +15551234567), or left blank.'
+      )
+  })
+}
 
+export const updateUserSchema = updateUserSchemaFor(null)
 export type UpdateUserSchema = z.output<typeof updateUserSchema>

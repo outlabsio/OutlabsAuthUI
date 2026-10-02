@@ -50,7 +50,6 @@ export function useUserDetail(userId: Ref<string>) {
   const auditTimelineAvailable = computed(() => Boolean(capabilities.value?.features?.activity_tracking))
   // Membership history is an EnterpriseRBAC concept (F-008).
   const membershipHistoryAvailable = computed(() => isEnterprise.value)
-  const invitationsEnabled = computed(() => Boolean(capabilities.value?.features?.invitations))
 
   // --- Tabs ---
   const availableTabs = computed<UserDetailTab[]>(() => [
@@ -72,7 +71,7 @@ export function useUserDetail(userId: Ref<string>) {
   }))
 
   // --- Header actions (F-065, F-128, F-209) ---
-  const { policy, isSelf, canEdit, canManage } = useUserPolicy(user)
+  const { policy, isSelf, canEdit, canManage, canResendInvite } = useUserPolicy(user)
   const profileOpen = ref(false)
   const statusOpen = ref(false)
   const resetOpen = ref(false)
@@ -122,7 +121,7 @@ export function useUserDetail(userId: Ref<string>) {
     if (canManage.value && target.status !== 'invited') {
       lifecycle.push({ label: 'Reset password', icon: 'i-lucide-key-round', onSelect: () => openDialog(resetOpen) })
     }
-    if (rules.canEdit && target.status === 'invited' && invitationsEnabled.value) {
+    if (canResendInvite.value) {
       lifecycle.push({ label: 'Resend invite', icon: 'i-lucide-mail', onSelect: () => resendInvite.ask(target) })
     }
     if (rules.canRestore) {
@@ -150,10 +149,11 @@ export function useUserDetail(userId: Ref<string>) {
     const target = user.value
     if (!target || target.status !== 'deleted') return null
     const canRestore = Boolean(policy.value?.canRestore)
+    const revoked = hasMemberships.value ? 'its roles and memberships' : 'its roles'
     return {
       description: canRestore
-        ? 'Deleting it revoked its roles and memberships; they stay on record below. Restore the account to manage its access again.'
-        : 'Deleting it revoked its roles and memberships; they stay on record below. Access can be managed again only once the account is restored.',
+        ? `Deleting it revoked ${revoked}; they stay on record below. Restore the account to manage its access again.`
+        : `Deleting it revoked ${revoked}; they stay on record below. Access can be managed again only once the account is restored.`,
       actions: canRestore ? [{ label: 'Restore user', color: 'neutral', variant: 'outline', icon: 'i-lucide-undo-2', onClick: () => restoreUser.ask(target) }] : []
     }
   })

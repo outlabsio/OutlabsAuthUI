@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { newPasswordSchema, phoneIdentifierSchema } from '~/schemas/auth-flows'
+import { accountNameText } from '~/schemas/common'
 
 // Account (self-service) forms. Field names are snake_case to send straight to the API.
 
@@ -8,10 +9,8 @@ import { newPasswordSchema, phoneIdentifierSchema } from '~/schemas/auth-flows'
 // name it does not have is optional and only sent when typed (the form sends changed fields
 // only). Without that, an invited account with no name could not save anything (F-095).
 export function profileSchemaFor(current: { first_name?: string | null, last_name?: string | null }) {
-  const name = (label: string, isSet: boolean) => {
-    const base = z.string().trim().max(100, `${label} must be 100 characters or fewer.`)
-    return isSet ? base.min(1, `Enter your ${label.toLowerCase()}. It can be changed but not removed.`) : base
-  }
+  const name = (label: string, isSet: boolean) =>
+    accountNameText(label, isSet, `Enter your ${label.toLowerCase()}. It can be changed but not removed.`)
   return z.object({
     first_name: name('First name', Boolean(current.first_name?.trim())),
     last_name: name('Last name', Boolean(current.last_name?.trim()))

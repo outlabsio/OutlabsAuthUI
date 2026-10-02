@@ -1,11 +1,12 @@
 import { useQuery } from '@pinia/colada'
-import type { ButtonProps, DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
+import type { AvatarProps, ButtonProps, DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
 import { entitiesListQuery } from '~/queries/entities'
 import { usersListQuery, usersOrphanedQuery, useCreateUser, useDeleteUser, useInviteUser, useRestoreUser } from '~/queries/users'
 import { createUserSchemaFor, inviteUserSchemaFor, type CreateUserSchema, type InviteUserSchema } from '~/schemas/user'
 import type { CreateUserInput, OrphanedUser, OrphanedUsersListResponse, User, UsersListResponse, UserStatusValue } from '~/types/user'
 import type { ActionError } from '~/composables/useApiAction'
-import { inviteEntityRule, newUserRootChoice, NO_ROOT_ORG, userDeleteCopy, userRowPolicy } from '~/utils/users'
+import { localImageSrc } from '~/utils/avatar'
+import { inviteEntityRule, newUserRootChoice, NO_ROOT_ORG, restoreUserCopy, superuserSwitchDescription, userDeleteCopy, userFullName, userRowPolicy } from '~/utils/users'
 
 // Feature logic for the users workspace; pages/app/users/index.vue is display only.
 //
@@ -123,6 +124,12 @@ export function useUsersWorkspace() {
     void active.value.refetch()
   }
 
+  // A row's avatar: the initials, or a same-origin picture. An OAuth provider's avatar_url is on a
+  // host the CSP does not allow, so it is never bound (utils/avatar.ts).
+  function avatarOf(user: User): AvatarProps {
+    return { src: localImageSrc(user.avatar_url, window.location.origin), alt: userFullName(user) ?? user.email }
+  }
+
   // Filters that are not the search box (the mobile Filters button counts them).
   const activeFilterCount = computed(() => [
     statusFilter.value !== 'active' && !orphanedOnly.value,
@@ -153,17 +160,9 @@ export function useUsersWorkspace() {
 
   // --- Row menu ---
   const restoreUser = useRestoreUser()
+  // The same confirmation as the user detail's Restore (restoreUserCopy).
   const restore = useConfirmAction<User>({
-    describe: user => ({
-      title: `Restore user ${user.email}`,
-      description: 'The account becomes active again and can sign in with its password.',
-      effects: [
-        'Only the identity comes back: roles, memberships and API keys stay revoked and must be granted again.',
-        'Any lockout or timed suspension is cleared.'
-      ],
-      confirmLabel: 'Restore user',
-      confirmColor: 'primary'
-    }),
+    describe: user => restoreUserCopy(user, { hasMemberships: hasMemberships.value }),
     action: user => restoreUser.mutateAsync(user.id),
     success: 'User restored',
     error: 'Could not restore user',
@@ -268,12 +267,25 @@ export function useUsersWorkspace() {
   const inviteSelectedRoles = computed(() => inviteState.role_ids
     .map(id => inviteRoles.roleById.value.get(id))
     .filter((r): r is NonNullable<typeof r> => Boolean(r)))
-  // The assignable pool changes with the entity — clear stale selections when it switches.
+  // The assignable pool changes with the entity, so the chosen roles are cleared when it switches,
+  // and the Roles field says so until roles are chosen again (never silently).
+  const inviteRolesCleared = ref(false)
   watch(() => inviteState.entity_id, () => {
+    if (!inviteState.role_ids.length) return
     inviteState.role_ids = []
+    inviteRolesCleared.value = true
   })
+  watch(() => inviteState.role_ids.length, (count) => {
+    if (count) inviteRolesCleared.value = false
+  })
+  const inviteRolesHelp = computed(() => (inviteRolesCleared.value
+    ? (inviteGrant.value === 'membership'
+        ? 'The roles you chose were cleared because the entity changed: choose from this entity\'s roles.'
+        : 'The roles you chose were cleared because the entity was removed: choose direct account roles.')
+    : undefined))
   function openInvite() {
     Object.assign(inviteState, blankInvite())
+    inviteRolesCleared.value = false
     inviteError.value = null
     inviteOpen.value = true
   }
@@ -332,12 +344,16 @@ export function useUsersWorkspace() {
     return { title: 'No active users', description: 'Add or invite people to give them access.', actions }
   })
 
+  // The Superuser switch of Add user and Invite (no organizations on SimpleRBAC, F-008).
+  const superuserDescription = computed(() => superuserSwitchDescription({ isEnterprise: isEnterprise.value }))
+
   return {
     canRead,
     canCreate,
     canInvite,
     isEnterprise,
     isSuperuser,
+    superuserDescription,
     // List
     search,
     statusFilter,
@@ -359,6 +375,7 @@ export function useUsersWorkspace() {
     error,
     fetching,
     retry,
+    avatarOf,
     emptyState,
     rowMenu,
     // Create
@@ -383,6 +400,7 @@ export function useUsersWorkspace() {
     inviteRolesStatus: inviteRoles.status,
     inviteRolesEmptyText: inviteRoles.emptyText,
     inviteRolesTruncated: inviteRoles.truncated,
+    inviteRolesHelp,
     // Edit, restore, delete
     editOpen,
     editTarget,

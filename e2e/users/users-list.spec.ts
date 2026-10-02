@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { backendConfigured, expect, test } from '../support/fixtures'
-import { patchAuthConfig } from '../support/capabilities'
+import { backendHasSurface, isEnterpriseBackend, patchAuthConfig } from '../support/capabilities'
 import { chooseSelect, field } from '../support/ui-select'
 import { searchUsersList } from '../support/lists'
 import { onPath } from '../support/session'
@@ -10,6 +10,9 @@ import { onPath } from '../support/session'
 // (F-171), empty states and page clamping (F-127, F-218), and the phone layout (F-133).
 
 type User = { id: string, email: string }
+
+// A 1x1 transparent PNG: a picture the CSP allows (img-src data:).
+const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 // The row of one account. A search matches substrings (admin@… also finds org-admin@…), so rows
 // are told apart by their exactly named actions button.
@@ -139,6 +142,37 @@ test.describe('users list', () => {
     await expect(rowOf(page, suspended.email).getByText(/^Suspension end set for /).filter({ visible: true })).toBeVisible()
   })
 
+  // The shipped CSP allows images from the console's origin and data: only (img-src 'self'
+  // data:): an OAuth provider's picture would be blocked and logged as a violation, so the row
+  // shows the initials instead; a same-origin or data: picture is shown
+  // (c-security-csp-blocks-provider-avatars). The static target checks the CSP itself.
+  test('a provider picture on another host is never requested; a data: picture is shown', async ({ page, api }) => {
+    const remote = await api.createUser({ kind: 'avatar-remote' })
+    const local = await api.createUser({ kind: 'avatar-local' })
+    const requested: string[] = []
+    page.on('request', (request) => {
+      if (new URL(request.url()).hostname === 'avatars.githubusercontent.com') requested.push(request.url())
+    })
+    await page.route(/\/users\/(\?.*)?$/, async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const response = await route.fetch()
+      const body = await response.json() as { items: Array<User & { avatar_url?: string | null }> }
+      for (const item of body.items) {
+        if (item.id === remote.id) item.avatar_url = 'https://avatars.githubusercontent.com/u/1?v=4'
+        if (item.id === local.id) item.avatar_url = PIXEL
+      }
+      return route.fulfill({ response, json: body })
+    })
+
+    await page.goto('/app/users')
+    await searchUsersList(page, remote.email)
+    await expect(rowOf(page, remote.email).getByRole('link', { name: new RegExp(remote.email) })).toBeVisible()
+    await expect(rowOf(page, remote.email).locator('img')).toHaveCount(0)
+    await searchUsersList(page, local.email)
+    await expect(rowOf(page, local.email).locator('img')).toHaveAttribute('src', PIXEL)
+    expect(requested).toEqual([])
+  })
+
   test('row menus follow the permissions and the account: no Delete on your own row (F-053, F-063)', async ({ page, api }) => {
     const me = await api.me()
     const other = await api.createUser({ kind: 'menu' })
@@ -170,7 +204,13 @@ test.describe('users list', () => {
     await expect(menu.getByRole('menuitem')).toHaveText(['View', 'Restore'])
     await menu.getByRole('menuitem', { name: 'Restore' }).click()
     const confirm = page.getByRole('dialog', { name: `Restore user ${user.email}` })
-    await expect(confirm.getByTestId('confirm-effects')).toContainText('roles, memberships and API keys stay revoked')
+    // The user detail's own Restore copy (v-users-04), naming memberships only where they exist
+    // (v-users-03).
+    const effects = confirm.getByTestId('confirm-effects')
+    await expect(effects).toContainText('sessions and API keys stay revoked')
+    await expect(effects).toContainText('Any lockout or timed suspension is cleared.')
+    if (await isEnterpriseBackend() && await backendHasSurface('memberships')) await expect(effects).toContainText('entity memberships')
+    else await expect(effects).not.toContainText('membership')
     await confirm.getByRole('button', { name: 'Restore user' }).click()
     await expect(confirm).toBeHidden()
     await expect(page.getByText('User restored', { exact: true })).toBeVisible()

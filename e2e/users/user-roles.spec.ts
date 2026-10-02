@@ -85,10 +85,10 @@ test.describe('user direct role assignment', () => {
     const row = page.getByRole('row').filter({ hasText: roleName })
     await expect(row).toBeVisible()
 
-    // --- Edit validity: set a window + suspend ---
+    // --- Edit assignment: set a window + suspend ---
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: /^Edit validity/ })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     await expect(dialog).toBeVisible()
     await pickDay(page, 'Valid from', 10)
     await pickDay(page, 'Valid until', 20)
@@ -104,11 +104,11 @@ test.describe('user direct role assignment', () => {
     expect(typeof patches[0]!.valid_until).toBe('string')
 
     // A suspension never makes the row vanish (F-058): it stays, with its status, and now offers
-    // Reactivate next to Edit validity.
+    // Reactivate next to Edit assignment.
     await expect(row.getByText('Suspended', { exact: true })).toBeVisible()
     await row.getByRole('button', { name: 'Role actions' }).click()
     await expect(page.getByRole('menuitem', { name: 'Reactivate' })).toBeVisible()
-    await expect(page.getByRole('menuitem', { name: 'Edit validity' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Edit assignment' })).toBeVisible()
     await page.keyboard.press('Escape')
   })
 
@@ -120,8 +120,8 @@ test.describe('user direct role assignment', () => {
     const row = page.getByRole('row').filter({ hasText: roleName })
 
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: /^Edit validity/ })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
 
     let patched = false
     await page.route(/\/users\/[^/]+\/role-memberships\/[^/]+$/, async (route) => {

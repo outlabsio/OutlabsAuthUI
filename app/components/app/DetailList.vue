@@ -5,7 +5,8 @@ import type { DetailItem } from '~/types/display'
 // (F-215): enums as the list's badge (pass `badge`), timestamps through AppTimestamp
 // (`type: 'datetime'` / `'date'`), booleans as Yes/No, identifiers in monospace. Long values
 // wrap instead of being cut off (F-223): text breaks at words, ids and codes break anywhere.
-// Missing values show '—'. A `#value-<key>` slot overrides any one value.
+// Missing values show '—'. A `#value-<key>` slot overrides any one value; an item's
+// `description` is a muted line under its value, in the same row.
 //   <AppDetailList :items="[
 //     { label: 'Email', value: user.email },
 //     { key: 'status', label: 'Status', value: user.status, badge: { color: USER_STATUS_COLOR[user.status] } },
@@ -53,6 +54,7 @@ const isMissing = (value: DetailItem['value']) => value === null || value === un
           <span v-else-if="item.type === 'code'" class="break-all font-mono">{{ item.value }}</span>
           <span v-else class="whitespace-pre-line break-words">{{ item.value }}</span>
         </slot>
+        <span v-if="item.description" class="mt-0.5 block text-xs text-muted">{{ item.description }}</span>
       </dd>
     </div>
   </dl>

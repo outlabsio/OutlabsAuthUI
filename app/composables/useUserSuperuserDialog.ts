@@ -11,7 +11,7 @@ import type { User } from '~/types/user'
 // and the refusal shows in the dialog.
 export function useUserSuperuserDialog(user: Ref<User>, open: Ref<boolean>) {
   const { run } = useApiAction()
-  const { hasMemberships } = useAuth()
+  const { hasMemberships, isEnterprise } = useAuth()
   const form = useDialogForm('superuserDialog')
   const error = ref<ActionError | null>(null)
   const update = useUpdateUserSuperuser()
@@ -29,7 +29,7 @@ export function useUserSuperuserDialog(user: Ref<User>, open: Ref<boolean>) {
   const schema = computed(() => superuserChangeSchemaFor({ granting: granting.value, email: user.value.email }))
   const title = computed(() => (granting.value ? `Grant superuser to ${user.value.email}` : `Revoke superuser from ${user.value.email}`))
   const submitLabel = computed(() => (granting.value ? 'Grant superuser' : 'Revoke superuser'))
-  const effects = computed(() => superuserChangeEffects(granting.value, { hasMemberships: hasMemberships.value }))
+  const effects = computed(() => superuserChangeEffects(granting.value, { hasMemberships: hasMemberships.value, isEnterprise: isEnterprise.value }))
   // The typed email is the live feedback for a grant: Confirm stays disabled until it matches.
   const confirmed = computed(() => !granting.value || state.confirmation.trim() === user.value.email)
 

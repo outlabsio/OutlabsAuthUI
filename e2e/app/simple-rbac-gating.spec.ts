@@ -106,7 +106,7 @@ test.describe('SimpleRBAC hides entity and tree concepts', () => {
     const hits = trackForbiddenRequests(page)
     await page.goto(`/app/users/${userId}`)
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
-    await expect(page.getByText('Root entity', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Organization', { exact: true })).toHaveCount(0)
     await page.goto(`/app/users/${userId}?tab=access`)
     await expect(page.getByRole('heading', { name: 'Direct roles' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Memberships', exact: true })).toHaveCount(0)

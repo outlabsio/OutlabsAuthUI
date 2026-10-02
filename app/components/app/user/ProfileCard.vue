@@ -6,7 +6,7 @@ import { statusLabel } from '~/utils/status'
 const props = defineProps<{ user: User }>()
 const user = computed(() => props.user)
 
-const { items, holds, badgeHolds, statusColor, accessScope, notice } = useUserProfileCard(user)
+const { items, badgeHolds, statusColor, notice } = useUserProfileCard(user)
 </script>
 
 <template>
@@ -41,18 +41,8 @@ const { items, holds, badgeHolds, statusColor, accessScope, notice } = useUserPr
       class="mb-4"
       data-testid="user-state-notice"
     />
+    <!-- The badges' tooltips are hover-only: each hold's explanation (and the access scope's)
+         is also readable under its own row. -->
     <AppDetailList :items="items" />
-    <!-- The badges' tooltips are hover-only; the explanation is also readable here. -->
-    <p
-      v-for="hold in holds"
-      :key="hold.kind"
-      class="mt-3 text-sm text-muted"
-      :data-testid="`user-hold-${hold.kind}`"
-    >
-      {{ hold.description }}
-    </p>
-    <p v-if="accessScope" class="mt-3 text-sm text-muted" data-testid="user-access-scope">
-      {{ accessScope.description }}
-    </p>
   </UCard>
 </template>

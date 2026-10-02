@@ -346,8 +346,8 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     const row = page.getByRole('row').filter({ hasText: displayName })
     await expect(row).toBeVisible()
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     await expect(dialog).toContainText(`${displayName} role.`)
 
     // Nothing changed yet: Save is disabled. The date field is labelled and typeable.
@@ -367,7 +367,7 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
 
     // Reopening shows the same day; saving without a change is not possible.
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
     expect(await shownDay(page, 'Valid until')).toBe('2026-10-05')
     await expect(save).toBeDisabled()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -398,9 +398,9 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     const row = page.getByRole('row').filter({ hasText: displayName })
     const openEdit = async () => {
       await row.getByRole('button', { name: 'Role actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit validity' }).click()
+      await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
     }
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     const save = dialog.getByRole('button', { name: 'Save changes' })
     const conflict = dialog.getByTestId('form-conflict')
 
@@ -450,8 +450,8 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     await page.goto(`/app/users/${user.id}?tab=access`)
     const row = page.getByRole('row').filter({ hasText: displayName })
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     await typeDay(page, 'Valid until', '2026-10-05')
     // Someone else sets a start date meanwhile; this dialog only changes the end date.
     await assignmentChangedElsewhere(api, user.id, role.id, { valid_from: '2026-09-01T03:00:00.000Z' })
@@ -476,8 +476,8 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     await page.goto(`/app/users/${user.id}?tab=access`)
     const row = page.getByRole('row').filter({ hasText: displayName })
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     const until = dialog.getByRole('group', { name: 'Valid until', exact: true })
     const incomplete = dialog.getByText('Enter the whole date, or clear it.')
 
@@ -500,13 +500,13 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     await dialog.getByRole('button', { name: 'Save changes' }).click()
     await expect(dialog).toBeHidden()
     expect(patches).toEqual([{ valid_until: '2026-10-06T02:59:59.999Z' }])
-    // Edit validity is filled from the row, which the save refetches without waiting for it; until
+    // Edit assignment is filled from the row, which the save refetches without waiting for it; until
     // the refetch lands the row still holds no end date, and the dialog would open empty.
     await expect(row).toContainText('Until')
 
     // Emptying one segment of a saved date is flagged the same way: it never clears the date.
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
     await until.getByRole('spinbutton').nth(2).click()
     for (let digit = 0; digit < 4; digit++) await page.keyboard.press('Backspace')
     await dialog.getByRole('group', { name: 'Valid from', exact: true }).getByRole('spinbutton').first().click()
@@ -525,8 +525,8 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     await page.goto(`/app/users/${user.id}?tab=access`)
     const row = page.getByRole('row').filter({ hasText: displayName })
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
     await typeDay(page, 'Valid from', '2026-10-20')
     await typeDay(page, 'Valid until', '2026-10-10')
     await dialog.getByRole('button', { name: 'Save changes' }).click()
@@ -551,8 +551,8 @@ test.describe('validity days and diff-only edits (F-113, F-158)', () => {
     await page.goto(`/app/users/${user.id}?tab=access`)
     const row = page.getByRole('row').filter({ hasText: displayName })
     await row.getByRole('button', { name: 'Role actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit validity' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Edit validity' })
+    await page.getByRole('menuitem', { name: 'Edit assignment' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit role assignment' })
 
     await expect(dialog.getByRole('group', { name: 'Valid from', exact: true })).toBeVisible()
     await dialog.getByRole('button', { name: 'Open calendar for Valid until', exact: true }).click()

@@ -26,3 +26,13 @@ export async function openUserAction(page: Page, item: string): Promise<void> {
   await userActionsButton(page).click()
   await page.getByRole('menuitem', { name: item, exact: true }).click()
 }
+
+/**
+ * One row of a detail list (AppDetailList) by its label: the label, the value and the row's own
+ * explanation (an item's `description`), so a test can check they sit together.
+ */
+export function detailItem(scope: Page | Locator, label: string): Locator {
+  // The inner locator is matched inside each row, so it starts from the page, not the scope.
+  const page = 'goto' in scope ? scope : scope.page()
+  return scope.locator('dl > div').filter({ has: page.locator('dt').getByText(label, { exact: true }) })
+}
