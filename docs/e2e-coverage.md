@@ -47,6 +47,8 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - A minted API key is never used against the API (`X-API-Key`).
 - No live OAuth provider: provider round trips are mocked (F-150; checked per deployment in
   PRODUCTION.md).
+- Mocked OAuth accounts carry no `avatar_url`, so no spec sees the CSP block real provider
+  avatars (CAPABILITIES.md, "Deferred console follow-ups").
 - Moving an entity to the top level (a new organization) has no spec.
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.

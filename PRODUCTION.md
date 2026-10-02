@@ -1,7 +1,7 @@
 # Production gate
 
 The objective go/no-go for putting this console in front of real administrators: the cutover
-(P4) of each deployment from the earlier React console. A release of the console passes
+of each deployment from the earlier React console. A release of the console passes
 the gate when every item in sections 1–7 is **Met** or **Accepted** (a recorded owner decision
 that names its consequence). A deployment cuts over when the release has passed and its own
 checklist (section 9) is complete, and the owner has signed off (section 10).
@@ -53,7 +53,7 @@ committed). The deploy reads that record.
 | An unreachable or slow API never strands the admin (Retry, Sign out; 15-second timeout) | Met | `e2e/app/session-lifecycle.spec.ts` |
 | Session renewal is single-flight across tabs; only a refused refresh signs out, with the reason | Met | `e2e/session/session-lifecycle.spec.ts`, `e2e/app/session-refresh.spec.ts` |
 | A new deployment never breaks an open tab (missing chunks get real 404s, Nuxt reloads) | Met | `wrangler.toml`, `cloudflare/not-found-worker.js`, `e2e/static/static-build.spec.ts` |
-| Rollback | Per deployment | Redeploy the previous release commit with the same config (or roll back the Worker version); a deployment cutting over keeps its React console deployable (it remains in the repository history) until its sign-off says otherwise |
+| Rollback | Per deployment | Redeploy the previous release commit with the same config (or roll back the Worker version). A deployment cutting over from the React console keeps that console deployable from the source it was built from until its sign-off says otherwise: this repository holds the React console only as of the initial public release (`a4d7e84`), so a deployment running a later React build keeps that build's own source and build steps for rollback |
 | A refresh lost after the API rotated the token | Backend | Signs the browser out as token reuse; needs a grace window in outlabsAuth (ARCHITECTURE.md, "Session lifecycle") |
 
 ## 5. Observability
@@ -106,13 +106,23 @@ access unless the risk is accepted.
   `VITE_*` settings); update it for this console (`bun run dev` on port 3000, `NUXT_PUBLIC_*` in
   development only, `app-config.json` in production, `frontendProfileKey`, same-site OAuth)
   (F-235).
+- **Example seeds** (limit release-check coverage, not deployments): `permission:check` for
+  delegated admins (F-059), `membership:create_tree` on the seed's system-wide admin role, and
+  entity-scoped managers, subtree admins and a team lead as personas (F-037, F-041, F-243).
+- **Contract additions** behind Partial and Missing rows in CAPABILITIES.md: grantable roles and
+  scopes readable by delegated admins (F-079), role holder counts (F-112), names on grants the
+  admin cannot read (F-067, F-103), effective-permission sources with entity context (F-013,
+  F-239), move-target validation (F-076), no rotation of a suspended key (F-080), resend and
+  restore by delegated inviters (F-244), and failed sign-in data beyond wrong passwords.
 
 ## 9. Per-deployment cutover checklist
 
 Keep each deployment's answers in its own (private) records, not in this repository.
 
-1. The backend runs a supported outlabs-auth release and reports `api_contract_version`
-   `outlabs-auth.api/v1` (Settings shows it).
+1. The backend reports `api_contract_version` `outlabs-auth.api/v1` (Settings shows it). If it
+   runs another outlabs-auth release than the one in section 11 (0.1.0a34), a live sign-in and
+   the smoke in item 10 pass against it before cutover: the release check proves only the
+   release it ran against.
 2. The deployment's `app-config.json` lives outside this repository; `apiBaseUrl` is `https`;
    `frontendProfileKey` names a registered profile whose public origin is the console.
 3. The console is served at the root of its own hostname; if OAuth is enabled, on the same site
@@ -132,7 +142,8 @@ Keep each deployment's answers in its own (private) records, not in this reposit
 10. Smoke as a superuser and as the deployment's least-privileged admin: navigation matches what
     each may do; sign-out ends the session.
 11. Any deployment-specific CSP or hosting settings of the old React console are replaced; the
-    old console stays deployable for rollback (from the repository history).
+    old console stays deployable for rollback from the source the deployment built it from (this
+    repository keeps it only as of the initial public release, `a4d7e84`).
 12. The gaps in CAPABILITIES.md and section 8 that matter to this deployment are accepted in the
     sign-off.
 

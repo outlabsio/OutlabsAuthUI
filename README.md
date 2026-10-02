@@ -38,7 +38,8 @@ cp public/app-config.template.json public/app-config.json   # untracked; points 
 bun run dev                                                 # http://localhost:3000
 ```
 
-Sign in with an account from the example's seed. Point `apiBaseUrl` (and `authApiPrefix`) in
+Sign in with an account from the example's seed ([e2e/README.md](e2e/README.md) "Personas" lists
+them). Point `apiBaseUrl` (and `authApiPrefix`) in
 `public/app-config.json` at another backend to switch; `frontendProfileKey` must name a frontend
 profile that backend registers, or be removed for a backend without profiles
 ([configuration](#configuration)).
@@ -53,7 +54,6 @@ profile that backend registers, or be removed for a backend without profiles
 | [PRODUCTION.md](PRODUCTION.md) | The production gate and the per-deployment cutover checklist |
 | [docs/security-posture.md](docs/security-posture.md) | Token storage, headers, CSP, hosting and OAuth constraints |
 | [e2e/README.md](e2e/README.md), [docs/e2e-coverage.md](docs/e2e-coverage.md) | Running the E2E suite; what it covers |
-| [RBAC-UI-PLAN.md](RBAC-UI-PLAN.md) | Role, permission and validity-window decisions and components |
 
 ## Non-negotiables
 
@@ -72,11 +72,11 @@ profile that backend registers, or be removed for a backend without profiles
 
 ## Stack
 
-Nuxt 4 (`ssr: false`, static SPA) · @nuxt/ui v4 · Pinia · @pinia/colada · Zod 4 · Bun · Playwright · Wrangler → Cloudflare Workers.
+Nuxt 4 (`ssr: false`, static SPA) · @nuxt/ui v4 · Pinia · @pinia/colada · Zod 4 · Bun · Playwright · Vitest · Wrangler → Cloudflare Workers.
 
 ## Configuration
 
-### Runtime-targeted backend (A1)
+### Runtime-targeted backend
 
 One build, any backend. On boot, `app/plugins/00.runtime-config.client.ts` resolves the API
 target from `/app-config.json` and an optional inline global (`window.__OUTLABS_AUTH_UI_CONFIG__`),
@@ -153,7 +153,7 @@ inline global — resolution and normalization live in `app/utils/runtime-config
 | `magicLink` | `true` | Offer the magic-link alternate when the backend enables `magic_link`. |
 | `otpLength` | unset | Digits in a one-time code (4–12) for a backend that does not advertise `access_code_length`; otherwise the advertised value, else 6. |
 
-## Auth flows (F0–F4)
+## Auth flows
 
 All flows live under `/auth/` in the `auth` layout, are vanilla Nuxt UI, and funnel every
 token-returning path through `finalizeAuth()` (`app/queries/session.ts`).
@@ -218,6 +218,10 @@ bun run test:e2e:static  # Playwright against the generated artifact (needs E2E_
 bun run audit            # dependency advisories (reviewed allowlist)
 bun run release:check    # every release gate on this machine, recorded for the deploy ("Releasing")
 ```
+
+`bun run build` and `bun run preview` are Nuxt's stock scripts: `build` skips the CSP hashing
+(`scripts/csp-hashes.mjs`) and `preview` stages no `app-config.json` and applies no `_headers`.
+Build with `generate` and preview with `preview:static`.
 
 ## Building and deploying
 
@@ -362,7 +366,7 @@ app/
   app.config.ts              # the entire theme (amber / zinc + badge aliases)
   assets/css/main.css        # two @imports, nothing else
   plugins/00.runtime-config.client.ts   # boot: resolve config + hydrate session
-  utils/runtime-config.ts    # A1 config resolution (Zod; authUi normalization)
+  utils/runtime-config.ts    # boot config resolution (Zod; authUi normalization)
   api/client.ts              # the one API client (bearer, 401 refresh)
   api/errors.ts              # the error model (normalizeApiError: kind, code, field issues, copy)
   auth/tokens.ts             # localStorage token storage (only client auth state)
@@ -379,6 +383,10 @@ app/
 e2e/                         # Playwright — auth (guest) + app (authenticated)
 test/unit/                   # Vitest — pure logic, including the lint guardrail fixtures
 openapi/                     # checked-in OpenAPI snapshot of the outlabs-auth routes targeted
+scripts/                     # release check, deploy preflight, wrapper and account check, CSP hashes, static server, API type generation
+cloudflare/                  # the Worker that answers real 404s for missing assets
+public/                      # _headers, robots.txt, brand assets, app-config.template.json
+wrangler.toml                # Workers static-asset rules and a commented example deployment environment
 colada.options.ts            # global Pinia Colada defaults (freshness, transient read retry)
 eslint.config.mjs            # lint, including the layer and styling guardrails
 eslint-rules/                # the local `console` lint rules (styling)
@@ -395,14 +403,48 @@ Copy the **users** vertical — it is the reference: `queries/users.ts` (list qu
 mutations that call `invalidateAfter(domain)`), `schemas/user.ts`, the feature composables and
 `pages/app/users/`. Follow the definition of done in [AGENTS.md](AGENTS.md).
 
-## Status
+## Status and resuming work
 
-- What works, partly works or is missing, per backend capability: [CAPABILITIES.md](CAPABILITIES.md).
-- **Cutover** (P4): this console replaces the earlier React console, which is no longer in the
-  repository (it remains in the history for rollback). Each deployment that still runs it cuts
-  over once the gate in [PRODUCTION.md](PRODUCTION.md) has passed and the owner has signed off
-  there.
-- **Extract** (P5): the console as a reusable dashboard starting point, after P4.
+Active development is paused as of 2026-10-02, at a releasable state. Whoever picks it up next
+starts here.
+
+- **Last release check:** passed on 2026-10-02 at `f8141f9`, the cutover commit, against the
+  outlabsAuth examples on outlabs-auth 0.1.0a34, both presets, Chromium only
+  ([PRODUCTION.md](PRODUCTION.md) section 11). The record (`.release/gate.json`) stays on the
+  machine that ran it and is valid for 7 days; any later commit, documentation included, needs
+  its own `bun run release:check` before it can deploy.
+- **Deployments:** none has cut over and no sign-off is recorded (PRODUCTION.md section 10). A
+  deployment still on the earlier React console cuts over with the checklist in PRODUCTION.md
+  section 9. This repository keeps the React console only as it was at the initial public
+  release (`a4d7e84`); a deployment running a later React build rolls back from that build's own
+  source.
+- **What works:** [CAPABILITIES.md](CAPABILITIES.md), per backend capability.
+
+Open work, in the order it matters for a first cutover:
+
+1. **Backend changes in outlabsAuth** (PRODUCTION.md section 8). Organization scoping of the
+   entity, membership, permission-check and orphaned-account routes and of account creation
+   blocks console access for delegated admins unless a deployment accepts the risk; the rest
+   (sessions, published policy, write versioning, audit coverage, key status, OAuth, example
+   seeds, contract additions) is recorded there. The backend's console-integration guide still
+   describes the React console.
+2. **Per-deployment checks** (PRODUCTION.md section 9), notably a live sign-in against the
+   outlabs-auth release the deployment runs when it is not 0.1.0a34, and same-site hosting where
+   OAuth is on.
+3. **Light-mode colour contrast** (F-032, an owner decision): primary buttons and some status
+   text fail WCAG AA. The documented fix overrides theme CSS variables, which AGENTS.md forbids
+   without that decision, so the axe contrast rule stays off until it is made.
+4. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
+   Chromium were not run at the last release; one flaky spec was never reproduced; about 22
+   dialogs are outside the axe sweep; there is no bundle-size budget.
+5. **Deferred console follow-ups:** 19 low-severity items, listed in CAPABILITIES.md
+   ("Deferred console follow-ups").
+6. **Not started:** extracting the console as a reusable dashboard starting point.
+
+To resume: read [AGENTS.md](AGENTS.md); start both seeded example backends
+([e2e/README.md](e2e/README.md) "Backends"); run `bun run release:check --enterprise <url>
+--simple <url>` on a clean tree to confirm the baseline still passes; then take the next item
+above, with a spec for every behaviour change.
 
 ## License
 

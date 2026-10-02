@@ -307,6 +307,10 @@ One protocol, owned by the client and the session queries; features never handle
   search answering, a refetch) hands that row's elements to another record, and closing the
   dialog cannot return focus to the button that opened it (useDialogReturnFocus finds it
   detached). The other record tables still key by position; key them when they are next touched.
+- **An active-only list needs an "Include inactive" (or "Include ended") control as soon as the
+  UI can deactivate through it**, or a suspended row vanishes with no way to see or undo it (hit
+  twice: entity members, then direct role memberships). Check for this whenever a suspend or
+  status action joins an existing list.
 
 ## Display kit
 Shared building blocks for showing server data. Reach for these instead of hand-writing
@@ -762,8 +766,12 @@ Zod) is the only form system.
   form-field bus (`formBusInjectionKey` / `formFieldInjectionKey` from
   `#ui/composables/useFormField`), its integration point for custom inputs but not a documented
   export: recheck it on every Nuxt UI upgrade (the dialog-kit E2E "a calendar pick re-validates its
-  field" fails if it breaks).
-- **Conventions** — "Create <noun>" for the trigger, title and submit of a create dialog; "Save
+  field" fails if it breaks). Never a native `<input type="date">`. A calendar pick closes its
+  popover in a macrotask (`setTimeout 0`) so the surrounding UModal is not dismissed mid-click.
+  Never pass a text `placeholder` to UInputDate: the prop is a DateValue and a string crashes it
+  (`defaultPlaceholder.copy is not a function`); say "leave empty for no expiry" in the help text
+  instead.
+- **Conventions** — one dialog per action; "Create <noun>" for the trigger, title and submit of a create dialog; "Save
   changes" for edits; "<Verb> <noun>" for destructive buttons; setting-style booleans are a
   `USwitch` inside a `UFormField` with a label and description; lists are `UInputTags`; reset
   create dialogs on every open.
@@ -981,7 +989,10 @@ Dated, append-only. Superseded decisions stay with their status changed.
 ## Status
 
 What is built is tracked only in [CAPABILITIES.md](./CAPABILITIES.md); readiness for production
-in [PRODUCTION.md](./PRODUCTION.md); history in `git log`. Verify with `bun run typecheck && bun run typecheck:tests && bun run lint
+in [PRODUCTION.md](./PRODUCTION.md); where the work stands and how to resume it in README
+"Status and resuming work". The console's development history was squashed into the cutover
+commit (`f8141f9`), so `git log` does not explain earlier choices: the dated Decisions above and
+PRODUCTION.md section 11 do. Verify with `bun run typecheck && bun run typecheck:tests && bun run lint
 && bun run test:unit`, then E2E against a seeded example backend. The harness detects the preset
 from `/auth/config` and signs the seed personas in through the API, so the backend URL is the
 only required setting:
@@ -992,6 +1003,18 @@ Test data is removed afterwards only when `E2E_ALLOW_DESTRUCTIVE_CLEANUP=1` is s
 backend is a disposable development instance (globalTeardown; scoped to the run's own records).
 `e2e/README.md` is the canonical guide: personas, capability gating, the static-build target,
 the session-lifecycle lane and cleanup rules.
+
+A long-lived dev tab that survived many hot reloads can throw errors from stale cached modules
+that are not in the code (seen: `defaultPlaceholder.copy is not a function`, `ENTITIES_ROOT is not
+defined`); open a fresh tab before chasing them. Typecheck, lint and a fresh-server E2E run (its
+error guard fails on any console error) are the source of truth.
+
+Labels in code comments come from the original build plan and the 2026-09 audit, neither of
+which is published: `P0`–`P5` are build phases (P2 the resource verticals, P4 the per-deployment
+cutover), `A1` the runtime-targeted backend and capability discovery, `F0`–`F4` the sign-in
+surfaces (F0 the `authUi` config, F1 unified sign-in, F2 phone sign-in, F3 signup and phone
+verification, F4 recovery), `WP-NN` the audit's work packages, and `F-NNN` and `v-…` its
+findings. Each comment states its point in place; the label is only a cross-reference.
 
 ## References
 - [Pinia Colada — Queries](https://pinia-colada.esm.dev/guide/queries.html) · [Reusable Queries (`defineQuery`)](https://pinia-colada.esm.dev/advanced/reusable-queries.html) · [Mutations](https://pinia-colada.esm.dev/guide/mutations.html)

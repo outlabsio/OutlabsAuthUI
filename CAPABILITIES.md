@@ -1,8 +1,8 @@
 # Capability matrix
 
 What the console does with each capability an outlabsAuth backend offers. This is the one
-source of truth for "is it built?": README, ARCHITECTURE and RBAC-UI-PLAN link here instead of
-keeping their own lists. It replaced a parity list against the former React console: the target
+source of truth for "is it built?": README and ARCHITECTURE link here instead of keeping their
+own lists. It replaced a parity list against the former React console: the target
 is the backend's capability, not the retired React screens.
 
 **Status**
@@ -17,7 +17,9 @@ is the backend's capability, not the retired React screens.
 **Preset**: *Both* = EnterpriseRBAC and SimpleRBAC; *Enterprise* = only EnterpriseRBAC mounts it
 (the console hides it elsewhere, proven by `e2e/app/simple-rbac-gating.spec.ts`).
 **Evidence** paths are relative to the repository root. **F-** numbers are the finding
-identifiers of the 2026-09 production audit, also used in code comments and spec titles.
+identifiers of the 2026-09 production audit, also used in code comments and spec titles. The
+audit report is not published: each row states its gap in place, and ARCHITECTURE.md "Status"
+explains the other labels found in comments.
 
 Last verified: 2026-10-02 at the cutover by `bun run release:check`, the run recorded in
 PRODUCTION.md section 11 with the suite results. Update this file in the same commit as any change
@@ -55,11 +57,11 @@ that makes a row untrue.
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
 | Profile: name and phone | Both | Built | `e2e/account/account-workspace.spec.ts` | |
-| E-mail change | Both | Not supported | — | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). |
+| E-mail change | Both | Not supported | — | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). An admin can still change their own sign-in e-mail from Users (Deferred console follow-ups). |
 | Phone verification | Both | Built | `e2e/account/phone-verify.spec.ts`, `e2e/auth/signup.spec.ts` | |
 | Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | Accounts without a password see a form they cannot complete; the backend does not say whether one is set (F-098, backend). |
 | Own sessions: list, revoke one, sign out everywhere | Both | Partial | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This device" is inferred from the refresh token's issue time; other devices keep their access tokens until expiry (F-030, F-157, backend). |
-| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts` | Mocked provider; a failed link lands on the API's own error page (F-104, backend). |
+| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts` | Mocked provider; a failed link lands on the API's own error page (F-104, backend). A provider avatar (`avatar_url`) is blocked by the shipped CSP, so the row loses the provider icon (Deferred console follow-ups). |
 | My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them (F-103, backend). |
 
 ## Users
@@ -195,3 +197,37 @@ that makes a row untrue.
 | OAuth with console and API on different sites | Not supported | — | Same-site hosting required (docs/security-posture.md). |
 | Error reporting and telemetry | Not supported | — | Owner decision: no external error reporting. |
 | Bundle size budget | Missing | — | PRODUCTION.md gate item. |
+
+## Deferred console follow-ups
+
+Low-severity console issues found in the 2026-10-02 QA pass and deferred. Re-check each against
+the current code before fixing; fix it with a spec, then delete its line.
+
+- **OAuth avatars:** Users and Connected accounts render a remote `avatar_url` (the OAuth
+  provider's picture), which the shipped CSP blocks (a CSP violation, and the provider icon is
+  lost). Bind an avatar only for a same-origin or `data:` URL; never widen `img-src`.
+- **One-time codes:** code entry (sign-in, access code, recovery, phone verification) is outside
+  UForm + Zod + UFormField; a wrong code is reported only in a toast.
+- **Settings:** "Activity tracking" says account events are recorded for the audit log, but the
+  flag is always on and is not about the audit log.
+- **Dashboard:** "Failed sign-ins" (last 24 hours) counts only wrong passwords on existing,
+  unlocked accounts (relabel it; the rest is a backend data gap); count tiles are links named only
+  by their title, so the number is not announced.
+- **Shell:** the command palette's "Go to" list and the user menu order sections differently from
+  the sidebar.
+- **Guest pages:** developer-facing default copy; set-password forms have no reveal toggle and no
+  way back.
+- **Users:** Edit profile marks names Optional, but the backend refuses clearing one (and allows
+  100 characters, the form 120); an admin can change their own sign-in e-mail from Users,
+  bypassing the read-only e-mail decision (F-193); SimpleRBAC shows organization and membership
+  wording in user dialogs and notices; the same lifecycle action reads differently on the list and
+  the detail page; terms differ between them ("Organization" and "Root entity", "Last sign-in" and
+  "Last login"); the Overview profile card separates the access-scope explanation from its field
+  and splits first and last name across rows; Reset password states no password rules (Add user
+  does); initial focus differs across user dialogs (only Invite focuses its first field); a direct
+  role's "Edit validity" also suspends or activates the assignment without saying so; Invite's
+  entity-or-direct-roles choice sits beside Email, and changing it silently clears the chosen
+  roles.
+- **Permission picker:** shows the base action for `_tree` permissions, so `create` and
+  `create_tree` look alike.
+- **API keys:** key-creation copy repeats within each dialog and differs between pages.

@@ -9,19 +9,20 @@ live in the documents listed under "Read next".
 A generic, runtime-configured admin console. One static build points at any outlabsAuth
 backend through `app-config.json` and adapts to what that backend mounts (`/auth/config`:
 preset, surfaces, features, sign-in methods). It names no consumer and holds no consumer
-configuration. Nuxt runs with `ssr: false`; there is no server code.
+configuration. Nuxt runs with `ssr: false`; there is no server code. Active development is
+paused since 2026-10-02; README "Status and resuming work" says where the work stands and what
+is open.
 
 ## Read next
 
 | Document | Read it when |
 |---|---|
-| [README.md](README.md) | setting up, configuring a deployment, building, deploying |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | writing any code: layers, session lifecycle, shared kits, per-area notes |
+| [README.md](README.md) | setting up, configuring a deployment, building, deploying; where the work stands ("Status and resuming work") |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | writing any code: layers, session lifecycle, shared kits (including roles, permissions and validity windows), per-area notes |
 | [CAPABILITIES.md](CAPABILITIES.md) | deciding what to build next or claiming something works |
 | [PRODUCTION.md](PRODUCTION.md) | anything about release, cutover or production readiness |
 | [docs/security-posture.md](docs/security-posture.md) | tokens, headers, CSP, hosting, OAuth |
 | [e2e/README.md](e2e/README.md) and [docs/e2e-coverage.md](docs/e2e-coverage.md) | writing or running tests |
-| [RBAC-UI-PLAN.md](RBAC-UI-PLAN.md) | showing or picking roles, permissions or validity windows |
 
 ## Commands (Bun, never npm)
 
