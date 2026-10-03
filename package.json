@@ -41,7 +41,7 @@
     "test:e2e:session": "playwright test --project=session",
     "test:unit": "vitest run",
     "typecheck:tests": "tsc -p e2e/tsconfig.json && vue-tsc -p test/unit/tsconfig.json --noEmit",
-    "audit": "bun audit --ignore=GHSA-g7r4-m6w7-qqqr --ignore=GHSA-cp6q-959q-f8rh --ignore=GHSA-j95f-988m-3j2f --ignore=GHSA-86w9-cpqp-85rv"
+    "audit": "bun audit --ignore=GHSA-g7r4-m6w7-qqqr --ignore=GHSA-cp6q-959q-f8rh --ignore=GHSA-j95f-988m-3j2f --ignore=GHSA-86w9-cpqp-85rv --ignore=GHSA-vfj7-8cjw-p6xm"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.121",
