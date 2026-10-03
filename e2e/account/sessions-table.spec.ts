@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../support/fixtures'
 import { apiUrl } from '../support/env'
-import { accessTokenStatus, mintAnotherSession, mintFreshSession, readSessionTokens, refreshTokenStatus } from '../support/sessions'
+import { accessTokenStatus, loginTokens, mintAnotherSession, mintFreshSession, readSessionTokens, refreshTokenStatus } from '../support/sessions'
 import { jsonResponse } from '../support/mocks'
 import { TEST_PASSWORD } from '../support/api-client'
 
@@ -70,15 +70,11 @@ test.describe('sessions table', () => {
   })
 
   test('user detail identifies each session by device, IP, last activity and expiry', async ({ page, api }) => {
-    // One API password login (the only one in this spec) with a browser user agent, so the row
-    // has a known device. Invite-accepted sessions record no user agent or IP.
+    // One API password login with a browser user agent, so the row has a known device
+    // (invite-accepted sessions record no user agent or IP). It waits out the login limiter like
+    // every harness login: a bare request failed the test whenever the limiter's window was full.
     const user = await api.createUser({ kind: 'sessions-detail' })
-    const login = await fetch(apiUrl('/auth/login'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': CHROME_ON_MAC },
-      body: JSON.stringify({ email: user.email, password: TEST_PASSWORD })
-    })
-    expect(login.ok, `login for ${user.email}`).toBe(true)
+    await loginTokens(user.email, TEST_PASSWORD, { userAgent: CHROME_ON_MAC })
     const [session] = await api.get<UserSession[]>(`/users/${user.id}/sessions`)
     expect(session?.user_agent).toBe(CHROME_ON_MAC)
 

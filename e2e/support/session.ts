@@ -51,7 +51,7 @@ export async function deleteTestUser(user: TestUser | undefined) {
 }
 
 // One password login through the API (counts against the backend's login limiter).
-// A refusal by the login limiter is waited out once (support/login-limiter.ts).
+// A refusal by the login limiter is waited out (support/login-limiter.ts).
 export async function apiLogin(email: string, password = TEST_PASSWORD): Promise<Tokens> {
   const res = await loginWithinLimiter(() => fetch(`${apiBase}/auth/login`, {
     method: 'POST',

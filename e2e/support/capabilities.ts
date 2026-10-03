@@ -236,7 +236,7 @@ export async function withoutSurfaces(page: Page, surfaces: string[]) {
 // Specs that need an isolated session for a persona (one whose refresh rotation must not touch
 // the shared minted storage state) log it in ONCE through the API and seed its tokens into a
 // fresh context (the login limiter is IP-bucketed, so never log in per test; a refusal is waited
-// out once, support/login-limiter.ts).
+// out, support/login-limiter.ts).
 
 export type PersonaTokens = { accessToken: string, refreshToken: string }
 

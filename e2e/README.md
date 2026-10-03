@@ -71,16 +71,21 @@ reused instead of logging in again (`E2E_REUSE_SESSIONS=0` forces fresh logins).
 backends allow 20 password logins per 5 minutes per IP; a run spends one per persona plus the
 few UI sign-in specs, so consecutive runs no longer lock the suite out. Where the backend has no
 dev invite or magic-link capture (SimpleRBAC), every disposable session is a password login too,
-so an API login the limiter refuses waits the seconds the API names (extending that test's
-timeout) and is tried once more (`support/login-limiter.ts`): a fast run slows down instead of
-failing.
+so an API login the limiter refuses is tried again every 15 seconds until the limiter admits it,
+for up to eleven minutes, extending that test's timeout by each wait
+(`support/login-limiter.ts`): a fast run slows down instead of failing. The examples' window is
+fixed (it opens with its first login) and every refusal names all of its 300 seconds, so a single
+wait of that length could be refused again by a window other workers had already filled; trying
+every few seconds reaches the next window as it opens. Every API password login of the harness
+and the specs goes through that helper; a bare `POST /auth/login` fails its test whenever the
+window is full.
 
-Expect that wait on SimpleRBAC. A full run right after a reseed spends more than 20 logins (the
-personas, including the provisioned `globalAdmin`, plus every disposable session), so a few
-session tests (for example "signs out from the collapsed sidebar" and the session-lifecycle
-lane) each wait up to about five minutes for the window to reopen. Other workers keep running
-meanwhile, so the whole SimpleRBAC static run still takes about eight minutes. EnterpriseRBAC
-mints disposable sessions through the invite capture and stays under the limit. Helpers that need an
+Expect those waits on SimpleRBAC. A full run right after a reseed spends several windows' worth
+of logins (the personas, including the provisioned `globalAdmin`, plus every disposable session),
+so session tests (for example "signs out from the collapsed sidebar" and the session-lifecycle
+lane) wait for a window to reopen, up to about five minutes each. Other workers keep running
+meanwhile, but the whole SimpleRBAC static run takes longer than EnterpriseRBAC's, which mints
+disposable sessions through the invite capture and stays under the limit. Helpers that need an
 admin token (`apiLogin` in `support/passwordless-capture.ts`, `personaToken`) resolve a persona's
 email to its minted session and spend no login.
 

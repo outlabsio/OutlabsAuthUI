@@ -11,7 +11,7 @@ import { loginWithinLimiter } from './login-limiter'
 // The backend's password-login limiter is small (the example apps allow 20 per 5 minutes per
 // IP), so every login here is deliberate: personas are minted once per run in globalSetup,
 // and only tests that must own a session (the session-lifecycle lane) log in themselves. A login
-// the limiter refuses waits it out once (support/login-limiter.ts).
+// the limiter refuses waits until it is admitted (support/login-limiter.ts).
 
 export type SessionTokens = { access_token: string, refresh_token: string }
 
