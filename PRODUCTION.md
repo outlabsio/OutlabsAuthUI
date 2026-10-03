@@ -68,7 +68,7 @@ committed). The deploy reads that record.
 | Requirement | Status | Evidence |
 |---|---|---|
 | Lists page on the server and never load unbounded data | Met | CAPABILITIES.md list rows; `e2e/permissions/permissions-list-state.spec.ts`, `e2e/users/users-list.spec.ts` |
-| A bundle-size budget enforced by the release check | Open | No budget yet. Baseline at the release commit in section 11; propose failing `generate` (and so `release:check`) when the shipped JavaScript grows past it by more than 10% |
+| A bundle-size budget enforced by the release check | Met | `bundle-budget.json` holds the baseline (2,343,028 bytes of JavaScript under `.output/public/_nuxt`, measured at `018b6d6`) and a 10% allowance. `release:check` runs the `bundle-budget` step after `generate`, records the size in `.release/gate.json` (`bundle`) and fails past the limit; `bun run check:bundle` runs it alone (`scripts/lib/bundle-budget.mjs`, `test/unit/bundle-budget.test.ts`). Raising the baseline is a reviewed change to that file |
 
 ## 7. Capability and documentation
 

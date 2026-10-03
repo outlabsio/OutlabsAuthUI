@@ -22,6 +22,7 @@
     "lint:guardrails": "vitest run test/unit/lint-guardrails.test.ts",
     "gen:api-types": "node scripts/gen-api-types.mjs",
     "check:api-types": "node scripts/gen-api-types.mjs --check",
+    "check:bundle": "node scripts/bundle-budget.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",

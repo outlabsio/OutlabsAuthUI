@@ -30,6 +30,7 @@ export const REQUIRED_STEPS = [
   'check:api-types',
   'audit',
   'generate',
+  'bundle-budget',
   'backends',
   ...GATE_PRESETS.map(({ key }) => `e2e:${key}`),
   'tree-unchanged'

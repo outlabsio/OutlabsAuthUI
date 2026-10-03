@@ -20,8 +20,8 @@
 // preset's suite. Other inherited E2E_* settings are dropped (scripts/lib/release-gate.mjs).
 //
 // Steps, in order, stopping at the first failure: a clean tree; bun install --frozen-lockfile;
-// typecheck; typecheck:tests; lint; test:unit; check:api-types; audit; generate; both backends
-// answer /auth/config with their preset; the whole Playwright suite on the static target per
+// typecheck; typecheck:tests; lint; test:unit; check:api-types; audit; generate; the shipped
+// JavaScript within bundle-budget.json; both backends answer /auth/config with their preset; the whole Playwright suite on the static target per
 // preset in release mode (E2E_RELEASE=1: one retry, a flaky test fails, .only fails); HEAD and
 // the tree unchanged. The record is written whatever the outcome (passed: false on any failure);
 // the exit code is 0 only when everything passed.
@@ -32,6 +32,14 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import {
+  BUDGET_FILE,
+  BUILD_ASSETS_DIR,
+  checkBundleBudget,
+  describeBundle,
+  measureJavaScript,
+  parseBudget
+} from './lib/bundle-budget.mjs'
 import { headSha, uncommittedPaths } from './lib/git-state.mjs'
 import {
   checkBackendConfig,
@@ -160,6 +168,7 @@ const record = {
   },
   backends: {},
   steps: [],
+  bundle: null,
   e2e: {}
 }
 
@@ -229,7 +238,7 @@ function run(command, args, env = process.env) {
 
 const stepNames = [
   'clean-tree', 'install', 'typecheck', 'typecheck:tests', 'lint', 'test:unit', 'check:api-types', 'audit', 'generate',
-  'backends', ...backends.map(({ key }) => `e2e:${key}`), 'tree-unchanged'
+  'bundle-budget', 'backends', ...backends.map(({ key }) => `e2e:${key}`), 'tree-unchanged'
 ]
 const notes = new Map()
 let failure = null
@@ -315,6 +324,20 @@ await step('test:unit', 'bun run test:unit', command('bun', ['run', 'test:unit']
 await step('check:api-types', 'bun run check:api-types', command('bun', ['run', 'check:api-types']))
 await step('audit', 'bun run audit (reviewed allowlist in package.json)', command('bun', ['run', 'audit']))
 await step('generate', 'bun run generate (static build and CSP script hashes)', command('bun', ['run', 'generate']))
+await step('bundle-budget', `shipped JavaScript within ${BUDGET_FILE}`, () => {
+  const budget = parseBudget(JSON.parse(readFileSync(path.join(root, BUDGET_FILE), 'utf8')))
+  const measured = measureJavaScript(path.join(root, BUILD_ASSETS_DIR))
+  const result = checkBundleBudget(measured, budget)
+  record.bundle = {
+    javascript_files: measured.files,
+    javascript_raw_bytes: measured.rawBytes,
+    javascript_gzip_bytes: measured.gzipBytes,
+    baseline_bytes: budget.baselineBytes,
+    limit_bytes: result.limitBytes
+  }
+  notes.set('bundle-budget', describeBundle(measured, budget, result))
+  return result.ok || `the shipped JavaScript is over its budget: ${describeBundle(measured, budget, result)}; trim it, or raise the baseline in ${BUDGET_FILE} as a reviewed change`
+})
 
 // c. Both backends answer, each with its own preset.
 await step('backends', `GET <url>${authApiPrefix}/auth/config on both backends`, async () => {

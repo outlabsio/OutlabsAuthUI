@@ -271,11 +271,13 @@ There is no hosted CI. A release is checked on the releasing machine with `bun r
 
 The check stops at the first failure. In order: no uncommitted changes; `bun install
 --frozen-lockfile`; `typecheck`; `typecheck:tests`; `lint`; `test:unit`; `check:api-types`;
-`audit`; `generate`; each backend answers `GET <url>/v1/auth/config` with its own preset (another
-prefix with `--auth-prefix`); then the whole Playwright suite on the generated static build
-against each backend in release mode (`E2E_RELEASE=1`: one retry, a test that passes only on
-retry fails, `.only` fails), with `E2E_ALLOW_DESTRUCTIVE_CLEANUP=1`, so point it at disposable
-backends only. Both presets gate a release.
+`audit`; `generate`; the shipped JavaScript within `bundle-budget.json` (also `bun run
+check:bundle` after a `generate`; raising its baseline is a reviewed change); each backend answers
+`GET <url>/v1/auth/config` with its own preset (another prefix with `--auth-prefix`); then the
+whole Playwright suite on the generated static build against each backend in release mode
+(`E2E_RELEASE=1`: one retry, a test that passes only on retry fails, `.only` fails), with
+`E2E_ALLOW_DESTRUCTIVE_CLEANUP=1`, so point it at disposable backends only. Both presets gate a
+release.
 
 - `--browsers firefox,webkit,mobile-chrome` adds the cross-browser smoke and the phone-sized
   lane (`E2E_BROWSERS`; install them once with `bunx playwright install firefox webkit`).
