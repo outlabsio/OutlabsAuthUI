@@ -152,9 +152,10 @@ A host that injects `window.__OUTLABS_AUTH_UI_CONFIG__` inline must add that scr
 
 `app/middleware/auth.global.ts`, the navigation filter and every hidden or disabled button are
 user experience. They run in the browser and anyone can bypass them. The backend must check
-every request. Where the console limits a delegated admin and the backend does not (entity and
-membership routes, account creation; CAPABILITIES.md), the gap is a backend defect, not a
-console guarantee.
+every request. outlabs-auth 0.1.0a35, the release the console requires, scopes the entity and
+membership routes and account creation to the admin's organization; wherever the console still
+limits a delegated admin and the backend does not (CAPABILITIES.md, PRODUCTION.md section 8),
+the gap is a backend defect, not a console guarantee.
 
 ## Review checklist for changes in this area
 

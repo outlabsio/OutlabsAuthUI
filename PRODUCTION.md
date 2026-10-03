@@ -80,20 +80,34 @@ committed). The deploy reads that record.
 
 ## 8. Backend dependencies (outlabsAuth)
 
-Console work is done for these; they need library or example changes. None blocks a deployment
-whose admins are global administrators; the first group blocks giving delegated admins console
-access unless the risk is accepted.
+The console requires outlabs-auth 0.1.0a35 or later. That release closed the scoping gap that
+blocked delegated admins; the items below are what remains, and what it added that the console
+does not use yet.
 
-- **Authorization scoping** (blocks delegated admins): scope entity, membership, permission-check
-  and orphaned-account routes and account creation to the admin's organization (F-020, F-039,
-  F-040, F-012, F-161, F-162).
-- **Sessions**: identify the current session, keep it on "sign out others", blacklist access
+- **Authorization scoping** (resolved in 0.1.0a35, DD-061): entity, membership, permission-check
+  and orphaned-account routes and account creation are scoped to the admin's organization (F-020,
+  F-039, F-040, F-012, F-161, F-162). Another tenant's entity answers 404 like a nonexistent one,
+  which the entity detail says; a delegated admin gets their organization's orphans. The console
+  still anchors delegated admins on their organization in the tree and pickers.
+- **Accounts holding a system-wide role** (0.1.0a35): a tenant admin may not change any account
+  with a direct system-wide role row, whatever its status (403). Nothing on a user row says so, so
+  the console still offers the change and shows the refusal; a field on the user record (or the
+  list) would let it hide those actions as it does for superusers.
+- **ABAC write refusals** (0.1.0a35): the condition routes refuse an invalid condition with 400
+  but forward only the message (`details.detail`), not the `details.reason`
+  (`invalid_abac_condition`) and `details.field` the release notes promise, so a refusal shows
+  above the form instead of on its field. The console validates the same rules first, so it does
+  not send such a condition.
+- **Sessions**: 0.1.0a35 marks the current session (`sid`, `is_current`) and keeps it on "sign out
+  others" (`keep_current`); the console does not use them yet. Still open: blacklisting access
   tokens on revoke in the examples, a refresh grace window (F-030, F-157).
-- **Published policy and state**: password policy and whether an account has a password, whether
-  messaging can deliver codes (F-097, F-098, F-099).
+- **Published policy and state**: 0.1.0a35 publishes the password policy and registration mode
+  in `/auth/config` and `has_password` on users; the console does not read them yet. Still open:
+  whether messaging can deliver codes (F-097, F-098, F-099).
 - **Integrity**: versions or ETags on writes (F-158), an atomic role permission-set change.
-- **Audit coverage**: role, permission, machine-key and entity lifecycle events and history
-  endpoints (F-092, F-241).
+- **Audit coverage**: 0.1.0a35 adds entity lifecycle events and role and permission history
+  endpoints (the console does not show the histories yet); machine-key events are still missing
+  (F-092, F-241).
 - **Key inventory status**: the entity key inventory (`GET /admin/entities/{id}/api-keys?status=`)
   filters on the stored status only, and outlabs-auth never stores `expired` (a key past its
   expiry date stays `active`). The console therefore offers no Expired filter and labels the
@@ -101,30 +115,34 @@ access unless the risk is accepted.
   keys that can no longer authenticate. An effective-status filter (expired, not in effect) would
   let the inventory list working keys only (v-keys-audit-01).
 - **OAuth**: an authorize variant reached by top-level navigation, so console and API need not
-  be same-site (F-150); the associate error redirect (F-104).
+  be same-site (F-150). 0.1.0a35 adds the associate error redirect (F-104), which the console
+  does not use yet.
 - **Docs**: the backend's console-integration guide still describes the React console (port 5173,
   `VITE_*` settings); update it for this console (`bun run dev` on port 3000, `NUXT_PUBLIC_*` in
   development only, `app-config.json` in production, `frontendProfileKey`, same-site OAuth)
   (F-235).
-- **Example seeds** (limit release-check coverage, not deployments): `permission:check` for
-  delegated admins (F-059), `membership:create_tree` on the seed's system-wide admin role, and
-  entity-scoped managers, subtree admins and a team lead as personas (F-037, F-041, F-243).
-- **Contract additions** behind Partial and Missing rows in CAPABILITIES.md: grantable roles and
-  scopes readable by delegated admins (F-079), role holder counts (F-112), names on grants the
-  admin cannot read (F-067, F-103), effective-permission sources with entity context (F-013,
-  F-239), move-target validation (F-076), no rotation of a suspended key (F-080), resend and
-  restore by delegated inviters (F-244), and failed sign-in data beyond wrong passwords (audit
-  events for unknown e-mails, locked accounts and wrong one-time codes, so the dashboard's
-  "Wrong passwords" tile could count every failed sign-in).
+- **Example seeds** (limit release-check coverage, not deployments): entity-scoped managers,
+  subtree admins and a team lead as personas (F-037, F-041, F-243). The 0.1.0a35 seeds give the
+  delegated admins `permission:check` (F-059) and hold every lifecycle state.
+- **Contract additions** behind Partial and Missing rows in CAPABILITIES.md: grantable roles
+  readable by delegated admins (F-079; 0.1.0a35 adds the service-account grantable scopes, which
+  the console does not use yet: its direct-scope picker applies the default policy), role holder
+  counts (F-112), names on grants the admin cannot read (F-067, F-103), effective-permission
+  sources with entity context (F-013, F-239), move-target validation (F-076), no rotation of a
+  suspended key (F-080), resend and restore by delegated inviters (F-244), and failed sign-in data
+  beyond wrong passwords (audit events for unknown e-mails, locked accounts and wrong one-time
+  codes, so the dashboard's "Wrong passwords" tile could count every failed sign-in).
 
 ## 9. Per-deployment cutover checklist
 
 Keep each deployment's answers in its own (private) records, not in this repository.
 
-1. The backend reports `api_contract_version` `outlabs-auth.api/v1` (Settings shows it). If it
-   runs another outlabs-auth release than the one in section 11 (0.1.0a34), a live sign-in and
-   the smoke in item 10 pass against it before cutover: the release check proves only the
-   release it ran against.
+1. The backend runs outlabs-auth 0.1.0a35 or later (Settings shows the library version) and
+   reports `api_contract_version` `outlabs-auth.api/v1`. The console requires 0.1.0a35: earlier
+   releases leave entity, membership and orphaned-account routes unscoped for delegated admins
+   and accept ABAC conditions the engine cannot evaluate. If it runs another release than the one
+   in section 11, a live sign-in and the smoke in item 10 pass against it before cutover: the
+   release check proves only the release it ran against.
 2. The deployment's `app-config.json` lives outside this repository; `apiBaseUrl` is `https`;
    `frontendProfileKey` names a registered profile whose public origin is the console. Its
    branding (`appName`, `appSubtitle`, `signInDescription`, `authBrand`, the logo) speaks for the

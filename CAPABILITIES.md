@@ -39,7 +39,7 @@ that makes a row untrue.
 | Accept an invitation | Both | Built | `e2e/auth/passwordless-verify.spec.ts`, `e2e/auth/link-landings.spec.ts`, `e2e/auth/auth-flows.spec.ts` | The full round trip (invite, open the link, set a password, signed in) is proven on EnterpriseRBAC only: it reads the invite token from the example backend's dev capture, which SimpleRBAC does not mount. On SimpleRBAC, `auth-flows` proves the page (set-password form, invalid link). |
 | Frontend profile key (`app`) | Both | Built | `e2e/auth/frontend-profile.spec.ts` | A wrong key is explained on sign-in. |
 | Rate limits and resend cooldowns | Both | Built | `e2e/auth/sign-in-steps.spec.ts`, `e2e/app/api-errors.spec.ts` | |
-| Password policy | Both | Partial | `e2e/account/account-workspace.spec.ts` | Mirrors the library's default policy; the backend does not publish its policy (F-097, backend). |
+| Password policy | Both | Partial | `e2e/account/account-workspace.spec.ts` | Mirrors the library's default policy. 0.1.0a35 publishes the policy in `/auth/config` (`password_policy`); the console does not read it yet (F-097, console follow-up). |
 | Sign-in for suspended and locked accounts | Both | Built | `e2e/auth/seeded-accounts.spec.ts` | Locked accounts get the backend's generic refusal by design. |
 
 ## Session lifecycle
@@ -59,10 +59,10 @@ that makes a row untrue.
 | Profile: name and phone | Both | Built | `e2e/account/account-workspace.spec.ts` | |
 | E-mail change | Both | Not supported | `e2e/users/user-profile.spec.ts` | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). Users › Edit profile shows an admin's own sign-in e-mail read-only and never sends it. |
 | Phone verification | Both | Built | `e2e/account/phone-verify.spec.ts`, `e2e/auth/signup.spec.ts` | |
-| Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | Accounts without a password see a form they cannot complete; the backend does not say whether one is set (F-098, backend). |
-| Own sessions: list, revoke one, sign out everywhere | Both | Partial | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This device" is inferred from the refresh token's issue time; other devices keep their access tokens until expiry (F-030, F-157, backend). |
-| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts`, `e2e/static/static-build.spec.ts` | Mocked provider; a failed link lands on the API's own error page (F-104, backend). Rows show the provider's icon: a provider picture (`avatar_url`) on another host is never loaded, as the CSP allows same-origin and `data:` images only. |
-| My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them (F-103, backend). |
+| Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | Accounts without a password see a form they cannot complete. 0.1.0a35 says whether one is set (`has_password`); the console does not use it yet (F-098, console follow-up). |
+| Own sessions: list, revoke one, sign out everywhere | Both | Partial | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This device" is inferred from the refresh token's issue time; 0.1.0a35 marks it (`is_current`, `keep_current`), which the console does not use yet (F-030, console follow-up). Other devices keep their access tokens until expiry (F-157, backend). |
+| Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts`, `e2e/static/static-build.spec.ts` | Mocked provider; a failed link lands on the API's own error page: 0.1.0a35 can redirect it back with `link_error`, which the console does not handle yet (F-104, console follow-up). Rows show the provider's icon: a provider picture (`avatar_url`) on another host is never loaded, as the CSP allows same-origin and `data:` images only. |
+| My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them; 0.1.0a35 memberships carry them (`entity_name`, `role_names`), which the console does not use yet (F-103, console follow-up). |
 
 ## Users
 
@@ -91,7 +91,7 @@ that makes a row untrue.
 | Entity memberships: add, edit, reactivate, remove, include ended | Enterprise | Built | `e2e/users/user-memberships.spec.ts`, `e2e/entities/entity-members.spec.ts` | |
 | Effective permissions with their source role | Both | Partial | `e2e/users/user-access.spec.ts` | The backend names one source role per permission and no entity context (F-013, backend). |
 | Check access (`POST /permissions/check`) | Both | Partial | `e2e/users/user-access.spec.ts` | `permission:check` is missing from the example seed, so only superusers get it there (F-059, backend seed). |
-| Role names on grants the admin cannot read | Both | Partial | — | Read "Unknown role" until membership responses carry names (F-067, backend); no spec. |
+| Role names on grants the admin cannot read | Both | Partial | — | Read "Unknown role"; 0.1.0a35 membership responses carry `role_names`, which the console does not use yet (F-067, console follow-up); no spec. |
 
 ## Entities (EnterpriseRBAC)
 
@@ -118,7 +118,7 @@ that makes a row untrue.
 | Archive (typed name, effects, own-access warning) | Both | Partial | `e2e/roles/roles-workspace.spec.ts`, `e2e/roles/org-admin-roles.spec.ts` | Holder count needs the backend (F-112). |
 | Duplicate a system role as a custom role | Both | Built | `e2e/roles/roles-workspace.spec.ts` | |
 | ABAC conditions and groups | Both | Built | `e2e/app/abac-conditions.spec.ts` | |
-| Role definition history | Both | Missing | — | Recorded by the backend, not exposed by any endpoint (F-092, backend). |
+| Role definition history | Both | Missing | — | 0.1.0a35 exposes it (`GET /roles/{id}/history`); the console does not show it yet (F-092, console follow-up). |
 
 ## Permissions
 
@@ -128,7 +128,7 @@ that makes a row untrue.
 | Create, edit, archive custom permissions | Both | Built | `e2e/permissions/permissions-workspace.spec.ts` | System permissions are read-only. |
 | ABAC conditions and groups | Both | Built | `e2e/app/abac-conditions.spec.ts` | |
 | Resource picked from existing resources | Both | Missing | — | Validated text input (F-073). |
-| Permission definition history | Both | Missing | — | Backend endpoint absent (F-092). |
+| Permission definition history | Both | Missing | — | 0.1.0a35 exposes it (`GET /permissions/{id}/history`); the console does not show it yet (F-092, console follow-up). |
 
 ## Personal API keys
 
@@ -147,7 +147,7 @@ that makes a row untrue.
 |---|---|---|---|---|
 | List, search, status filter; account page | Both | Built | `e2e/service-accounts/service-accounts.spec.ts` | `/app/users/api-keys` redirects to `/app/service-accounts`. |
 | Create (role-backed), edit, deactivate, reactivate, archive | Both | Built | `e2e/service-accounts/service-accounts.spec.ts`, `e2e/service-accounts/org-admin-service-accounts.spec.ts` | Platform scope for superusers only on EnterpriseRBAC. |
-| Direct scopes | Both | Partial | `e2e/service-accounts/service-accounts.spec.ts` | A client mirror of the backend's default allowlist; needs a grantable-scopes endpoint (F-079, backend). |
+| Direct scopes | Both | Partial | `e2e/service-accounts/service-accounts.spec.ts` | A client mirror of the backend's default allowlist; 0.1.0a35 adds the grantable-scopes endpoints, which the console does not use yet (F-079, console follow-up). |
 | Keys: create, edit, suspend, reactivate, rotate, revoke | Both | Built | `e2e/service-accounts/service-accounts.spec.ts` | |
 | Replace an expired machine key | Both | Missing | — | Personal keys have "Create replacement"; machine keys do not. |
 | Key inventory: search, kind and status filters, owner in rows and detail, revoke | Enterprise | Partial | `e2e/service-accounts/service-accounts.spec.ts`, `e2e/api-keys/key-status.spec.ts` | No owner filter yet. The status filter is the stored status, so "Active (includes expired)" lists keys past their expiry (each badged Expired) and there is no Expired filter: the server cannot filter on the effective state (backend). |

@@ -25,9 +25,11 @@ What it covers:
 ## Quick start
 
 You need [Bun](https://bun.sh) 1.3.3 or later and Node.js 22.18 or later, and a running
-outlabs-auth backend. The public outlabsAuth repository ships two seeded example apps,
-EnterpriseRBAC and SimpleRBAC; its
-[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a34/examples#quick-start)
+outlabs-auth backend: the console requires outlabs-auth 0.1.0a35 or later (its tenant-scoped
+routes, ABAC write validation and example seeds are what the console and its suite are built
+against). The public outlabsAuth repository ships two seeded example apps, EnterpriseRBAC and
+SimpleRBAC; its
+[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a35/examples#quick-start)
 sets them up (PostgreSQL, optionally Redis): migrate and seed with `reset_test_env.py`, then
 `uvicorn main:app --port 8004` (any free port; the guides here use 8004 for EnterpriseRBAC and
 8003 for SimpleRBAC). Both examples allow the console on `http://localhost:3000`.
@@ -254,7 +256,7 @@ There is no hosted CI. A release is checked on the releasing machine with `bun r
 
 1. Start the two seeded example backends from the public outlabsAuth repository, EnterpriseRBAC
    and SimpleRBAC, each with its own database and port, as its
-   [examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a34/examples#quick-start)
+   [examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a35/examples#quick-start)
    describes: migrate and seed with `reset_test_env.py`, then `uvicorn main:app --port <port>`
    (e2e/README.md "Backends"). Both examples allow the console on port 3000.
 2. Commit your changes: the check refuses uncommitted changes.
@@ -426,15 +428,15 @@ starts here.
 
 Open work, in the order it matters for a first cutover:
 
-1. **Backend changes in outlabsAuth** (PRODUCTION.md section 8). Organization scoping of the
-   entity, membership, permission-check and orphaned-account routes and of account creation
-   blocks console access for delegated admins unless a deployment accepts the risk; the rest
-   (sessions, published policy, write versioning, audit coverage, key status, OAuth, example
-   seeds, contract additions) is recorded there. The backend's console-integration guide still
-   describes the React console.
-2. **Per-deployment checks** (PRODUCTION.md section 9), notably a live sign-in against the
-   outlabs-auth release the deployment runs when it is not 0.1.0a34, and same-site hosting where
-   OAuth is on.
+1. **Backend changes in outlabsAuth** (PRODUCTION.md section 8). outlabs-auth 0.1.0a35, the
+   release the console requires, scopes the entity, membership, permission-check and
+   orphaned-account routes and account creation to the admin's organization (DD-061); what is
+   still open (write versioning, key status, OAuth navigation, the console-integration guide,
+   contract additions) and what 0.1.0a35 added that the console does not use yet are recorded
+   there.
+2. **Per-deployment checks** (PRODUCTION.md section 9), notably that the deployment's backend
+   runs outlabs-auth 0.1.0a35 or later, a live sign-in against it when it is not the release the
+   last check ran against, and same-site hosting where OAuth is on.
 3. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
    Chromium were not run at the last release; one flaky spec was never reproduced; about 22
    dialogs are outside the axe sweep; there is no bundle-size budget.
