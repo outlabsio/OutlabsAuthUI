@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '~/api/errors'
-import { changePasswordSchema, profileSchemaFor } from '~/schemas/account'
+import { changePasswordSchemaFor, profileSchemaFor } from '~/schemas/account'
+import { LIBRARY_DEFAULT_POLICY } from '~/utils/password-policy'
 import { activeUntil, changePasswordFieldErrors, isSessionNotBoundError, myAccessScopeSummary, phoneChannelsText } from '~/utils/account'
 import { passwordPolicyError, passwordRequirementsSummary } from '~/utils/auth-messages'
 import type { DirectRoleGrant } from '~/utils/role-access'
@@ -78,8 +79,9 @@ describe('profileSchemaFor', () => {
   })
 })
 
-describe('changePasswordSchema', () => {
+describe('changePasswordSchemaFor', () => {
   const valid = { current_password: 'Old-pass1!', new_password: 'New-pass1!', confirm_password: 'New-pass1!' }
+  const changePasswordSchema = changePasswordSchemaFor(LIBRARY_DEFAULT_POLICY)
 
   it('accepts a new password under the default policy', () => {
     expect(changePasswordSchema.safeParse(valid).success).toBe(true)
@@ -87,9 +89,15 @@ describe('changePasswordSchema', () => {
 
   it('mirrors the default policy, the confirmation and a password different from the current one', () => {
     const paths = (input: typeof valid) => changePasswordSchema.safeParse(input).error?.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`)
-    expect(paths({ ...valid, new_password: 'longenough1', confirm_password: 'longenough1' })).toContain('new_password: Add an uppercase letter.')
+    expect(paths({ ...valid, new_password: 'longenough1', confirm_password: 'longenough1' })).toContain('new_password: Add an uppercase letter (A to Z).')
     expect(paths({ ...valid, confirm_password: 'Other-pass1!' })).toEqual(['confirm_password: Passwords must match.'])
     expect(paths({ ...valid, new_password: 'Old-pass1!', confirm_password: 'Old-pass1!' })).toEqual(['new_password: Choose a password different from your current one.'])
+  })
+
+  it('follows the published policy', () => {
+    const noSymbol = changePasswordSchemaFor({ ...LIBRARY_DEFAULT_POLICY, require_special_char: false })
+    expect(noSymbol.safeParse({ ...valid, new_password: 'Newpass12', confirm_password: 'Newpass12' }).success).toBe(true)
+    expect(changePasswordSchema.safeParse({ ...valid, new_password: 'Newpass12', confirm_password: 'Newpass12' }).success).toBe(false)
   })
 })
 

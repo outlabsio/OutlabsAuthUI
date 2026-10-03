@@ -1,12 +1,14 @@
 import { z } from 'zod'
 import { accountNameText, dateInput, emailText, newAccountNameText, reasonText, requiredText } from '~/schemas/common'
-import { newPasswordSchema } from '~/schemas/auth-flows'
+import { newPasswordSchemaFor } from '~/schemas/auth-flows'
+import type { PasswordPolicy } from '~/types/auth'
 import { NO_ROOT_ORG } from '~/utils/users'
 
 // The users area's dialog forms (AppFormDialog + UForm :schema). confirm_password is validated
 // (must match) but never sent. The organization and the invite entity are part of the form, so
 // "required" reads on the field like every other rule; the `*SchemaFor` builders take the
-// actor-dependent rules (newUserRootChoice / inviteEntityRule in utils/users.ts).
+// actor-dependent rules (newUserRootChoice / inviteEntityRule in utils/users.ts) and, for a
+// password, the backend's published policy (usePasswordPolicy).
 
 // Names of a new account: optional, at most the API's 100 characters.
 const nameField = newAccountNameText
@@ -16,11 +18,11 @@ export type CreateUserRules = {
   rootRequired: boolean
 }
 
-export function createUserSchemaFor(rules: CreateUserRules) {
+export function createUserSchemaFor(rules: CreateUserRules, policy: PasswordPolicy) {
   return z
     .object({
       email: emailText,
-      password: newPasswordSchema,
+      password: newPasswordSchemaFor(policy),
       confirm_password: z.string(),
       first_name: nameField,
       last_name: nameField,
@@ -37,8 +39,7 @@ export function createUserSchemaFor(rules: CreateUserRules) {
     })
 }
 
-export const createUserSchema = createUserSchemaFor({ rootRequired: false })
-export type CreateUserSchema = z.output<typeof createUserSchema>
+export type CreateUserSchema = z.output<ReturnType<typeof createUserSchemaFor>>
 
 export type InviteUserRules = {
   // A delegated admin's invite must create a membership they can see the account through.
@@ -66,20 +67,22 @@ export function inviteUserSchemaFor(rules: InviteUserRules) {
 export const inviteUserSchema = inviteUserSchemaFor({ entityRequired: false })
 export type InviteUserSchema = z.output<typeof inviteUserSchema>
 
-// Admin password reset — new password + confirmation (confirm isn't sent, just validated). The
-// same rules as every other new password in the console (newPasswordSchema); the server's own
-// policy answer lands on the field when it is stricter.
-export const resetPasswordSchema = z
-  .object({
-    new_password: newPasswordSchema,
-    confirm_password: z.string()
-  })
-  .refine(data => data.new_password === data.confirm_password, {
-    message: 'Passwords do not match.',
-    path: ['confirm_password']
-  })
+// Admin password reset (or a first password for an account without one) — new password +
+// confirmation (confirm isn't sent, just validated), under the backend's published policy like
+// every other new password in the console; the server's own refusal still lands on the field.
+export function resetPasswordSchemaFor(policy: PasswordPolicy) {
+  return z
+    .object({
+      new_password: newPasswordSchemaFor(policy),
+      confirm_password: z.string()
+    })
+    .refine(data => data.new_password === data.confirm_password, {
+      message: 'Passwords do not match.',
+      path: ['confirm_password']
+    })
+}
 
-export type ResetPasswordSchema = z.output<typeof resetPasswordSchema>
+export type ResetPasswordSchema = z.output<ReturnType<typeof resetPasswordSchemaFor>>
 
 // Change status (F-062, F-208). `suspendedUntil` is a day ('' = until reactivated) and matters
 // only for a suspension. A new end day may not be in the past; the stored day may stay as it is

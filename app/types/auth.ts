@@ -70,9 +70,18 @@ export type PasswordlessSignIn = {
 // The signed-in identity (GET /users/me): the user response with the statuses the console handles.
 export type SessionUser = Narrow<ResponseBody<Schemas['UserResponse']>, { status: UserStatusValue }>
 
+// The password rules the backend enforces on every password write (GET /auth/config
+// `password_policy`); utils/password-policy.ts mirrors them.
+export type PasswordPolicy = ResponseBody<Schemas['PasswordPolicyResponse']>
+
+// How new accounts appear (GET /auth/config `registration_mode`): public self-registration,
+// invitations only, or accounts an administrator creates.
+export type RegistrationMode = Schemas['AuthConfigResponse']['registration_mode']
+
 // Capability discovery — the UI adapts to what the mounted deployment exposes (A1). Kept by hand
-// on purpose: it must also read older library versions (optional keys, available_permissions),
-// while the snapshot's AuthConfigResponse types `features` as an open object.
+// on purpose: the snapshot's AuthConfigResponse types `features` as an open object, and the keys
+// the console can work without stay optional, so a partial answer (or a test's served config)
+// falls back to a safe default instead of failing typecheck at every use.
 export type AuthConfig = {
   preset: string
   library_version?: string
@@ -90,14 +99,21 @@ export type AuthConfig = {
     invitations: boolean
     magic_links?: boolean
     access_codes?: boolean
+    // Self-registration on (registration_mode 'open').
+    registration?: boolean
+    self_service_email_change?: boolean
   }
   auth_methods?: {
     password: boolean
     magic_link?: boolean
     access_code?: boolean
   }
-  // Digits in a one-time code, when the library version advertises it (not yet in 0.1.0a34).
+  // Digits in a one-time code (sign-in codes and phone verification).
   access_code_length?: number
+  registration_mode?: RegistrationMode
+  password_policy?: PasswordPolicy | null
+  // PATCH /users/me may change the e-mail (with current_password). The console has no such form.
+  self_service_email_change?: boolean
 }
 
 // Every paginated list endpoint answers with this envelope (PaginatedResponse_<Item>_ in the

@@ -8,7 +8,7 @@ import {
   useRevokeSession,
   type RevokeOtherSessionsOutcome
 } from '~/queries/account'
-import type { ChangePasswordSchema } from '~/schemas/account'
+import { changePasswordSchemaFor, type ChangePasswordSchema } from '~/schemas/account'
 import type { UserSession } from '~/types/account'
 import { changePasswordFieldErrors } from '~/utils/account'
 import { sessionDeviceLabel } from '~/utils/user-agent'
@@ -17,10 +17,16 @@ import { sessionDeviceLabel } from '~/utils/user-agent'
 //
 // - A password change ends every session of the account on the server, this one included; the
 //   console signs this browser in again with the new password, or signs it out with the reason
-//   when that fails (F-029). Field answers (wrong current password, the server's password
-//   policy) land on their fields, never only in a toast (F-097). An account that cannot sign in
-//   with a password at all (the server has password sign-in off) has no password card; one that
-//   cannot remember its current password gets a reset link (F-098).
+//   when that fails (F-029). The new password is checked against the backend's published policy,
+//   which the field states (usePasswordPolicy); field answers (wrong current password, the
+//   server's own policy refusal) land on their fields, never only in a toast (F-097). An account
+//   that cannot sign in with a password at all (the server has password sign-in off) has no
+//   password card; one that cannot remember its current password gets a reset link (F-098).
+// - An account without a password (`has_password` false: invited, OAuth-only, magic-link-only)
+//   cannot change one: outlabs-auth 0.1.0a35 requires the current password and has no endpoint
+//   that sets a first one. Its card is "Set a password", whose only action emails the reset link
+//   (forgot-password works for an account without a password); without an e-mail address it says
+//   to ask an administrator, who can set one (F-098).
 // - Sessions: the server marks this browser's row (`is_current`), which offers Sign out; other
 //   rows are revoked after a confirmation naming the device. "Sign out other devices" ends every
 //   other session and keeps this one; "Sign out everywhere" confirms that it also ends this
@@ -35,10 +41,16 @@ export function useAccountSecurity() {
   const { run } = useApiAction()
   const toast = useToast()
   const { passwordEnabled } = useAuthUiConfig()
+  const { policy, hint: passwordHelp } = usePasswordPolicy()
   const { signOut, signingOut } = useSignOut()
 
   // --- Password ---
-  const passwordForm = useTemplateRef<ActionForm>('passwordForm')
+  // A missing field (a partial record) reads as a password that is set: the change form, whose
+  // wrong-password answer still lands on its field.
+  const hasPassword = computed(() => user.value?.has_password !== false)
+  const passwordForm = useTemplateRef<ActionForm & RecheckableForm>('passwordForm')
+  const passwordSchema = computed(() => changePasswordSchemaFor(policy.value))
+  useRecheckOnSchemaChange(passwordForm, passwordSchema)
   const passwordState = reactive<ChangePasswordSchema>({ ...EMPTY_PASSWORD })
   // Bound as the UForm's key: a successful change remounts the form empty. Resetting the state
   // alone is not enough: UForm validates a typed-in field 300 ms after its last input, so when the
@@ -155,6 +167,9 @@ export function useAccountSecurity() {
 
   return {
     passwordEnabled,
+    hasPassword,
+    passwordSchema,
+    passwordHelp,
     passwordState,
     passwordFormKey,
     changingPassword,

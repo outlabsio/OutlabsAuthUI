@@ -225,11 +225,13 @@ describe('checkApiContract', () => {
 
 describe('capability labels (F-186)', () => {
   it('labels every reported feature once, known ones first in table order', () => {
-    const list = featureList({ invitations: true, abac: false, entity_hierarchy: true, shiny_new_thing: true })
+    const list = featureList({ invitations: true, abac: false, entity_hierarchy: true, shiny_new_thing: true, registration: true, self_service_email_change: false })
     expect(list.map(f => [f.label, f.on])).toEqual([
       ['Entity hierarchy', true],
       ['Attribute conditions (ABAC)', false],
       ['Invitations', true],
+      ['Self-registration', true],
+      ['Self-service email change', false],
       ['Shiny new thing', true]
     ])
     expect(featureList(null)).toEqual([])

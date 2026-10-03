@@ -1,5 +1,6 @@
 import { expect, test } from '../support/fixtures'
 import { expectAccessible } from '../support/a11y'
+import { patchAuthConfig } from '../support/capabilities'
 
 // The accessibility gate on guest pages (F-138), in light and dark at 1440 and 390px
 // (support/a11y.ts). Pages that need a token get a made-up one: the gate covers the form or
@@ -26,3 +27,11 @@ for (const { path, heading } of pages) {
     await expectAccessible(page)
   })
 }
+
+// Signup on a backend that takes no self-registration: the explanation in place of the form.
+test('no a11y violations on /auth/signup where sign-up is by invitation', async ({ page }) => {
+  await patchAuthConfig(page, config => ({ ...config, registration_mode: 'invite_only' }))
+  await page.goto('/auth/signup')
+  await expect(page.getByRole('heading', { name: 'Sign-up is by invitation' })).toBeVisible()
+  await expectAccessible(page)
+})

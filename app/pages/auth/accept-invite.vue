@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { PASSWORD_POLICY_HINT, setPasswordSchema } from '~/schemas/auth-flows'
-
 // Accept-invitation — logic in useAcceptInviteForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut, signOut, problem, signInTo } = useAcceptInviteForm()
+const { token, schema, passwordHelp, state, loading, onSubmit, invitationsOff, signedInAs, signingOut, signOut, problem, signInTo } = useAcceptInviteForm()
 </script>
 
 <template>
@@ -53,7 +51,7 @@ const { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut,
       />
       <UForm
         ref="form"
-        :schema="setPasswordSchema"
+        :schema="schema"
         :state="state"
         class="space-y-4"
         @submit="onSubmit"
@@ -61,7 +59,7 @@ const { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut,
         <UFormField
           name="new_password"
           label="Password"
-          :help="PASSWORD_POLICY_HINT"
+          :help="passwordHelp"
           required
         >
           <AppPasswordInput

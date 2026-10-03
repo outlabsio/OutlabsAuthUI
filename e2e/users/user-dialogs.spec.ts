@@ -1,6 +1,7 @@
+import type { Request } from '@playwright/test'
 import { backendConfigured, expect, test } from '../support/fixtures'
 import type { ApiEntity } from '../support/api-client'
-import { backendHasSurface, isEnterpriseBackend } from '../support/capabilities'
+import { backendHasSurface, isEnterpriseBackend, withPasswordPolicy } from '../support/capabilities'
 import { pickEntity } from '../support/entities'
 import { openUserAction } from '../support/users'
 
@@ -37,6 +38,47 @@ test.describe('user dialogs', () => {
     // As Add user does, instead of only after a refused submit (v-users-07).
     await expect(dialog.getByText(/^At least 8 characters, with an uppercase/)).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
+  })
+
+  // The passwords an admin sets follow the backend's published policy, stated under the field
+  // (F-097): a served 12-character policy without the symbol rule. Nothing is sent.
+  test('Add user and Reset password follow the served password policy', async ({ page, api }) => {
+    await withPasswordPolicy(page, { min_length: 12, require_special_char: false })
+    const writes: Request[] = []
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname
+      if ((request.method() === 'POST' && path.endsWith('/users/')) || (request.method() === 'PATCH' && path.endsWith('/password'))) writes.push(request)
+    })
+    const rules = 'At least 12 characters, with an uppercase and a lowercase letter and a digit.'
+
+    await page.goto('/app/users')
+    await page.getByRole('button', { name: 'Add user' }).click()
+    const create = page.getByRole('dialog', { name: 'Add user' })
+    await expect(create.getByText(rules, { exact: true })).toBeVisible()
+    await create.getByLabel('Email').fill('policy-check@example.com')
+    await create.getByLabel('Initial password').fill('Abcdefghij1')
+    await create.getByLabel('Confirm password').fill('Abcdefghij1')
+    await create.getByRole('button', { name: 'Create user' }).click()
+    await expect(create.getByText('Password must be at least 12 characters.')).toBeVisible()
+    // Twelve characters without a symbol meet this policy: the message goes as it is typed.
+    await create.getByLabel('Initial password').fill('Abcdefghij12')
+    await expect(create.getByText('Password must be at least 12 characters.')).toHaveCount(0)
+    await create.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('dialog', { name: 'Discard changes?' }).getByRole('button', { name: 'Discard changes' }).click()
+    await expect(create).toBeHidden()
+
+    const user = await api.createUser({ kind: 'dialog-policy' })
+    await page.goto(`/app/users/${user.id}`)
+    await openUserAction(page, 'Reset password')
+    const reset = page.getByRole('dialog', { name: `Reset password of ${user.email}` })
+    await expect(reset.getByText(rules, { exact: true })).toBeVisible()
+    await reset.getByLabel('New password', { exact: true }).fill('Abcdefghij1')
+    await reset.getByLabel('Confirm password', { exact: true }).fill('Abcdefghij1')
+    await reset.getByRole('button', { name: 'Reset password' }).click()
+    await expect(reset.getByText('Password must be at least 12 characters.')).toBeVisible()
+    await reset.getByLabel('New password', { exact: true }).fill('Abcdefghij12')
+    await expect(reset.getByText('Password must be at least 12 characters.')).toHaveCount(0)
+    expect(writes, 'nothing is sent').toHaveLength(0)
   })
 
   test('the superuser grant names organizations only on EnterpriseRBAC', async ({ page, api }) => {

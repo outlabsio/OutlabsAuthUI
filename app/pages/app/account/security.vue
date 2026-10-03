@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { changePasswordSchema } from '~/schemas/account'
-import { PASSWORD_POLICY_HINT } from '~/schemas/auth-flows'
 import { cooldownLabel } from '~/utils/request-cooldown'
 
 // Account › Security — logic in useAccountSecurity; display only.
@@ -8,6 +6,9 @@ usePageMeta('Security')
 
 const {
   passwordEnabled,
+  hasPassword,
+  passwordSchema,
+  passwordHelp,
   passwordState,
   passwordFormKey,
   changingPassword,
@@ -35,7 +36,7 @@ const {
 <template>
   <!-- Password (F-029, F-097, F-098). Hidden where the server has password sign-in off. -->
   <UPageCard
-    v-if="passwordEnabled"
+    v-if="passwordEnabled && hasPassword"
     description="Changing your password signs out your other devices. This browser signs in again with the new password."
   >
     <template #title>
@@ -44,7 +45,7 @@ const {
     <UForm
       :key="passwordFormKey"
       ref="passwordForm"
-      :schema="changePasswordSchema"
+      :schema="passwordSchema"
       :state="passwordState"
       class="flex max-w-sm flex-col gap-4"
       @submit="onChangePassword"
@@ -60,7 +61,7 @@ const {
       <UFormField
         name="new_password"
         label="New password"
-        :help="PASSWORD_POLICY_HINT"
+        :help="passwordHelp"
         required
       >
         <AppPasswordInput
@@ -81,7 +82,7 @@ const {
       </div>
     </UForm>
     <div v-if="hasEmail" class="flex flex-wrap items-center gap-x-2 text-sm text-muted">
-      <span>Forgot your current password, or never had one?</span>
+      <span>Forgot your current password?</span>
       <UButton
         variant="link"
         color="primary"
@@ -92,6 +93,31 @@ const {
         @click="onSendResetLink"
       />
     </div>
+  </UPageCard>
+
+  <!-- An account without a password (has_password false) sets one through the emailed link:
+       outlabs-auth changes a password only with the current one (F-098). -->
+  <UPageCard
+    v-else-if="passwordEnabled"
+    :description="hasEmail
+      ? 'Your account signs in without a password. To add one, we email you a link to set it.'
+      : 'Your account signs in without a password.'"
+  >
+    <template #title>
+      <h2>Set a password</h2>
+    </template>
+    <div v-if="hasEmail">
+      <UButton
+        icon="i-lucide-mail"
+        :label="cooldownLabel('Email me a link to set a password', resetLinkCooldown)"
+        :loading="sendingResetLink"
+        :disabled="resetLinkCooldown > 0"
+        @click="onSendResetLink"
+      />
+    </div>
+    <p v-else class="text-sm text-muted">
+      Ask an administrator to set a password for you.
+    </p>
   </UPageCard>
 
   <!-- Sessions (F-030, F-094). -->

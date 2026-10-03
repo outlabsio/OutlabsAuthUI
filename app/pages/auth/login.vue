@@ -52,7 +52,7 @@ const {
   phoneChannels
 } = useSignInFlow()
 
-const { defaultCountry, signupEnabled } = useAuthUiConfig()
+const { defaultCountry, signupOffered } = useAuthUiConfig()
 const { withIntent } = useAuthIntent()
 const runtimeConfig = useState<RuntimeConfig | null>('app:runtime-config')
 </script>
@@ -160,7 +160,7 @@ const runtimeConfig = useState<RuntimeConfig | null>('app:runtime-config')
           <ULink v-if="accessCodeEnabled" :to="withIntent('/auth/access-code')" class="text-muted hover:text-default">
             I already have a code
           </ULink>
-          <ULink v-if="signupEnabled" :to="withIntent('/auth/signup')" class="text-muted hover:text-default">
+          <ULink v-if="signupOffered" :to="withIntent('/auth/signup')" class="text-muted hover:text-default">
             Create an account
           </ULink>
         </div>

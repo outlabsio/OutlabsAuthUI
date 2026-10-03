@@ -2,13 +2,15 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { SetPasswordSchema } from '~/schemas/auth-flows'
 import { describeAuthError } from '~/api/client'
 import { useResetPassword } from '~/queries/session'
+import { setPasswordSchemaFor } from '~/schemas/auth-flows'
 import { passwordPolicyError } from '~/utils/auth-messages'
 
 // Feature logic for the reset-password page (token from the URL). The SFC binds this and renders
 // (including the missing-token guard). The backend's password-policy refusal lands on the
 // password field; a dead link says so inline with a way to request a new one. Signed-in users
-// may open this page (phone recovery emails the link to a signed-in user). It expects
-// `ref="form"` on the UForm.
+// may open this page (phone recovery emails the link to a signed-in user). The new password is
+// checked against the backend's published policy, which the field states (usePasswordPolicy). It
+// expects `ref="form"` on the UForm.
 
 export function useResetPasswordForm() {
   const route = useRoute()
@@ -16,7 +18,10 @@ export function useResetPasswordForm() {
   const { withIntent } = useAuthIntent()
   const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
   const resetPassword = useResetPassword()
-  const form = useTemplateRef<{ setErrors: (errors: Array<{ name: string, message: string }>) => void }>('form')
+  const form = useTemplateRef<ActionForm & RecheckableForm>('form')
+  const { policy, hint: passwordHelp } = usePasswordPolicy()
+  const schema = computed(() => setPasswordSchemaFor(policy.value))
+  useRecheckOnSchemaChange(form, schema)
   const state = reactive<SetPasswordSchema>({ new_password: '', confirm_password: '' })
   const loading = ref(false)
   const linkProblem = ref('')
@@ -47,5 +52,5 @@ export function useResetPasswordForm() {
   // A way back for someone who opened the link by mistake (or remembered their password).
   const signInTo = computed(() => withIntent('/auth/login'))
 
-  return { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo }
+  return { token, schema, passwordHelp, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo }
 }

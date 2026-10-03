@@ -18,7 +18,8 @@ import {
   magicLinkFailure,
   oauthErrorMessage,
   oauthProviderLabel,
-  passwordPolicyError
+  passwordPolicyError,
+  signupClosedMessage
 } from '~/utils/auth-messages'
 import { PENDING_CHALLENGE_TTL_MS, parsePendingChallenge } from '~/auth/pending-challenge'
 import { PENDING_OAUTH_TTL_MS, parsePendingOAuth } from '~/auth/pending-oauth'
@@ -27,11 +28,12 @@ import {
   codeSchemaFor,
   E164_PHONE_RE,
   emailIdentifierSchema,
-  newPasswordSchema,
+  newPasswordSchemaFor,
   normalizePhone,
-  registerSchema,
-  setPasswordSchema
+  registerSchemaFor,
+  setPasswordSchemaFor
 } from '~/schemas/auth-flows'
+import { LIBRARY_DEFAULT_POLICY } from '~/utils/password-policy'
 import { resolveProductionRuntimeConfig } from '~/utils/runtime-config'
 import { ApiError } from '~/api/errors'
 
@@ -256,17 +258,44 @@ describe('phone country data', () => {
 
 describe('auth form schemas', () => {
   it('mirrors the backend default password policy', () => {
-    expect(newPasswordSchema.safeParse('Testpass1!').success).toBe(true)
+    const schema = newPasswordSchemaFor(LIBRARY_DEFAULT_POLICY)
+    expect(schema.safeParse('Testpass1!').success).toBe(true)
     for (const weak of ['short1!', 'testpass1!', 'TESTPASS1!', 'Testpass!!', 'Testpass11', 'My-long_pass1']) {
-      expect(newPasswordSchema.safeParse(weak).success, weak).toBe(false)
+      expect(schema.safeParse(weak).success, weak).toBe(false)
     }
+    // One message, the first rule the server would refuse.
+    expect(schema.safeParse('testpass').error?.issues.map(i => i.message)).toEqual(['Add an uppercase letter (A to Z).'])
+  })
+
+  it('accepts a backslash as the only symbol, as the server does', () => {
+    expect(newPasswordSchemaFor(LIBRARY_DEFAULT_POLICY).safeParse('Testpass1\\').success).toBe(true)
+  })
+
+  it('follows a published policy', () => {
+    const relaxed = { ...LIBRARY_DEFAULT_POLICY, min_length: 12, require_special_char: false }
+    expect(newPasswordSchemaFor(relaxed).safeParse('Testpassw0rd').success).toBe(true)
+    expect(newPasswordSchemaFor(relaxed).safeParse('Testpassw0r').error?.issues.map(i => i.message)).toEqual(['Password must be at least 12 characters.'])
   })
 
   it('checks the confirmation', () => {
-    const mismatch = setPasswordSchema.safeParse({ new_password: 'Testpass1!', confirm_password: 'Testpass2!' })
+    const mismatch = setPasswordSchemaFor(LIBRARY_DEFAULT_POLICY).safeParse({ new_password: 'Testpass1!', confirm_password: 'Testpass2!' })
     expect(mismatch.success).toBe(false)
     expect(mismatch.error?.issues.map(i => i.message)).toContain('Passwords must match.')
-    expect(registerSchema.safeParse({ email: 'new@example.com', password: 'Testpass1!', confirm_password: 'Testpass1!' }).success).toBe(true)
+    expect(registerSchemaFor(LIBRARY_DEFAULT_POLICY).safeParse({ email: 'new@example.com', password: 'Testpass1!', confirm_password: 'Testpass1!' }).success).toBe(true)
+    // A weak password and a mismatch are both reported.
+    const both = registerSchemaFor(LIBRARY_DEFAULT_POLICY).safeParse({ email: 'new@example.com', password: 'testpass1!', confirm_password: 'other' })
+    expect(both.error?.issues.map(i => i.path.join('.'))).toEqual(['password', 'confirm_password'])
+  })
+
+  it('explains a signup page on a backend without self-registration', () => {
+    expect(signupClosedMessage('invite_only')).toEqual({
+      title: 'Sign-up is by invitation',
+      description: 'Ask an administrator to invite you. The invitation email has a link to set your password.'
+    })
+    expect(signupClosedMessage('closed')).toEqual({
+      title: 'Accounts are created by an administrator',
+      description: 'Ask an administrator for an account.'
+    })
   })
 
   it('requires a valid email on the email identifier', () => {

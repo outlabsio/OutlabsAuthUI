@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { PasswordPolicy } from '~/types/auth'
+import { passwordPolicyProblem } from '~/utils/password-policy'
 
 // A4 — shared Zod schemas for the passwordless / recovery / invite auth forms.
 
@@ -72,39 +74,36 @@ export const emailPasswordSchema = z.object({
 })
 export type EmailPasswordSchema = z.output<typeof emailPasswordSchema>
 
-// ── New passwords (signup, invitation, reset) ──
+// ── New passwords (signup, invitation, reset, change, admin set) ──
 
-// Mirrors the backend's default policy (AuthConfig password_min_length 8, require_uppercase,
-// require_digit, require_special_char, plus lowercase in validate_password_strength). The
-// backend does not publish its policy yet, so a host with a stricter one still answers with
-// INVALID_PASSWORD, which the forms show on the password field (passwordPolicyError).
-export const PASSWORD_SPECIAL_CHARACTERS = '!@#$%^&*(),.?":{}|<>'
-export const PASSWORD_POLICY_HINT = 'At least 8 characters, with an uppercase and a lowercase letter, a digit and a symbol such as ! @ # $ % or &.'
-
-export const newPasswordSchema = z
-  .string()
-  .min(8, 'Password must be at least 8 characters.')
-  .max(128, 'Password must be at most 128 characters.')
-  .regex(/[A-Z]/, 'Add an uppercase letter.')
-  .regex(/[a-z]/, 'Add a lowercase letter.')
-  .regex(/\d/, 'Add a digit.')
-  .regex(/[!@#$%^&*(),.?":{}|<>]/, `Add a symbol (one of ${PASSWORD_SPECIAL_CHARACTERS}).`)
+// A new password under the backend's published policy (utils/password-policy.ts mirrors the
+// server's rules, order and counting). Every form that sets a password builds its schema from
+// the policy usePasswordPolicy() resolves; the server's own refusal (INVALID_PASSWORD) still
+// lands on the field (passwordPolicyError).
+export function newPasswordSchemaFor(policy: PasswordPolicy) {
+  return z.string().superRefine((value, ctx) => {
+    const problem = passwordPolicyProblem(value, policy)
+    if (problem) ctx.addIssue({ code: 'custom', message: problem })
+  })
+}
 
 // ── Signup (F3) ──
 
-export const registerSchema = z
-  .object({
-    email: z.string().trim().min(1, 'Email is required.').email('Enter a valid email address.'),
-    first_name: z.string().trim().max(100).optional(),
-    last_name: z.string().trim().max(100).optional(),
-    password: newPasswordSchema,
-    confirm_password: z.string()
-  })
-  .refine(value => value.password === value.confirm_password, {
-    path: ['confirm_password'],
-    message: 'Passwords must match.'
-  })
-export type RegisterSchema = z.output<typeof registerSchema>
+export function registerSchemaFor(policy: PasswordPolicy) {
+  return z
+    .object({
+      email: z.string().trim().min(1, 'Email is required.').email('Enter a valid email address.'),
+      first_name: z.string().trim().max(100).optional(),
+      last_name: z.string().trim().max(100).optional(),
+      password: newPasswordSchemaFor(policy),
+      confirm_password: z.string()
+    })
+    .refine(value => value.password === value.confirm_password, {
+      path: ['confirm_password'],
+      message: 'Passwords must match.'
+    })
+}
+export type RegisterSchema = z.output<ReturnType<typeof registerSchemaFor>>
 
 // ── One-time codes (sign-in, access code, recovery, phone verification) ──
 
@@ -122,13 +121,15 @@ export function codeSchemaFor(length: number) {
 export type CodeSchema = { code: number[] }
 
 // Used by both reset-password and accept-invite (set a brand-new password + confirm).
-export const setPasswordSchema = z
-  .object({
-    new_password: newPasswordSchema,
-    confirm_password: z.string()
-  })
-  .refine(value => value.new_password === value.confirm_password, {
-    path: ['confirm_password'],
-    message: 'Passwords must match.'
-  })
-export type SetPasswordSchema = z.output<typeof setPasswordSchema>
+export function setPasswordSchemaFor(policy: PasswordPolicy) {
+  return z
+    .object({
+      new_password: newPasswordSchemaFor(policy),
+      confirm_password: z.string()
+    })
+    .refine(value => value.new_password === value.confirm_password, {
+      path: ['confirm_password'],
+      message: 'Passwords must match.'
+    })
+}
+export type SetPasswordSchema = z.output<ReturnType<typeof setPasswordSchemaFor>>

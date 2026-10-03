@@ -2,7 +2,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import { breakpointsTailwind, createReusableTemplate, useBreakpoints } from '@vueuse/core'
 import type { UserListRow } from '~/composables/useUsersWorkspace'
-import { PASSWORD_POLICY_HINT } from '~/schemas/auth-flows'
 import { USER_STATUS_COLOR, statusLabel } from '~/utils/status'
 import { hideBelowMd, hideBelowSm, srOnlyHeader } from '~/utils/table'
 import { orphanMembershipSummary, userFullName, userHolds } from '~/utils/users'
@@ -42,6 +41,7 @@ const {
   createError,
   createState,
   createSchema,
+  passwordHelp,
   rootChoice,
   rootRequired,
   openCreate,
@@ -415,7 +415,7 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
         name="password"
         label="Initial password"
         required
-        :help="PASSWORD_POLICY_HINT"
+        :help="passwordHelp"
       >
         <AppPasswordInput
           v-model="createState.password"

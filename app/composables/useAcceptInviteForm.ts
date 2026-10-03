@@ -2,6 +2,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { SetPasswordSchema } from '~/schemas/auth-flows'
 import { describeAuthError } from '~/api/client'
 import { useAcceptInvite, useLogout } from '~/queries/session'
+import { setPasswordSchemaFor } from '~/schemas/auth-flows'
 import { passwordPolicyError } from '~/utils/auth-messages'
 import { isWrongApplicationError, wrongApplicationMessage } from '~/utils/frontend-profile'
 import { getRuntimeConfig } from '~/utils/runtime-config'
@@ -10,7 +11,8 @@ import { getRuntimeConfig } from '~/utils/runtime-config'
 // renders (including the missing-token guard).
 // - A backend with invitations turned off gets an explanation instead of a form that fails.
 // - A browser already signed in (as anyone) is asked before switching to the invited account.
-// - The backend's password policy refusal lands on the password field; a dead link says so.
+// - The password is checked against the backend's published policy, which the field states
+//   (usePasswordPolicy); the server's own refusal lands on the field; a dead link says so.
 // It expects `ref="form"` on the UForm.
 
 type InviteProblem = { title: string, description: string }
@@ -35,7 +37,10 @@ export function useAcceptInviteForm() {
   const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
   const acceptInvite = useAcceptInvite()
   const logout = useLogout()
-  const form = useTemplateRef<{ setErrors: (errors: Array<{ name: string, message: string }>) => void }>('form')
+  const form = useTemplateRef<ActionForm & RecheckableForm>('form')
+  const { policy, hint: passwordHelp } = usePasswordPolicy()
+  const schema = computed(() => setPasswordSchemaFor(policy.value))
+  useRecheckOnSchemaChange(form, schema)
   const state = reactive<SetPasswordSchema>({ new_password: '', confirm_password: '' })
   const loading = ref(false)
   const signingOut = ref(false)
@@ -70,5 +75,5 @@ export function useAcceptInviteForm() {
 
   const signInTo = computed(() => withIntent('/auth/login'))
 
-  return { token, state, loading, onSubmit, invitationsOff, signedInAs, signingOut, signOut, problem, signInTo }
+  return { token, schema, passwordHelp, state, loading, onSubmit, invitationsOff, signedInAs, signingOut, signOut, problem, signInTo }
 }

@@ -1,5 +1,5 @@
 import { normalizeApiError } from '~/api/errors'
-import type { AccessCodeChannel } from '~/types/auth'
+import type { AccessCodeChannel, RegistrationMode } from '~/types/auth'
 import { isWrongApplicationError, wrongApplicationMessage } from './frontend-profile'
 
 // Copy for the guest surface's specific failures: OAuth callback error codes, magic-link
@@ -90,6 +90,16 @@ export function oauthErrorMessage(code: string, frontendProfileKey?: string): Au
         description: 'Signing in with that provider did not work. Try again, or sign in another way.'
       }
   }
+}
+
+/**
+ * What the signup page says where the backend does not accept self-registration
+ * (registration_mode invite_only or closed): how someone gets an account there instead.
+ */
+export function signupClosedMessage(mode: Exclude<RegistrationMode, 'open'>): AuthMessage {
+  return mode === 'invite_only'
+    ? { title: 'Sign-up is by invitation', description: 'Ask an administrator to invite you. The invitation email has a link to set your password.' }
+    : { title: 'Accounts are created by an administrator', description: 'Ask an administrator for an account.' }
 }
 
 export type MagicLinkFailure = AuthMessage & {

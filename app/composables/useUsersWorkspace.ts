@@ -203,7 +203,9 @@ export function useUsersWorkspace() {
     : null))
   const rootChoice = computed(() => newUserRootChoice({ actorIsGlobal: isGlobal.value, anchoredRoot: ownRoot.value, roots: roots.value }))
   const rootRequired = computed(() => isEnterprise.value && rootChoice.value.required)
-  const createSchema = computed(() => createUserSchemaFor({ rootRequired: rootRequired.value }))
+  // The initial password follows the backend's published policy, stated under the field.
+  const { policy: passwordPolicy, hint: passwordHelp } = usePasswordPolicy()
+  const createSchema = computed(() => createUserSchemaFor({ rootRequired: rootRequired.value }, passwordPolicy.value))
   const blankCreate = (): CreateUserSchema => ({
     email: '',
     password: '',
@@ -383,6 +385,7 @@ export function useUsersWorkspace() {
     createError,
     createState,
     createSchema,
+    passwordHelp,
     rootChoice,
     rootRequired,
     openCreate,

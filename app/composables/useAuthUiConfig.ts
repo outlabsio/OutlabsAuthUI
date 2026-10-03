@@ -1,4 +1,4 @@
-import type { AccessCodeChannel } from '~/types/auth'
+import type { AccessCodeChannel, RegistrationMode } from '~/types/auth'
 import type { AuthUiConfig, RuntimeConfig } from '~/utils/runtime-config'
 import { oauthProviderLabel } from '~/utils/auth-messages'
 
@@ -48,12 +48,20 @@ export function useAuthUiConfig() {
   // Self-registration is a deployment choice. `false` closes the signup page entirely (route
   // middleware); the backend's /auth/register must be disabled on the server as well.
   const signupEnabled = computed(() => authUi.value.signup)
+  // And the backend's: how new accounts appear there. 'open' while unknown (the capabilities
+  // failed to load): the server refuses a registration it does not accept, and the signup page
+  // explains that refusal too.
+  const registrationMode = computed<RegistrationMode>(() => capabilities.value?.registration_mode ?? 'open')
+  // "Create an account" is offered only where both allow it. The deployment's choice wins: with
+  // `authUi.signup` false the page redirects to sign-in; otherwise an invite-only or closed
+  // backend gets the page's explanation instead of the form.
+  const signupOffered = computed(() => signupEnabled.value && registrationMode.value === 'open')
 
   // ISO country preselected in the phone country code.
   const defaultCountry = computed(() => authUi.value.defaultCountry)
 
-  // Digits in a one-time code: the backend's advertised access_code_length when a library
-  // version publishes it, else the deployment's authUi.otpLength, else the library default 6.
+  // Digits in a one-time code: the backend's access_code_length, else (capabilities unknown) the
+  // deployment's authUi.otpLength, else the library default 6.
   const otpLength = computed(() => capabilities.value?.access_code_length ?? authUi.value.otpLength ?? DEFAULT_OTP_LENGTH)
 
   return {
@@ -66,6 +74,8 @@ export function useAuthUiConfig() {
     oauthProviders,
     linkableOauthProviders,
     signupEnabled,
+    registrationMode,
+    signupOffered,
     defaultCountry,
     otpLength,
     providerLabel: oauthProviderLabel

@@ -1,6 +1,7 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
+import type { ApiUser } from '../support/api-client'
 import { onPath } from '../support/session'
-import { detailItem, userActionsButton } from '../support/users'
+import { detailItem, openUserAction, userActionsButton } from '../support/users'
 import { isEnterpriseBackend } from '../support/capabilities'
 import { openRowMenu } from '../support/lists'
 
@@ -66,9 +67,9 @@ test.describe('user detail profile', () => {
     expect(patches).toEqual([{ first_name: 'After' }])
   })
 
-  // Self-service email change is read-only by owner decision (F-193): outlabs-auth changes the
-  // sign-in email without re-authentication. Edit profile on one's own record keeps the names
-  // and the phone editable and shows the email read-only (v-users-02).
+  // Self-service email change is read-only by owner decision (F-193): the admin route changes the
+  // sign-in email without re-authentication, one's own included. Edit profile on one's own record
+  // keeps the names and the phone editable and shows the email read-only (v-users-02).
   test('on the admin\'s own record, Edit profile shows the sign-in email read-only', async ({ page, api }) => {
     const me = await api.me()
     await page.goto(`/app/users/${me.id}`)
@@ -119,6 +120,56 @@ test.describe('user detail profile', () => {
     } else {
       await expect(detailItem(card, 'Organization')).toHaveCount(0)
     }
+  })
+
+  // has_password (outlabs-auth 0.1.0a35): the Profile card says whether the account has a
+  // password, and an account without one is given one with Set password (F-098). An invited
+  // account sets its own by accepting the invitation, so it offers neither.
+  test('the Profile card says whether a password is set; an account without one offers Set password', async ({ page, api, requires, testData }) => {
+    await requires({ features: ['invitations'] })
+    const withPassword = await api.createUser({ kind: 'profile-pw' })
+    await page.goto(`/app/users/${withPassword.id}`)
+    await expect(detailItem(page, 'Password')).toContainText('Set')
+    await expect(detailItem(page, 'Password')).not.toContainText('Not set')
+    await userActionsButton(page).click()
+    await expect(page.getByRole('menuitem', { name: 'Reset password', exact: true })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Set password', exact: true })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+
+    const invitedEmail = testData.email('profile-invited')
+    const invited = await api.post<ApiUser>('/auth/invite', { email: invitedEmail })
+    await page.goto(`/app/users/${invited.id}`)
+    await expect(detailItem(page, 'Password')).toContainText('Not set (invitation pending)')
+    await userActionsButton(page).click()
+    await expect(page.getByRole('menuitem', { name: 'Resend invite' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: /^(Reset|Set) password$/ })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+
+    // An active account without a password (an invitation activated by an admin instead of
+    // accepted): Set password, which says what it changes instead of a reset's "signed out
+    // everywhere", and gives the account its password.
+    const passwordless = await api.post<ApiUser>('/auth/invite', { email: testData.email('profile-nopw') })
+    await api.patch(`/users/${passwordless.id}/status`, { status: 'active' })
+    await page.goto(`/app/users/${passwordless.id}`)
+    await expect(detailItem(page, 'Password')).toContainText('Not set')
+    await expect(detailItem(page, 'Password')).not.toContainText('invitation')
+    await openUserAction(page, 'Set password')
+    const dialog = page.getByRole('dialog', { name: `Set password of ${passwordless.email}` })
+    const effects = dialog.getByTestId('confirm-effects')
+    await expect(effects).toContainText(`${passwordless.email} can sign in with this password from now on.`)
+    await expect(effects).not.toContainText('signed out everywhere')
+    await expect(dialog.getByText(/^At least 8 characters, with an uppercase/)).toBeVisible()
+    await dialog.getByLabel('New password', { exact: true }).fill('First-pass1!')
+    await dialog.getByLabel('Confirm password', { exact: true }).fill('First-pass1!')
+    await dialog.getByRole('button', { name: 'Set password' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.getByText('Password set', { exact: true })).toBeVisible()
+    await expect.poll(async () => (await api.get<{ has_password: boolean }>(`/users/${passwordless.id}`)).has_password).toBe(true)
+    // The record is read again: it has a password now, and the menu resets it.
+    await expect(detailItem(page, 'Password')).not.toContainText('Not set')
+    await userActionsButton(page).click()
+    await expect(page.getByRole('menuitem', { name: 'Reset password', exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
   })
 
   test('the admin\'s own page offers no status change or password reset, and points to Account (F-063)', async ({ page, api }) => {

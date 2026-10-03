@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { PASSWORD_POLICY_HINT, setPasswordSchema } from '~/schemas/auth-flows'
-
 // Reset-password — logic in useResetPasswordForm; this file is display only.
 definePageMeta({ layout: 'auth' })
 
-const { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo } = useResetPasswordForm()
+const { token, schema, passwordHelp, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo } = useResetPasswordForm()
 </script>
 
 <template>
@@ -35,7 +33,7 @@ const { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo } 
       />
       <UForm
         ref="form"
-        :schema="setPasswordSchema"
+        :schema="schema"
         :state="state"
         class="space-y-4"
         @submit="onSubmit"
@@ -43,7 +41,7 @@ const { token, state, loading, onSubmit, linkProblem, requestLinkTo, signInTo } 
         <UFormField
           name="new_password"
           label="New password"
-          :help="PASSWORD_POLICY_HINT"
+          :help="passwordHelp"
           required
         >
           <AppPasswordInput

@@ -18,7 +18,9 @@ export const FEATURE_LABELS: Record<AuthFeature, CapabilityLabel> = {
   activity_tracking: { label: 'Activity tracking', description: 'Counts of active accounts per day, week and month.' },
   invitations: { label: 'Invitations', description: 'Invite people by email to set their own password.' },
   magic_links: { label: 'Magic links', description: 'Sign in with a one-time link sent by email.' },
-  access_codes: { label: 'Access codes', description: 'Sign in with a one-time code.' }
+  access_codes: { label: 'Access codes', description: 'Sign in with a one-time code.' },
+  registration: { label: 'Self-registration', description: 'People create their own accounts from the signup page.' },
+  self_service_email_change: { label: 'Self-service email change', description: 'Accounts change their own email with their current password. The console has no form for it.' }
 }
 
 export const SURFACE_LABELS: Record<AuthSurface, string> = {

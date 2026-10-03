@@ -172,7 +172,10 @@ One protocol, owned by the client and the session queries; features never handle
   request): the console renews once through the refresh lock (`renewAccessToken`, the same
   single-flight renewal as a refused request; a renewal adds the claim) and asks again. A second
   400 closes the dialog and the card explains it, offering Sign out everywhere. A reset with an
-  emailed token (`useResetPassword`) signs a signed-in browser out before the sign-in page.
+  emailed token (`useResetPassword`) signs a signed-in browser out before the sign-in page. An
+  account without a password (`has_password` false) has no change form: its Security card is
+  "Set a password", which emails the reset link (`useAccountResetLink`), since outlabs-auth
+  0.1.0a35 changes a password only with the current one.
   "This browser" in a sessions table is the server's `is_current` (the row of the session the
   request's access token names); the console makes no guess of its own, so a token without `sid`
   marks no row.
@@ -590,9 +593,13 @@ loading/empty copy, date formatting or one-off selects.
 - **Actions.** `useUserPolicy(user)` gives `canEdit` (userRowPolicy) and `canManage` (another
   account: status, password reset, sessions). The navbar holds Edit and a "More user actions" menu,
   built only for a loaded record: Change status (active/suspended/banned accounts only; an invited
-  account offers Resend invite), Reset password, Resend invite and Restore (both confirmed), Your
-  account (self), Grant/Revoke superuser (superusers, not self), Delete user last (typed email; the
-  account is kept as deleted and the page shows it).
+  account offers Resend invite), Reset password (Set password for an account without one,
+  `has_password` false; neither for an invited account, which sets its own by accepting the
+  invitation), Resend invite and Restore (both confirmed), Your account (self), Grant/Revoke
+  superuser (superusers, not self), Delete user last (typed email; the account is kept as deleted
+  and the page shows it). The Profile card's Password row says whether one is set
+  (`passwordStateLabel`); the dialog's title, effects and button come from
+  `adminPasswordDialogCopy` (`utils/users.ts`).
 - **Status.** Change status opens on the real status with a timed suspension's day; the stored end
   is sent back unchanged unless the day changes (`suspendedUntilForSave`), so a reason never makes
   a timed suspension indefinite. outlabs-auth does not lift a suspension by itself. Superuser
@@ -809,8 +816,23 @@ Zod) is the only form system.
   instead.
 - **Passwords** — every password field is `<AppPasswordInput>` (a UInput with a Show/Hide toggle in
   its trailing slot) inside its `UFormField`: sign-in, signup, invitation, reset, Account ›
-  Security and the admin dialogs that set one. New-password fields state the policy
-  (`PASSWORD_POLICY_HINT`) as `help`.
+  Security and the admin dialogs that set one. A new password follows the policy the backend
+  publishes (`/auth/config` `password_policy`): `usePasswordPolicy()` resolves it
+  (`resolvePasswordPolicy`, `utils/password-policy.ts`: the request models' 8 to 128 characters
+  applied, outlabs-auth's default while the capabilities are unknown) and gives `policy` and
+  `hint`. The composable that owns the form builds a computed schema from `policy` with the
+  factories in `app/schemas` (`newPasswordSchemaFor` inside `registerSchemaFor`,
+  `setPasswordSchemaFor`, `changePasswordSchemaFor`, `createUserSchemaFor(rules, policy)`,
+  `resetPasswordSchemaFor`) and returns it with `hint`, which the field shows as `help`; pages
+  and components bind both and import no schema for it. `passwordPolicyProblem` mirrors the
+  server's check exactly and reports its first broken rule in the server's order (length in code
+  points, `[A-Z]`, `[a-z]`, `\p{Nd}` for Python's `\d`, then membership of
+  `special_characters`). UForm does not re-validate when its schema changes, so a guest or
+  Account form calls `useRecheckOnSchemaChange(form, schema)`: a policy that arrives after the
+  form rendered (the capabilities failed to load at boot) re-checks the flagged fields, after the
+  render so UForm already holds the new schema. Admin dialogs open only on pages that need the
+  capabilities loaded. The server's refusal (INVALID_PASSWORD) still lands on the field
+  (`passwordPolicyError`).
 - **One-time codes** — a code is a UForm field like any other: `<UForm :schema="codeSchemaFor(length)"
   :state="{ code: digits }">` with `UPinInput` inside `<UFormField name="code">`; the last digit
   submits the form (`@complete` → `form.submit()`), and Verify is a submit button. A code the
@@ -1090,6 +1112,17 @@ Dated, append-only. Superseded decisions stay with their status changed.
   only guess, and an older backend is not supported. Consequence: a session whose access token
   predates 0.1.0a35 is marked nowhere until its next renewal; Sign out other devices renews once
   itself when the server refuses `keep_current` for that reason. *Status: adopted.*
+
+- **2026-10-03 — Passwords follow the policy the backend publishes.** The console targets
+  outlabs-auth 0.1.0a35, which publishes its password policy (`password_policy`), registration mode
+  and `has_password`. The static mirror of the default policy (`newPasswordSchema`,
+  `PASSWORD_POLICY_HINT`) is removed rather than kept beside the published one: it lacked the
+  backslash among the symbols, so the console refused a password the server takes. Every
+  new-password schema is built from the published policy (`usePasswordPolicy`); outlabs-auth's
+  default is used only while the capabilities are unknown. An account without a password sets
+  one through the emailed reset link (0.1.0a35 has no endpoint for a first password of the
+  signed-in account), and an admin's Set password is not offered on an invited account, whose
+  status an admin-set password would not change. *Status: adopted.*
 
 ## Status
 

@@ -49,7 +49,14 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
   the example backends issue only session-bound tokens, so `account/sessions-table.spec.ts`
   answers Sign out other devices with outlabs-auth's 400 to cover the renewal and the notice.
 - No live OAuth provider: provider round trips are mocked (F-150; checked per deployment in
-  PRODUCTION.md).
+  PRODUCTION.md). So is an account created through OAuth sign-in, which has no password.
+- The example backends run outlabs-auth's default password policy with registration open, so a
+  stricter or laxer policy, the `invite_only` and `closed` registration modes and a registration
+  refused as turned off are served (`withPasswordPolicy`, `patchAuthConfig`). The default
+  policy, including a backslash as the only symbol, is checked against the live server.
+- Account › Security for an account without a password is served (`has_password` false on
+  `GET /users/me`, the emailed link's request answered, no mail sent); the admin's Set password
+  runs on a real one (an invitation an admin activated instead of accepting it).
 - Moving an entity to the top level (a new organization) has no spec.
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.

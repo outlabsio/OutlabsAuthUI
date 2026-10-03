@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
 import type { ButtonProps, DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { useDeleteUser, useResendInvite, useRestoreUser, userDetailQuery } from '~/queries/users'
-import { canChangeStatus, isUuid, resendInviteCopy, restoreUserCopy, userDeleteCopy } from '~/utils/users'
+import { adminPasswordAction, canChangeStatus, isUuid, resendInviteCopy, restoreUserCopy, userDeleteCopy } from '~/utils/users'
 import type { User } from '~/types/user'
 
 // The user detail page's frame (pages/app/users/[userId].vue): the record, its not-found and
@@ -117,9 +117,15 @@ export function useUserDetail(userId: Ref<string>) {
     if (canManage.value && canChangeStatus(target.status)) {
       lifecycle.push({ label: 'Change status', icon: 'i-lucide-user-cog', onSelect: () => openDialog(statusOpen) })
     }
-    // An invited account has no password yet: it sets one by accepting the invitation.
+    // An invited account has no password yet: it sets one by accepting the invitation (a password
+    // set by an admin would leave it invited, which cannot sign in). Any other account without a
+    // password (`has_password` false: OAuth-only, magic-link-only) is given one with Set password.
     if (canManage.value && target.status !== 'invited') {
-      lifecycle.push({ label: 'Reset password', icon: 'i-lucide-key-round', onSelect: () => openDialog(resetOpen) })
+      lifecycle.push({
+        label: adminPasswordAction(target),
+        icon: 'i-lucide-key-round',
+        onSelect: () => openDialog(resetOpen)
+      })
     }
     if (canResendInvite.value) {
       lifecycle.push({ label: 'Resend invite', icon: 'i-lucide-mail', onSelect: () => resendInvite.ask(target) })

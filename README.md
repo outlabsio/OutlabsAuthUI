@@ -149,13 +149,13 @@ inline global — resolution and normalization live in `app/utils/runtime-config
 
 | Key | Default | Meaning |
 |---|---|---|
-| `signup` | `true` | Show "Create an account" + enable `/auth/signup`. `false` = invite-only deployment: the link is hidden and the page redirects to sign-in before rendering. The backend's `POST /auth/register` is still mounted; disable registration on the server too. |
+| `signup` | `true` | Show "Create an account" + enable `/auth/signup`. `false` = invite-only deployment: the link is hidden and the page redirects to sign-in before rendering. The backend's `POST /auth/register` is still mounted; disable registration on the server too. With `true`, the backend's `registration_mode` still decides: `invite_only` or `closed` hides the link and the page explains how accounts are made there. |
 | `identifier` | `'email-or-phone'` | `'email-only'` hides the dial-code picker and requires an email. |
 | `defaultCountry` | `'AR'` | Preselected dial code of the phone sign-in field: any ISO 3166-1 alpha-2 code in `app/data/phone-codes.ts` (245 territories, e.g. `AR`, `US`, `GB`, `DE`), in either case. A code that is not in that list falls back to `US` (+1). |
 | `channels` | `['whatsapp', 'sms']` | Phone OTP channels offered, in preference order (first = primary button). |
 | `oauthProviders` | `[]` | "Continue with …" buttons (replaces the deprecated flat `oauthProviders` key, which still works as a fallback). |
 | `magicLink` | `true` | Offer the magic-link alternate when the backend enables `magic_link`. |
-| `otpLength` | unset | Digits in a one-time code (4–12) for a backend that does not advertise `access_code_length`; otherwise the advertised value, else 6. |
+| `otpLength` | unset | Digits in a one-time code (4–12) while the backend's `access_code_length` is unknown (its `/auth/config` failed to load); otherwise the advertised value, else 6. |
 
 ## Auth flows
 
@@ -183,7 +183,9 @@ token-returning path through `finalizeAuth()` (`app/queries/session.ts`).
   signing in", so mail scanners cannot use the single-use link first; expired, used and invalid
   links each explain themselves and offer a new one.
 - **Signup** (`/auth/signup`) — register + auto-login (`useSignupForm`), gated on
-  `authUi.signup` in route middleware. Phone is added + verified afterwards from **Account →
+  `authUi.signup` in route middleware, then on the backend's `registration_mode` (an invite-only
+  or closed backend, or a registration it refuses as turned off, gets an explanation instead of
+  the form). Phone is added + verified afterwards from **Account →
   Profile → Phone number** (a verified number unlocks OTP sign-in where the server has access
   codes on).
 - **Recovery** (`/auth/recovery`, linked as "Can't sign in?") — `useRecoveryFlow`: email →
@@ -191,7 +193,8 @@ token-returning path through `finalizeAuth()` (`app/queries/session.ts`).
   link (change-password needs the *current* password, which a recovering user doesn't have;
   the emailed token link is the password-reset path). Account says whether that email went
   out (`?reset=sent|failed|none`) and can send it again; Account › Security offers the same
-  link to anyone who forgot their current password. A reset signs a signed-in browser out, since
+  link to anyone who forgot their current password, and as "Set a password" to an account that
+  has none (`has_password` false). A reset signs a signed-in browser out, since
   the server ended its session. `/auth/forgot-password` redirects here.
 - **Auth guard exemptions** — a signed-in browser may open `/auth/reset-password` (the token is
   the authorization; phone recovery depends on it), and `/auth/magic-link` or
@@ -201,8 +204,9 @@ token-returning path through `finalizeAuth()` (`app/queries/session.ts`).
 Feature logic lives in composables (`useSignInFlow`, `useSignupForm`, `useRecoveryFlow`,
 `useMagicLinkForm`, `useAcceptInviteForm`, `useResetPasswordForm`); shared steps are components
 (`app/components/app/Auth{StepHeading,Identifier,PhoneInput,EmailForm,Otp,OauthButtons,SignedInPrompt,Loading}.vue`).
-New-password fields mirror the backend's default policy (`newPasswordSchema`) and show its
-policy refusal on the field.
+New-password fields check and state the password policy the backend publishes in `/auth/config`
+(`usePasswordPolicy`, outlabs-auth's default until it loads) and show the server's own refusal on
+the field.
 
 ## Commands
 

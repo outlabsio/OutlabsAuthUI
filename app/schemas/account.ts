@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import { newPasswordSchema, phoneIdentifierSchema } from '~/schemas/auth-flows'
+import { newPasswordSchemaFor, phoneIdentifierSchema } from '~/schemas/auth-flows'
 import { accountNameText } from '~/schemas/common'
+import type { PasswordPolicy } from '~/types/auth'
 
 // Account (self-service) forms. Field names are snake_case to send straight to the API.
 
@@ -24,21 +25,23 @@ export type ProfileSchema = { first_name: string, last_name: string }
 export const phoneNumberSchema = phoneIdentifierSchema
 export type PhoneNumberSchema = { identifier: string, country: string, dialCode: string }
 
-// Change password: the current password, then a new one under the server's default policy
-// (newPasswordSchema mirrors it; a stricter host still answers INVALID_PASSWORD on the field).
-export const changePasswordSchema = z
-  .object({
-    current_password: z.string().min(1, 'Enter your current password.').max(128),
-    new_password: newPasswordSchema,
-    confirm_password: z.string()
-  })
-  .refine(value => value.new_password === value.confirm_password, {
-    path: ['confirm_password'],
-    message: 'Passwords must match.'
-  })
-  .refine(value => !value.current_password || value.new_password !== value.current_password, {
-    path: ['new_password'],
-    message: 'Choose a password different from your current one.'
-  })
+// Change password: the current password, then a new one under the backend's published policy
+// (newPasswordSchemaFor; the server's own refusal still lands on the field).
+export function changePasswordSchemaFor(policy: PasswordPolicy) {
+  return z
+    .object({
+      current_password: z.string().min(1, 'Enter your current password.').max(128),
+      new_password: newPasswordSchemaFor(policy),
+      confirm_password: z.string()
+    })
+    .refine(value => value.new_password === value.confirm_password, {
+      path: ['confirm_password'],
+      message: 'Passwords must match.'
+    })
+    .refine(value => !value.current_password || value.new_password !== value.current_password, {
+      path: ['new_password'],
+      message: 'Choose a password different from your current one.'
+    })
+}
 
-export type ChangePasswordSchema = z.output<typeof changePasswordSchema>
+export type ChangePasswordSchema = z.output<ReturnType<typeof changePasswordSchemaFor>>

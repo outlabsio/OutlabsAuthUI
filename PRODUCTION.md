@@ -106,9 +106,20 @@ does not use yet.
   blacklisting access tokens on revoke in the examples, a refresh grace window (F-157), and
   `keep_current` on the admin route (`DELETE /users/{id}/sessions` has none in 0.1.0a35), so user
   detail offers no sign out of other devices; an admin's own sessions are managed from Account.
-- **Published policy and state**: 0.1.0a35 publishes the password policy and registration mode
-  in `/auth/config` and `has_password` on users; the console does not read them yet. Still open:
-  whether messaging can deliver codes (F-097, F-098, F-099).
+- **Published policy and state** (0.1.0a35): the console reads the password policy and the
+  registration mode in `/auth/config` and `has_password` on users. Every new-password form checks
+  and states the published policy (F-097); sign-in and signup follow the registration mode; an
+  account without a password gets Set a password on Account and Set password from an admin
+  (F-098). Still open: whether messaging can deliver codes (F-099); an endpoint that sets a first
+  password for the signed-in account (0.1.0a35 changes one only with the current password, so
+  Account emails the reset link instead); and `has_password` after a password is set on an
+  account created through OAuth sign-in, which stays false because neither the reset nor the
+  admin route adds the password sign-in method (the password signs in regardless).
+- **Self-service e-mail change** (0.1.0a35): opt-in per host (`self_service_email_change`) and
+  re-authenticated (`PATCH /users/me` with `current_password`), which resolves F-193 on the
+  server. The console keeps the sign-in e-mail read-only (owner decision, CAPABILITIES.md); a
+  Change email form would send that request and show its answers (403 when the host has it off,
+  422 without the current password, 401 for a wrong one).
 - **Integrity**: versions or ETags on writes (F-158), an atomic role permission-set change.
 - **Audit coverage**: 0.1.0a35 adds entity lifecycle events and role and permission history
   endpoints (the console does not show the histories yet); machine-key events are still missing

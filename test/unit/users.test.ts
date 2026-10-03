@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createUserSchemaFor, inviteUserSchemaFor, resetPasswordSchema, superuserChangeSchemaFor, updateUserSchema, updateUserSchemaFor, userStatusSchemaFor } from '~/schemas/user'
+import { createUserSchemaFor, inviteUserSchemaFor, resetPasswordSchemaFor, superuserChangeSchemaFor, updateUserSchema, updateUserSchemaFor, userStatusSchemaFor } from '~/schemas/user'
+import { LIBRARY_DEFAULT_POLICY } from '~/utils/password-policy'
 import {
+  adminPasswordAction,
+  adminPasswordDialogCopy,
   canChangeStatus,
   deletedAccountSummary,
   inviteEntityRule,
@@ -9,6 +12,7 @@ import {
   newUserRootChoice,
   NO_ROOT_ORG,
   orphanMembershipSummary,
+  passwordStateLabel,
   restoreUserCopy,
   resendInviteCopy,
   statusChangeAction,
@@ -161,12 +165,12 @@ describe('users dialog schemas', () => {
     result.success ? [] : [...new Set(result.error!.issues.map(issue => issue.path.join('.')))]
 
   it('create: the confirmation must match, the password follows the policy, the organization is required only when the rules say so', () => {
-    expect(createUserSchemaFor({ rootRequired: false }).safeParse(create).success).toBe(true)
-    expect(issuePaths(createUserSchemaFor({ rootRequired: true }).safeParse(create))).toEqual(['root_entity_id'])
-    expect(issuePaths(createUserSchemaFor({ rootRequired: true }).safeParse({ ...create, root_entity_id: '' }))).toEqual(['root_entity_id'])
-    expect(createUserSchemaFor({ rootRequired: true }).safeParse({ ...create, root_entity_id: 'acme' }).success).toBe(true)
-    expect(issuePaths(createUserSchemaFor({ rootRequired: false }).safeParse({ ...create, confirm_password: 'Different1!' }))).toEqual(['confirm_password'])
-    expect(issuePaths(createUserSchemaFor({ rootRequired: false }).safeParse({ ...create, password: 'weakpass', confirm_password: 'weakpass' }))).toContain('password')
+    expect(createUserSchemaFor({ rootRequired: false }, LIBRARY_DEFAULT_POLICY).safeParse(create).success).toBe(true)
+    expect(issuePaths(createUserSchemaFor({ rootRequired: true }, LIBRARY_DEFAULT_POLICY).safeParse(create))).toEqual(['root_entity_id'])
+    expect(issuePaths(createUserSchemaFor({ rootRequired: true }, LIBRARY_DEFAULT_POLICY).safeParse({ ...create, root_entity_id: '' }))).toEqual(['root_entity_id'])
+    expect(createUserSchemaFor({ rootRequired: true }, LIBRARY_DEFAULT_POLICY).safeParse({ ...create, root_entity_id: 'acme' }).success).toBe(true)
+    expect(issuePaths(createUserSchemaFor({ rootRequired: false }, LIBRARY_DEFAULT_POLICY).safeParse({ ...create, confirm_password: 'Different1!' }))).toEqual(['confirm_password'])
+    expect(issuePaths(createUserSchemaFor({ rootRequired: false }, LIBRARY_DEFAULT_POLICY).safeParse({ ...create, password: 'weakpass', confirm_password: 'weakpass' }))).toContain('password')
   })
 
   it('invite: an entity is required only when the rules say so', () => {
@@ -197,7 +201,7 @@ describe('users dialog schemas', () => {
     // The API caps names at 100 characters, for an edit, a new account and an invitation alike.
     expect(issuePaths(named.safeParse({ ...edit, first_name: 'x'.repeat(101) }))).toEqual(['first_name'])
     expect(named.safeParse({ ...edit, first_name: 'x'.repeat(100) }).success).toBe(true)
-    expect(issuePaths(createUserSchemaFor({ rootRequired: false }).safeParse({ ...create, last_name: 'x'.repeat(101) }))).toEqual(['last_name'])
+    expect(issuePaths(createUserSchemaFor({ rootRequired: false }, LIBRARY_DEFAULT_POLICY).safeParse({ ...create, last_name: 'x'.repeat(101) }))).toEqual(['last_name'])
     const invite = { email: 'new@example.com', first_name: 'x'.repeat(101), last_name: '', entity_id: undefined, role_ids: [], is_superuser: false }
     expect(issuePaths(inviteUserSchemaFor({ entityRequired: false }).safeParse(invite))).toEqual(['first_name'])
   })
@@ -293,10 +297,42 @@ describe('user lifecycle rules', () => {
     expect(superuserChangeSchemaFor({ granting: false, email: 'ana@example.com' }).safeParse({ reason: '', confirmation: '' }).success).toBe(true)
   })
 
-  it('reset password: the console\'s password rules and a matching confirmation', () => {
+  it('reset password: the published password rules and a matching confirmation', () => {
+    const resetPasswordSchema = resetPasswordSchemaFor(LIBRARY_DEFAULT_POLICY)
+    expect(resetPasswordSchemaFor({ ...LIBRARY_DEFAULT_POLICY, require_special_char: false }).safeParse({ new_password: 'Newpass12', confirm_password: 'Newpass12' }).success).toBe(true)
     expect(resetPasswordSchema.safeParse({ new_password: 'Newpass1!', confirm_password: 'Newpass1!' }).success).toBe(true)
     expect(resetPasswordSchema.safeParse({ new_password: 'newpass1', confirm_password: 'newpass1' }).success).toBe(false)
     expect(resetPasswordSchema.safeParse({ new_password: 'Newpass1!', confirm_password: 'Newpass2!' }).success).toBe(false)
+  })
+})
+
+describe('passwords of an account', () => {
+  it('says whether the account has a password (has_password)', () => {
+    expect(passwordStateLabel({ has_password: true, status: 'active' })).toBe('Set')
+    expect(passwordStateLabel({ has_password: false, status: 'active' })).toBe('Not set')
+    expect(passwordStateLabel({ has_password: false, status: 'invited' })).toBe('Not set (invitation pending)')
+  })
+
+  it('resets a password, or sets a first one, saying what happens to the account', () => {
+    expect(adminPasswordAction({ has_password: true })).toBe('Reset password')
+    expect(adminPasswordAction({ has_password: false })).toBe('Set password')
+    const reset = adminPasswordDialogCopy({ email: 'ana@example.com', has_password: true }, { locked: false })
+    expect(reset.action).toBe('Reset password')
+    expect(reset.title).toBe('Reset password of ana@example.com')
+    expect(reset.effects[0]).toBe('ana@example.com is signed out everywhere: every session ends at once.')
+    expect(reset.submitColor).toBe('warning')
+
+    const set = adminPasswordDialogCopy({ email: 'ana@example.com', has_password: false }, { locked: true })
+    expect(set.action).toBe('Set password')
+    expect(set.title).toBe('Set password of ana@example.com')
+    expect(set.effects).toEqual([
+      'ana@example.com can sign in with this password from now on.',
+      'Their current sessions end, so they sign in again on each device.',
+      'The lockout after failed sign-ins is cleared.',
+      'Their API keys keep working.'
+    ])
+    expect(set.effects.join(' ')).not.toContain('signed out everywhere')
+    expect(set.success).toBe('Password set')
   })
 })
 

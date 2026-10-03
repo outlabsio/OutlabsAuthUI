@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
 import { userRoleMembershipsQuery } from '~/queries/users'
 import { userMembershipsQuery } from '~/queries/memberships'
-import { deletedAccountSummary, userHolds } from '~/utils/users'
+import { deletedAccountSummary, passwordStateLabel, userHolds } from '~/utils/users'
 import { USER_STATUS_COLOR } from '~/utils/status'
 import type { DetailItem } from '~/types/display'
 import type { User } from '~/types/user'
@@ -62,6 +62,8 @@ export function useUserProfileCard(user: Ref<User>) {
       { label: 'Created', value: u.created_at, type: 'datetime' },
       { label: 'Last sign-in', value: u.last_login, type: 'datetime', fallback: 'Never' },
       { label: 'Last activity', value: u.last_activity, type: 'datetime', fallback: 'None recorded' },
+      // Whether the account has a password at all (has_password), then when it last changed.
+      { label: 'Password', value: passwordStateLabel(u) },
       { label: 'Password changed', value: u.last_password_change, type: 'datetime', fallback: 'Never' },
       ...(u.deleted_at ? [{ label: 'Deleted', value: u.deleted_at, type: 'datetime' } satisfies DetailItem] : [])
     ]

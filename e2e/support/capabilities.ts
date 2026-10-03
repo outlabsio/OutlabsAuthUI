@@ -133,6 +133,16 @@ export function expectSeeded<T>(value: T, fact: string): asserts value is NonNul
 
 export const apiRoot = authApiBase
 
+export type LivePasswordPolicy = {
+  min_length: number
+  max_length: number
+  require_uppercase: boolean
+  require_lowercase: boolean
+  require_digit: boolean
+  require_special_char: boolean
+  special_characters: string
+}
+
 export type LiveAuthConfig = {
   preset: string
   api_contract_version?: string
@@ -140,6 +150,10 @@ export type LiveAuthConfig = {
   features: Record<string, boolean>
   auth_methods?: Record<string, boolean>
   mounted_surfaces?: string[]
+  registration_mode?: 'open' | 'invite_only' | 'closed'
+  password_policy?: LivePasswordPolicy | null
+  access_code_length?: number
+  self_service_email_change?: boolean
 }
 
 // The live /auth/config (recorded by globalSetup in the run manifest), typed for these helpers.
@@ -189,6 +203,26 @@ export async function withExtraSurfaces(page: Page, surfaces: string[]) {
     ...config,
     mounted_surfaces: [...new Set([...(config.mounted_surfaces ?? []), ...surfaces])]
   }))
+}
+
+// Serve a password policy: the live one (outlabs-auth's default on the example backends) with the
+// given rules changed.
+export async function withPasswordPolicy(page: Page, rules: Partial<LivePasswordPolicy>) {
+  await patchAuthConfig(page, config => ({
+    ...config,
+    password_policy: { ...(config.password_policy ?? DEFAULT_PASSWORD_POLICY), ...rules }
+  }))
+}
+
+// outlabs-auth 0.1.0a35's default policy, for the backend-free fallback config.
+export const DEFAULT_PASSWORD_POLICY: LivePasswordPolicy = {
+  min_length: 8,
+  max_length: 128,
+  require_uppercase: true,
+  require_lowercase: true,
+  require_digit: true,
+  require_special_char: true,
+  special_characters: '!@#$%^&*(),.?":{}|<>\\'
 }
 
 export async function withoutSurfaces(page: Page, surfaces: string[]) {

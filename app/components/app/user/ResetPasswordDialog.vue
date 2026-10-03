@@ -1,39 +1,38 @@
 <script setup lang="ts">
-import { PASSWORD_POLICY_HINT } from '~/schemas/auth-flows'
-import { resetPasswordSchema } from '~/schemas/user'
 import type { User } from '~/types/user'
 
-// Reset another account's password (display only; logic in useUserResetPasswordDialog).
+// Reset another account's password, or set a first one for an account without (display only;
+// logic in useUserResetPasswordDialog).
 const props = defineProps<{ user: User }>()
 const open = defineModel<boolean>('open', { default: false })
 const user = computed(() => props.user)
 
-const { state, error, effects, onSubmit } = useUserResetPasswordDialog(user, open)
+const { schema, passwordHelp, state, error, copy, onSubmit } = useUserResetPasswordDialog(user, open)
 </script>
 
 <template>
   <AppFormDialog
     ref="resetPasswordDialog"
     v-model:open="open"
-    :title="`Reset password of ${user.email}`"
-    description="Set a new password without their current one."
-    :schema="resetPasswordSchema"
+    :title="copy.title"
+    :description="copy.description"
+    :schema="schema"
     :state="state"
     :error="error"
-    submit-label="Reset password"
-    submit-color="warning"
+    :submit-label="copy.action"
+    :submit-color="copy.submitColor"
     @submit="onSubmit"
   >
     <UAlert
-      color="warning"
+      :color="copy.action === 'Set password' ? 'neutral' : 'warning'"
       variant="subtle"
-      icon="i-lucide-triangle-alert"
+      :icon="copy.action === 'Set password' ? 'i-lucide-info' : 'i-lucide-triangle-alert'"
       title="What happens"
       data-testid="confirm-effects"
     >
       <template #description>
         <ul class="list-disc space-y-1 ps-4">
-          <li v-for="effect in effects" :key="effect">
+          <li v-for="effect in copy.effects" :key="effect">
             {{ effect }}
           </li>
         </ul>
@@ -42,7 +41,7 @@ const { state, error, effects, onSubmit } = useUserResetPasswordDialog(user, ope
     <UFormField
       name="new_password"
       label="New password"
-      :help="PASSWORD_POLICY_HINT"
+      :help="passwordHelp"
       required
     >
       <AppPasswordInput

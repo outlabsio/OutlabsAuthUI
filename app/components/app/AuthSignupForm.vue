@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { RegisterSchema } from '~/schemas/auth-flows'
-import { PASSWORD_POLICY_HINT, registerSchema } from '~/schemas/auth-flows'
+import type { RegisterSchema, registerSchemaFor } from '~/schemas/auth-flows'
 
 // The email register form — rendered directly when no OAuth providers are configured, or
 // unfolded inside the signup page's "Continue with email" collapsible. The form state is a
-// model so useSignupForm shares it; the submit event carries the form so a server-side
+// model so useSignupForm shares it, and so are the schema and the password rules it states
+// (the backend's policy, usePasswordPolicy); the submit event carries the form so a server-side
 // password-policy refusal can land on the password field.
 
-type FormErrorsTarget = { setErrors: (errors: Array<{ name: string, message: string }>) => void }
+type FormErrorsTarget = {
+  setErrors: (errors: Array<{ name: string, message: string }>) => void
+  getErrors: () => Array<{ name?: string }>
+  validate: (options: { name: string[], silent: boolean }) => Promise<unknown>
+}
 
-defineProps<{
+const props = defineProps<{
+  schema: ReturnType<typeof registerSchemaFor>
+  passwordHelp: string
   loading: boolean
 }>()
 
@@ -20,6 +26,8 @@ const emit = defineEmits<{
 
 const state = defineModel<Partial<RegisterSchema>>('state', { required: true })
 const form = useTemplateRef<FormErrorsTarget>('form')
+// The policy can arrive after the form rendered: its flagged fields are checked again.
+useRecheckOnSchemaChange(form, () => props.schema)
 
 function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
   emit('submit', event, form.value)
@@ -29,7 +37,7 @@ function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
 <template>
   <UForm
     ref="form"
-    :schema="registerSchema"
+    :schema="schema"
     :state="state"
     class="space-y-4"
     @submit="onSubmit"
@@ -57,7 +65,7 @@ function onSubmit(event: FormSubmitEvent<RegisterSchema>) {
     <UFormField
       name="password"
       label="Password"
-      :help="PASSWORD_POLICY_HINT"
+      :help="passwordHelp"
       required
     >
       <AppPasswordInput

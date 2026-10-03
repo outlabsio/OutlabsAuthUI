@@ -33,7 +33,10 @@ test.describe('settings workspace', () => {
     // Features by their labels, never as raw keys ('Abac', 'Api keys').
     const features = card.getByRole('list', { name: 'Features' })
     await expect(features.getByText('Invitations', { exact: true })).toBeVisible()
-    await expect(card.getByText(/^Abac$|^Api keys$/)).toHaveCount(0)
+    // outlabs-auth 0.1.0a35's registration flags, named rather than humanized.
+    await expect(features.getByText('Self-registration', { exact: true })).toBeVisible()
+    await expect(features.getByText('Self-service email change', { exact: true })).toBeVisible()
+    await expect(card.getByText(/^Abac$|^Api keys$|^Registration$|^Self service email change$/)).toHaveCount(0)
     // The flags outlabs-auth reports as always on say nothing, so they are not checked off; and
     // activity tracking is no claim about the audit log (v-auth-shell-02).
     for (const label of ['Activity tracking', 'Personal API keys', 'Service accounts', 'Account status']) {

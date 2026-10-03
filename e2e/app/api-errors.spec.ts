@@ -166,7 +166,7 @@ test.describe('server validation lands on the fields (F-118)', () => {
     await dialog.getByLabel('Confirm password').fill('lowercaseonlypassword')
     await dialog.getByRole('button', { name: 'Create user' }).click()
     await expect(dialog.getByLabel('Initial password')).toHaveAttribute('aria-invalid', 'true')
-    await expect(dialog.getByText('Add an uppercase letter.')).toBeVisible()
+    await expect(dialog.getByText('Add an uppercase letter (A to Z).')).toBeVisible()
 
     await dialog.getByLabel('Initial password').fill(TEST_PASSWORD)
     await dialog.getByLabel('Confirm password').fill(TEST_PASSWORD)

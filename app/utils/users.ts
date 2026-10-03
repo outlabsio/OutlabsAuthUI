@@ -249,6 +249,66 @@ export function restoreUserCopy(user: Pick<User, 'email'>, options: { hasMembers
   }
 }
 
+// Whether the account has a password (`has_password`), for the Profile card. Invited accounts
+// have none until the invitation is accepted; OAuth-only and magic-link-only accounts have none.
+export function passwordStateLabel(user: Pick<User, 'has_password' | 'status'>): string {
+  if (user.has_password !== false) return 'Set'
+  return user.status === 'invited' ? 'Not set (invitation pending)' : 'Not set'
+}
+
+// The user detail's password action: Set password for an account without one, else Reset.
+export function adminPasswordAction(user: Pick<User, 'has_password'>): 'Reset password' | 'Set password' {
+  return user.has_password === false ? 'Set password' : 'Reset password'
+}
+
+export type AdminPasswordDialogCopy = {
+  // The menu item, the dialog title's verb and its submit button (adminPasswordAction).
+  action: 'Reset password' | 'Set password'
+  title: string
+  description: string
+  effects: string[]
+  submitColor: 'warning' | 'primary'
+  success: string
+  failure: string
+}
+
+// PATCH /users/{id}/password, for an account with a password (Reset password) or without one
+// (Set password: invited accounts are not offered it, they set one by accepting the invitation).
+// Either way outlabs-auth revokes every session of the account and clears a lockout; for an
+// account that had no password the point is the new way in, so that leads.
+export function adminPasswordDialogCopy(user: Pick<User, 'email' | 'has_password'>, options: { locked: boolean }): AdminPasswordDialogCopy {
+  const lockout = options.locked ? ['The lockout after failed sign-ins is cleared.'] : []
+  if (adminPasswordAction(user) === 'Set password') {
+    return {
+      action: 'Set password',
+      title: `Set password of ${user.email}`,
+      description: 'The account has no password yet.',
+      effects: [
+        `${user.email} can sign in with this password from now on.`,
+        'Their current sessions end, so they sign in again on each device.',
+        ...lockout,
+        'Their API keys keep working.'
+      ],
+      submitColor: 'primary',
+      success: 'Password set',
+      failure: 'Could not set password'
+    }
+  }
+  return {
+    action: 'Reset password',
+    title: `Reset password of ${user.email}`,
+    description: 'Set a new password without their current one.',
+    effects: [
+      `${user.email} is signed out everywhere: every session ends at once.`,
+      ...lockout,
+      'They sign in with the new password from now on. Their API keys keep working.'
+    ],
+    submitColor: 'warning',
+    success: 'Password reset',
+    failure: 'Could not reset password'
+  }
+}
+
 // The notice on a deleted account's profile (F-008: no memberships on SimpleRBAC).
 export function deletedAccountSummary(options: { hasMemberships: boolean }): string {
   return options.hasMemberships

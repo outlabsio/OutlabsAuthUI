@@ -1,6 +1,9 @@
+import type { Request } from '@playwright/test'
 import { authMethodOn, expect, test } from '../support/fixtures'
 import { mockPasswordOnlyConfig } from '../support/sign-in'
-import { withExtraSurfaces, withoutSurfaces } from '../support/capabilities'
+import { withExtraSurfaces, withoutSurfaces, withPasswordPolicy } from '../support/capabilities'
+import { apiUrl } from '../support/env'
+import { jsonResponse } from '../support/mocks'
 
 // Passwordless / recovery / invite flows + the F0 authUi config gates. Render + validation
 // run without a backend (guest project); capability-dependent assertions self-skip.
@@ -32,7 +35,7 @@ test.describe('auth flows', () => {
     await expect(page.getByText(/At least 8 characters, with an uppercase/)).toBeVisible()
     await page.getByLabel('New password', { exact: true }).fill('longenough1')
     await page.getByRole('button', { name: 'Reset password' }).click()
-    await expect(page.getByText('Add an uppercase letter.')).toBeVisible()
+    await expect(page.getByText('Add an uppercase letter (A to Z).')).toBeVisible()
     await page.getByLabel('New password', { exact: true }).fill('Longenough1!')
     await page.getByLabel('Confirm new password').fill('Mismatch1!')
     await page.getByRole('button', { name: 'Reset password' }).click()
@@ -48,6 +51,42 @@ test.describe('auth flows', () => {
     await page.goto('/auth/accept-invite?token=demo-token')
     await expect(page.getByRole('heading', { name: 'Accept your invitation' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Accept and sign in' })).toBeVisible()
+  })
+
+  // The invitation's password follows the backend's published policy, stated up front (F-097): a
+  // served policy (14 characters, no digit rule) drives both.
+  test('accept-invite follows the served password policy', async ({ page, errorGuard }) => {
+    await withPasswordPolicy(page, { min_length: 14, require_digit: false })
+    const accepts: Request[] = []
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url() === apiUrl('/auth/accept-invite')) accepts.push(request)
+    })
+    await page.goto('/auth/accept-invite?token=e2e-policy-token')
+    await expect(page.getByRole('heading', { name: 'Accept your invitation' })).toBeVisible()
+    await expect(page.getByText('At least 14 characters, with an uppercase and a lowercase letter and a symbol (! @ # $ % ^ & * ( ) , . ? " : { } | < > \\).', { exact: true })).toBeVisible()
+
+    const password = page.getByLabel('Password', { exact: true })
+    await password.fill('Abcdefghijkl!')
+    await page.getByLabel('Confirm password').fill('Abcdefghijkl!')
+    await page.getByRole('button', { name: 'Accept and sign in' }).click()
+    await expect(page.getByText('Password must be at least 14 characters.')).toBeVisible()
+    await expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(accepts, 'nothing is sent for a password the policy refuses').toHaveLength(0)
+
+    // Fourteen characters and no digit meet this policy: it is sent. The made-up token is refused,
+    // served as the example backends answer it (their policy would refuse the password first),
+    // and the page explains the refusal.
+    errorGuard.allow({ status: 401, url: /\/auth\/accept-invite$/ })
+    await page.route(apiUrl('/auth/accept-invite'), route => route.request().method() === 'POST'
+      ? route.fulfill(jsonResponse(401, { error: 'TOKEN_INVALID', message: 'Invalid or expired invite token', details: { reason: 'token_not_found' } }))
+      : route.continue())
+    await password.fill('Abcdefghijklm!')
+    await page.getByLabel('Confirm password').fill('Abcdefghijklm!')
+    await page.getByRole('button', { name: 'Accept and sign in' }).click()
+    await expect(page.getByText('This invitation link cannot be used', { exact: true })).toBeVisible()
+    expect(accepts).toHaveLength(1)
+    expect(accepts[0]!.postDataJSON()).toMatchObject({ token: 'e2e-policy-token', new_password: 'Abcdefghijklm!' })
+    await expect(page.getByText('Password must be at least 14 characters.')).toHaveCount(0)
   })
 
   // Where a password is chosen it can be checked before it is sent, as on sign-in, and a link
