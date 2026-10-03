@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { backendConfigured, expect, test, type ApiClient } from '../support/fixtures'
 import { pickEntity } from '../support/entities'
+import { jsonResponse } from '../support/mocks'
 import { piniaPathsTo } from '../support/pinia-probe'
 import { chooseSelect, field } from '../support/ui-select'
 
@@ -18,6 +19,24 @@ type Page_<T> = { items: T[], total: number }
 
 const SCOPE = 'user:read'
 const ROLE = 'Service Reader'
+
+// GET …/integration-principals/grantable-scopes, platform-wide or at an entity (F-079).
+const GRANTABLE = /\/integration-principals\/grantable-scopes(\?.*)?$/
+
+type Grantable = { grantable_scopes: string[], system_allowed_action_prefixes: string[] }
+
+/**
+ * Serve the admin's grantable scopes narrower than their real grant (the superuser may grant
+ * everything allowed): what the console offers and refuses must follow this answer, not a copy
+ * of the default policy (which would offer user:read).
+ */
+async function serveGrantable(page: Page, grantable: Grantable) {
+  await page.route(GRANTABLE, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    await route.fulfill({ response, json: { ...(await response.json() as Record<string, unknown>), ...grantable } })
+  })
+}
 
 function base(entityId?: string) {
   return entityId ? `/admin/entities/${entityId}/integration-principals` : '/admin/system/integration-principals'
@@ -222,8 +241,9 @@ test.describe('service accounts', () => {
     const account = await createAccount(api, testData.name('sa-flag'))
     const keyName = testData.name('key')
     const key = await createKey(api, account, keyName)
-    // The account no longer grants the key's scope: served as granting another one instead.
-    const OTHER = 'user:list'
+    // The account no longer grants the key's scope: served as granting another one instead, one
+    // the admin may grant on either preset.
+    const OTHER = 'user:update'
     await page.route(new RegExp(`/integration-principals/${account.id}(\\?.*)?$`), async (route) => {
       if (route.request().method() !== 'GET') return route.continue()
       const response = await route.fetch()
@@ -256,6 +276,130 @@ test.describe('service accounts', () => {
     // Removing the flagged scope lifts the refusal at once: the picker reports the change.
     await picker.getByRole('button', { name: `Remove ${SCOPE}`, exact: true }).click()
     await expect(dialog).not.toContainText(refusal)
+  })
+
+  test('the direct-scope picker offers exactly the scopes the server says the admin may grant (F-079)', async ({ page }) => {
+    await serveGrantable(page, { grantable_scopes: ['user:update'], system_allowed_action_prefixes: ['update'] })
+
+    await page.goto('/app/service-accounts')
+    await page.getByRole('button', { name: 'New service account' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New service account' })
+    await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
+    // The help names the actions the server allows, and the picker offers its list alone: a copy
+    // of the default allowlist would offer user:read (and every other readable permission) too.
+    await expect(dialog.getByText('You can grant only what you hold whose action is update, and never key or service-account management.')).toBeVisible()
+    const permissions = dialog.getByTestId('permission-picker')
+    await expect(permissions.getByRole('option')).toHaveCount(1)
+    await permissions.getByRole('option').first().click()
+    await expect(dialog.getByRole('button', { name: 'Remove user:update', exact: true })).toBeVisible()
+  })
+
+  test('roles or direct scopes beyond the grantable set are refused on their field, with no request (F-079)', async ({ page, testData }) => {
+    // The server checks the whole envelope (role permissions and direct scopes) on create and on
+    // every edit, and its 400 does not name the scope: the dialog names it first.
+    await serveGrantable(page, { grantable_scopes: ['user:update'], system_allowed_action_prefixes: ['update'] })
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (['POST', 'PATCH'].includes(request.method()) && /\/integration-principals(\/[^/]+)?$/.test(new URL(request.url()).pathname)) writes.push(request.method())
+    })
+    const name = testData.name('sa-beyond')
+
+    await page.goto('/app/service-accounts')
+    await page.getByRole('button', { name: 'New service account' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New service account' })
+    await dialog.getByLabel('Name').fill(name)
+    await dialog.getByTestId('role-access-editor').getByRole('option').filter({ hasText: ROLE }).first().click()
+    await dialog.getByRole('button', { name: 'Create service account' }).click()
+    const refusal = dialog.getByText(new RegExp(`^${ROLE} grants .*user:read.*, which you can't grant\\. Remove it, or ask an administrator who can\\.$`))
+    await expect(refusal).toBeVisible()
+    await expect(dialog).toBeVisible()
+    expect(writes).toEqual([])
+
+    // Removing the role lifts the refusal; a grantable direct scope is accepted.
+    await dialog.getByRole('button', { name: `Remove ${ROLE}` }).click()
+    await expect(refusal).toBeHidden()
+    await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
+    await dialog.getByTestId('permission-picker').getByRole('option').first().click()
+    await dialog.getByRole('button', { name: 'Create service account' }).click()
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    expect(writes).toEqual(['POST'])
+  })
+
+  test('an edit, even a rename, of an account carrying scopes the admin cannot grant is refused before the request (F-079)', async ({ page, testData, api }) => {
+    const account = await createAccount(api, testData.name('sa-rename'))
+    await serveGrantable(page, { grantable_scopes: ['user:update'], system_allowed_action_prefixes: ['update'] })
+    const patches: unknown[] = []
+    page.on('request', (request) => {
+      if (request.method() === 'PATCH' && new URL(request.url()).pathname.endsWith(`/integration-principals/${account.id}`)) patches.push(request.postDataJSON())
+    })
+
+    await page.goto(accountPath(account))
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    const edit = page.getByRole('dialog', { name: 'Edit service account' })
+    await edit.getByLabel('Name').fill(`${account.name}-renamed`)
+    await edit.getByRole('button', { name: 'Save changes' }).click()
+    // The refused direct scope is in the Advanced section, open and named.
+    await expect(edit.getByText(`You can't grant ${SCOPE}. Remove it, or ask an administrator who can.`)).toBeVisible()
+    await expect(edit.getByRole('button', { name: 'Hide direct scopes' })).toBeVisible()
+    expect(patches).toEqual([])
+  })
+
+  test('a failed read of the grantable scopes is said in place, with Retry; the picker offers nothing meanwhile (F-079)', async ({ page, errorGuard }) => {
+    let fail = true
+    errorGuard.allow({ kind: 'api', status: 500, url: GRANTABLE })
+    await page.route(GRANTABLE, async (route) => {
+      if (fail) return route.fulfill(jsonResponse(500, { error: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' }))
+      return route.continue()
+    })
+
+    await page.goto('/app/service-accounts')
+    await page.getByRole('button', { name: 'New service account' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New service account' })
+    await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
+    const alert = dialog.getByTestId('direct-scopes-error')
+    await expect(alert).toContainText('Could not load the scopes you can grant')
+    // Fail closed: nothing is offered from a guess.
+    await expect(dialog.getByTestId('permission-picker').getByRole('option')).toHaveCount(0)
+    fail = false
+    await alert.getByRole('button', { name: 'Retry' }).click()
+    await expect(alert).toBeHidden()
+    await expect(dialog.getByTestId('permission-picker').getByRole('option').first()).toBeVisible()
+  })
+
+  test('a refused read of the grantable scopes says direct scopes are not the admin\'s to give, without Retry (F-079)', async ({ page, errorGuard }) => {
+    errorGuard.allow({ kind: 'api', status: 403, url: GRANTABLE })
+    await page.route(GRANTABLE, route => route.fulfill(jsonResponse(403, { error: 'HTTP_ERROR', message: 'Superuser privileges required', details: { detail: 'Superuser privileges required' } })))
+
+    await page.goto('/app/service-accounts')
+    await page.getByRole('button', { name: 'New service account' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New service account' })
+    await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
+    const denied = dialog.getByTestId('direct-scopes-denied')
+    await expect(denied).toContainText('You can\'t grant direct scopes here')
+    await expect(denied).toContainText('Superuser privileges required')
+    await expect(denied.getByRole('button', { name: 'Retry' })).toHaveCount(0)
+    await expect(dialog.getByTestId('permission-picker').getByRole('option')).toHaveCount(0)
+  })
+
+  test('a new key offers the account\'s scopes that the admin may grant, nothing else (F-079)', async ({ page, testData, api }) => {
+    const account = await createAccount(api, testData.name('sa-key-grant'), undefined, { allowed_scopes: [SCOPE, 'user:update'] })
+    await serveGrantable(page, { grantable_scopes: [SCOPE], system_allowed_action_prefixes: ['read'] })
+    const keyPosts: Record<string, unknown>[] = []
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith(`/integration-principals/${account.id}/api-keys`)) keyPosts.push(request.postDataJSON() as Record<string, unknown>)
+    })
+
+    await page.goto(accountPath(account, 'keys'))
+    await page.getByRole('button', { name: 'New key' }).click()
+    const keyDialog = page.getByRole('dialog', { name: 'New key' })
+    const picker = keyDialog.getByTestId('scope-picker')
+    // user:update is the account's but not the admin's to give.
+    await expect(picker.getByRole('option')).toHaveCount(1)
+    await keyDialog.getByLabel('Name').fill(testData.name('key'))
+    await picker.getByRole('option').first().click()
+    await keyDialog.getByRole('button', { name: 'Create key' }).click()
+    await storeSecret(page)
+    expect(keyPosts).toEqual([expect.objectContaining({ scopes: [SCOPE] })])
   })
 
   test('archiving an active account says how many live keys go, then revokes each of them', async ({ page, testData, api }) => {

@@ -46,6 +46,12 @@ export type OneTimeSecret = {
 // GET /api-keys/grantable-scopes — the scopes the current actor may grant to a new key.
 export type ApiKeyGrantableScopes = ResponseBody<Schemas['ApiKeyGrantableScopesResponse']>
 
+// GET …/integration-principals/grantable-scopes — the scopes the current actor may grant to a
+// service account (its direct scopes and its roles' permissions) and to its keys, at one scope
+// (platform-wide or an anchor entity): the system-key policy's allowlist, less excluded resources,
+// within what the actor holds there (everything allowed for a superuser).
+export type SystemGrantableScopes = ResponseBody<Schemas['SystemIntegrationGrantableScopesResponse']>
+
 // ── Service accounts (integration principals) and their keys ──
 // Platform-wide: /admin/system/integration-principals. Anchored at an entity (EnterpriseRBAC):
 // /admin/entities/{id}/integration-principals. Same shapes on both.

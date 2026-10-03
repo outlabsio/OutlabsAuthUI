@@ -54,6 +54,9 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
   stricter or laxer policy, the `invite_only` and `closed` registration modes and a registration
   refused as turned off are served (`withPasswordPolicy`, `patchAuthConfig`). The default
   policy, including a backslash as the only symbol, is checked against the live server.
+- The example backends' superuser may grant every allowed scope, so a narrower answer from
+  `…/integration-principals/grantable-scopes` (and its failures) is served to the service-account
+  dialogs; the delegated admin's real, narrower answer is checked live on EnterpriseRBAC.
 - Account › Security for an account without a password is served (`has_password` false on
   `GET /users/me`, the emailed link's request answered, no mail sent); the admin's Set password
   runs on a real one (an invitation an admin activated instead of accepting it).

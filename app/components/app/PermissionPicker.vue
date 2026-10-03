@@ -13,8 +13,8 @@ type PermissionItem = CommandPaletteItem & { name: string }
 // useGrantablePermissions: active permissions only; the ones the actor cannot grant are disabled
 // with the reason. Pairs with AppPermissionList for read-only display. Never autofocuses: it sits
 // inside dialogs whose first field owns the focus (F-131).
-// `allow` narrows the offered permissions further (e.g. a service account's direct scopes, which
-// the backend limits to its system-key allowlist); a selected permission is always listed.
+// `allow` narrows the offered permissions further (e.g. a service account's direct scopes: what
+// the server says the admin may grant there); a selected permission is always listed.
 // While the catalog loads, or when nothing is offered, that is said in place of the palette: its
 // listbox may hold options only (its own empty message inside it is invalid ARIA).
 const props = withDefaults(defineProps<{

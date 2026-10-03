@@ -55,12 +55,15 @@ test.describe('service accounts as a delegated organization admin', () => {
       await dialog.getByLabel('Name').fill(name)
       await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
       const permissions = dialog.getByTestId('permission-picker')
+      // The direct scopes offered are exactly what the server says they may grant at their
+      // organization (F-079): what they hold there within the system-key policy. A copy of the
+      // policy would also list (disabled) every readable permission they do not hold.
+      const grantable = await orgAdmin.get<{ grantable_scopes: string[] }>(`/admin/entities/${me.root_entity_id}/integration-principals/grantable-scopes`)
+      expect(grantable.grantable_scopes).toContain('user:read')
+      expect(grantable.grantable_scopes).not.toContain('permission:create')
+      await expect(permissions.getByRole('option')).toHaveCount(grantable.grantable_scopes.length)
+      await expect(permissions.getByRole('option', { disabled: true })).toHaveCount(0)
       await pickPermission(permissions, 'user:read')
-      // A permission they do not hold is not offered: they read the catalog, so it is listed,
-      // disabled, with the reason (the exact name ranks first).
-      await dialog.getByPlaceholder('Search permissions...').fill('permission:create')
-      await expect(permissions.getByRole('option').first()).toContainText('You don\'t hold this permission, so you can\'t grant it.')
-      await expect(permissions.getByRole('option').first()).toBeDisabled()
       const response = page.waitForResponse(r => r.request().method() === 'POST' && new RegExp(`/admin/entities/${me.root_entity_id}/integration-principals$`).test(r.url()))
       await dialog.getByRole('button', { name: 'Create service account' }).click()
       created = await (await response).json() as Account

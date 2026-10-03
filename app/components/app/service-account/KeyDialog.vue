@@ -17,6 +17,10 @@ const {
   dirty,
   scopeOptions,
   scopeFlags,
+  scopesState,
+  scopesLoading,
+  scopesError,
+  retryScopes,
   keyTypeItems,
   keyTypeHelp,
   title,
@@ -27,6 +31,7 @@ const {
 } = useServiceAccountKeyDialog(account, target, open, {
   created: secret => emit('created', secret)
 })
+const scopesErrorMessage = useApiErrorMessage(scopesError)
 </script>
 
 <template>
@@ -95,13 +100,34 @@ const {
         name="scopes"
         label="Scopes"
         required
-        description="What the key may do, within the service account's scopes."
+        description="What the key may do: the service account's scopes that you can grant."
       >
+        <UAlert
+          v-if="scopesState === 'error'"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="Could not load the scopes you can grant"
+          :description="scopesErrorMessage ?? undefined"
+          :actions="[{ label: 'Retry', color: 'neutral', variant: 'outline', loading: scopesLoading, onClick: retryScopes }]"
+          data-testid="key-scopes-error"
+        />
+        <UAlert
+          v-else-if="scopesState === 'denied'"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-lock"
+          title="You can't grant scopes here"
+          :description="scopesErrorMessage ?? undefined"
+          data-testid="key-scopes-denied"
+        />
         <AppScopePicker
+          v-else
           v-model="state.scopes"
           :options="scopeOptions"
           :flags="scopeFlags"
-          empty-text="This service account grants no scope a key may use."
+          :loading="scopesState === 'pending'"
+          empty-text="This service account grants no scope that you can give a key."
         />
       </UFormField>
     </section>

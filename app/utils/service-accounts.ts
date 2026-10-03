@@ -1,6 +1,5 @@
 import type { ConfirmCopy } from '~/composables/useConfirmAction'
 import type { ApiKey, IntegrationPrincipal, IntegrationPrincipalStatus } from '~/types/api-key'
-import { parsePermissionName } from '~/utils/permissions'
 import { isUuid } from '~/utils/users'
 
 // Service accounts (outlabs-auth "integration principals") and their keys: the pure rules behind
@@ -166,24 +165,123 @@ export function liveKeyCount(keys: readonly Pick<ApiKey, 'status'>[]): number {
   return keys.filter(key => key.status === 'active' || key.status === 'suspended').length
 }
 
-// ── Scope policy ──
+// ── Scope policy (F-079) ──
+// outlabs-auth 0.1.0a35 publishes what an admin may grant a service account and its keys
+// (GET …/integration-principals/grantable-scopes): the host's system-key allowlist, less the
+// excluded resources, within what the admin holds at the account's scope. The console offers
+// exactly that list and mirrors the server's checks against it; it keeps no copy of the policy.
+
+/** "whose action is read, update or delete": the allowlist's action prefixes, for help text. */
+export function actionPrefixesPhrase(prefixes: readonly string[]): string {
+  if (!prefixes.length) return ''
+  const list = prefixes.length > 1 ? `${prefixes.slice(0, -1).join(', ')} or ${prefixes.at(-1)}` : prefixes[0]
+  return ` whose action is ${list}`
+}
+
+/** The direct-scope field's description, naming the actions the host allows. */
+export function directScopesHelp(prefixes: readonly string[]): string {
+  return `Permissions given without a role. Prefer roles; add a direct scope only for a narrow integration. You can grant only what you hold${actionPrefixesPhrase(prefixes)}, and never key or service-account management.`
+}
+
+export type ScopesBeyondGrant = {
+  /** Per selected role, the permissions it carries that the admin cannot grant. */
+  roles: { roleId: string, scopes: string[] }[]
+  /** Direct scopes the admin cannot grant. */
+  direct: string[]
+}
 
 /**
- * The backend's default system-key scope allowlist (outlabs-auth core/config.py
- * DEFAULT_SYSTEM_API_KEY_ACTION_PREFIXES and api_key_system_excluded_resources). Hosts can change
- * both and no endpoint reports them yet, so the direct-scope picker uses the defaults and the
- * API's 400 remains the final word.
+ * What a service account would carry that the admin may not grant. outlabs-auth checks the
+ * account's whole envelope (its roles' permissions plus its direct scopes) against the admin's
+ * grantable scopes on create and on every edit, a rename included, and refuses it with a 400 that
+ * does not name the scope. A role whose permissions are not known yet is skipped (the server
+ * decides), and nothing is flagged while `grantable` is unknown (null).
  */
-export const DEFAULT_SYSTEM_SCOPE_ACTION_PREFIXES = ['create', 'read', 'list', 'search', 'view', 'get', 'update', 'delete', 'write', 'run', 'execute', 'trigger'] as const
-export const DEFAULT_SYSTEM_SCOPE_EXCLUDED_RESOURCES = ['api_key', 'service_token', 'integration_principal'] as const
+export function scopesBeyondGrant(input: {
+  roleIds: readonly string[]
+  directScopes: readonly string[]
+  rolePermissions: (roleId: string) => readonly string[] | null | undefined
+  grantable: ReadonlySet<string> | null
+}): ScopesBeyondGrant {
+  const { grantable } = input
+  if (!grantable) return { roles: [], direct: [] }
+  const beyond = (names: readonly string[]) => [...new Set(names.filter(name => name && !grantable.has(name)))].sort()
+  const roles = input.roleIds.flatMap((roleId) => {
+    const permissions = input.rolePermissions(roleId)
+    if (!permissions) return []
+    const scopes = beyond(permissions)
+    return scopes.length ? [{ roleId, scopes }] : []
+  })
+  return { roles, direct: beyond(input.directScopes) }
+}
 
-/** Whether a permission may be a service account's direct scope under the default policy. */
-export function systemScopeAllowed(name: string): boolean {
-  const { resource, action } = parsePermissionName(name)
-  const res = resource.toLowerCase()
-  const act = action.toLowerCase()
-  if ((DEFAULT_SYSTEM_SCOPE_EXCLUDED_RESOURCES as readonly string[]).includes(res)) return false
-  return DEFAULT_SYSTEM_SCOPE_ACTION_PREFIXES.some(prefix => act === prefix || act.startsWith(`${prefix}_`))
+function nameList(names: readonly string[], max = 5): string {
+  const shown = names.slice(0, max)
+  const more = names.length - shown.length
+  const head = more > 0 ? shown : shown.slice(0, -1)
+  const tail = more > 0 ? `${more} more` : shown.at(-1) ?? ''
+  return head.length ? `${head.join(', ')} and ${tail}` : tail
+}
+
+/**
+ * The refusals of `scopesBeyondGrant`, worded for the fields they belong to: the roles on Roles
+ * (named, with what they carry), the direct scopes on Direct scopes. Empty when nothing is beyond.
+ */
+export function scopesBeyondGrantErrors(result: ScopesBeyondGrant, roleLabel: (roleId: string) => string): { name: 'role_ids' | 'allowed_scopes', message: string }[] {
+  const errors: { name: 'role_ids' | 'allowed_scopes', message: string }[] = []
+  if (result.roles.length) {
+    const scopes = [...new Set(result.roles.flatMap(role => role.scopes))].sort()
+    const roles = result.roles.map(role => roleLabel(role.roleId))
+    const one = roles.length === 1
+    errors.push({
+      name: 'role_ids',
+      message: `${nameList(roles)} ${one ? 'grants' : 'grant'} ${nameList(scopes)}, which you can't grant. Remove ${one ? 'it' : 'them'}, or ask an administrator who can.`
+    })
+  }
+  if (result.direct.length) {
+    errors.push({
+      name: 'allowed_scopes',
+      message: `You can't grant ${nameList(result.direct)}. Remove ${result.direct.length === 1 ? 'it' : 'them'}, or ask an administrator who can.`
+    })
+  }
+  return errors
+}
+
+/**
+ * A machine key's scope choices: the account's effective scopes that the admin may also grant
+ * (the server checks both). Null `grantable` (not loaded): none yet.
+ */
+export function machineKeyScopeOptions(effective: readonly string[], grantable: ReadonlySet<string> | null): string[] {
+  if (!grantable) return []
+  return [...new Set(effective)].filter(name => grantable.has(name)).sort()
+}
+
+export const MACHINE_KEY_NOT_GRANTED = 'not granted to the account'
+export const MACHINE_KEY_NOT_GRANTABLE = 'you can\'t grant it'
+
+/**
+ * Selected scopes a key could not be given again, with the reason: the account no longer grants
+ * it, or the admin cannot. Only scopes the account grants are judged against `grantable`, and not
+ * before it is known (null).
+ */
+export function machineKeyScopeFlags(selected: readonly string[], effective: readonly string[], grantable: ReadonlySet<string> | null): Record<string, string> {
+  const granted = new Set(effective)
+  const flags: Record<string, string> = {}
+  for (const name of selected) {
+    if (!granted.has(name)) flags[name] = MACHINE_KEY_NOT_GRANTED
+    else if (grantable && !grantable.has(name)) flags[name] = MACHINE_KEY_NOT_GRANTABLE
+  }
+  return flags
+}
+
+/** The Scopes field's refusal while flagged scopes remain (F-082), one sentence per reason. */
+export function machineKeyScopeRefusal(flags: Record<string, string>): string | null {
+  const notGranted = Object.keys(flags).filter(name => flags[name] === MACHINE_KEY_NOT_GRANTED).sort()
+  const notGrantable = Object.keys(flags).filter(name => flags[name] === MACHINE_KEY_NOT_GRANTABLE).sort()
+  const sentences: string[] = []
+  if (notGranted.length) sentences.push(`Remove ${notGranted.join(', ')}: ${notGranted.length === 1 ? 'it is' : 'they are'} not granted to the account.`)
+  if (notGrantable.length) sentences.push(`Remove ${notGrantable.join(', ')}: you can't grant ${notGrantable.length === 1 ? 'it' : 'them'}.`)
+  return sentences.length ? sentences.join(' ') : null
 }
 
 /** The account's scopes, each marked when it is one of its direct scopes (not through a role). */

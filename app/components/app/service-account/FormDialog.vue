@@ -26,10 +26,19 @@ const {
   knownRoles,
   scopesOpen,
   allowScope,
+  scopesHelp,
+  scopesState,
+  scopesLoading,
+  scopesError,
+  retryScopes,
+  validate,
+  onInvalid,
+  submitDisabled,
   onSubmit
 } = useServiceAccountFormDialog(() => props.target, open, {
   created: account => emit('created', account)
 })
+const scopesErrorMessage = useApiErrorMessage(scopesError)
 </script>
 
 <template>
@@ -39,13 +48,16 @@ const {
     :title="title"
     :description="description"
     :schema="schema"
+    :validate="validate"
     :state="state"
     :error="error"
     :dirty="dirty"
     :require-changes="mode === 'edit'"
+    :submit-disabled="submitDisabled"
     :submit-label="submitLabel"
     size="xl"
     @submit="onSubmit"
+    @invalid="onInvalid"
   >
     <UFormField
       name="name"
@@ -108,9 +120,40 @@ const {
           name="allowed_scopes"
           label="Direct scopes"
           hint="Restricted"
-          description="Permissions given without a role. Prefer roles; add a direct scope only for a narrow integration. You can grant only what you hold, and never key or service-account management."
+          :description="scopesHelp"
         >
-          <AppPermissionPicker v-model="state.allowed_scopes" :allow="allowScope" />
+          <div class="flex flex-col gap-3">
+            <p
+              v-if="scopesState === 'pending'"
+              role="status"
+              class="rounded-md border border-default px-3 py-6 text-center text-sm text-muted"
+              data-testid="direct-scopes-loading"
+            >
+              Loading scopes...
+            </p>
+            <template v-else>
+              <UAlert
+                v-if="scopesState === 'error'"
+                color="error"
+                variant="subtle"
+                icon="i-lucide-triangle-alert"
+                title="Could not load the scopes you can grant"
+                :description="scopesErrorMessage ?? undefined"
+                :actions="[{ label: 'Retry', color: 'neutral', variant: 'outline', loading: scopesLoading, onClick: retryScopes }]"
+                data-testid="direct-scopes-error"
+              />
+              <UAlert
+                v-else-if="scopesState === 'denied'"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-lock"
+                title="You can't grant direct scopes here"
+                :description="scopesErrorMessage ?? undefined"
+                data-testid="direct-scopes-denied"
+              />
+              <AppPermissionPicker v-model="state.allowed_scopes" :allow="allowScope" :disabled="scopesState !== 'success'" />
+            </template>
+          </div>
         </UFormField>
       </template>
     </UCollapsible>

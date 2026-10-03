@@ -15,6 +15,7 @@ import type {
   KeyInventoryFilters,
   PrincipalKeysCollection,
   PrincipalListFilters,
+  SystemGrantableScopes,
   UpdateApiKeyInput,
   UpdatePrincipalInput
 } from '~/types/api-key'
@@ -119,8 +120,20 @@ export const principalKeys = {
   list: (scope: ServiceAccountScope, filters: PrincipalListFilters) => [PRINCIPALS_ROOT, 'list', scopeKey(scope), filters],
   detail: (scope: ServiceAccountScope, principalId: string) => [PRINCIPALS_ROOT, 'detail', scopeKey(scope), principalId],
   keys: (scope: ServiceAccountScope, principalId: string) => [PRINCIPALS_ROOT, 'detail', scopeKey(scope), principalId, 'keys'],
+  grantable: (scope: ServiceAccountScope) => [PRINCIPALS_ROOT, 'grantable-scopes', scopeKey(scope)],
   inventory: (entityId: string, filters: KeyInventoryFilters) => [PRINCIPALS_ROOT, 'inventory', entityId, filters]
 } as const
+
+// The scopes the signed-in admin may grant at this scope (F-079): the direct-scope picker of the
+// service-account dialog and the scope picker of its keys offer exactly these, and the account
+// dialog checks the whole envelope (roles and direct scopes) against them, as the server does on
+// every create and edit. EnterpriseRBAC: the entity route needs api_key:create at the entity, the
+// platform route a superuser; SimpleRBAC: api_key:create.
+export const principalGrantableScopesQuery = defineQueryOptions((scope: ServiceAccountScope) => ({
+  key: principalKeys.grantable(scope),
+  query: ctx => apiClient.get<SystemGrantableScopes>(`${principalsBase(scope)}/grantable-scopes`, { signal: ctx?.signal }),
+  staleTime: CATALOGUE_STALE_TIME
+}))
 
 function principalListQueryString(filters: PrincipalListFilters) {
   const params = new URLSearchParams({ page: String(filters.page), limit: String(filters.limit) })

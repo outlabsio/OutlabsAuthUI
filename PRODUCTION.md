@@ -140,9 +140,15 @@ does not use yet.
 - **Example seeds** (limit release-check coverage, not deployments): entity-scoped managers,
   subtree admins and a team lead as personas (F-037, F-041, F-243). The 0.1.0a35 seeds give the
   delegated admins `permission:check` (F-059) and hold every lifecycle state.
+- **Grantable scopes for service accounts** (0.1.0a35, F-079): the direct-scope and machine-key
+  pickers offer `…/integration-principals/grantable-scopes` and the account dialog checks the whole
+  envelope against it, because the create and update 400 (`actor_scope_exceeded`) forwards only
+  its message: the reason and the refused scope (`details.policy_reason`, `details.scope`) are
+  dropped by the router. On EnterpriseRBAC the platform route is superuser-only, and the entity
+  route needs `api_key:create` there even for an admin who may only edit the account; such a
+  refusal is said in the dialog and the server stays the final word.
 - **Contract additions** behind Partial and Missing rows in CAPABILITIES.md: grantable roles
-  readable by delegated admins (F-079; 0.1.0a35 adds the service-account grantable scopes, which
-  the console does not use yet: its direct-scope picker applies the default policy), role holder
+  readable by delegated admins (F-079; the service-account grantable scopes are in use), role holder
   counts (F-112), names on grants the admin cannot read (F-067, F-103), effective-permission
   sources with entity context (F-013, F-239), move-target validation (F-076), no rotation of a
   suspended key (F-080), resend and restore by delegated inviters (F-244), and failed sign-in data

@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actionPrefixesPhrase,
+  directScopesHelp,
   effectiveScopeRows,
   liveKeyCount,
+  machineKeyScopeFlags,
+  machineKeyScopeOptions,
+  machineKeyScopeRefusal,
   principalScope,
   resolveServiceAccountScope,
+  scopesBeyondGrant,
+  scopesBeyondGrantErrors,
   serviceAccountAccessSummary,
   serviceAccountLifecycleCopy,
   serviceAccountPath,
   serviceAccountPolicy,
-  serviceAccountStatusLabel,
-  systemScopeAllowed
+  serviceAccountStatusLabel
 } from '../../app/utils/service-accounts'
 import { isIpOrCidr, machineKeySchema, serviceAccountSchema } from '../../app/schemas/api-key'
 
@@ -111,13 +117,55 @@ describe('keys', () => {
 })
 
 describe('scopes', () => {
-  it('follows the default system-key allowlist', () => {
-    expect(systemScopeAllowed('user:read')).toBe(true)
-    expect(systemScopeAllowed('entity:read_tree')).toBe(true)
-    expect(systemScopeAllowed('post:delete_own')).toBe(true)
-    expect(systemScopeAllowed('user:manage')).toBe(false)
-    expect(systemScopeAllowed('api_key:read')).toBe(false)
-    expect(systemScopeAllowed('integration_principal:create')).toBe(false)
+  it('names the allowed actions from the server, not a copy of the policy', () => {
+    expect(actionPrefixesPhrase([])).toBe('')
+    expect(actionPrefixesPhrase(['read'])).toBe(' whose action is read')
+    expect(actionPrefixesPhrase(['read', 'update', 'manage'])).toBe(' whose action is read, update or manage')
+    expect(directScopesHelp(['read'])).toContain('You can grant only what you hold whose action is read, and never key')
+  })
+
+  it('flags what a role or a direct scope carries beyond the grantable scopes', () => {
+    const permissions: Record<string, string[] | null> = { reader: ['user:read', 'entity:read'], loading: null, fine: ['user:read'] }
+    const grantable = new Set(['user:read'])
+    const result = scopesBeyondGrant({
+      roleIds: ['reader', 'loading', 'fine', 'unknown'],
+      directScopes: ['user:read', 'user:manage', 'user:manage'],
+      rolePermissions: id => permissions[id],
+      grantable
+    })
+    // A role whose permissions are not known (loading, or not readable) is left to the server.
+    expect(result).toEqual({ roles: [{ roleId: 'reader', scopes: ['entity:read'] }], direct: ['user:manage'] })
+    // Nothing is flagged before the grantable scopes are known.
+    expect(scopesBeyondGrant({ roleIds: ['reader'], directScopes: ['user:manage'], rolePermissions: id => permissions[id], grantable: null })).toEqual({ roles: [], direct: [] })
+  })
+
+  it('words the envelope refusals for their fields', () => {
+    const labels: Record<string, string> = { a: 'Service Reader', b: 'Auditor' }
+    expect(scopesBeyondGrantErrors({ roles: [], direct: [] }, id => labels[id]!)).toEqual([])
+    expect(scopesBeyondGrantErrors({ roles: [{ roleId: 'a', scopes: ['entity:read'] }], direct: ['user:manage'] }, id => labels[id]!)).toEqual([
+      { name: 'role_ids', message: 'Service Reader grants entity:read, which you can\'t grant. Remove it, or ask an administrator who can.' },
+      { name: 'allowed_scopes', message: 'You can\'t grant user:manage. Remove it, or ask an administrator who can.' }
+    ])
+    const many = scopesBeyondGrantErrors({
+      roles: [{ roleId: 'a', scopes: ['a:1', 'a:2', 'a:3'] }, { roleId: 'b', scopes: ['a:3', 'b:1', 'b:2', 'b:3'] }],
+      direct: ['x:1', 'x:2']
+    }, id => labels[id]!)
+    expect(many[0]!.message).toBe('Service Reader and Auditor grant a:1, a:2, a:3, b:1, b:2 and 1 more, which you can\'t grant. Remove them, or ask an administrator who can.')
+    expect(many[1]!.message).toBe('You can\'t grant x:1 and x:2. Remove them, or ask an administrator who can.')
+  })
+
+  it('offers a machine key the account\'s scopes the admin may grant, and flags the rest', () => {
+    const grantable = new Set(['user:read', 'entity:read'])
+    expect(machineKeyScopeOptions(['user:update', 'user:read', 'user:read'], grantable)).toEqual(['user:read'])
+    expect(machineKeyScopeOptions(['user:read'], null)).toEqual([])
+    const flags = machineKeyScopeFlags(['user:read', 'user:update', 'lead:read'], ['user:read', 'user:update'], grantable)
+    expect(flags).toEqual({ 'user:update': 'you can\'t grant it', 'lead:read': 'not granted to the account' })
+    // Before the grantable scopes are known only the account's own grant is judged.
+    expect(machineKeyScopeFlags(['user:update', 'lead:read'], ['user:update'], null)).toEqual({ 'lead:read': 'not granted to the account' })
+    expect(machineKeyScopeRefusal({})).toBeNull()
+    expect(machineKeyScopeRefusal({ 'lead:read': 'not granted to the account' })).toBe('Remove lead:read: it is not granted to the account.')
+    expect(machineKeyScopeRefusal(flags)).toBe('Remove lead:read: it is not granted to the account. Remove user:update: you can\'t grant it.')
+    expect(machineKeyScopeRefusal({ 'a:1': 'you can\'t grant it', 'a:2': 'you can\'t grant it' })).toBe('Remove a:1, a:2: you can\'t grant them.')
   })
 
   it('marks direct scopes among the effective ones', () => {

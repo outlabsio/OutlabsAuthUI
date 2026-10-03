@@ -507,20 +507,33 @@ loading/empty copy, date formatting or one-off selects.
   description, "Includes child entities" only for entity accounts (the API refuses it
   platform-wide), roles first through AppRoleAccessEditor over `useAssignableRoles` (system-wide
   roles for platform accounts, the roles available at the anchor for entity accounts), direct
-  scopes under "Advanced: direct scopes" (restricted) through `AppPermissionPicker
-  :allow="systemScopeAllowed"` (the backend's default system-key allowlist). At least one role or
-  direct scope. Edit sends only what changed. The API's 400 (scope beyond the admin's authority or
-  the allowlist) shows in the dialog. Create opens the new account.
+  scopes under "Advanced: direct scopes" (restricted) through `AppPermissionPicker :allow`
+  limited to what the server says this admin may grant at the account's scope
+  (`principalGrantableScopesQuery`: `GET …/integration-principals/grantable-scopes`, the host's
+  system-key allowlist within what the admin holds there; its action prefixes word the field's
+  help). While it loads the field says so; a failed read is an alert with Retry and a refused one
+  (403) says direct scopes are not theirs to give, the picker disabled in both: the console keeps
+  no copy of the policy. At least one role or direct scope. outlabs-auth checks the whole envelope
+  (roles' permissions and direct scopes) against that list on create and on every edit, a rename
+  included, with a 400 that names no scope, so the dialog checks it first: `scopesBeyondGrant` +
+  `scopesBeyondGrantErrors` (`utils/service-accounts.ts`) are an AppFormDialog `validate` rule that
+  names the roles on Roles and the direct scopes on Direct scopes (opening the section); roles
+  whose permissions are not loaded are left to the server, and Save waits for the grantable read
+  (not for a failed or refused one), so a quick submit cannot pass the rule unjudged. Edit sends
+  only what changed. The
+  API's 400 still shows in the dialog. Create opens the new account.
 - **Keys** (`useServiceAccountKeys`): every key of the account (all pages), live ones by default
   with "Include revoked and expired" (a key past its expiry date counts as expired). Status,
   detail and actions follow the shared API-key rules below; Edit opens the same dialog as New
   key. `<AppServiceAccountKeyDialog :target>` (`machineKeySchema` in `schemas/api-key.ts`: name,
-  description, Live/Test, scopes within the account's effective scopes through AppScopePicker,
-  rate limit, expiry preset, IP allowlist) creates a key (`useSecretMutation`: the secret goes to
+  description, Live/Test, scopes through AppScopePicker: the account's effective scopes that the
+  admin may also grant (`machineKeyScopeOptions`, the same grantable-scopes read; the server checks
+  both), rate limit, expiry preset, IP allowlist) creates a key (`useSecretMutation`: the secret goes to
   AppSecretReveal, owner = the account's name, and the mutation is discarded) or edits one
-  (changed fields only; scopes the account no longer grants are flagged, and an edit that
-  changes the scopes must drop them first, as in the personal key dialog: a `validate` rule of
-  the form, so the refusal stays on the Scopes field and blocks the submit, F-082).
+  (changed fields only; scopes the account no longer grants, or the admin cannot grant, are
+  flagged (`machineKeyScopeFlags`), and a create or an edit that changes the scopes must drop them
+  first, as in the personal key dialog: a `validate` rule of the form, so the refusal stays on the
+  Scopes field and blocks the submit, F-082).
 
 ## API keys (`utils/api-keys.ts`, `components/app/ApiKey*.vue`, `components/app/api-key/*`)
 - **One set of key rules** for every key table (My API keys, a service account's Keys tab, the
