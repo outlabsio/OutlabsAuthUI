@@ -200,21 +200,28 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
               aria-label="Search users"
               class="min-w-0 flex-1 sm:w-64 sm:flex-none"
             />
-            <UPopover v-if="compactFilters">
-              <UChip :text="activeFilterCount" :show="activeFilterCount > 0" size="3xl">
+            <!-- The chip wraps the popover, not its trigger: the button must be the popover's
+                 trigger itself, which is where closing the popover returns the focus. -->
+            <UChip
+              v-if="compactFilters"
+              :text="activeFilterCount"
+              :show="activeFilterCount > 0"
+              size="3xl"
+            >
+              <UPopover>
                 <UButton
                   icon="i-lucide-sliders-horizontal"
                   color="neutral"
                   variant="outline"
                   label="Filters"
                 />
-              </UChip>
-              <template #content>
-                <div class="flex w-72 flex-col gap-3 p-4">
-                  <ReuseFilters :stacked="true" />
-                </div>
-              </template>
-            </UPopover>
+                <template #content>
+                  <div class="flex w-72 flex-col gap-3 p-4">
+                    <ReuseFilters :stacked="true" />
+                  </div>
+                </template>
+              </UPopover>
+            </UChip>
             <ReuseFilters v-else :stacked="false" />
           </div>
         </template>

@@ -843,3 +843,18 @@ test.describe('accessibility: shell dialogs', () => {
     await expect(opener).toBeFocused()
   })
 })
+
+// Below sm the users and roles lists fold their filters into a Filters popover.
+test.describe('accessibility: the lists\' filters at phone width', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+
+  for (const path of ['/app/users', '/app/roles']) {
+    test(`${path} filters at phone width (popover)`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(path)
+      await settled(page)
+      const opener = await pressOpen(page, page.getByRole('button', { name: 'Filters', exact: true }))
+      await sweep(page, page.getByRole('dialog', { name: 'Filters', exact: true }), { opener, variants: PHONE_VARIANTS })
+    })
+  }
+})
