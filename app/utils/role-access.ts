@@ -189,8 +189,11 @@ export function membershipRoleDisplay(
   const ids = [...(membership.role_ids ?? [])]
   const names = [...(membership.role_names ?? [])]
   const chips = (named: ReadonlyMap<string, string> = new Map()) => ids.map(id => (named.has(id) ? { id, name: named.get(id) } : { id }))
+  // The membership's names are the last resort: nothing is named from them until the catalog
+  // (and the caller's other sources) have answered, so a chip never flips from a system name to
+  // a display name.
+  if (!sources.catalogNames || !ids.length || !names.length) return { chips: chips(), names: [] }
   if (ids.length === 1 && names.length === 1) return { chips: chips(new Map([[ids[0]!, names[0]!]])), names: [] }
-  if (!ids.length || !names.length || !sources.catalogNames) return { chips: chips(), names: [] }
 
   // Names left once the roles the catalog holds are taken out (by their system name).
   const left = [...names]

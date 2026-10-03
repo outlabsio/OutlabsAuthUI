@@ -87,7 +87,8 @@ export function useUserMembershipsCard(user: Ref<User>) {
   }
   // The membership's own names (role_names: system names, not aligned with role_ids) where they
   // can be tied to a role, and the rest as names alone (F-067). Judged once the history and the
-  // catalog have answered, so a role named by either is never shown twice.
+  // catalog have answered, so a role named by either is never shown twice and a chip never
+  // flips from a system name to a display name.
   function membershipRoles(membership: Membership): { chips: RoleReference[], names: string[] } {
     const display = membershipRoleDisplay(membership, {
       catalogNames: historyPending.value ? null : roleCatalog.systemNames.value,

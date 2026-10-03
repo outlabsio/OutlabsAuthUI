@@ -197,8 +197,10 @@ describe('membershipRoleDisplay', () => {
   // role_names are system names sorted by name; role_ids are sorted by id: never index-aligned.
   const catalog = (entries: Record<string, string>) => new Map(Object.entries(entries))
 
-  it('names a single role from the membership itself, even before the catalog answers', () => {
-    expect(membershipRoleDisplay({ role_ids: ['r1'], role_names: ['agent'] }, { catalogNames: null })).toEqual({ chips: [{ id: 'r1', name: 'agent' }], names: [] })
+  it('names a single role from the membership itself, once the catalog has answered', () => {
+    expect(membershipRoleDisplay({ role_ids: ['r1'], role_names: ['agent'] }, { catalogNames: catalog({}) })).toEqual({ chips: [{ id: 'r1', name: 'agent' }], names: [] })
+    // Still loading: nothing is named yet, so the chip reads as loading, then as its best name.
+    expect(membershipRoleDisplay({ role_ids: ['r1'], role_names: ['agent'] }, { catalogNames: null })).toEqual({ chips: [{ id: 'r1' }], names: [] })
   })
 
   it('never pairs several roles by position', () => {
