@@ -68,7 +68,7 @@ committed). The deploy reads that record.
 | Requirement | Status | Evidence |
 |---|---|---|
 | Lists page on the server and never load unbounded data | Met | CAPABILITIES.md list rows; `e2e/permissions/permissions-list-state.spec.ts`, `e2e/users/users-list.spec.ts` |
-| A bundle-size budget enforced by the release check | Met | `bundle-budget.json` holds the baseline (2,343,028 bytes of JavaScript under `.output/public/_nuxt`, measured at `018b6d6`) and a 10% allowance. `release:check` runs the `bundle-budget` step after `generate`, records the size in `.release/gate.json` (`bundle`) and fails past the limit; `bun run check:bundle` runs it alone (`scripts/lib/bundle-budget.mjs`, `test/unit/bundle-budget.test.ts`). Raising the baseline is a reviewed change to that file |
+| A bundle-size budget enforced by the release check | Met | `bundle-budget.json` holds the baseline (2,343,028 bytes of JavaScript under `.output/public/_nuxt`, measured at `018b6d6`) and a 10% allowance. `release:check` runs the `bundle-budget` step after `generate`, records the size in `.release/gate.json` (`bundle`) and fails past the limit; `bun run check:bundle` runs it alone (`scripts/lib/bundle-budget.mjs`, `test/unit/bundle-budget.test.ts`). Raising the baseline is a reviewed change to that file. At the release commit in section 11: 2,373,613 bytes, 1.3% over the baseline, within the 2,577,330-byte limit |
 
 ## 7. Capability and documentation
 
@@ -228,13 +228,48 @@ in private records.
 
 ## 11. Last verification
 
-Recorded by `bun run release:check` (section 1) on 2026-10-02 at the cutover, the commit that made
-this repository the Nuxt console; refresh it whenever the gate is re-run. The record itself
-(`.release/gate.json`) stays on the machine that ran it. Run against the outlabsAuth example
-backends (outlabs-auth 0.1.0a34, API contract `outlabs-auth.api/v1`), each reseeded before its
-suite (`RELEASE_RESEED_CMD`), in release mode: one retry, `failOnFlakyTests`, `forbidOnly`, fresh
-persona sign-ins, Playwright's default workers (8 here), Chromium only. Two release checks in a
-row passed at this commit.
+Recorded by `bun run release:check` (section 1) on 2026-10-03 at the commit that adds this record,
+the documentation commit after `71e0b76`; refresh it whenever the gate is re-run. The record itself
+(`.release/gate.json`) stays on the machine that ran it. It verifies the move to outlabs-auth
+0.1.0a35, the release the console requires, and what the console took up from it (section 8). Run
+against the outlabsAuth example backends on outlabs-auth 0.1.0a35 (API contract
+`outlabs-auth.api/v1`), each reseeded before its suite (`RELEASE_RESEED_CMD`), in release mode:
+one retry, `failOnFlakyTests`, `forbidOnly`, fresh persona sign-ins, Playwright's default workers
+(8 here), Chromium only. Two release checks in a row passed at this commit, after one with the
+same results at `71e0b76`, the last change to code and tests.
+
+| Check | Result |
+|---|---|
+| Clean tree, `bun install --frozen-lockfile`, typecheck, typecheck:tests, lint (with guardrails), unit tests, check:api-types | green; 830 unit tests in 48 files |
+| generate | green; 4 inline-script hashes across 24 HTML files |
+| Dependency audit (`bun run audit`) | no vulnerabilities, 5 reviewed advisories ignored (the `audit` script in `package.json`) |
+| Bundle budget (`bundle-budget` step, `.output/public/_nuxt`) | within budget, baseline unchanged: 201 JavaScript files, 2,373,613 bytes raw (1.3% over the 2,343,028-byte baseline; limit 2,577,330), about 753 KB gzip (sum per file); CSS 162 KB raw |
+| Backend preflight | EnterpriseRBAC and SimpleRBAC each answer `/v1/auth/config` with their own preset, both on outlabs-auth 0.1.0a35 |
+| EnterpriseRBAC, static build, release mode | 653 passed, 0 failed, 0 flaky, 10 skipped (all SimpleRBAC-only tests and personas); about 4 minutes |
+| SimpleRBAC, static build, release mode | 434 passed, 0 failed, 0 flaky, 229 skipped (EnterpriseRBAC-only areas and personas, and sign-in methods and development capture routes the SimpleRBAC example does not offer); about 11 minutes, most of it disposable-session logins waiting for the login limiter's window |
+
+One failure surfaced, in the first release check at `ed68541` (the last feature commit):
+
+- **The login limiter on SimpleRBAC: a harness defect.** An identity-switch test passed only on
+  retry, so strict mode failed the run. Its fresh-session login was refused by the example
+  backend's password-login limiter (20 per 5 minutes per IP), waited the 300 seconds the refusal
+  names, and was refused again. The limiter's window is fixed (it opens with its first login) and
+  every refusal names all of it, so one wait of that length can land after the next window has
+  opened and filled with other workers' logins, and the session specs added for 0.1.0a35 raised
+  the number of logins a SimpleRBAC run spends. A stress run of the session lane with the
+  session-lifecycle, sessions-table and user-sessions specs (three repeats, four workers) failed
+  three tests on the limiter, one of them a sessions-table spec whose bare login did not wait at
+  all. The harness now tries a refused login every 15 seconds until it is admitted, for up to 11
+  minutes (`e2e/support/login-limiter.ts`, `test/unit/login-limiter.test.ts`), and that spec's
+  login goes through it; the same stress run with every account spec added passed on both
+  presets, and the SimpleRBAC suite went from about 15 minutes to 11. No product code changed.
+
+### Earlier verification: the cutover (2026-10-02)
+
+Recorded by `bun run release:check` on 2026-10-02 at the cutover (`f8141f9`), the commit that made
+this repository the Nuxt console, against the outlabsAuth example backends on outlabs-auth
+0.1.0a34 (API contract `outlabs-auth.api/v1`), in release mode with Playwright's default workers
+(8 there), Chromium only. Two release checks in a row passed at that commit.
 
 | Check | Result |
 |---|---|
@@ -246,7 +281,7 @@ row passed at this commit.
 | SimpleRBAC, static build, release mode | 330 passed, 0 failed, 0 flaky, 190 skipped (EnterpriseRBAC-only areas, and development capture routes the SimpleRBAC example does not mount) |
 | Bundle baseline (`.output/public/_nuxt`) | 199 JavaScript chunks, 2.34 MB raw, about 740 KB gzip (sum per file); CSS 162 KB raw |
 
-The previous verification passed, but two of its five release checks failed strict mode on tests
+The verification before it passed, but two of its five release checks failed strict mode on tests
 that passed only on retry. What each was, and what changed:
 
 - **Service-account key edit (F-082), twice in five runs: a product defect.** The dialog refused a
@@ -280,7 +315,7 @@ that passed only on retry. What each was, and what changed:
   panel reads) is now a source too, and an unresolved selection stays the parent. A spec that
   holds the tree and the path until the dialog is open fails without the fix, four runs in four.
 
-Five more surfaced during this verification:
+Five more surfaced during that verification:
 
 - **Accessibility sweep of the New service account dialog: a product defect.** It failed once on
   its first attempt in the release checks at the cutover, and in both of two stress runs with 16

@@ -84,10 +84,11 @@ Expect those waits on SimpleRBAC. A full run right after a reseed spends several
 of logins (the personas, including the provisioned `globalAdmin`, plus every disposable session),
 so session tests (for example "signs out from the collapsed sidebar" and the session-lifecycle
 lane) wait for a window to reopen, up to about five minutes each. Other workers keep running
-meanwhile, but the whole SimpleRBAC static run takes longer than EnterpriseRBAC's, which mints
-disposable sessions through the invite capture and stays under the limit. Helpers that need an
-admin token (`apiLogin` in `support/passwordless-capture.ts`, `personaToken`) resolve a persona's
-email to its minted session and spend no login.
+meanwhile, but in a release check with eight workers the SimpleRBAC suite takes about eleven
+minutes against EnterpriseRBAC's four, which mints disposable sessions through the invite capture
+and stays under the limit. Helpers that need an admin token (`apiLogin` in
+`support/passwordless-capture.ts`, `personaToken`) resolve a persona's email to its minted session
+and spend no login.
 
 ## Variables
 
@@ -309,7 +310,8 @@ on one of those ports.
 There is no hosted CI. `bun run release:check --enterprise <url> --simple <url>` (README
 "Releasing", `scripts/release-check.mjs`) is the release gate, run on the releasing machine
 against the two seeded examples above. After the static gates (frozen install, typecheck,
-`typecheck:tests`, lint, unit tests, `check:api-types`, audit, generate) it checks that each
+`typecheck:tests`, lint, unit tests, `check:api-types`, audit, generate, the shipped JavaScript
+within `bundle-budget.json`) it checks that each
 backend answers `/auth/config` with its own preset, then runs `bunx playwright test` once per
 preset with:
 

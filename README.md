@@ -415,12 +415,14 @@ mutations that call `invalidateAfter(domain)`), `schemas/user.ts`, the feature c
 
 ## Status and resuming work
 
-Active development is paused as of 2026-10-02, at a releasable state. Whoever picks it up next
-starts here.
+Active development paused on 2026-10-02 at a releasable state. On 2026-10-03 the console moved
+to outlabs-auth 0.1.0a35, the release it now requires, and took up what that release added for
+consoles (PRODUCTION.md section 8). Whoever picks it up next starts here.
 
-- **Last release check:** passed on 2026-10-02 at `f8141f9`, the cutover commit, against the
-  outlabsAuth examples on outlabs-auth 0.1.0a34, both presets, Chromium only
-  ([PRODUCTION.md](PRODUCTION.md) section 11). The record (`.release/gate.json`) stays on the
+- **Last release check:** passed twice in a row on 2026-10-03 at the documentation commit after
+  `71e0b76` that records it, against the outlabsAuth examples on outlabs-auth 0.1.0a35, both
+  presets, Chromium only; the shipped JavaScript is within its budget, 1.3% over the baseline
+  where 10% is allowed ([PRODUCTION.md](PRODUCTION.md) section 11). The record (`.release/gate.json`) stays on the
   machine that ran it and is valid for 7 days; any later commit, documentation included, needs
   its own `bun run release:check` before it can deploy.
 - **Deployments:** none has cut over and no sign-off is recorded (PRODUCTION.md section 10). A
@@ -441,9 +443,8 @@ Open work, in the order it matters for a first cutover:
 2. **Per-deployment checks** (PRODUCTION.md section 9), notably that the deployment's backend
    runs outlabs-auth 0.1.0a35 or later, a live sign-in against it when it is not the release the
    last check ran against, and same-site hosting where OAuth is on.
-3. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
-   Chromium were not run at the last release; one flaky spec was never reproduced; there is no
-   bundle-size budget.
+3. **Open gate items** (PRODUCTION.md section 1): Firefox, WebKit and phone-sized Chromium were
+   not run at the last release; one flaky spec was never reproduced.
 4. **Not started:** extracting the console as a reusable dashboard starting point.
 
 Decided: light-mode colour contrast (F-032) is a known limitation the owner accepted on

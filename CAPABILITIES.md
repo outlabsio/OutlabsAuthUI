@@ -21,9 +21,9 @@ identifiers of the 2026-09 production audit, also used in code comments and spec
 audit report is not published: each row states its gap in place, and ARCHITECTURE.md "Status"
 explains the other labels found in comments.
 
-Last verified: 2026-10-02 at the cutover by `bun run release:check`, the run recorded in
-PRODUCTION.md section 11 with the suite results. Update this file in the same commit as any change
-that makes a row untrue.
+Last verified: 2026-10-03 by `bun run release:check` against outlabs-auth 0.1.0a35 on both
+presets, the run recorded in PRODUCTION.md section 11 with the suite results. Update this file in
+the same commit as any change that makes a row untrue.
 
 ## Sign-in, recovery and invitations
 
@@ -197,4 +197,4 @@ that makes a row untrue.
 | Hosting under a sub-path | Not supported | — | Serve the console at the root of its own hostname. |
 | OAuth with console and API on different sites | Not supported | — | Same-site hosting required (docs/security-posture.md). |
 | Error reporting and telemetry | Not supported | — | Owner decision: no external error reporting. |
-| Bundle size budget | Missing | — | PRODUCTION.md gate item. |
+| Bundle size budget | Built | `scripts/lib/bundle-budget.mjs`, `test/unit/bundle-budget.test.ts` | `bundle-budget.json`: the release check fails when the shipped JavaScript grows more than 10% past its baseline (PRODUCTION.md section 6). |
