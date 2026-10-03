@@ -57,6 +57,9 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - The example backends' superuser may grant every allowed scope, so a narrower answer from
   `…/integration-principals/grantable-scopes` (and its failures) is served to the service-account
   dialogs; the delegated admin's real, narrower answer is checked live on EnterpriseRBAC.
+- A membership role a delegated admin cannot read is also named by the membership history, so
+  `users/user-memberships.spec.ts` serves that history empty to show the membership's own
+  `role_names`; the low-privilege persona's memberships (`account/my-access.spec.ts`) are live.
 - Account › Security for an account without a password is served (`has_password` false on
   `GET /users/me`, the emailed link's request answered, no mail sent); the admin's Set password
   runs on a real one (an invitation an admin activated instead of accepting it).

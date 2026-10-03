@@ -1,4 +1,4 @@
-import { backendConfigured, expect, persona, test } from '../support/fixtures'
+import { backendConfigured, expect, expectSeeded, persona, test } from '../support/fixtures'
 import { isEnterpriseBackend } from '../support/capabilities'
 import { personaState } from '../support/personas'
 import { openUserMenu } from '../support/shell'
@@ -45,6 +45,31 @@ test.describe('my access', () => {
       } else {
         await expect(page.getByRole('heading', { name: 'Memberships' })).toHaveCount(0)
       }
+    })
+  })
+
+  test.describe('as the low-privilege persona, on EnterpriseRBAC', () => {
+    test.use({ storageState: personaState('agent') })
+
+    test('names each membership\'s entity and roles from the membership itself, reading neither (F-103)', async ({ page, apiAs, requires }) => {
+      await requires({ preset: 'EnterpriseRBAC', personas: ['agent'], surfaces: ['memberships'] })
+      const agent = apiAs('agent')
+      // The persona reads no entity and no role: before outlabs-auth 0.1.0a35 named them in the
+      // membership, both read as not visible to the account.
+      const held = await agent.get<string[]>('/permissions/me')
+      expect(held.filter(name => /^(entity|role):/.test(name))).toEqual([])
+      const all = await agent.get<Array<{ entity_display_name?: string | null, entity_name?: string | null, role_names?: string[] }>>('/memberships/me?include_inactive=true')
+      const named = all.find(m => (m.entity_display_name || m.entity_name) && m.role_names?.length)
+      expectSeeded(named, 'the agent holds a membership with roles')
+
+      await page.goto('/app/account/access')
+      const row = page.getByTestId('my-membership').filter({ hasText: (named.entity_display_name || named.entity_name)! })
+      await expect(row).toHaveCount(1)
+      // Several roles: their names cannot be tied to ids (system names, sorted apart from the
+      // ids), so each is shown as a name, none as "Unknown role".
+      for (const name of named.role_names!) await expect(row.getByText(name, { exact: true })).toBeVisible()
+      await expect(page.getByText('An entity your account cannot read')).toHaveCount(0)
+      await expect(page.getByTestId('role-chip').filter({ hasText: 'Unknown role' })).toHaveCount(0)
     })
   })
 

@@ -57,8 +57,13 @@ export function useUserAccess(user: Ref<User>) {
     }
     return { directRoleIds, membershipEntityIdsByRole }
   })
+  // Named by the membership itself first (0.1.0a35), so an entity this admin cannot read is named.
+  const payloadEntityNames = computed(() => new Map((memberships.data.value ?? []).flatMap((m) => {
+    const name = m.entity_display_name || m.entity_name
+    return name ? [[m.entity_id, name] as const] : []
+  })))
   const entityName = (entityId: string) => {
-    const name = entityById.value.get(entityId)?.display_name
+    const name = payloadEntityNames.value.get(entityId) ?? entityById.value.get(entityId)?.display_name
     if (!name) return 'an entity'
     return entityInactive(entityId) ? `${name} (inactive)` : name
   }

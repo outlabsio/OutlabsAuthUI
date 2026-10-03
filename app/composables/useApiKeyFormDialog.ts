@@ -82,13 +82,22 @@ export function useApiKeyFormDialog(
     return current && !membershipEntityIds.value.includes(current) ? [...membershipEntityIds.value, current] : membershipEntityIds.value
   })
   const { knownById } = useMembershipEntities(anchorIds, () => open.value && anchorsShown.value && canAccess('entities'))
+  // Each membership names its entity (outlabs-auth 0.1.0a35), so an account that cannot read
+  // entities still sees where it can restrict a key; readable entities add their path.
+  const membershipEntityNames = computed(() => new Map((memberships.data.value ?? []).flatMap((m) => {
+    const name = m.entity_display_name || m.entity_name
+    return name ? [[m.entity_id, name] as const] : []
+  })))
   function anchorLabel(id: string): AnchorOption {
     const entity = knownById.value.get(id)
     if (entity) {
       const path = entityPathLabel(id, knownById.value)
       return { value: id, label: entity.display_name || entity.name, description: path !== (entity.display_name || entity.name) ? path : undefined }
     }
+    const named = membershipEntityNames.value.get(id)
+    if (named) return { value: id, label: named }
     if (id === user.value?.root_entity_id && user.value?.root_entity_name) return { value: id, label: user.value.root_entity_name }
+    // A restriction to an entity the account is no longer a member of, and cannot read.
     return { value: id, label: 'An entity you belong to', description: `Its name is not visible to your account (${id.slice(0, 8)}…).` }
   }
   // The select's own value for "no entity": combobox items cannot carry an empty value.

@@ -5,6 +5,7 @@ import {
   delegationBlockedReason,
   entityRoleContextFromPath,
   grantsSystemWideScope,
+  membershipRoleDisplay,
   missingDelegatedPermissions,
   roleAllowsEntityType,
   roleAvailableAtEntity,
@@ -189,6 +190,52 @@ describe('roleNameHints', () => {
       { ids: ['r1'], names: ['Renamed later'] }
     ])
     expect(Object.fromEntries(hints)).toEqual({ r1: 'Agent', r2: 'Team Lead' })
+  })
+})
+
+describe('membershipRoleDisplay', () => {
+  // role_names are system names sorted by name; role_ids are sorted by id: never index-aligned.
+  const catalog = (entries: Record<string, string>) => new Map(Object.entries(entries))
+
+  it('names a single role from the membership itself, even before the catalog answers', () => {
+    expect(membershipRoleDisplay({ role_ids: ['r1'], role_names: ['agent'] }, { catalogNames: null })).toEqual({ chips: [{ id: 'r1', name: 'agent' }], names: [] })
+  })
+
+  it('never pairs several roles by position', () => {
+    // Sorted differently on purpose: pairing by index would call r1 "agent".
+    const membership = { role_ids: ['r1', 'r2'], role_names: ['agent', 'team_member'] }
+    expect(membershipRoleDisplay(membership, { catalogNames: null })).toEqual({ chips: [{ id: 'r1' }, { id: 'r2' }], names: [] })
+  })
+
+  it('pairs the one role left once the catalog names the others by their system name', () => {
+    const membership = { role_ids: ['r1', 'r2', 'r3'], role_names: ['agent', 'reader', 'team_member'] }
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({ r1: 'team_member', r3: 'reader' }) })).toEqual({
+      chips: [{ id: 'r1' }, { id: 'r2', name: 'agent' }, { id: 'r3' }],
+      names: []
+    })
+  })
+
+  it('shows the names it cannot tie to an id instead of their unknown chips, when exactly as many', () => {
+    const membership = { role_ids: ['r1', 'r2', 'r3'], role_names: ['agent', 'reader', 'team_member'] }
+    // The actor reads no role (an empty catalog): every role is named, none is guessed.
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({}) })).toEqual({ chips: [], names: ['agent', 'reader', 'team_member'] })
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({ r2: 'reader' }) })).toEqual({ chips: [{ id: 'r2' }], names: ['agent', 'team_member'] })
+  })
+
+  it('leaves a role unknown rather than guess when the names do not add up', () => {
+    // The catalog's name differs from the membership's (renamed between the reads): two names left
+    // for one role.
+    const membership = { role_ids: ['r1', 'r2'], role_names: ['agent', 'team_member'] }
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({ r1: 'old_name' }) })).toEqual({ chips: [{ id: 'r1' }, { id: 'r2' }], names: [] })
+    // Another source names r1 by display name: which system name is r1's is unknown.
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({}), namedElsewhere: id => id === 'r1' })).toEqual({ chips: [{ id: 'r1' }, { id: 'r2' }], names: [] })
+    // Every role named somewhere: nothing to add.
+    expect(membershipRoleDisplay(membership, { catalogNames: catalog({ r1: 'agent', r2: 'team_member' }) })).toEqual({ chips: [{ id: 'r1' }, { id: 'r2' }], names: [] })
+  })
+
+  it('handles memberships without roles or without names', () => {
+    expect(membershipRoleDisplay({ role_ids: [], role_names: [] }, { catalogNames: catalog({}) })).toEqual({ chips: [], names: [] })
+    expect(membershipRoleDisplay({ role_ids: ['r1', 'r2'] }, { catalogNames: catalog({}) })).toEqual({ chips: [{ id: 'r1' }, { id: 'r2' }], names: [] })
   })
 })
 

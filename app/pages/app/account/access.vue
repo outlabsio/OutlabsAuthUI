@@ -15,8 +15,7 @@ const {
   membershipsStatus,
   membershipsError,
   membershipsFetching,
-  refetchMemberships,
-  namesLimited
+  refetchMemberships
 } = useMyAccess()
 </script>
 
@@ -81,7 +80,16 @@ const {
             </UBadge>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
-            <AppRoleChip v-for="roleId in row.roleIds" :key="roleId" :role="{ id: roleId }" />
+            <AppRoleChip v-for="role in row.roles" :key="role.id" :role="role" />
+            <!-- Roles the membership names but cannot tie to an id: their names alone. -->
+            <UBadge
+              v-for="(name, index) in row.roleNames"
+              :key="`name-${index}`"
+              color="neutral"
+              variant="outline"
+              :label="name"
+              data-testid="membership-role-name"
+            />
             <span v-if="!row.roleIds.length" class="text-sm text-muted">No roles</span>
           </div>
           <p v-if="row.validFrom || row.validUntil" class="text-xs text-muted">
@@ -95,9 +103,6 @@ const {
         </li>
       </ul>
     </AppQueryState>
-    <p v-if="namesLimited && membershipRows.length" class="text-xs text-muted">
-      Entity and role names show where your account can read them.
-    </p>
   </UPageCard>
 
   <UPageCard description="Everything your account is allowed to do, from all of its roles.">

@@ -33,6 +33,13 @@ export function useRoleCatalog() {
   const roleById = computed(() => new Map(all.value.map(r => [r.id, r])))
   // True when the deployment has more roles than the catalog loads (see ROLES_MAX_PAGES).
   const truncated = computed(() => Boolean(data.value?.truncated))
+  // id -> system name (role.name) of every role the catalog holds, for payloads that name roles
+  // by their system name without tying names to ids (membershipRoleDisplay). Null while the
+  // catalog is still loading; empty when the actor cannot read it (or it failed).
+  const systemNames = computed<ReadonlyMap<string, string> | null>(() => {
+    if (available.value && status.value === 'pending') return null
+    return new Map(all.value.map(role => [role.id, role.name]))
+  })
 
   // One display answer for a role reference: names from the payload first (they are what the
   // API says right now), then the catalog; permissions from the payload or the catalog.
@@ -52,5 +59,5 @@ export function useRoleCatalog() {
     }
   }
 
-  return { available, status, error, all, roleById, truncated, describe }
+  return { available, status, error, all, roleById, truncated, systemNames, describe }
 }

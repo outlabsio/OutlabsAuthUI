@@ -161,6 +161,59 @@ export function roleNameHints(pairs: Iterable<{ ids: readonly string[], names: r
   return hints
 }
 
+// The roles of an entity membership as the membership itself names them (outlabs-auth 0.1.0a35
+// MembershipResponse `role_names`). Those are the roles' SYSTEM names (role.name), sorted by name,
+// while `role_ids` are sorted by id: the two lists are NOT index-aligned (unlike the membership
+// history's role_ids/role_names), so a name is tied to an id only when that is certain:
+// - a single role: its one name;
+// - one role left unnamed after removing the roles a source already names: the one name left.
+// Otherwise the names that cannot be tied to an id are shown as names alone, in place of the
+// "Unknown role" chips they stand for, when they are exactly as many; never paired by position (a
+// wrong pairing would mislabel access, which is worse than "Unknown role").
+export type MembershipRoleDisplay = {
+  /** Role ids shown as chips; `name` is the membership's own name for it, when certain. */
+  chips: { id: string, name?: string }[]
+  /** Names of the membership's roles that cannot be tied to one of its ids. */
+  names: string[]
+}
+
+export function membershipRoleDisplay(
+  membership: { role_ids?: readonly string[] | null, role_names?: readonly string[] | null },
+  sources: {
+    /** id -> system name of the roles the catalog holds; null while it is still loading. */
+    catalogNames: ReadonlyMap<string, string> | null
+    /** Whether another source (the membership history) already names this role. */
+    namedElsewhere?: (id: string) => boolean
+  }
+): MembershipRoleDisplay {
+  const ids = [...(membership.role_ids ?? [])]
+  const names = [...(membership.role_names ?? [])]
+  const chips = (named: ReadonlyMap<string, string> = new Map()) => ids.map(id => (named.has(id) ? { id, name: named.get(id) } : { id }))
+  if (ids.length === 1 && names.length === 1) return { chips: chips(new Map([[ids[0]!, names[0]!]])), names: [] }
+  if (!ids.length || !names.length || !sources.catalogNames) return { chips: chips(), names: [] }
+
+  // Names left once the roles the catalog holds are taken out (by their system name).
+  const left = [...names]
+  const unnamed: string[] = []
+  let namedByOthers = 0
+  for (const id of ids) {
+    const known = sources.catalogNames.get(id)
+    if (known !== undefined) {
+      const index = left.indexOf(known)
+      if (index !== -1) left.splice(index, 1)
+    } else if (sources.namedElsewhere?.(id)) {
+      namedByOthers++
+    } else {
+      unnamed.push(id)
+    }
+  }
+  // A role named only by another source keeps one of the names left, but which one is unknown.
+  if (!unnamed.length || namedByOthers || left.length !== unnamed.length) return { chips: chips(), names: [] }
+  if (unnamed.length === 1) return { chips: chips(new Map([[unnamed[0]!, left[0]!]])), names: [] }
+  const hidden = new Set(unnamed)
+  return { chips: ids.filter(id => !hidden.has(id)).map(id => ({ id })), names: left.sort((a, b) => a.localeCompare(b)) }
+}
+
 // A directly granted role that gives cross-organization scope: active system-wide role in an
 // active, currently valid direct membership (mirrors _user_has_active_system_wide_role).
 export type DirectRoleGrant = {

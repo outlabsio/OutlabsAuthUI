@@ -27,7 +27,7 @@ const {
   isLoading,
   hasData,
   refetch,
-  roleReference,
+  membershipRoles,
   entityName,
   entityStatus,
   canOpenEntity,
@@ -161,7 +161,16 @@ const emptyDescription = computed(() => {
                 />
               </div>
               <div v-if="stackRoles && row.original.role_ids.length" class="mt-1 flex flex-wrap gap-1">
-                <AppRoleChip v-for="id in row.original.role_ids" :key="id" :role="roleReference(id)" />
+                <AppRoleChip v-for="role in membershipRoles(row.original).chips" :key="role.id" :role="role" />
+                <UBadge
+                  v-for="(name, index) in membershipRoles(row.original).names"
+                  :key="`name-${index}`"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  :label="name"
+                  data-testid="membership-role-name"
+                />
               </div>
               <p class="text-xs text-muted sm:hidden">
                 <template v-if="row.original.valid_until">
@@ -183,7 +192,17 @@ const emptyDescription = computed(() => {
           </template>
           <template #roles-cell="{ row }">
             <div v-if="!stackRoles" class="flex flex-wrap gap-1 whitespace-normal">
-              <AppRoleChip v-for="id in row.original.role_ids" :key="id" :role="roleReference(id)" />
+              <AppRoleChip v-for="role in membershipRoles(row.original).chips" :key="role.id" :role="role" />
+              <!-- Roles the membership names but cannot tie to an id: their names alone (F-067). -->
+              <UBadge
+                v-for="(name, index) in membershipRoles(row.original).names"
+                :key="`name-${index}`"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :label="name"
+                data-testid="membership-role-name"
+              />
               <span v-if="!row.original.role_ids.length" class="text-sm text-dimmed">—</span>
             </div>
           </template>

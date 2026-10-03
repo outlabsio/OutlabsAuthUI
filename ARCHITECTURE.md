@@ -584,8 +584,10 @@ loading/empty copy, date formatting or one-off selects.
   AppPermissionPicker stays the role editor's catalog-pooled picker.
 - **Known gaps (backend)**: rotate issues an active key and drops a passed expiry (the console
   prevents both; the API does not); the restriction picker lists memberships only (a superuser
-  cannot restrict a key to any other entity from here); an account that cannot read entities
-  sees "An entity you belong to" instead of the name.
+  cannot restrict a key to any other entity from here). Each membership names its entity
+  (outlabs-auth 0.1.0a35 `entity_display_name`), so an account that cannot read entities still
+  sees the names; "An entity you belong to" is left for a key restricted to an entity the account
+  no longer belongs to and cannot read.
 
 ## User detail (`pages/app/users/[userId].vue`, `useUserDetail`, `components/app/user/*`)
 - **Frame.** The page binds `useUserDetail`: the record, its not-found state (a malformed id is
@@ -649,11 +651,16 @@ loading/empty copy, date formatting or one-off selects.
     (`assignOutcomeSummary`), keeping only the refused roles selected. A user without an
     organization can be given a first membership; the dialog says it places them in that
     entity's organization.
-  - *Names.* Membership entities resolve through `useMembershipEntities` (the Memberships and
-    Effective permissions cards share it): the admin's organization (all statuses) or, for a
-    superuser, the active list plus `entityPathsQuery` for the rest, with an "Entity inactive"
-    badge (an "(inactive)" suffix on an effective permission's origin); role chips use the membership history's names, then the catalog ("Loading role..." while
-    either is still loading, then "Unknown role" with the id inside, never a raw id).
+  - *Names.* A membership names its entity itself (outlabs-auth 0.1.0a35 `entity_display_name`,
+    `entity_name`), which comes first; `useMembershipEntities` (the Memberships and Effective
+    permissions cards share it) supplies the rest and the status: the admin's organization (all
+    statuses) or, for a superuser, the active list plus `entityPathsQuery`, with an "Entity
+    inactive" badge (an "(inactive)" suffix on an effective permission's origin). Role chips use
+    the membership history's names, then the catalog, then the membership's own `role_names`
+    where `membershipRoleDisplay` can tie one to an id ("Loading role..." while either source is
+    still loading, then "Unknown role" with the id inside, never a raw id). Names it cannot tie to
+    an id are shown alone, as outline badges, in place of the chips they stand for (see the Roles
+    kit's Display).
   - *Effective permissions* (`<AppUserAccessCard>`, `useUserAccess`): `GET /users/{id}/permissions`
     grouped by resource with search, each with a source role chip and where that role comes from
     (direct assignment, or the entities whose memberships carry it). It is RBAC across every entity
@@ -893,7 +900,13 @@ everywhere — never ad-hoc badge lists or `USelectMenu`s:
   grant nothing, and entity-only or ABAC-conditioned roles retitle it "Grants up to" with the caveat
   spelled out) and `AppRoleChip` (a role as a button; click, tap or Enter opens its permissions).
   Pass chips every name the payload carries (`RoleSummary`, history `role_names`): names win over
-  the catalog, and an unnamed role reads "Unknown role", never a raw id. While the catalog, or a
+  the catalog, and an unnamed role reads "Unknown role", never a raw id. An entity membership's
+  `role_names` (outlabs-auth 0.1.0a35) are system names sorted by name while its `role_ids` are
+  sorted by id, so they are never paired by position: `membershipRoleDisplay`
+  (`utils/role-access.ts`) ties a name to an id only for a single role, or for the one role left
+  once the catalog (`useRoleCatalog().systemNames`) names the others; when the names it cannot
+  tie are exactly as many as the unnamed roles they are shown as outline badges in their place,
+  otherwise those roles stay "Unknown role" (a wrong pairing would mislabel access). While the catalog, or a
   name source the caller flags with `namePending`, is still loading, the chip reads "Loading
   role..." with `aria-busy`, and its popover says it is loading instead of "outside the roles you
   can read" or "not visible to you".

@@ -3,7 +3,9 @@ import { tokensPresent } from '~/auth/tokens'
 import { myMembershipsQuery } from '~/queries/account'
 import { myPermissionsQuery } from '~/queries/session'
 import type { Membership } from '~/types/membership'
+import type { RoleReference } from '~/types/role'
 import { myAccessScopeSummary } from '~/utils/account'
+import { membershipRoleDisplay } from '~/utils/role-access'
 import { MEMBERSHIP_STATUS_COLOR, badgeColor } from '~/utils/status'
 
 // The Access tab: what this account may do (F-103). Every persona can read it, a low-privilege
@@ -11,15 +13,21 @@ import { MEMBERSHIP_STATUS_COLOR, badgeColor } from '~/utils/status'
 // gates on) and, on EnterpriseRBAC, the entity memberships (GET /memberships/me) with their
 // roles and validity, and how far the account reaches (organization scope).
 //
-// outlabs-auth answers /memberships/me with ids only. Entity names come from the entities the
-// account can read and role names from the role catalog it can read; anything else is shown as
-// not visible to this account rather than as a raw id.
+// outlabs-auth 0.1.0a35 names each membership's entity and roles in /memberships/me (F-103), so an
+// account that can read neither entities nor roles still sees them named. The role names are
+// system names, not aligned with the role ids: they are tied to a role only when certain, and
+// shown as names alone otherwise (membershipRoleDisplay); the role catalog, where readable, names
+// the rest. A payload without names falls back to the entities the account can read, and to "not
+// visible", never a raw id.
 
 export type MyMembershipRow = {
   id: string
   entityId: string
   entityName: string | null
   roleIds: string[]
+  // The role chips (with the membership's own name where certain) and the names alone.
+  roles: RoleReference[]
+  roleNames: string[]
   status: string
   statusColor: ReturnType<typeof badgeColor>
   validFrom: string | null
@@ -48,15 +56,19 @@ export function useMyAccess() {
   const entitiesReadable = computed(() => membershipsShown.value && canAccess('entities'))
   const { entities } = useScopedEntities(entitiesReadable)
   const entityNames = computed(() => new Map(entities.value.map(entity => [entity.id, entity.display_name || entity.name])))
+  const roleCatalog = useRoleCatalog()
 
   const membershipRows = computed<MyMembershipRow[]>(() => (memberships.data.value ?? [])
     .map((membership: Membership) => {
       const status = membership.effective_status || membership.status
+      const roles = membershipRoleDisplay(membership, { catalogNames: roleCatalog.systemNames.value })
       return {
         id: membership.id,
         entityId: membership.entity_id,
-        entityName: entityNames.value.get(membership.entity_id) ?? null,
+        entityName: membership.entity_display_name || membership.entity_name || entityNames.value.get(membership.entity_id) || null,
         roleIds: membership.role_ids ?? [],
+        roles: roles.chips,
+        roleNames: roles.names,
         status,
         statusColor: badgeColor(MEMBERSHIP_STATUS_COLOR, status),
         validFrom: membership.valid_from ?? null,
@@ -89,7 +101,6 @@ export function useMyAccess() {
     membershipsStatus: memberships.status,
     membershipsError: memberships.error,
     membershipsFetching: memberships.isLoading,
-    refetchMemberships: memberships.refetch,
-    namesLimited: computed(() => !entitiesReadable.value || !canAccess('roles'))
+    refetchMemberships: memberships.refetch
   }
 }

@@ -149,7 +149,9 @@ does not use yet.
   refusal is said in the dialog and the server stays the final word.
 - **Contract additions** behind Partial and Missing rows in CAPABILITIES.md: grantable roles
   readable by delegated admins (F-079; the service-account grantable scopes are in use), role holder
-  counts (F-112), names on grants the admin cannot read (F-067, F-103), effective-permission
+  counts (F-112), role names aligned with the role ids on memberships (F-067: 0.1.0a35's
+  `role_names` are system names sorted apart from `role_ids`, so several roles cannot always be
+  told apart; entity names and F-103 are resolved), effective-permission
   sources with entity context (F-013, F-239), move-target validation (F-076), no rotation of a
   suspended key (F-080), resend and restore by delegated inviters (F-244), and failed sign-in data
   beyond wrong passwords (audit events for unknown e-mails, locked accounts and wrong one-time

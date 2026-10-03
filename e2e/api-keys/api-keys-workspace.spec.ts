@@ -1,5 +1,5 @@
 import type { Page, Request } from '@playwright/test'
-import { backendConfigured, expect, personaState, test } from '../support/fixtures'
+import { backendConfigured, expect, expectSeeded, personaState, test } from '../support/fixtures'
 import { apiUrl } from '../support/env'
 import { chooseSelect, chooseSelectMenu, field } from '../support/ui-select'
 import { piniaPathsTo } from '../support/pinia-probe'
@@ -450,5 +450,23 @@ test.describe('my API keys as a low-privilege account', () => {
     }
     const chips = await picker.getByTestId('scope-selection').getByRole('button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label')?.replace(/^Remove /, '')))
     expect(chips.sort()).toEqual(expected)
+  })
+
+  test('the entity restriction names the account\'s own memberships, which it cannot read (F-103)', async ({ page, apiAs, requires }) => {
+    await requires({ preset: 'EnterpriseRBAC', surfaces: ['api_keys', 'memberships'], personas: ['agent'] })
+    const agent = apiAs('agent')
+    const held = await agent.get<string[]>('/permissions/me')
+    expect(held.filter(name => name.startsWith('entity:'))).toEqual([])
+    const memberships = await agent.get<Array<{ is_currently_valid: boolean, entity_display_name?: string | null, entity_name?: string | null }>>('/memberships/me')
+    const named = memberships.find(m => m.is_currently_valid && (m.entity_display_name || m.entity_name))
+    expectSeeded(named, 'the agent holds a membership in force')
+
+    await page.goto('/app/api-keys')
+    await createApiKeyButton(page).click()
+    await field(page, 'Restrict to entity').click()
+    // Named by the membership (outlabs-auth 0.1.0a35), not "An entity you belong to".
+    await expect(page.getByRole('option', { name: (named.entity_display_name || named.entity_name)!, exact: true })).toBeVisible()
+    await expect(page.getByRole('option', { name: /An entity you belong to/ })).toHaveCount(0)
+    await page.keyboard.press('Escape')
   })
 })

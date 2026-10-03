@@ -1,7 +1,8 @@
 import type { Page } from '@playwright/test'
-import { expect, test, type ApiClient } from '../support/fixtures'
+import { expect, expectSeeded, personaState, test, type ApiClient } from '../support/fixtures'
 import { cardByHeading } from '../support/entities'
 import { apiUrl } from '../support/env'
+import { jsonResponse } from '../support/mocks'
 import { typeDay } from '../support/date-field'
 import { userDetailPath } from '../support/users'
 
@@ -205,5 +206,31 @@ test.describe('user memberships', () => {
     const permission = cardByHeading(page, 'Effective permissions').getByTestId('effective-permission').filter({ has: page.getByTestId('role-chip').filter({ hasText: role.display_name ?? role.name }) })
     await expect(permission.first()).toContainText(`${office.display_name} (inactive)`)
     await expect(permission.first()).not.toContainText('an entity')
+  })
+})
+
+test.describe('user memberships as a delegated organization admin', () => {
+  test.use({ storageState: personaState('orgAdmin'), errorGuardMode: 'strict' })
+
+  test.beforeEach(async ({ requires }) => {
+    await requires({ backend: true, preset: 'EnterpriseRBAC', personas: ['orgAdmin'], surfaces: ['memberships', 'entities'] })
+  })
+
+  test('a membership role the admin cannot read is named by the membership itself, never "Unknown role" (F-067)', async ({ page, api, apiAs }) => {
+    const me = await apiAs('orgAdmin').me()
+    expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
+    // A system-wide role: outside a delegated admin's role catalog (GET /roles/ is scope-filtered).
+    const role = await api.createRole({ kind: 'mem-sw', is_global: true, permissions: ['user:read'] })
+    const user = await api.createUser({ kind: 'mem-sw', root_entity_id: me.root_entity_id })
+    await api.post('/memberships/', { user_id: user.id, entity_id: me.root_entity_id, role_ids: [role.id] })
+    // The membership history would name the role too (its own role_names): served empty, so the
+    // membership's own name is all that is left.
+    await page.route(new RegExp(`/users/${user.id}/membership-history(\\?.*)?$`), route => route.fulfill(jsonResponse(200, { items: [], total: 0, page: 1, limit: 10, pages: 0 })))
+
+    await page.goto(userDetailPath(user.id, 'access'))
+    const card = cardByHeading(page, 'Memberships')
+    const row = card.getByRole('row').filter({ hasText: me.root_entity_name ?? '' })
+    await expect(row.getByTestId('role-chip')).toHaveText(role.name)
+    await expect(card.getByTestId('role-chip').filter({ hasText: /Unknown role|Loading role/ })).toHaveCount(0)
   })
 })

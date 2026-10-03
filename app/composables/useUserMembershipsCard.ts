@@ -8,6 +8,7 @@ import { endedGrantCount, grantActions, grantIsLive, grantWindowEnded, visibleGr
 import { formatDate } from '~/utils/format-date'
 import { slicePage } from '~/utils/pagination'
 import { entityPickBlocked } from '~/utils/entity-scope'
+import { membershipRoleDisplay } from '~/utils/role-access'
 import type { AddMembershipSchema, EditMembershipSchema } from '~/schemas/membership'
 import type { ActionError } from '~/composables/useApiAction'
 import type { FormConflict } from '~/composables/useDialogForm'
@@ -23,7 +24,9 @@ import type { Membership } from '~/types/membership'
 //   first 50) and shows the live ones (active and suspended) by default, a page at a time;
 //   "Include ended" adds revoked and expired ones.
 // - Entities are named even when inactive or outside the loaded tree, with an Inactive badge
-//   (F-066); roles by the names the membership history carries, else the role catalog (F-067).
+//   (F-066), from the membership itself first (outlabs-auth 0.1.0a35 entity_display_name); roles
+//   by the names the membership history carries, else the role catalog, else the membership's
+//   own role_names when they can be tied to an id (membershipRoleDisplay), F-067.
 // - Writes follow the F-015 rule (utils/access-grants.ts): Edit access only on a live
 //   membership, with its real status, diff-only and checked against the server before saving;
 //   Reactivate for a suspended or ended one; Remove only for a live one. Nothing is offered on
@@ -78,17 +81,36 @@ export function useUserMembershipsCard(user: Ref<User>) {
     { ids: event.previous_role_ids, names: event.previous_role_names }
   ])))
   const roleCatalog = useRoleCatalog()
-  function roleReference(id: string): RoleReference {
-    return { id, display_name: roleNamesFromHistory.value.get(id), namePending: historyEnabled.value && history.status.value === 'pending' }
+  const historyPending = computed(() => historyEnabled.value && history.status.value === 'pending')
+  function roleReference(id: string, name?: string | null): RoleReference {
+    return { id, display_name: roleNamesFromHistory.value.get(id), name, namePending: historyPending.value }
   }
-  const roleLabel = (id: string) => roleCatalog.describe(roleReference(id)).label
+  // The membership's own names (role_names: system names, not aligned with role_ids) where they
+  // can be tied to a role, and the rest as names alone (F-067). Judged once the history and the
+  // catalog have answered, so a role named by either is never shown twice.
+  function membershipRoles(membership: Membership): { chips: RoleReference[], names: string[] } {
+    const display = membershipRoleDisplay(membership, {
+      catalogNames: historyPending.value ? null : roleCatalog.systemNames.value,
+      namedElsewhere: id => roleNamesFromHistory.value.has(id)
+    })
+    return { chips: display.chips.map(chip => roleReference(chip.id, chip.name)), names: display.names }
+  }
+  function membershipRoleLabels(membership: Membership): string[] {
+    const { chips, names } = membershipRoles(membership)
+    return [...chips.map(chip => roleCatalog.describe(chip).label), ...names]
+  }
 
   // --- Entity names (F-066): inactive and out-of-tree entities are named too ---
   const { knownById, entityById, entityInactive, entityStatus } = useMembershipEntities(
     () => allMemberships.value.map(m => m.entity_id),
     canReadMemberships
   )
-  const entityName = (entityId: string) => entityById.value.get(entityId)?.display_name ?? 'Unknown entity'
+  // The membership names its entity itself (0.1.0a35), even one outside what this admin can read.
+  const payloadEntityNames = computed(() => new Map(allMemberships.value.flatMap((m) => {
+    const name = m.entity_display_name || m.entity_name
+    return name ? [[m.entity_id, name] as const] : []
+  })))
+  const entityName = (entityId: string) => payloadEntityNames.value.get(entityId) ?? entityById.value.get(entityId)?.display_name ?? 'Unknown entity'
   // An entity is a link only when this admin can open it (it is in their organization's tree).
   const canOpenEntity = (entityId: string) => canOpenEntities.value && knownById.value.has(entityId)
 
@@ -207,7 +229,15 @@ export function useUserMembershipsCard(user: Ref<User>) {
     { enabled: editMembershipOpen }
   )
   // Names for the membership's current roles, including ones outside the pool.
-  const editMembershipKnownRoles = computed<RoleReference[]>(() => (editMembershipTarget.value?.role_ids ?? []).map(id => ({ ...roleReference(id), display_name: roleLabel(id) })))
+  const editMembershipKnownRoles = computed<RoleReference[]>(() => {
+    const membership = editMembershipTarget.value
+    if (!membership) return []
+    const named = new Map(membershipRoles(membership).chips.map(chip => [chip.id, chip.name] as const))
+    return (membership.role_ids ?? []).map((id) => {
+      const reference = roleReference(id, named.get(id))
+      return { ...reference, display_name: roleCatalog.describe(reference).label }
+    })
+  })
   const editWindowNote = computed(() => {
     const membership = editMembershipTarget.value
     if (!membership || !grantWindowEnded(membership)) return null
@@ -289,7 +319,7 @@ export function useUserMembershipsCard(user: Ref<User>) {
       status: membership.status,
       validFrom: membership.valid_from,
       validUntil: membership.valid_until,
-      roleNames: (membership.role_ids ?? []).map(roleLabel),
+      roleNames: membershipRoleLabels(membership),
       entityInactive: entityInactive(membership.entity_id)
     }
     reactivateOpen.value = true
@@ -341,7 +371,7 @@ export function useUserMembershipsCard(user: Ref<User>) {
     isLoading,
     hasData,
     refetch,
-    roleReference,
+    membershipRoles,
     entityName,
     entityStatus,
     canOpenEntity,

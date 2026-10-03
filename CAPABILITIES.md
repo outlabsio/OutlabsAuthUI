@@ -62,7 +62,7 @@ that makes a row untrue.
 | Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | An account without a password (`has_password` false) gets Set a password instead of the change form: 0.1.0a35 changes a password only with the current one and has no endpoint that sets a first one, so its action emails the reset link, which works for such an account (F-098). Gap (backend): a password set by that link or by an admin on an account created through OAuth sign-in does not add the password sign-in method, so `has_password` stays false and Account keeps offering Set a password, although the password signs in. |
 | Own sessions: list, revoke one, sign out other devices, sign out everywhere | Both | Built | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This browser" is the server's `is_current`; Sign out other devices sends `keep_current` and renews once when an access token from before 0.1.0a35 names no session (F-030). Other devices keep their access tokens until expiry (F-157, backend). |
 | Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts`, `e2e/static/static-build.spec.ts` | Mocked provider; a failed link lands on the API's own error page: 0.1.0a35 can redirect it back with `link_error`, which the console does not handle yet (F-104, console follow-up). Rows show the provider's icon: a provider picture (`avatar_url`) on another host is never loaded, as the CSP allows same-origin and `data:` images only. |
-| My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them; 0.1.0a35 memberships carry them (`entity_name`, `role_names`), which the console does not use yet (F-103, console follow-up). |
+| My access (effective permissions, memberships) | Both | Built | `e2e/account/my-access.spec.ts`, `test/unit/role-access.test.ts` | Each membership's entity and roles are named from the membership itself (0.1.0a35 `entity_display_name`, `role_names`), also for an account that can read neither (F-103). Several roles' names cannot be tied to their ids (see Role names on grants), so they are listed as names. |
 
 ## Users
 
@@ -91,7 +91,7 @@ that makes a row untrue.
 | Entity memberships: add, edit, reactivate, remove, include ended | Enterprise | Built | `e2e/users/user-memberships.spec.ts`, `e2e/entities/entity-members.spec.ts` | |
 | Effective permissions with their source role | Both | Partial | `e2e/users/user-access.spec.ts` | The backend names one source role per permission and no entity context (F-013, backend). |
 | Check access (`POST /permissions/check`) | Both | Partial | `e2e/users/user-access.spec.ts` | `permission:check` is missing from the example seed, so only superusers get it there (F-059, backend seed). |
-| Role names on grants the admin cannot read | Both | Partial | — | Read "Unknown role"; 0.1.0a35 membership responses carry `role_names`, which the console does not use yet (F-067, console follow-up); no spec. |
+| Role names on grants the admin cannot read | Both | Partial | `e2e/users/user-memberships.spec.ts`, `e2e/account/my-access.spec.ts`, `test/unit/role-access.test.ts` | Direct roles embed their role; a membership's roles are named from its history, the catalog, then its own `role_names` (F-067). Those are system names not aligned with `role_ids`, so a name is tied to a role only for a single role or the one left once the catalog names the rest; otherwise the names are listed alone, without the role's permissions. A role stays "Unknown role" only when the names cannot be made to add up, for example when the history names some of them (backend: names aligned with the ids, as the history has, would close it). |
 
 ## Entities (EnterpriseRBAC)
 
@@ -135,7 +135,7 @@ that makes a row untrue.
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
 | List with real status, filters, detail | Both | Built | `e2e/api-keys/api-keys-workspace.spec.ts`, `e2e/api-keys/key-status.spec.ts` | |
-| Create: scopes, entity restriction, IP allowlist, rate limit, expiry | Both | Partial | `e2e/api-keys/api-keys-workspace.spec.ts` | Restriction only to the admin's own membership entities (F-083). |
+| Create: scopes, entity restriction, IP allowlist, rate limit, expiry | Both | Partial | `e2e/api-keys/api-keys-workspace.spec.ts` | Restriction only to the admin's own membership entities (F-083), named from each membership even when the account cannot read entities. |
 | Edit scopes, IP allowlist, rate limit | Both | Built | `e2e/api-keys/api-keys-workspace.spec.ts` | |
 | Suspend, reactivate, rotate, revoke | Both | Partial | `e2e/api-keys/api-keys-workspace.spec.ts` | Rotate offered only on keys in effect; the backend itself still rotates a suspended key (F-080, backend). |
 | One-time secret display | Both | Built | `e2e/api-keys/secret-reveal.spec.ts`, `e2e/app/dialog-kit.spec.ts` | |
