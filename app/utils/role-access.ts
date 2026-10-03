@@ -261,11 +261,13 @@ export type AccessScopeSummary = {
 // What an account can reach on EnterpriseRBAC (access_scope.py resolve_for_user): superusers and
 // holders of an active direct system-wide role span every organization; everyone else is limited
 // to their root organization and the entities they are members of. `directGrants` null/undefined
-// means the direct roles could not be read, so the summary does not claim a limit it cannot see.
+// means the direct roles are not known (not read yet, or `directGrantsFailed`: the read failed),
+// so the summary does not claim a limit it cannot see, and says so when the read failed.
 export function accessScopeSummary(input: {
   isSuperuser: boolean
   rootEntityName?: string | null
   directGrants?: readonly DirectRoleGrant[] | null
+  directGrantsFailed?: boolean
   membershipCount?: number | null
 }): AccessScopeSummary {
   if (input.isSuperuser) {
@@ -274,7 +276,9 @@ export function accessScopeSummary(input: {
   if (!input.directGrants) {
     return {
       label: input.rootEntityName || 'No organization',
-      description: 'The root organization. A system-wide role granted directly would extend access to every organization.',
+      description: input.directGrantsFailed
+        ? 'Its direct roles could not be read, so a system-wide role extending it to every organization cannot be ruled out.'
+        : 'The root organization. A system-wide role granted directly would extend access to every organization.',
       allOrganizations: false
     }
   }

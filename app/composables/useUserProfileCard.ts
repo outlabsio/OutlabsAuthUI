@@ -30,13 +30,16 @@ export function useUserProfileCard(user: Ref<User>) {
   const statusColor = computed(() => USER_STATUS_COLOR[user.value.status])
 
   // Where this account reaches (EnterpriseRBAC): superusers and holders of an active direct
-  // system-wide role span every organization; everyone else stays in their organization.
+  // system-wide role span every organization; everyone else stays in their organization. A failed
+  // read of the direct roles is said on the row (the page offers Retry where the account's
+  // changes depend on it, useUserDetail).
   const accessScope = computed(() => {
     if (!isEnterprise.value) return null
     return accessScopeSummary({
       isSuperuser: Boolean(user.value.is_superuser),
       rootEntityName: user.value.root_entity_name,
       directGrants: roles.status.value === 'success' ? roles.data.value ?? [] : null,
+      directGrantsFailed: roles.status.value === 'error',
       membershipCount: canReadMemberships.value && memberships.status.value === 'success' ? memberships.data.value?.length ?? 0 : null
     })
   })

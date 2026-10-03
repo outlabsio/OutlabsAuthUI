@@ -71,7 +71,7 @@ export function useUserDetail(userId: Ref<string>) {
   }))
 
   // --- Header actions (F-065, F-128, F-209) ---
-  const { policy, isSelf, canEdit, canManage, canResendInvite, systemWideLocked } = useUserPolicy(user)
+  const { policy, isSelf, canEdit, canManage, canResendInvite, systemWideLocked, lockCheck } = useUserPolicy(user)
   const profileOpen = ref(false)
   const statusOpen = ref(false)
   const resetOpen = ref(false)
@@ -173,6 +173,17 @@ export function useUserDetail(userId: Ref<string>) {
       }
     : null))
 
+  // The account's direct roles, which say whether that rule applies, could not be read: the
+  // changes stay withheld (F-209) and the page says why, with Retry. Shown on every tab.
+  const lockCheckMessage = useApiErrorMessage(lockCheck.error)
+  const lockCheckNotice = computed<{ title: string, description: string, actions: ButtonProps[] } | null>(() => (lockCheck.failed.value
+    ? {
+        title: 'Could not check whether you can change this account',
+        description: `Only global administrators may change an account that holds a system-wide role, and this account's direct roles could not be read, so no change is offered until they are. ${lockCheckMessage.value}`,
+        actions: [{ label: 'Retry', icon: 'i-lucide-refresh-cw', color: 'neutral', variant: 'outline', loading: lockCheck.retrying.value, onClick: lockCheck.retry }]
+      }
+    : null))
+
   return {
     user,
     status,
@@ -199,6 +210,7 @@ export function useUserDetail(userId: Ref<string>) {
     restoreUser,
     deleteUser,
     deletedNotice,
-    globalAccountNotice
+    globalAccountNotice,
+    lockCheckNotice
   }
 }

@@ -33,7 +33,8 @@ const {
   restoreUser,
   deleteUser,
   deletedNotice,
-  globalAccountNotice
+  globalAccountNotice,
+  lockCheckNotice
 } = useUserDetail(userId)
 // Document title: the account's email, like the navbar.
 usePageMeta(() => user.value?.email)
@@ -123,6 +124,18 @@ const backToUsers: ButtonProps[] = [{ label: 'Back to users', color: 'neutral', 
               :title="globalAccountNotice.title"
               :description="globalAccountNotice.description"
               data-testid="user-global-account"
+            />
+            <!-- ...or that rule could not be checked: nothing is offered until Retry reads it. -->
+            <UAlert
+              v-if="lockCheckNotice"
+              role="alert"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :title="lockCheckNotice.title"
+              :description="lockCheckNotice.description"
+              :actions="lockCheckNotice.actions"
+              data-testid="user-lock-check-error"
             />
             <AppUserProfileCard v-if="tab === 'overview'" :user="user" />
             <template v-else-if="tab === 'access'">

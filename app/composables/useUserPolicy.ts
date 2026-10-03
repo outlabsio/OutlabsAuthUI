@@ -18,9 +18,10 @@ import { userRowPolicy } from '~/utils/users'
 // user record says so; the account's direct roles do (GET /users/{id}/role-memberships with
 // include_inactive, user:read), read here with the same key and `enabled` as the Access tab's
 // Direct roles card, so the detail pays one request. While it loads, or if it fails, nothing is
-// offered; the read leaves out rows of archived role definitions, which the server still counts,
-// so such an account is offered the changes and the server's refusal is shown. Entity
-// memberships are not refused by that rule (`canEditMemberships`).
+// offered; a failed read is said on the page with Retry (`lockCheck`), so the changes never
+// vanish without a word. The read leaves out rows of archived role definitions, which the server
+// still counts, so such an account is offered the changes and the server's refusal is shown.
+// Entity memberships are not refused by that rule (`canEditMemberships`).
 export function useUserPolicy(user: Ref<User | null | undefined>) {
   const { hasPermission, user: actor, can, canAccess, isEnterprise } = useAuth()
   const { isGlobal } = useActorReach()
@@ -62,6 +63,14 @@ export function useUserPolicy(user: Ref<User | null | undefined>) {
   const canEditMemberships = computed(() => Boolean(user.value && policyInput(user.value, undefined).canEdit))
   // Known to hold one: the detail says why nothing is offered.
   const systemWideLocked = computed(() => policy.value?.lock === 'system_wide_role')
+  // The read the lock depends on failed (any failure, also a refresh of an earlier answer): the
+  // lock stays 'unknown' and nothing is offered until Retry reads it (F-209).
+  const lockCheck = {
+    failed: computed(() => policy.value?.lock === 'unknown' && directRoles.status.value === 'error'),
+    error: directRoles.error,
+    retrying: computed(() => directRoles.asyncStatus.value === 'loading'),
+    retry: () => void directRoles.refetch()
+  }
 
-  return { policy, isSelf, canEdit, canManage, canResendInvite, canEditMemberships, systemWideLocked }
+  return { policy, isSelf, canEdit, canManage, canResendInvite, canEditMemberships, systemWideLocked, lockCheck }
 }

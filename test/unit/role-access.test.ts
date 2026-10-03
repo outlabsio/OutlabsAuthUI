@@ -287,5 +287,15 @@ describe('access scope', () => {
     const unknown = accessScopeSummary({ isSuperuser: false, rootEntityName: 'ACME Realty', directGrants: null })
     expect(unknown.label).toBe('ACME Realty')
     expect(unknown.description).not.toContain('Limited')
+    expect(unknown.description).not.toContain('could not be read')
+    // A failed read says so, still without claiming a limit.
+    const failed = accessScopeSummary({ isSuperuser: false, rootEntityName: 'ACME Realty', directGrants: null, directGrantsFailed: true })
+    expect(failed).toEqual({
+      label: 'ACME Realty',
+      description: 'Its direct roles could not be read, so a system-wide role extending it to every organization cannot be ruled out.',
+      allOrganizations: false
+    })
+    // Read after all: the grants decide, whatever an earlier failure said.
+    expect(accessScopeSummary({ isSuperuser: false, rootEntityName: 'ACME Realty', directGrants: [], directGrantsFailed: true }).description).toBe('Limited to this organization.')
   })
 })

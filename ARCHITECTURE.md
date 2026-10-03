@@ -627,8 +627,11 @@ loading/empty copy, date formatting or one-off selects.
   `lock: 'system_wide_role'`, every refused change is withheld (profile, password, status,
   delete, restore, invitation, direct roles, sessions, API keys) and the page shows "Only global
   administrators can change this account" on every tab; until the read answers (or if it fails)
-  the lock is `'unknown'` and nothing is offered either. Memberships use `canEditMemberships`,
-  which leaves that rule out: the server does not apply it to them. The read hides rows of
+  the lock is `'unknown'` and nothing is offered either. A failed read is never silent:
+  `lockCheck` drives an error alert on every tab ("Could not check whether you can change this
+  account", the API's message, Retry), and the Profile card's Access scope row says the direct
+  roles could not be read (`accessScopeSummary` `directGrantsFailed`). Memberships use
+  `canEditMemberships`, which leaves that rule out: the server does not apply it to them. The read hides rows of
   archived role definitions that the server still counts (PRODUCTION.md section 8). The navbar holds Edit and a "More user actions" menu,
   built only for a loaded record: Change status (active/suspended/banned accounts only; an invited
   account offers Resend invite), Reset password (Set password for an account without one,

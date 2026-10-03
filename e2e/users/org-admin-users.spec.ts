@@ -2,8 +2,9 @@ import type { Page } from '@playwright/test'
 import { backendConfigured, expect, expectSeeded, persona, personaState, test, type ApiClient } from '../support/fixtures'
 import { cardByHeading } from '../support/entities'
 import { searchUsersList } from '../support/lists'
+import { jsonResponse } from '../support/mocks'
 import { onPath } from '../support/session'
-import { userActionsButton, userDetailPath } from '../support/users'
+import { userActionsButton, userDetailPath, userTabs } from '../support/users'
 
 // A delegated organisation admin on the users list (F-012, F-053, F-054, F-161): the persona
 // holds user:read/create/update and membership:create_tree but not user:delete, and has no
@@ -200,6 +201,50 @@ test.describe('accounts holding a system-wide role, as a delegated organisation 
     // No system-wide role: the usual changes, and no notice.
     await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
     await expect(page.getByTestId('user-global-account')).toHaveCount(0)
+  })
+
+  test('a failed read of the account\'s direct roles says why nothing is offered, and Retry brings the changes back (F-209)', async ({ page, api, apiAs, errorGuard }) => {
+    const me = await apiAs('orgAdmin').me()
+    expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
+    const user = await api.createUser({ kind: 'sw-failed', root_entity_id: me.root_entity_id })
+    const directRoles = new RegExp(`/users/${user.id}/role-memberships(\\?.*)?$`)
+    let fail = true
+    errorGuard.allow({ kind: 'api', status: 500, url: directRoles })
+    await page.route(directRoles, async (route) => {
+      if (fail) return route.fulfill(jsonResponse(500, { error: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' }))
+      return route.continue()
+    })
+
+    await page.goto(userDetailPath(user.id))
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    const alert = page.getByTestId('user-lock-check-error')
+    await expect(alert).toContainText('Could not check whether you can change this account')
+    await expect(alert).toContainText('so no change is offered until they are')
+    await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
+    // Withheld, not refused: no lock notice, no Edit, no actions menu.
+    await expect(page.getByTestId('user-global-account')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+    await expect(userActionsButton(page)).toHaveCount(0)
+    // The Profile card's access scope says the read failed rather than guessing a scope.
+    const profile = cardByHeading(page, 'Profile')
+    await expect(profile.getByText('Its direct roles could not be read')).toBeVisible()
+
+    // Every tab says it.
+    await userTabs(page).getByRole('link', { name: 'Security' }).click()
+    await expect(page.getByRole('heading', { name: 'Active sessions' })).toBeVisible()
+    await expect(alert).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+
+    // Retry reads it again: no system-wide role, so the usual changes come back.
+    fail = false
+    await alert.getByRole('button', { name: 'Retry' }).click()
+    await expect(alert).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+    await expect(userActionsButton(page)).toBeVisible()
+    await expect(page.getByTestId('user-global-account')).toHaveCount(0)
+    await userTabs(page).getByRole('link', { name: 'Overview' }).click()
+    await expect(profile.getByText('Its direct roles could not be read')).toHaveCount(0)
+    await expect(profile.getByText(/Limited to this organization/)).toBeVisible()
   })
 
   test('a system-wide row of an archived role is not readable: the change is offered and the server\'s refusal shown', async ({ page, api, apiAs, errorGuard }) => {
