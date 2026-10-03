@@ -51,8 +51,8 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.
 - A non-superuser admin cannot save the entity-type configuration: not asserted.
-- About 22 less central dialogs are not in the axe sweep; colour contrast is off, a known
-  limitation the owner accepted on 2026-10-02 (F-032, PRODUCTION.md section 3).
+- Colour contrast is off in the axe sweep, a known limitation the owner accepted on 2026-10-02
+  (F-032, PRODUCTION.md section 3).
 - No screenshot baselines (F-148): they need one fixed rendering environment for every machine
   that runs the release check.
 - The rows marked Missing (test) or with no evidence in CAPABILITIES.md.

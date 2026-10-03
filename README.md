@@ -436,8 +436,8 @@ Open work, in the order it matters for a first cutover:
    outlabs-auth release the deployment runs when it is not 0.1.0a34, and same-site hosting where
    OAuth is on.
 3. **Open gate items** (PRODUCTION.md sections 1, 3 and 6): Firefox, WebKit and phone-sized
-   Chromium were not run at the last release; one flaky spec was never reproduced; about 22
-   dialogs are outside the axe sweep; there is no bundle-size budget.
+   Chromium were not run at the last release; one flaky spec was never reproduced; there is no
+   bundle-size budget.
 4. **Not started:** extracting the console as a reusable dashboard starting point.
 
 Decided: light-mode colour contrast (F-032) is a known limitation the owner accepted on
