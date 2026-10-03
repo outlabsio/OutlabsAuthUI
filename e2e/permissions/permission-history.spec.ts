@@ -1,5 +1,5 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
-import { historyEvent, historyEvents } from '../support/definition-history'
+import { historyEvent, historyEvents, serveEmptyHistory } from '../support/definition-history'
 import { cardByHeading } from '../support/entities'
 import { chooseSelect, field } from '../support/ui-select'
 
@@ -40,6 +40,19 @@ test.describe('permission history', () => {
     await expect(dialog).toBeHidden()
     await expect(historyEvents(page)).toHaveCount(2)
     await expect(historyEvents(page).first()).toContainText('Description: none → Edited from the console')
+  })
+
+  test('a permission without recorded changes says so', async ({ page, api }) => {
+    // A permission written without history answers an empty page, served on one of this run.
+    const permission = await api.createPermission({ kind: 'hist-empty' })
+    const served = await serveEmptyHistory(page, `/permissions/${permission.id}/history`)
+
+    await page.goto(`/app/permissions/${permission.id}`)
+    const card = cardByHeading(page, 'History')
+    await expect(card.getByText('No history yet')).toBeVisible()
+    await expect(card.getByText('Changes to this permission\'s definition appear here.')).toBeVisible()
+    await expect(historyEvents(page)).toHaveCount(0)
+    expect(served.length).toBeGreaterThan(0)
   })
 })
 

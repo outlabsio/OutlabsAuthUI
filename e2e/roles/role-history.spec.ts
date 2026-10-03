@@ -1,5 +1,5 @@
 import { backendConfigured, expect, expectSeeded, personaState, test } from '../support/fixtures'
-import { historyEvent, historyEvents } from '../support/definition-history'
+import { historyEvent, historyEvents, serveEmptyHistory } from '../support/definition-history'
 import { cardByHeading } from '../support/entities'
 
 // A role's definition history on its detail page (outlabs-auth 0.1.0a35 GET /roles/{id}/history,
@@ -72,17 +72,17 @@ test.describe('role history', () => {
   })
 
   test('a role without recorded changes says so', async ({ page, api }) => {
-    // Seeded roles are written without history.
-    const roles = await api.get<{ items: Array<{ id: string, name: string }> }>('/roles/', { query: { limit: 100 } })
-    const seeded = roles.items.find(role => !/^pw[-_]e2e/.test(role.name))
-    expectSeeded(seeded, 'the seed has roles')
-    const history = await api.get<{ total: number }>(`/roles/${seeded.id}/history`)
-    test.skip(history.total > 0, 'This seeded role already has recorded changes.')
+    // A role written without history (the seed's, for example) answers an empty page. Served on a
+    // role of this run, so the empty state never depends on what a reused backend has recorded.
+    const role = await api.createRole({ kind: 'hist-empty', permissions: ['user:read'] })
+    const served = await serveEmptyHistory(page, `/roles/${role.id}/history`)
 
-    await page.goto(`/app/roles/${seeded.id}`)
+    await page.goto(`/app/roles/${role.id}`)
     const card = cardByHeading(page, 'History')
     await expect(card.getByText('No history yet')).toBeVisible()
     await expect(card.getByText('Changes to this role\'s definition appear here.')).toBeVisible()
+    await expect(historyEvents(page)).toHaveCount(0)
+    expect(served.length).toBeGreaterThan(0)
   })
 })
 

@@ -64,7 +64,9 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
   `GET /users/me`, the emailed link's request answered, no mail sent); the admin's Set password
   runs on a real one (an invitation an admin activated instead of accepting it).
 - An archived role or permission's history is not readable (404), so no spec shows an
-  Archived event; the label is unit-tested only.
+  Archived event; the label is unit-tested only. Every role and permission a run creates has its
+  creation recorded, so the History card's empty state is shown by serving an empty page for one
+  of them (`serveEmptyHistory`), never by finding a definition without history on the backend.
 - A failed read of an account's direct roles (which decide whether a delegated admin may change
   it) is served as a 500 in `users/org-admin-users.spec.ts`; Retry then reads the live answer.
 - Moving an entity to the top level (a new organization) has no spec.
