@@ -104,8 +104,8 @@ that makes a row untrue.
 | Move within the organization | Enterprise | Partial | `e2e/entities/entities-workspace.spec.ts` | Invalid targets are filtered client-side; the backend does not validate them (F-076, backend). Moving to the top level (superusers) has no spec. |
 | Archive with cascade; finish archiving | Enterprise | Built | `e2e/entities/entities-workspace.spec.ts` | |
 | Members: paged, true count, capacity | Enterprise | Built | `e2e/entities/entity-members.spec.ts`, `e2e/entities/entities-workspace.spec.ts` | |
-| Activity | Enterprise | Partial | `e2e/entities/entity-activity.spec.ts` | The backend does not audit entity create, update, move or archive (F-241, backend). |
-| Scope for delegated admins | Enterprise | Partial | `e2e/entities/entity-scope.spec.ts`, `e2e/app/persona-matrix.spec.ts` | Delegated admins are anchored on their organization; superusers and system-wide admins browse every organization (one rule for entities, users and roles). Presentation only: the backend entity and membership routes are not scoped to the admin's organization (F-020, F-039, backend). |
+| Activity | Enterprise | Partial | `e2e/entities/entity-activity.spec.ts` | The backend audits entity create, update, move and archive since 0.1.0a35; the spec checks membership events only (F-241, console follow-up). |
+| Scope for delegated admins | Enterprise | Built | `e2e/entities/entity-scope.spec.ts`, `e2e/app/persona-matrix.spec.ts` | Delegated admins are anchored on their organization; superusers and system-wide admins browse every organization (one rule for entities, users and roles). The backend scopes the entity and membership routes too: another organization's entity reads as not found (F-020, F-039). |
 | Entity type configuration | Enterprise | Built | `e2e/settings/settings-config.spec.ts` | Superusers. |
 
 ## Roles

@@ -8,7 +8,8 @@ import { commandPalette, pressPaletteShortcut } from '../support/shell'
 // (no organisation switcher), every entity picker and the command palette offer that
 // organisation only, and a deep link to another organisation's entity shows none of its data:
 // the backend answers it 404, like a nonexistent entity (DD-061), and the console says it was
-// not found. Also F-022: the seeded inactive office is reachable.
+// not found or is outside their organization. Also F-022: the seeded inactive office is
+// reachable.
 
 type Entity = { id: string, display_name: string, parent_entity_id?: string | null }
 
@@ -57,8 +58,9 @@ test.describe('entities for a delegated organisation admin', () => {
     })
 
     await page.goto(`/app/entities?entity=${other.id}`)
-    // Indistinguishable from a nonexistent entity.
+    // Indistinguishable from a nonexistent entity, so the page names both.
     await expect(page.getByRole('heading', { name: 'Entity not found' })).toBeVisible()
+    await expect(page.getByText('It doesn\'t exist, the link is wrong, or the entity is outside your organization.')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Details' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name })).toHaveCount(0)

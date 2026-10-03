@@ -334,13 +334,14 @@ loading/empty copy, date formatting or one-off selects.
 | `<AppEntityPicker v-model :root-id :entity-class :allowed-types :exclude-ids :exclude-subtree-of>` | Every entity select: options with path and class icon grouped by organisation; scoped to a root (whole subtree, local filter) or, without one, server search (superusers, system-wide admins, rootless accounts). The options are `utils/entity-picker.ts` (pure): the bound value is never dropped, so a selection a filter excludes stays listed, disabled, with the reason first, and one outside the candidates reads "Unavailable entity", never its raw id. |
 | `utils/entity-tree.ts` | `indexEntities`, `entityAncestors`, `entityRootId`, `entityPathLabel`, `isInSubtree` — the only parent-chain walks — plus pure mirrors of the server's hierarchy rules: `entityDescendants`, `entityArchivePlan` (what `DELETE ?cascade=true` archives and leaves behind), `effectiveAllowedChildTypes` / `allowedChildTypesOwner` (parent, else root, else any), `allowedChildTypesHelp` (what an empty list means, for Create and Governance alike: a root's list governs every descendant without its own), `placementProblem` (why an entity cannot go under a parent), `entityValidityState`; `buildEntityTree` flags `detached` nodes. |
 | `useActorReach()` | `{ isGlobal, ownRoles }`: whether the admin has the backend's global scope (superuser, active direct system-wide role, or no hierarchy); `null` while their own direct roles load. Decides who may create accounts outside an organization, see orphaned accounts and change superuser accounts. |
-| `useEntityScope()` | `{ anchoredRootId, canBrowseAllRoots, rootInScope(rootId) }`: a non-global admin in an organisation sees that organisation only (pass `anchoredRootId` as an AppEntityPicker `root-id`); superusers, system-wide admins (`useActorReach().isGlobal === true`) and accounts without an organisation browse every organisation. Unknown reach stays anchored. The Users and Roles lists use the same rule (`canBrowseAllRoots`). The pure rules, including `entityPickBlocked` (a rootless admin without global reach has no entity to pick), are `utils/entity-scope.ts`. Presentation only: the entity routes are not scoped server-side yet. |
+| `useEntityScope()` | `{ anchoredRootId, canBrowseAllRoots, rootInScope(rootId) }`: a non-global admin in an organisation sees that organisation only (pass `anchoredRootId` as an AppEntityPicker `root-id`); superusers, system-wide admins (`useActorReach().isGlobal === true`) and accounts without an organisation browse every organisation. Unknown reach stays anchored. The Users and Roles lists use the same rule (`canBrowseAllRoots`). The pure rules, including `entityPickBlocked` (a rootless admin without global reach has no entity to pick), are `utils/entity-scope.ts`. The backend scopes the entity routes as well (another tenant's entity answers 404); the anchoring keeps the tree and pickers on the admin's organization. |
 
 ## Entities workspace (`pages/app/entities`, `components/app/EntityDetail.vue`, `components/app/entity/*`)
 - **One organisation at a time.** The tree is `GET /entities/{root}` + `/descendants` (includes
   inactive entities, never paginated); the paginated list is active-only and only feeds the
   organisation switcher (`?root=`) of admins who browse every organisation. Delegated admins are anchored on their own
-  organisation (`useEntityScope`); a deep link elsewhere renders "Outside your organization".
+  organisation (`useEntityScope`); a deep link elsewhere reads "Entity not found" (the backend
+  answers another tenant's entity 404, like a nonexistent one, so the copy names both).
   Inactive entities sit behind "Show inactive" (`?inactive=true`); a node whose parent is archived
   or unreadable is flagged "Detached". The selection is `?entity=` (pushed, so Back steps through
   it); UTree selection drives it, rows hold no links.
@@ -355,8 +356,9 @@ loading/empty copy, date formatting or one-off selects.
   revokes; with active children it needs `cascade=true`, which the admin acknowledges. Archived
   entities are read-only and leave the tree. An entity archived by the old status edit that still
   has active members shows a warning with "Finish archiving" (the same DELETE).
-- **Scope (F-020).** The backend does not scope the entity routes, so `useEntityScope` anchors a
-  delegated (non-global) admin on their own organisation: the tree, `AppEntityPicker` (whatever `root-id` the
+- **Scope (F-020).** The backend scopes the entity routes to the admin's tenant (DD-061: another
+  tenant's entity answers 404), and `useEntityScope` anchors a delegated (non-global) admin on
+  their own organisation in the console: the tree, `AppEntityPicker` (whatever `root-id` the
   caller passes), the plain entity selects (`useScopedEntities`), and the command palette's entity
   search (`entityOrganisationQuery`, filtered locally). The detail renders nothing about an entity,
   not even its name in the navbar or document title, and loads none of its cards, until its scope

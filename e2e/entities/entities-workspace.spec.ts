@@ -282,6 +282,9 @@ test.describe('entities workspace', () => {
     errorGuard.allow({ status: 404, url: /\/entities\// }, { console: /status of 404/ })
     await page.goto('/app/entities?entity=00000000-0000-4000-8000-000000000000')
     await expect(page.getByRole('heading', { name: 'Entity not found' })).toBeVisible()
+    // The backend answers another tenant's entity with the same 404 (DD-061), so the page cannot
+    // tell the two apart and names both, like a user or role outside the organization.
+    await expect(page.getByText('It doesn\'t exist, the link is wrong, or the entity is outside your organization.')).toBeVisible()
     await page.getByRole('link', { name: 'Back to entities' }).click()
     await expect(page).not.toHaveURL(/entity=/)
   })

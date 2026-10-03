@@ -123,7 +123,7 @@ const childColumns: TableColumn<Entity>[] = [
           v-if="notFound"
           icon="i-lucide-search-x"
           title="Entity not found"
-          description="It doesn't exist, or the link is wrong."
+          description="It doesn't exist, the link is wrong, or the entity is outside your organization."
           :actions="[{ label: 'Back to entities', color: 'neutral', variant: 'outline', to: closeTo }]"
         />
         <UEmpty
