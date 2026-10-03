@@ -1,4 +1,4 @@
-import type { AvatarProps } from '@nuxt/ui'
+import type { AvatarProps, ButtonProps } from '@nuxt/ui'
 import { useStartSocialLink, useUnlinkSocialAccount } from '~/queries/account'
 import type { SocialAccount } from '~/types/account'
 import { localImageSrc } from '~/utils/avatar'
@@ -6,7 +6,9 @@ import { localImageSrc } from '~/utils/avatar'
 // The Connected accounts tab: OAuth accounts linked to this account, unlinking one (after a
 // confirmation naming it, F-094) and linking another provider (needs the backend's
 // oauth_associate router, F-007). Each row shows the provider's icon: the provider's own picture
-// (avatar_url) is on a third-party host the CSP does not allow (utils/avatar.ts).
+// (avatar_url) is on a third-party host the CSP does not allow (utils/avatar.ts). A failed link
+// the associate callback redirected back with (F-104) is said here until dismissed, with the next
+// step (useAccountLinkNotice).
 
 export function useAccountConnections() {
   const { run } = useApiAction()
@@ -59,6 +61,25 @@ export function useAccountConnections() {
     linkingProvider.value = ''
   })
 
+  // --- A failed link (?link_error=, read by useAccount) ---
+  // The specific message, and the next step: Try again where the provider can be linked (not
+  // while another account of it is linked: provider_conflict), else unlinking that account.
+  const linkFailure = useAccountLinkNotice()
+  const linkNotice = computed(() => {
+    const failure = linkFailure.failure.value
+    const message = linkFailure.message.value
+    if (!failure || !message) return null
+    const provider = failure.provider
+    const linkedAccount = provider ? rows.value.find(account => account.provider === provider) : undefined
+    const actions: ButtonProps[] = []
+    if (provider && linkableProviders.value.includes(provider)) {
+      actions.push({ label: 'Try again', color: 'error', variant: 'outline', loading: linkingProvider.value === provider, onClick: () => onLink(provider) })
+    } else if (failure.code === 'provider_conflict' && linkedAccount) {
+      actions.push({ label: `Unlink ${providerLabel(linkedAccount.provider)} account`, color: 'error', variant: 'outline', onClick: () => unlink.ask(linkedAccount) })
+    }
+    return { ...message, actions: actions.length ? actions : undefined }
+  })
+
   return {
     available,
     rows,
@@ -72,6 +93,8 @@ export function useAccountConnections() {
     accountAvatar,
     unlink,
     linkingProvider,
-    onLink
+    onLink,
+    linkNotice,
+    dismissLinkNotice: linkFailure.dismiss
   }
 }

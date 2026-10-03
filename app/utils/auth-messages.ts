@@ -45,10 +45,10 @@ export function accessCodeChannelLabel(channel: AccessCodeChannel, position: 'st
 }
 
 /**
- * Title and next step for an ?oauth_error= (or an account-link ?link_error=) code: the codes
- * the backend's OAuth callback appends when it redirects back to the sign-in page
- * (wrong_application, unknown_account, account_exists, inactive, invalid_state, provider,
- * auth). Any other code gets a generic message.
+ * Title and next step for an ?oauth_error= code: the codes the backend's OAuth sign-in callback
+ * appends when it redirects back to the sign-in page (wrong_application, unknown_account,
+ * account_exists, inactive, invalid_state, provider, auth). Any other code gets a generic
+ * message. Account linking has its own codes: oauthLinkErrorMessage.
  */
 export function oauthErrorMessage(code: string, frontendProfileKey?: string): AuthMessage {
   switch (code) {
@@ -88,6 +88,69 @@ export function oauthErrorMessage(code: string, frontendProfileKey?: string): Au
       return {
         title: 'Sign-in could not be completed',
         description: 'Signing in with that provider did not work. Try again, or sign in another way.'
+      }
+  }
+}
+
+/** A failed account link a redirect landed with: its code and the provider's key, when named. */
+export type AccountLinkFailure = { code: string, provider: string | null }
+
+/**
+ * The failure in an account-link landing (`?link_error=<code>&provider=<name>`, which
+ * outlabs-auth 0.1.0a35's associate callback sends back), or null when there is none. The
+ * provider is kept only when it reads as a provider key (letters, digits, `-`, `_`), so a
+ * crafted link cannot put its own words into the message.
+ */
+export function accountLinkFailure(linkError: unknown, provider: unknown): AccountLinkFailure | null {
+  const code = typeof linkError === 'string' ? linkError.trim() : ''
+  if (!code) return null
+  const key = typeof provider === 'string' ? provider.trim().toLowerCase() : ''
+  return { code, provider: /^[a-z0-9][a-z0-9_-]{0,63}$/.test(key) ? key : null }
+}
+
+/**
+ * Title and next step for a failed account link (Account › Connected accounts): the codes
+ * outlabs-auth 0.1.0a35's associate callback sends as `?link_error=` (cancelled, already_linked,
+ * provider_conflict, invalid_state, provider, auth). `provider` is the provider's display name,
+ * or null when the redirect named none. Any other code gets a generic message.
+ */
+export function oauthLinkErrorMessage(code: string, provider?: string | null): AuthMessage {
+  const name = provider?.trim() || null
+  switch (code) {
+    case 'cancelled':
+      return {
+        title: 'Linking was cancelled',
+        description: `You cancelled at ${name ?? 'the provider'}. Nothing changed. Link again when you are ready.`
+      }
+    case 'already_linked':
+      return {
+        title: name ? `That ${name} account belongs to someone else` : 'That account belongs to someone else',
+        description: `It is already linked to another account here. Sign in to that account and unlink it there, or link a different ${name ? `${name} account` : 'account'}.`
+      }
+    case 'provider_conflict':
+      return {
+        title: name ? `Another ${name} account is already linked` : 'Another account from this provider is already linked',
+        description: `Your account already has a different ${name ? `${name} account` : 'account from this provider'} linked. Unlink it first, then link this one.`
+      }
+    case 'invalid_state':
+      return {
+        title: 'The link request expired',
+        description: 'It took too long or was finished in another browser. Start again from this page.'
+      }
+    case 'provider':
+      return {
+        title: `${name ?? 'The provider'} did not complete the link`,
+        description: 'The provider reported an error. Try again, or link it later.'
+      }
+    case 'auth':
+      return {
+        title: 'The server refused the link',
+        description: 'Your account could not be confirmed. Sign in again and retry; if it keeps failing, ask an administrator.'
+      }
+    default:
+      return {
+        title: 'Could not link the account',
+        description: `Linking ${name ? `your ${name} account` : 'the account'} did not work. Try again, or link it later.`
       }
   }
 }

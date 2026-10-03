@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// Account › Connected accounts — logic in useAccountConnections; display only.
+// Account › Connected accounts — logic in useAccountConnections; display only. A failed link the
+// provider round trip landed with is said above the list (where this tab is not available the
+// account frame says it instead).
 usePageMeta('Connected accounts')
 
 const {
@@ -15,11 +17,26 @@ const {
   accountAvatar,
   unlink,
   linkingProvider,
-  onLink
+  onLink,
+  linkNotice,
+  dismissLinkNotice
 } = useAccountConnections()
 </script>
 
 <template>
+  <UAlert
+    v-if="available && linkNotice"
+    role="alert"
+    color="error"
+    variant="subtle"
+    icon="i-lucide-link-2-off"
+    :title="linkNotice.title"
+    :description="linkNotice.description"
+    :actions="linkNotice.actions"
+    close
+    @update:open="dismissLinkNotice"
+  />
+
   <UPageCard description="Accounts from other providers you can sign in with.">
     <template #title>
       <h2>Connected accounts</h2>

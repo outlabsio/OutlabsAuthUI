@@ -41,7 +41,7 @@ committed). The deploy reads that record.
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| No axe WCAG 2.1 A/AA violations on every route, record page, the main dialogs and the guest pages, in light and dark mode, at 1440px and 390px | Met, except colour contrast (accepted, next row) | `e2e/a11y/a11y-smoke.spec.ts` (including a dialog whose role picker is still loading), `e2e/auth/auth-a11y.spec.ts` |
+| No axe WCAG 2.1 A/AA violations on every route, record page, the main dialogs and the guest pages, in light and dark mode, at 1440px and 390px | Met, except colour contrast (accepted, next row) | `e2e/a11y/a11y-smoke.spec.ts` (including a dialog whose role picker is still loading, and Connected accounts explaining a failed link), `e2e/auth/auth-a11y.spec.ts` |
 | Colour contrast (WCAG AA) in light mode | Accepted | Owner decision 2026-10-02 (F-032): a known limitation. Primary buttons and some status text (the stock subtle amber badges) fall below AA on light backgrounds; the only fix overrides the theme's CSS variables, which the stock-theme rule forbids (AGENTS.md non-negotiable 5), so the stock theme stays. Consequence: colour contrast is not checked by the gate; the axe `color-contrast` rule stays off in both modes (`e2e/support/a11y.ts`), and every other WCAG A/AA rule is checked. |
 | Keyboard use: skip link, landmarks, titles, focus return from dialogs and menus, reduced motion | Met | `e2e/app/shell-navigation.spec.ts`, `e2e/app/dialog-kit.spec.ts` |
 | Every dialog swept by axe | Met | All 84 dialogs the console opens. `e2e/a11y/a11y-smoke.spec.ts` "accessibility: dialogs" sweeps 8 (the main create dialogs and the user delete confirmation, and a role picker still loading); `e2e/a11y/a11y-dialogs.spec.ts` sweeps the other 76: 64 modal dialogs (record and row-menu dialogs, every confirmation, the one-time secret, the discard prompt, the command palette), 6 slideovers (API key detail, the entity record at phone width, the service account and Audit guides, Audit filters, the navigation drawer) and 6 popovers (date field calendar, role chip, key scopes, Audit date range, the users and roles lists' phone filters). Each is opened the way an admin opens it, scanned in light and dark at 1440 and 390px (at its own width only where its opener exists on phones or desktops alone), closed with Escape, and focus must return to its opener. SimpleRBAC skips the dialogs of surfaces it does not mount (entities, memberships, ABAC, Audit, entity types, key inventory). Served responses stand in for states the seeds cannot be put in quickly (a session list, a linked provider account, a phone number, an expired key). States of a swept dialog (a conflict warning, an error, the one-time secret's Back prompt) and its other openers are not swept separately. Found and fixed: the users and roles lists' phone Filters popover dropped the focus to the page on Escape. |
@@ -141,8 +141,13 @@ does not use yet.
   keys that can no longer authenticate. An effective-status filter (expired, not in effect) would
   let the inventory list working keys only (v-keys-audit-01).
 - **OAuth**: an authorize variant reached by top-level navigation, so console and API need not
-  be same-site (F-150). 0.1.0a35 adds the associate error redirect (F-104), which the console
-  does not use yet.
+  be same-site (F-150). The associate error redirect of 0.1.0a35 is used (F-104): a failed link
+  returns to the account landing with `?link_error=<code>&provider=<name>` and Connected
+  accounts explains each documented code. It returns only where a landing is known (the frontend
+  profile's association landing, else the router's `error_redirect_url`, else its
+  `success_redirect_url`); without one the callback answers JSON on the API's own page. The
+  codes are derived from the error's wording (`_associate_error_code`), so a reworded server
+  error falls back to `provider`; the console's generic message covers codes it does not know.
 - **Docs**: the backend's console-integration guide still describes the React console (port 5173,
   `VITE_*` settings); update it for this console (`bun run dev` on port 3000, `NUXT_PUBLIC_*` in
   development only, `app-config.json` in production, `frontendProfileKey`, same-site OAuth)
@@ -192,8 +197,10 @@ Keep each deployment's answers in its own (private) records, not in this reposit
 6. On the live host: the response headers match docs/security-posture.md, `connect-src` names
    the API origin, and sign-in shows no CSP violation in the browser console.
 7. E-mailed links (reset, invitation, magic link, sign-in code) open the console.
-8. OAuth (if enabled): one live sign-in and one account link succeed; error redirects land on
-   `/auth/login` and `/app/account`.
+8. OAuth (if enabled): one live sign-in and one account link succeed. Error redirects land on
+   `/auth/login` (sign-in) and on the account landing, `/app/account` or another Account tab
+   (linking, where the frontend profile declares an association landing or the associate router
+   an error or success redirect), and a failed link shows on Connected accounts.
 9. A session survives an access-token expiry (sign in, wait past the lifetime, act).
 10. Smoke as a superuser and as the deployment's least-privileged admin: navigation matches what
     each may do; sign-out ends the session.

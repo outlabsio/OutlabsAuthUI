@@ -74,8 +74,12 @@ the provider redirect (`app/auth/pending-oauth.ts`), and the callback consumes i
 synchronous step that strips the fragment, before any request. Without a marker from the last
 20 minutes (long enough for the provider's own MFA) the callback revokes the presented pair,
 stores nothing and shows an inline error. An `oauth_error` landing drops the marker. Linking a
-provider from Account returns no tokens and sets no marker. Proven by
-`e2e/app/session-lifecycle.spec.ts` and `e2e/auth/sign-in-steps.spec.ts`.
+provider from Account returns no tokens and sets no marker; a failed link returns to Account with
+`?link_error=<code>&provider=<name>`, which carries no secret, is removed from the address at
+once, and names the provider only when it reads as a provider key, so a crafted link cannot put
+its own words into the message. Proven by `e2e/app/session-lifecycle.spec.ts`,
+`e2e/auth/sign-in-steps.spec.ts`, `e2e/account/social-accounts.spec.ts` and
+`test/unit/auth-messages.test.ts`.
 
 ## Headers
 

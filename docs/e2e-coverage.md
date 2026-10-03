@@ -49,7 +49,10 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
   the example backends issue only session-bound tokens, so `account/sessions-table.spec.ts`
   answers Sign out other devices with outlabs-auth's 400 to cover the renewal and the notice.
 - No live OAuth provider: provider round trips are mocked (F-150; checked per deployment in
-  PRODUCTION.md). So is an account created through OAuth sign-in, which has no password.
+  PRODUCTION.md). So is an account created through OAuth sign-in, which has no password. A
+  failed account link is the associate callback's redirect served by the route mock (a 302 back
+  to Account with `?link_error=`), since no example mounts `oauth_associate`; which code the
+  server picks for which failure is outlabs-auth's to test.
 - The example backends run outlabs-auth's default password policy with registration open, so a
   stricter or laxer policy, the `invite_only` and `closed` registration modes and a registration
   refused as turned off are served (`withPasswordPolicy`, `patchAuthConfig`). The default

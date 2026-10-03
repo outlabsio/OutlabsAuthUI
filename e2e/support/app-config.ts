@@ -1,4 +1,4 @@
-import type { BrowserContext } from '@playwright/test'
+import type { BrowserContext, Page } from '@playwright/test'
 import { apiBaseUrl, authApiPrefix } from './env'
 
 // The runtime config every E2E page boots with. Pointing at the harness backend here keeps
@@ -25,4 +25,16 @@ export async function prepareContext(context: BrowserContext): Promise<void> {
     contentType: 'application/json',
     body: JSON.stringify(harnessAppConfig)
   }))
+}
+
+// The deployment's OAuth providers (authUi.oauthProviders) and, optionally, its frontend profile
+// key, served through window.__OUTLABS_AUTH_UI_CONFIG__. Register before page.goto. Linking needs
+// the backend's oauth_associate router as well (withExtraSurfaces), which no example mounts.
+export async function withOAuthProviders(page: Page, providers: string[], frontendProfileKey?: string): Promise<void> {
+  await page.addInitScript(({ providers, key }) => {
+    ;(window as unknown as { __OUTLABS_AUTH_UI_CONFIG__?: Record<string, unknown> }).__OUTLABS_AUTH_UI_CONFIG__ = {
+      ...(key ? { frontendProfileKey: key } : {}),
+      authUi: { oauthProviders: providers }
+    }
+  }, { providers, key: frontendProfileKey })
 }

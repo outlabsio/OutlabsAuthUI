@@ -1,11 +1,11 @@
 import { useQuery, useQueryCache } from '@pinia/colada'
 import type { NavigationMenuItem } from '@nuxt/ui'
+import type { LocationQuery } from 'vue-router'
 import { mySocialAccountsQuery, SOCIAL_ACCOUNTS_ROOT } from '~/queries/account'
 import { useForgotPassword } from '~/queries/session'
 import { describeAuthError } from '~/api/client'
-import { oauthErrorMessage } from '~/utils/auth-messages'
+import { accountLinkFailure, oauthLinkErrorMessage, type AccountLinkFailure } from '~/utils/auth-messages'
 import { cooldownKey } from '~/utils/request-cooldown'
-import { getRuntimeConfig } from '~/utils/runtime-config'
 import type { RecoveryResetOutcome } from '~/composables/useRecoveryFlow'
 
 // The account area's frame (pages/app/account.vue): the tabs, and the one-shot notices a
@@ -25,6 +25,28 @@ export function useConnectedAccountsAvailable() {
     || (accounts.data.value?.length ?? 0) > 0
     || accounts.status.value === 'error')
   return { available, accounts }
+}
+
+const CONNECTIONS_PATH = '/app/account/connections'
+
+/**
+ * A failed account link the associate callback redirected back with (F-104), kept until it is
+ * dismissed or the account area is left: useAccount reads it from the address, Connected
+ * accounts (or, where that tab does not exist, the account frame) shows it.
+ */
+export function useAccountLinkNotice() {
+  const failure = useState<AccountLinkFailure | null>('account:link-notice', () => null)
+  const { providerLabel } = useAuthUiConfig()
+  const message = computed(() => (failure.value
+    ? oauthLinkErrorMessage(failure.value.code, failure.value.provider ? providerLabel(failure.value.provider) : null)
+    : null))
+  return {
+    failure,
+    message,
+    dismiss: () => {
+      failure.value = null
+    }
+  }
 }
 
 /** "Send me a reset link" for the signed-in actor, shared by the recovery notice and Security. */
@@ -53,8 +75,11 @@ export function useAccountResetLink() {
 export function useAccount() {
   const { user } = useAuth()
   const queryCache = useQueryCache()
+  const route = useRoute()
+  const router = useRouter()
+  const toast = useToast()
   const { providerLabel } = useAuthUiConfig()
-  const { available: connectionsAvailable } = useConnectedAccountsAvailable()
+  const { available: connectionsAvailable, accounts: linkedAccounts } = useConnectedAccountsAvailable()
 
   // Tabs (dashboard template settings pattern): Profile | Security | Connected accounts | Access.
   // Security holds the password and the sessions; Connected accounts only when there is one to
@@ -94,23 +119,45 @@ export function useAccount() {
     }
   })
 
+  // --- Account-link failure (?link_error=<code>&provider=<name>, F-104) ---
+  // The associate callback lands on the deployment's account landing (/app/account in the
+  // example profile, possibly another tab). Connected accounts says what failed and offers the
+  // next step; where that tab does not exist (no providers to link and none linked) the notice
+  // shows here, above every tab. Whether the tab exists is known once the providers offer a link
+  // or the linked accounts have answered.
+  const linkNotice = useAccountLinkNotice()
+  const connectionsKnown = computed(() => connectionsAvailable.value || linkedAccounts.status.value !== 'pending')
+  const frameLinkNotice = computed(() => (linkNotice.message.value && connectionsKnown.value && !connectionsAvailable.value
+    ? linkNotice.message.value
+    : null))
+  // The cleaned query to open Connected accounts with, while a landing on another tab waits for
+  // the tabs to be known.
+  const pendingConnections = ref<LocationQuery | null>(null)
+  watch([pendingConnections, connectionsKnown], ([query, known]) => {
+    if (!query || !known) return
+    pendingConnections.value = null
+    if (connectionsAvailable.value && route.path !== CONNECTIONS_PATH) void router.replace({ path: CONNECTIONS_PATH, query })
+  })
+  onBeforeUnmount(linkNotice.dismiss)
+
   // One-shot URL notices, read once and removed from the address bar so a reload or a shared
   // link does not repeat them (a watchEffect + replace would re-fire on its own navigation):
   // - ?linked=<provider>: the associate callback linked a provider;
-  // - ?link_error=<code>: linking failed (a backend that redirects associate errors here);
+  // - ?link_error=<code>&provider=<name>: linking failed (above);
   // - ?recover=password: phone-OTP recovery landed here.
-  const route = useRoute()
-  const router = useRouter()
-  const toast = useToast()
   onMounted(() => {
     const { linked, link_error: linkError, recover, reset, ...rest } = route.query
     if (typeof linked === 'string' && linked) {
       toast.add({ title: `${providerLabel(linked)} account linked`, color: 'success', icon: 'i-lucide-check' })
       queryCache.invalidateQueries({ key: [SOCIAL_ACCOUNTS_ROOT] })
     }
-    if (typeof linkError === 'string' && linkError) {
-      const message = oauthErrorMessage(linkError, getRuntimeConfig().frontendProfileKey)
-      toast.add({ title: 'Could not link the account', description: message.description, color: 'error', icon: 'i-lucide-triangle-alert' })
+    if (linkError != null) {
+      const failure = accountLinkFailure(linkError, rest.provider)
+      delete rest.provider
+      if (failure) {
+        linkNotice.failure.value = failure
+        if (route.path !== CONNECTIONS_PATH) pendingConnections.value = rest
+      }
     }
     if (recover === 'password') {
       recovery.value = { reset: reset === 'sent' || reset === 'failed' || reset === 'none' ? reset : 'unknown' }
@@ -126,6 +173,8 @@ export function useAccount() {
     onSendResetLink,
     dismissRecovery: () => {
       recovery.value = null
-    }
+    },
+    linkNotice: frameLinkNotice,
+    dismissLinkNotice: linkNotice.dismiss
   }
 }

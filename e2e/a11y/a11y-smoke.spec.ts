@@ -1,6 +1,7 @@
 import { backendConfigured, expect, expectSeeded, test, type Page } from '../support/fixtures'
 import { expectAccessible } from '../support/a11y'
-import { backendHasSurface } from '../support/capabilities'
+import { withOAuthProviders } from '../support/app-config'
+import { backendHasSurface, withExtraSurfaces } from '../support/capabilities'
 import { searchUsersList } from '../support/lists'
 
 // The accessibility sweep (F-138, F-148): every console route, the record pages behind them and
@@ -43,6 +44,17 @@ test.describe('accessibility: console pages', () => {
       await expectAccessible(page, { ready: () => settled(page) })
     })
   }
+
+  // Connected accounts exists where providers can be linked (oauth_associate, which no example
+  // mounts, and the deployment's providers); here with a failed link explained (F-104).
+  test('/app/account/connections with a failed link explained', async ({ page }) => {
+    await withExtraSurfaces(page, ['oauth_associate'])
+    await withOAuthProviders(page, ['google'])
+    await page.goto('/app/account?link_error=already_linked&provider=google')
+    await expect(page.getByRole('alert').getByText('That Google account belongs to someone else', { exact: true })).toBeVisible()
+    await settled(page)
+    await expectAccessible(page, { ready: () => settled(page) })
+  })
 
   test('a user\'s pages: overview, access and activity', async ({ page, apiAs }) => {
     const user = await apiAs('agent').me()

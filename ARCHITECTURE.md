@@ -700,6 +700,31 @@ loading/empty copy, date formatting or one-off selects.
   filters by category on the server and links to the Audit workspace for events about the user or
   actions by them. Its events are `AppAuditEventCard context="user"` (see Audit below).
 
+## Account (`pages/app/account.vue` and its tabs, `useAccount`, `useAccountConnections`)
+- **Frame and tabs.** `account.vue` is the frame (the dashboard template's settings pattern,
+  F-194): Profile, Security, Connected accounts (only when there is a provider to link, an
+  account linked or a failed read: `useConnectedAccountsAvailable`) and Access, each tab a child
+  page with its own composable. The one-shot notices a redirect lands with are read once by
+  `useAccount` (on mount) and removed from the address with `router.replace`, so a reload or a
+  shared link does not repeat them: `?linked=<provider>` (a toast), `?recover=password&reset=`
+  (phone recovery, above every tab) and `?link_error=<code>&provider=<name>`.
+- **A failed account link** (F-104). outlabs-auth 0.1.0a35's associate callback sends a failure
+  to the frontend profile's association landing (any Account tab; `/app/account` in the example
+  profile) with `?link_error=<code>&provider=<name>`. `accountLinkFailure` keeps the provider only
+  when it reads as a provider key (a crafted link cannot put its words in the message), and
+  `oauthLinkErrorMessage` gives each documented code (`cancelled`, `already_linked`,
+  `provider_conflict`, `invalid_state`, `provider`, `auth`) its own title and next step and any
+  other code a generic one; the sign-in table (`oauthErrorMessage`, `?oauth_error=` on
+  `/auth/login`) is never used for it. The failure is keyed Nuxt state (`useAccountLinkNotice`,
+  `useState('account:link-notice')`) that the frame and the Connected accounts tab share, cleared
+  when it is closed or the frame unmounts (Account is left): it lives as long as the frame, so it
+  is not a section of `stores/ui.ts`. A landing on another tab opens Connected accounts once it is
+  known whether that tab exists (the providers offer a link, or the linked accounts answered).
+  The tab shows one `UAlert` above the list, not a toast: Try again (`onLink`) where the provider
+  can be linked, or, while another account of that provider is linked (`provider_conflict`),
+  Unlink for it (the row's own confirmation). Where the tab does not exist, the frame shows it
+  above every tab.
+
 ## Audit (`pages/app/audit.vue`, `useAuditWorkspace`, `utils/audit.ts`, `utils/audit-redaction.ts`)
 - **Coverage.** `GET /audit-events` returns account events only (sign-ins and sessions, passwords
   and API keys, invitations, memberships, role assignments, superuser, profile, status). The page
@@ -1177,6 +1202,14 @@ Dated, append-only. Superseded decisions stay with their status changed.
   one through the emailed reset link (0.1.0a35 has no endpoint for a first password of the
   signed-in account), and an admin's Set password is not offered on an invited account, whose
   status an admin-set password would not change. *Status: adopted.*
+
+- **2026-10-03 — A failed account link is one specific, persistent message on Connected
+  accounts.** outlabs-auth 0.1.0a35 redirects a failed link back with its own codes
+  (`?link_error=`), which the console had read with the sign-in table: most got "Sign-in could not
+  be completed" in a toast that disappeared. Each documented code now has its own message
+  (`oauthLinkErrorMessage`), shown on Connected accounts until it is closed, with the next step.
+  Consequence: a landing on another Account tab moves to Connected accounts; where that tab does
+  not exist, the message shows above every tab. *Status: adopted.*
 
 ## Status
 

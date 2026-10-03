@@ -3,14 +3,17 @@ import { cooldownLabel } from '~/utils/request-cooldown'
 
 // Account — the actor's own settings, in tabs (dashboard template settings pattern, F-194):
 // Profile, Security, Connected accounts (when available) and Access. Logic in useAccount; each
-// tab is a child page. A notice a redirect landed with (phone recovery) shows above every tab.
+// tab is a child page. A notice a redirect landed with (phone recovery; a failed account link
+// where there is no Connected accounts tab to show it) shows above every tab.
 const {
   tabs,
   recoveryNotice,
   sendingResetLink,
   resetLinkCooldown,
   onSendResetLink,
-  dismissRecovery
+  dismissRecovery,
+  linkNotice,
+  dismissLinkNotice
 } = useAccount()
 </script>
 
@@ -54,6 +57,18 @@ const {
             onClick: onSendResetLink
           }] : undefined"
           @update:open="dismissRecovery"
+        />
+
+        <UAlert
+          v-if="linkNotice"
+          role="alert"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-link-2-off"
+          :title="linkNotice.title"
+          :description="linkNotice.description"
+          close
+          @update:open="dismissLinkNotice"
         />
 
         <NuxtPage />
