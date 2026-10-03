@@ -71,7 +71,7 @@ export function useUserDetail(userId: Ref<string>) {
   }))
 
   // --- Header actions (F-065, F-128, F-209) ---
-  const { policy, isSelf, canEdit, canManage, canResendInvite } = useUserPolicy(user)
+  const { policy, isSelf, canEdit, canManage, canResendInvite, systemWideLocked } = useUserPolicy(user)
   const profileOpen = ref(false)
   const statusOpen = ref(false)
   const resetOpen = ref(false)
@@ -164,6 +164,15 @@ export function useUserDetail(userId: Ref<string>) {
     }
   })
 
+  // Why a delegated admin is offered no change to an account holding a system-wide role
+  // (outlabs-auth 0.1.0a35 refuses them; useUserPolicy). Shown on every tab.
+  const globalAccountNotice = computed(() => (systemWideLocked.value
+    ? {
+        title: 'Only global administrators can change this account',
+        description: 'It holds a system-wide role (in any state, even revoked), so administrators limited to an organization can view it but not edit, reset, suspend, delete or restore it, or change its roles, sessions or API keys. Its entity memberships can still be managed.'
+      }
+    : null))
+
   return {
     user,
     status,
@@ -189,6 +198,7 @@ export function useUserDetail(userId: Ref<string>) {
     resendInvite,
     restoreUser,
     deleteUser,
-    deletedNotice
+    deletedNotice,
+    globalAccountNotice
   }
 }

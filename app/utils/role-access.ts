@@ -230,9 +230,23 @@ export function grantsSystemWideScope(grant: DirectRoleGrant): boolean {
   return grant.status === 'active'
     && grant.is_currently_valid
     && (role.status ?? 'active') === 'active'
-    && role.is_global
-    && !role.root_entity_id
-    && !role.scope_entity_id
+    && roleIsSystemWide(role)
+}
+
+// The backend's own test for a system-wide role definition (access_scope.py, _scope.py):
+// is_global with no owning organization and no defining entity. Unlike roleTypeOf, a role without
+// either that is not flagged is_global does not count.
+export function roleIsSystemWide(role: Pick<Role, 'is_global' | 'root_entity_id' | 'scope_entity_id'>): boolean {
+  return Boolean(role.is_global) && !role.root_entity_id && !role.scope_entity_id
+}
+
+// Whether an account holds a direct system-wide role row in any state, from its direct role
+// assignments read with include_inactive (mirror of user_has_system_wide_role_grant, which ignores
+// the row's status, window and the role's status). outlabs-auth 0.1.0a35 leaves the rows of
+// archived role definitions out of that read while still counting them, so false is "none that
+// can be seen": the server's refusal stays the final word.
+export function holdsSystemWideRoleRow(rows: readonly { role: Pick<Role, 'is_global' | 'root_entity_id' | 'scope_entity_id'> }[]): boolean {
+  return rows.some(row => roleIsSystemWide(row.role))
 }
 
 export type AccessScopeSummary = {

@@ -64,14 +64,22 @@ export function userHolds(
 // actor's permissions and the target's state, so the menu never offers something the backend
 // refuses:
 // - a superuser account can be changed only by a global admin (superuser or system-wide role);
+// - so can an account holding a direct system-wide role row in any state, even revoked or of an
+//   inactive role (outlabs-auth 0.1.0a35, EnterpriseRBAC: such a grant can come back without
+//   anyone reviewing the account again). The users list has no per-row signal for it and leaves
+//   `targetHoldsSystemWideRole` out (the server's refusal is shown); the user detail reads the
+//   account's direct roles and passes true or false, or null while that is unknown, which offers
+//   nothing either (F-209);
 // - nobody deletes their own account from the console (it would lock them out); their own
-//   account is managed from Account;
+//   account is managed from Account, and the system-wide rule never applies to oneself;
 // - a deleted account can only be restored (user:update), never edited or deleted again.
 export type UserRowPolicy = {
   isSelf: boolean
   canEdit: boolean
   canDelete: boolean
   canRestore: boolean
+  /** Why only a global admin may change it: known (superuser, a system-wide role) or not yet. */
+  lock: 'superuser' | 'system_wide_role' | 'unknown' | null
 }
 
 export function userRowPolicy(input: {
@@ -81,16 +89,28 @@ export function userRowPolicy(input: {
   canUpdate: boolean
   canDelete: boolean
   target: Pick<User, 'id' | 'status' | 'is_superuser'>
+  // Whether the account holds a direct system-wide role row (any status); null while unknown;
+  // left out where it is not checked (the users list, SimpleRBAC).
+  targetHoldsSystemWideRole?: boolean | null
 }): UserRowPolicy {
   const { target } = input
   const isSelf = Boolean(input.actorId) && input.actorId === target.id
   const deleted = target.status === 'deleted'
-  const superuserLocked = target.is_superuser && input.actorIsGlobal !== true
+  const global = input.actorIsGlobal === true
+  const lock: UserRowPolicy['lock'] = global
+    ? null
+    : target.is_superuser
+      ? 'superuser'
+      : isSelf || input.targetHoldsSystemWideRole === undefined || input.targetHoldsSystemWideRole === false
+        ? null
+        : input.targetHoldsSystemWideRole ? 'system_wide_role' : 'unknown'
+  const locked = lock !== null
   return {
     isSelf,
-    canEdit: input.canUpdate && !deleted && !superuserLocked,
-    canDelete: input.canDelete && !deleted && !isSelf && !superuserLocked,
-    canRestore: input.canUpdate && deleted && !superuserLocked
+    canEdit: input.canUpdate && !deleted && !locked,
+    canDelete: input.canDelete && !deleted && !isSelf && !locked,
+    canRestore: input.canUpdate && deleted && !locked,
+    lock
   }
 }
 

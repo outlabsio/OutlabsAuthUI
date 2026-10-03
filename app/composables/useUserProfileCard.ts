@@ -16,8 +16,10 @@ export function useUserProfileCard(user: Ref<User>) {
   const canRead = computed(() => canAccess('users'))
   const canReadMemberships = computed(() => hasMemberships.value && hasPermission('membership:read'))
 
-  // The same entries the Access tab reads (same keys and `enabled`), for the access-scope line.
-  const roles = useQuery(() => ({ ...userRoleMembershipsQuery({ userId: user.value.id }), enabled: canRead.value }))
+  // The same entries the Access tab and the account's policy read (same keys and `enabled`), for
+  // the access-scope line: every direct role assignment, of which only the ones in force count
+  // (accessScopeSummary).
+  const roles = useQuery(() => ({ ...userRoleMembershipsQuery({ userId: user.value.id, includeInactive: true }), enabled: canRead.value }))
   const memberships = useQuery(() => ({ ...userMembershipsQuery(user.value.id), enabled: canReadMemberships.value }))
 
   const now = useRelativeNow()

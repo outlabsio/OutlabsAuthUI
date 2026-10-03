@@ -65,21 +65,37 @@ describe('userRowPolicy', () => {
   const base = { actorId: 'u1', actorIsGlobal: true, canUpdate: true, canDelete: true }
 
   it('offers edit and delete with the permissions, restore only for a deleted account', () => {
-    expect(userRowPolicy({ ...base, target })).toEqual({ isSelf: false, canEdit: true, canDelete: true, canRestore: false })
-    expect(userRowPolicy({ ...base, canUpdate: false, canDelete: false, target })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false })
-    expect(userRowPolicy({ ...base, target: { ...target, status: 'deleted' } })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: true })
+    expect(userRowPolicy({ ...base, target })).toEqual({ isSelf: false, canEdit: true, canDelete: true, canRestore: false, lock: null })
+    expect(userRowPolicy({ ...base, canUpdate: false, canDelete: false, target })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false, lock: null })
+    expect(userRowPolicy({ ...base, target: { ...target, status: 'deleted' } })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: true, lock: null })
   })
 
   it('never deletes the actor\'s own account', () => {
-    expect(userRowPolicy({ ...base, target: { ...target, id: 'u1' } })).toEqual({ isSelf: true, canEdit: true, canDelete: false, canRestore: false })
+    expect(userRowPolicy({ ...base, target: { ...target, id: 'u1' } })).toEqual({ isSelf: true, canEdit: true, canDelete: false, canRestore: false, lock: null })
   })
 
   it('leaves superuser accounts to global admins (unknown reach counts as not global)', () => {
     const superuser = { ...target, is_superuser: true }
     expect(userRowPolicy({ ...base, target: superuser }).canDelete).toBe(true)
     for (const actorIsGlobal of [false, null]) {
-      expect(userRowPolicy({ ...base, actorIsGlobal, target: superuser })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false })
+      expect(userRowPolicy({ ...base, actorIsGlobal, target: superuser })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false, lock: 'superuser' })
     }
+  })
+
+  it('leaves accounts holding a system-wide role row to global admins, and offers nothing while that is unknown', () => {
+    const scoped = { ...base, actorIsGlobal: false }
+    expect(userRowPolicy({ ...scoped, target, targetHoldsSystemWideRole: true })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false, lock: 'system_wide_role' })
+    expect(userRowPolicy({ ...scoped, target: { ...target, status: 'deleted' }, targetHoldsSystemWideRole: true }).canRestore).toBe(false)
+    // Still being read (or unreadable): nothing offered, no reason claimed (F-209).
+    expect(userRowPolicy({ ...scoped, target, targetHoldsSystemWideRole: null })).toEqual({ isSelf: false, canEdit: false, canDelete: false, canRestore: false, lock: 'unknown' })
+    // Known not to hold one, or not checked (the users list): the usual rules.
+    expect(userRowPolicy({ ...scoped, target, targetHoldsSystemWideRole: false })).toEqual({ isSelf: false, canEdit: true, canDelete: true, canRestore: false, lock: null })
+    expect(userRowPolicy({ ...scoped, target })).toEqual({ isSelf: false, canEdit: true, canDelete: true, canRestore: false, lock: null })
+    // A global admin may; and the rule never applies to one's own account.
+    expect(userRowPolicy({ ...base, target, targetHoldsSystemWideRole: true }).canEdit).toBe(true)
+    expect(userRowPolicy({ ...scoped, target: { ...target, id: 'u1' }, targetHoldsSystemWideRole: true })).toEqual({ isSelf: true, canEdit: true, canDelete: false, canRestore: false, lock: null })
+    // A superuser account says so first.
+    expect(userRowPolicy({ ...scoped, target: { ...target, is_superuser: true }, targetHoldsSystemWideRole: true }).lock).toBe('superuser')
   })
 })
 

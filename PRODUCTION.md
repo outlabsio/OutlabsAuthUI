@@ -90,9 +90,17 @@ does not use yet.
   which the entity detail says; a delegated admin gets their organization's orphans. The console
   still anchors delegated admins on their organization in the tree and pickers.
 - **Accounts holding a system-wide role** (0.1.0a35): a tenant admin may not change any account
-  with a direct system-wide role row, whatever its status (403). Nothing on a user row says so, so
-  the console still offers the change and shows the refusal; a field on the user record (or the
-  list) would let it hide those actions as it does for superusers.
+  with a direct system-wide role row, whatever its status (403 on the users routes: profile,
+  password, status, delete, restore, invitation, direct roles, sessions, API keys; entity
+  memberships are not covered). Nothing on the user record, `/permissions/me` or `/auth/config`
+  says so. The only signal is partial: user detail reads the account's direct roles
+  (`GET /users/{id}/role-memberships?include_inactive=true`) and hides the refused changes with
+  an explanation, but that read leaves out rows whose role definition is archived
+  (`_role_definition_is_visible`) while the refusal
+  still counts them, so such an account is offered the change and the server's refusal is shown;
+  and the users list has no per-row signal at all (its row menu offers Edit profile and Delete
+  and shows the refusal). A field on the user record and list rows (for example
+  `managed_by_global_only`) would close both.
 - **ABAC write refusals** (0.1.0a35): the condition routes refuse an invalid condition with 400
   but forward only the message (`details.detail`), not the `details.reason`
   (`invalid_abac_condition`) and `details.field` the release notes promise, so a refusal shows

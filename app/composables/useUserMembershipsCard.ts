@@ -46,8 +46,10 @@ export function useUserMembershipsCard(user: Ref<User>) {
   const userId = computed(() => user.value.id)
 
   // The permission checks use the backend algebra, so an org admin's membership:read_tree counts.
-  // Writes also need the account to be changeable by this admin (useUserPolicy).
-  const { canEdit: canChangeUser } = useUserPolicy(user)
+  // Writes also need the account to be changeable by this admin (useUserPolicy): not deleted, and
+  // a superuser account only by a global admin. outlabs-auth's rule for accounts holding a
+  // system-wide role does not cover memberships, so it does not hold them back.
+  const { canEditMemberships: canChangeUser } = useUserPolicy(user)
   const canReadMemberships = computed(() => hasMemberships.value && hasPermission('membership:read'))
   const canAddMembership = computed(() => hasMemberships.value && canChangeUser.value && hasPermission('membership:create'))
   const canEditMembership = computed(() => hasMemberships.value && canChangeUser.value && hasPermission('membership:update'))

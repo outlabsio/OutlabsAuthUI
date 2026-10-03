@@ -408,7 +408,10 @@ loading/empty copy, date formatting or one-off selects.
   Edit profile and Restore with `user:update`, Delete with `user:delete`; superuser accounts only
   for global admins; never Delete, Change status or Reset password on one's own account, which
   links to Account instead. `<AppUserProfileDialog v-model:open :user>` is the one profile edit
-  (email, names, phone; diff-only).
+  (email, names, phone; diff-only). An account holding a direct system-wide role row is also only
+  for global admins on EnterpriseRBAC (outlabs-auth 0.1.0a35); the list has no per-row signal for
+  it, so its menu offers the change and the server's refusal is shown (the user detail knows,
+  below).
 
 ## Roles and permissions workspaces (`pages/app/roles`, `pages/app/permissions`, `utils/role-definitions.ts`)
 - **Authoring rules** live in `utils/role-definitions.ts` (pure, unit-tested): `roleTypeBadge`,
@@ -617,7 +620,16 @@ loading/empty copy, date formatting or one-off selects.
   `AppUserSuperuserDialog`, `AppUserCheckAccessDialog` (`useUser<Dialog>(user, open)`). Each SFC still binds exactly one composable; cards that read the
   same key (direct roles, memberships, the first membership-history page) use the same `enabled`.
 - **Actions.** `useUserPolicy(user)` gives `canEdit` (userRowPolicy) and `canManage` (another
-  account: status, password reset, sessions). The navbar holds Edit and a "More user actions" menu,
+  account: status, password reset, sessions). On EnterpriseRBAC, for an admin without global
+  reach, it also reads the account's direct roles (`userRoleMembershipsQuery` with
+  `includeInactive`, the Access tab's key and `enabled`, which the Profile card shares too):
+  an account holding a system-wide role row in any state (`holdsSystemWideRoleRow`) gets
+  `lock: 'system_wide_role'`, every refused change is withheld (profile, password, status,
+  delete, restore, invitation, direct roles, sessions, API keys) and the page shows "Only global
+  administrators can change this account" on every tab; until the read answers (or if it fails)
+  the lock is `'unknown'` and nothing is offered either. Memberships use `canEditMemberships`,
+  which leaves that rule out: the server does not apply it to them. The read hides rows of
+  archived role definitions that the server still counts (PRODUCTION.md section 8). The navbar holds Edit and a "More user actions" menu,
   built only for a loaded record: Change status (active/suspended/banned accounts only; an invited
   account offers Resend invite), Reset password (Set password for an account without one,
   `has_password` false; neither for an invited account, which sets its own by accepting the
@@ -656,7 +668,8 @@ loading/empty copy, date formatting or one-off selects.
     memberships cannot be read, and a re-read that fails stops the save and says so.
   - *Writes follow the account.* Every grant write also needs `useUserPolicy(user).canEdit`, so a
     deleted account (its Access tab says to restore it) or, for a delegated admin, a superuser
-    account offers none.
+    account or one holding a system-wide role offers none; membership writes need
+    `canEditMemberships` (the system-wide rule does not cover them).
   - *Dialogs.* Assign roles, Add membership and Edit access are `AppFormDialog` + Zod
     (`schemas/membership.ts`). A multi-role assign tries every role and reports each refusal
     (`assignOutcomeSummary`), keeping only the refused roles selected. A user without an

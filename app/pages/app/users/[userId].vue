@@ -32,7 +32,8 @@ const {
   resendInvite,
   restoreUser,
   deleteUser,
-  deletedNotice
+  deletedNotice,
+  globalAccountNotice
 } = useUserDetail(userId)
 // Document title: the account's email, like the navbar.
 usePageMeta(() => user.value?.email)
@@ -113,6 +114,16 @@ const backToUsers: ButtonProps[] = [{ label: 'Back to users', color: 'neutral', 
           @retry="refetch()"
         >
           <div v-if="user" class="space-y-6">
+            <!-- A delegated admin and an account holding a system-wide role: why nothing is offered. -->
+            <UAlert
+              v-if="globalAccountNotice"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-shield"
+              :title="globalAccountNotice.title"
+              :description="globalAccountNotice.description"
+              data-testid="user-global-account"
+            />
             <AppUserProfileCard v-if="tab === 'overview'" :user="user" />
             <template v-else-if="tab === 'access'">
               <!-- A deleted account keeps its grants on record but offers no access changes (F-174). -->

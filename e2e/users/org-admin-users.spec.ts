@@ -1,7 +1,9 @@
 import type { Page } from '@playwright/test'
-import { backendConfigured, expect, expectSeeded, persona, personaState, test } from '../support/fixtures'
+import { backendConfigured, expect, expectSeeded, persona, personaState, test, type ApiClient } from '../support/fixtures'
+import { cardByHeading } from '../support/entities'
 import { searchUsersList } from '../support/lists'
 import { onPath } from '../support/session'
+import { userActionsButton, userDetailPath } from '../support/users'
 
 // A delegated organisation admin on the users list (F-012, F-053, F-054, F-161): the persona
 // holds user:read/create/update and membership:create_tree but not user:delete, and has no
@@ -103,5 +105,120 @@ test.describe('users list as a delegated organisation admin', () => {
     await expect(dialog.getByText('No entity (direct roles)')).toHaveCount(0)
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect(dialog).toBeHidden()
+  })
+})
+
+// outlabs-auth 0.1.0a35 refuses an admin without global reach any change to an account holding a
+// direct system-wide role row, in any state (DD-061: a revoked grant can come back without anyone
+// reviewing the account). The detail reads the account's direct roles to know it, says why and
+// offers none of the refused changes; entity memberships are not covered by the rule.
+test.describe('accounts holding a system-wide role, as a delegated organisation admin', () => {
+  test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
+  test.use({ storageState: personaState('orgAdmin'), errorGuardMode: 'strict' })
+
+  type DirectRow = { status: string, role: { is_global: boolean, root_entity_id: string | null, scope_entity_id: string | null } }
+  const systemWide = (row: DirectRow) => row.role.is_global && !row.role.root_entity_id && !row.role.scope_entity_id
+
+  test.beforeEach(async ({ requires }) => {
+    await requires({ preset: 'EnterpriseRBAC', personas: ['orgAdmin'] })
+  })
+
+  async function accountWithSystemWideRow(api: ApiClient, orgRoot: string, kind: string) {
+    const role = await api.createRole({ kind, is_global: true, permissions: ['lead:read'] })
+    const user = await api.createUser({ kind, root_entity_id: orgRoot })
+    await api.post(`/users/${user.id}/roles`, { role_id: role.id })
+    return { role, user }
+  }
+
+  test('the seeded account with a system-wide role says why and offers no change the server refuses', async ({ page, api }) => {
+    const target = await api.findUserByEmail(persona('permissionsAdmin').email)
+    expectSeeded(target, 'the seed has the permissions admin')
+    const rows = await api.get<DirectRow[]>(`/users/${target.id}/role-memberships`, { query: { include_inactive: true } })
+    expectSeeded(rows.find(systemWide), 'the permissions admin holds a system-wide role directly')
+
+    await page.goto(userDetailPath(target.id))
+    const notice = page.getByTestId('user-global-account')
+    await expect(notice).toContainText('Only global administrators can change this account')
+    await expect(notice).toContainText('even revoked')
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+    await expect(userActionsButton(page)).toHaveCount(0)
+
+    // Access: no direct-role change; memberships stay theirs to manage (the rule does not cover them).
+    await page.goto(userDetailPath(target.id, 'access'))
+    await expect(notice).toBeVisible()
+    await expect(cardByHeading(page, 'Direct roles').getByRole('button', { name: 'Assign roles' })).toHaveCount(0)
+    await expect(cardByHeading(page, 'Memberships').getByRole('button', { name: 'Add membership' })).toBeVisible()
+
+    // Security: no session revoked, no key revoked.
+    await page.goto(userDetailPath(target.id, 'security'))
+    await expect(notice).toBeVisible()
+    const sessions = cardByHeading(page, 'Active sessions')
+    await expect(sessions.getByRole('heading', { name: 'Active sessions' })).toBeVisible()
+    await expect(sessions.getByRole('button', { name: 'Sign out everywhere' })).toHaveCount(0)
+    await expect(sessions.getByRole('button', { name: /^Revoke session/ })).toHaveCount(0)
+  })
+
+  test('a revoked system-wide role still holds the account for global admins; a superuser is offered every change', async ({ page, api, apiAs, sessionContext }) => {
+    const me = await apiAs('orgAdmin').me()
+    expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
+    const { role, user } = await accountWithSystemWideRow(api, me.root_entity_id, 'sw-revoked')
+    await api.delete(`/users/${user.id}/roles/${role.id}`)
+    const rows = await api.get<DirectRow[]>(`/users/${user.id}/role-memberships`, { query: { include_inactive: true } })
+    expect(rows.map(row => row.status)).toEqual(['revoked'])
+
+    await page.goto(userDetailPath(user.id))
+    await expect(page.getByTestId('user-global-account')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+    await expect(userActionsButton(page)).toHaveCount(0)
+
+    // A global admin may change it: no notice, every action.
+    const admin = await (await sessionContext(personaState('admin'))).newPage()
+    await admin.goto(userDetailPath(user.id))
+    await expect(admin.getByRole('heading', { name: user.email })).toBeVisible()
+    await expect(admin.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+    await expect(userActionsButton(admin)).toBeVisible()
+    await expect(admin.getByTestId('user-global-account')).toHaveCount(0)
+  })
+
+  test('nothing is offered until the account\'s direct roles have answered (F-209)', async ({ page, api, apiAs }) => {
+    const me = await apiAs('orgAdmin').me()
+    expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
+    const user = await api.createUser({ kind: 'sw-none', root_entity_id: me.root_entity_id })
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route(new RegExp(`/users/${user.id}/role-memberships(\\?.*)?$`), async (route) => {
+      await held
+      await route.continue()
+    })
+
+    await page.goto(userDetailPath(user.id))
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+    release()
+    // No system-wide role: the usual changes, and no notice.
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+    await expect(page.getByTestId('user-global-account')).toHaveCount(0)
+  })
+
+  test('a system-wide row of an archived role is not readable: the change is offered and the server\'s refusal shown', async ({ page, api, apiAs, errorGuard }) => {
+    // outlabs-auth leaves archived role definitions out of the direct-role read but still counts
+    // them in the refusal (PRODUCTION.md section 8): the console cannot know, the server says.
+    const me = await apiAs('orgAdmin').me()
+    expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
+    const { role, user } = await accountWithSystemWideRow(api, me.root_entity_id, 'sw-archived')
+    await api.delete(`/roles/${role.id}`)
+    expect(await api.get<DirectRow[]>(`/users/${user.id}/role-memberships`, { query: { include_inactive: true } })).toEqual([])
+    errorGuard.allow({ kind: 'api', status: 403, url: new RegExp(`/users/${user.id}$`) })
+
+    await page.goto(userDetailPath(user.id))
+    await expect(page.getByTestId('user-global-account')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: `Edit ${user.email}` })
+    await dialog.getByLabel('First name').fill('Renamed')
+    await dialog.getByRole('button', { name: 'Save changes' }).click()
+    await expect(dialog).toContainText('Only global administrators can modify an account that holds a system-wide role.')
+    await expect(dialog).toBeVisible()
   })
 })

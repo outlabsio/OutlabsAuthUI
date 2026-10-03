@@ -5,12 +5,14 @@ import {
   delegationBlockedReason,
   entityRoleContextFromPath,
   grantsSystemWideScope,
+  holdsSystemWideRoleRow,
   membershipRoleDisplay,
   missingDelegatedPermissions,
   roleAllowsEntityType,
   roleAvailableAtEntity,
   roleDirectlyAssignable,
   roleGrantCaveats,
+  roleIsSystemWide,
   roleNameHints,
   roleTypeOf
 } from '../../app/utils/role-access'
@@ -190,6 +192,18 @@ describe('roleNameHints', () => {
       { ids: ['r1'], names: ['Renamed later'] }
     ])
     expect(Object.fromEntries(hints)).toEqual({ r1: 'Agent', r2: 'Team Lead' })
+  })
+})
+
+describe('system-wide role rows', () => {
+  it('counts a direct row of a system-wide role in any state, as the backend does', () => {
+    const systemWide = { is_global: true, root_entity_id: null, scope_entity_id: null }
+    expect(roleIsSystemWide(systemWide)).toBe(true)
+    // Neither organization nor entity, but not flagged global: not what the backend counts.
+    expect(roleIsSystemWide({ is_global: false, root_entity_id: null, scope_entity_id: null })).toBe(false)
+    expect(roleIsSystemWide({ is_global: true, root_entity_id: 'org', scope_entity_id: null })).toBe(false)
+    expect(holdsSystemWideRoleRow([])).toBe(false)
+    expect(holdsSystemWideRoleRow([{ role: { is_global: false, root_entity_id: 'org', scope_entity_id: null } }, { role: systemWide }])).toBe(true)
   })
 })
 
