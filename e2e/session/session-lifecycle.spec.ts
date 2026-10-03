@@ -274,7 +274,7 @@ test.describe('session lifecycle (simulated expiry)', () => {
     // is gone). It never stays on its loading state.
     await expect.poll(() => sessionReads).toContain(200)
     await expect(sessions.locator('tbody tr')).toHaveCount(1)
-    await expect(sessions.locator('tbody tr').first().getByText('This device', { exact: true })).toBeVisible()
+    await expect(sessions.locator('tbody tr').first().getByText('This browser', { exact: true })).toBeVisible()
 
     // The form is empty and stays free of errors once its pending input validations have run.
     const form = cardByHeading(page, 'Change password')
@@ -363,7 +363,7 @@ test.describe('session lifecycle (simulated expiry)', () => {
     await page.goto('/app/account/security')
     await expect(page.getByRole('heading', { name: 'Active sessions' })).toBeVisible(BOOT)
     // This browser's session is the one marked in the table.
-    await expect(page.getByText('This device', { exact: true })).toBeVisible()
+    await expect(page.getByText('This browser', { exact: true })).toBeVisible()
     const revoked = page.waitForResponse(r => isRevokeAll(r.url(), r.request().method()))
     const blacklist = page.waitForRequest(r => r.url() === apiUrl('/auth/logout') && r.method() === 'POST')
     await signOutEverywhere(page)

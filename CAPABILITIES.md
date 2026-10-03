@@ -60,7 +60,7 @@ that makes a row untrue.
 | E-mail change | Both | Not supported | `e2e/users/user-profile.spec.ts` | Read-only by owner decision: the backend changes e-mail without re-authentication (F-193). Users › Edit profile shows an admin's own sign-in e-mail read-only and never sends it. |
 | Phone verification | Both | Built | `e2e/account/phone-verify.spec.ts`, `e2e/auth/signup.spec.ts` | |
 | Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | Accounts without a password see a form they cannot complete. 0.1.0a35 says whether one is set (`has_password`); the console does not use it yet (F-098, console follow-up). |
-| Own sessions: list, revoke one, sign out everywhere | Both | Partial | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This device" is inferred from the refresh token's issue time; 0.1.0a35 marks it (`is_current`, `keep_current`), which the console does not use yet (F-030, console follow-up). Other devices keep their access tokens until expiry (F-157, backend). |
+| Own sessions: list, revoke one, sign out other devices, sign out everywhere | Both | Built | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This browser" is the server's `is_current`; Sign out other devices sends `keep_current` and renews once when an access token from before 0.1.0a35 names no session (F-030). Other devices keep their access tokens until expiry (F-157, backend). |
 | Connected accounts (link, unlink) | Both | Partial | `e2e/account/social-accounts.spec.ts`, `e2e/static/static-build.spec.ts` | Mocked provider; a failed link lands on the API's own error page: 0.1.0a35 can redirect it back with `link_error`, which the console does not handle yet (F-104, console follow-up). Rows show the provider's icon: a provider picture (`avatar_url`) on another host is never loaded, as the CSP allows same-origin and `data:` images only. |
 | My access (effective permissions, memberships) | Both | Partial | `e2e/account/my-access.spec.ts` | Entity and role names are missing for accounts that cannot read them; 0.1.0a35 memberships carry them (`entity_name`, `role_names`), which the console does not use yet (F-103, console follow-up). |
 
@@ -77,7 +77,7 @@ that makes a row untrue.
 | Reset password (ends every session) | Both | Built | `e2e/users/user-status-password.spec.ts`, `e2e/users/user-dialogs.spec.ts` | |
 | Superuser grant and revoke (reason, typed e-mail) | Both | Built | `e2e/users/user-lifecycle.spec.ts` | |
 | Delete (retained) and restore | Both | Built | `e2e/users/users-workspace.spec.ts`, `e2e/users/user-lifecycle.spec.ts` | |
-| Sessions of a user: revoke one, sign out everywhere | Both | Built | `e2e/users/user-sessions.spec.ts` | Issued access tokens stay valid until expiry unless the backend turns blacklisting on. |
+| Sessions of a user: revoke one, sign out everywhere | Both | Built | `e2e/users/user-sessions.spec.ts`, `e2e/account/sessions-table.spec.ts` | Issued access tokens stay valid until expiry unless the backend turns blacklisting on. Only the admin's own account marks "This browser" (managed from Account); 0.1.0a35 has no keep-current option for another account, so there is no sign out other devices here. |
 | Personal API keys of a user: list, revoke | Both | Built | `e2e/users/user-api-keys.spec.ts` | |
 | Audit timeline | Both | Built | `e2e/users/user-history.spec.ts` | |
 | Membership history | Enterprise | Built | `e2e/users/user-history.spec.ts` | |

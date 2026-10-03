@@ -3,44 +3,20 @@ import type { AccessCodeChannel } from '~/types/auth'
 import { accessCodeChannelLabel, passwordPolicyError } from './auth-messages'
 import { parseDate } from './format-date'
 import { grantsSystemWideScope, type AccessScopeSummary, type DirectRoleGrant } from './role-access'
-import { readJwtIssuedAtMs } from './session-lifecycle'
 
 // Pure rules of the account (self-service) pages. No IO, no reactive state; unit-tested.
 
-// ── This browser's session ──
-
-// How far apart a session row's created_at and this browser's refresh token's issue time may be.
-// The API writes the row in the same request, right after signing the token (well under a
-// millisecond apart on the example apps); a second of slack absorbs a slow server.
-export const SESSION_MATCH_TOLERANCE_MS = 1_000
-// Another row this close to the best match makes the match ambiguous: two sign-ins of the same
-// account in the same instant cannot be told apart. (Two scripted sign-ins can be ~30 ms apart.)
-export const SESSION_MATCH_MARGIN_MS = 10
+// ── Sessions ──
 
 /**
- * Which listed session this browser holds. outlabs-auth does not say (no session id in the
- * tokens, no is_current flag), but every sign-in and every refresh writes a new session row in
- * the request that signs the refresh token. So the row created when this browser's refresh token
- * was issued is this browser's. Only an unambiguous match counts: no readable token, no row
- * within the tolerance, or a second row about as close gives null, and the table then marks
- * nothing.
+ * Whether `DELETE /users/me/sessions?keep_current=true` was refused because the server cannot
+ * tell which session made the request: the access token names none (`sid`; minted before
+ * outlabs-auth 0.1.0a35, or a host that stores no refresh tokens). outlabs-auth answers it with a
+ * plain 400 and no reason code; it is the only 400 that request has, so the status identifies it.
+ * Only meaningful for that request.
  */
-export function findCurrentSessionId(
-  sessions: readonly { id: string, created_at: string }[],
-  refreshToken: string | null | undefined,
-  toleranceMs = SESSION_MATCH_TOLERANCE_MS
-): string | null {
-  const issuedAt = readJwtIssuedAtMs(refreshToken)
-  if (issuedAt == null) return null
-  const ranked = sessions
-    .map(session => ({ id: session.id, created: parseDate(session.created_at) }))
-    .filter((entry): entry is { id: string, created: Date } => entry.created != null)
-    .map(entry => ({ id: entry.id, distance: Math.abs(entry.created.getTime() - issuedAt) }))
-    .sort((a, b) => a.distance - b.distance)
-  const [best, runnerUp] = ranked
-  if (!best || best.distance > toleranceMs) return null
-  if (runnerUp && runnerUp.distance - best.distance < SESSION_MATCH_MARGIN_MS) return null
-  return best.id
+export function isSessionNotBoundError(error: unknown): boolean {
+  return normalizeApiError(error).status === 400
 }
 
 // ── Password change ──

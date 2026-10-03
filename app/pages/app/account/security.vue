@@ -21,8 +21,11 @@ const {
   sessionsError,
   sessionsFetching,
   refetchSessions,
-  currentSessionId,
   revoke,
+  canSignOutOthers,
+  signOutOthers,
+  sessionNotBound,
+  dismissSessionNotBound,
   signOutEverywhere,
   signOut,
   signingOut
@@ -97,6 +100,19 @@ const {
       <h2>Active sessions</h2>
     </template>
     <div class="flex flex-col gap-4">
+      <!-- Sign out other devices was refused: the server cannot tell which session is this one. -->
+      <UAlert
+        v-if="sessionNotBound"
+        role="alert"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        title="This browser can't be kept signed in"
+        description="The server cannot tell which session is this browser's, so it cannot end the others and keep this one. Sign out and sign in again, then try again, or use Sign out everywhere."
+        close
+        :actions="[{ label: 'Sign out everywhere', color: 'warning', variant: 'outline', onClick: () => signOutEverywhere.ask(true) }]"
+        @update:open="dismissSessionNotBound"
+      />
       <AppSessionsTable
         :sessions="sessionRows"
         :status="sessionsStatus"
@@ -104,14 +120,21 @@ const {
         :refreshing="sessionsFetching"
         revocable
         :revoking-id="revoke.pending ? revoke.target?.id : null"
-        :current-session-id="currentSessionId"
         :signing-out="signingOut"
         empty-description="This server does not record sign-in sessions for your account."
         @revoke="revoke.ask"
         @sign-out="signOut"
         @retry="refetchSessions()"
       />
-      <div class="flex justify-end">
+      <div class="flex flex-wrap justify-end gap-2">
+        <UButton
+          v-if="canSignOutOthers"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-log-out"
+          label="Sign out other devices"
+          @click="signOutOthers.ask(true)"
+        />
         <UButton
           color="error"
           variant="soft"
@@ -124,5 +147,6 @@ const {
   </UPageCard>
 
   <AppConfirmDialog v-model:open="revoke.open" v-bind="revoke.dialog" @confirm="revoke.confirm" />
+  <AppConfirmDialog v-model:open="signOutOthers.open" v-bind="signOutOthers.dialog" @confirm="signOutOthers.confirm" />
   <AppConfirmDialog v-model:open="signOutEverywhere.open" v-bind="signOutEverywhere.dialog" @confirm="signOutEverywhere.confirm" />
 </template>

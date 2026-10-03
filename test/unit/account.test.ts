@@ -1,56 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '~/api/errors'
 import { changePasswordSchema, profileSchemaFor } from '~/schemas/account'
-import { activeUntil, changePasswordFieldErrors, findCurrentSessionId, myAccessScopeSummary, phoneChannelsText } from '~/utils/account'
+import { activeUntil, changePasswordFieldErrors, isSessionNotBoundError, myAccessScopeSummary, phoneChannelsText } from '~/utils/account'
 import { passwordPolicyError, passwordRequirementsSummary } from '~/utils/auth-messages'
 import type { DirectRoleGrant } from '~/utils/role-access'
-import { isSessionEndReason, readJwtIssuedAtMs, readJwtSubject } from '~/utils/session-lifecycle'
+import { isSessionEndReason } from '~/utils/session-lifecycle'
 
-// The account (self-service) rules: which session row is this browser's, which change-password
-// answers belong on a field, the profile and password schemas, and the phone copy.
+// The account (self-service) rules: which refusal of Sign out other devices means the server
+// cannot tell this browser's session, which change-password answers belong on a field, the
+// profile and password schemas, and the phone copy.
 
-function jwt(claims: Record<string, unknown>) {
-  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
-  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(claims)}.signature`
-}
+describe('isSessionNotBoundError', () => {
+  const error = (status: number, data: Record<string, unknown>) => new ApiError({ message: 'Request failed', status, statusText: '', data })
 
-const issued = Date.parse('2026-10-01T02:01:51.917Z')
-const row = (id: string, createdAt: string) => ({ id, created_at: createdAt })
-
-describe('readJwtIssuedAtMs', () => {
-  it('prefers the precise iat_ms claim, falls back to iat seconds, and reads nothing from opaque tokens', () => {
-    expect(readJwtIssuedAtMs(jwt({ sub: 'u1', iat: 1_790_000_000, iat_ms: 1_790_000_000_123 }))).toBe(1_790_000_000_123)
-    expect(readJwtIssuedAtMs(jwt({ sub: 'u1', iat: 1_790_000_000 }))).toBe(1_790_000_000_000)
-    expect(readJwtIssuedAtMs('opaque-refresh-token')).toBeNull()
-    expect(readJwtIssuedAtMs(null)).toBeNull()
-    expect(readJwtSubject(jwt({ sub: 'u1' }))).toBe('u1')
-  })
-})
-
-describe('findCurrentSessionId', () => {
-  const token = jwt({ sub: 'u1', iat_ms: issued })
-
-  it('picks the one row written when this browser\'s refresh token was issued', () => {
-    const sessions = [
-      row('older', '2026-09-30T10:00:00.000000Z'),
-      row('mine', '2026-10-01T02:01:51.918264Z'),
-      row('newer', '2026-10-01T05:00:00Z')
-    ]
-    expect(findCurrentSessionId(sessions, token)).toBe('mine')
+  it('recognises the 400 outlabs-auth answers keep_current with when the access token names no session', () => {
+    // The exact 0.1.0a35 body: a plain HTTPException through the global handler, no reason code.
+    const detail = 'keep_current requires a session-bound access token; sign in again to obtain one, or revoke all sessions'
+    expect(isSessionNotBoundError(error(400, { error: 'HTTP_ERROR', message: detail, details: { detail } }))).toBe(true)
   })
 
-  it('tells apart two sign-ins of the same account a moment apart', () => {
-    // A scripted second sign-in 34 ms later (seen on the example apps).
-    const sessions = [row('mine', '2026-10-01T02:01:51.918Z'), row('next', '2026-10-01T02:01:51.952Z')]
-    expect(findCurrentSessionId(sessions, token)).toBe('mine')
-  })
-
-  it('marks nothing when no row or more than one row is within the tolerance', () => {
-    expect(findCurrentSessionId([row('other', '2026-10-01T02:05:00Z')], token)).toBeNull()
-    expect(findCurrentSessionId([row('a', '2026-10-01T02:01:51.915Z'), row('b', '2026-10-01T02:01:51.921Z')], token)).toBeNull()
-    expect(findCurrentSessionId([row('late', '2026-10-01T02:01:53.000Z')], token)).toBeNull()
-    expect(findCurrentSessionId([row('mine', '2026-10-01T02:01:51.918Z')], 'opaque')).toBeNull()
-    expect(findCurrentSessionId([], token)).toBeNull()
+  it('leaves every other failure to the generic error handling', () => {
+    expect(isSessionNotBoundError(error(401, { error: 'HTTP_ERROR', message: 'Not authenticated' }))).toBe(false)
+    expect(isSessionNotBoundError(error(403, { error: 'PERMISSION_DENIED', message: 'Forbidden' }))).toBe(false)
+    expect(isSessionNotBoundError(error(422, { error: 'VALIDATION_ERROR', message: 'Invalid input' }))).toBe(false)
+    expect(isSessionNotBoundError(error(500, { detail: 'Internal server error' }))).toBe(false)
+    expect(isSessionNotBoundError(new ApiError({ kind: 'network', status: 0, statusText: '', data: null, message: 'offline' }))).toBe(false)
+    expect(isSessionNotBoundError(new Error('boom'))).toBe(false)
   })
 })
 

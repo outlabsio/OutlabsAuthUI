@@ -1,10 +1,16 @@
 import { useQuery } from '@pinia/colada'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { getStoredRefreshToken } from '~/auth/tokens'
-import { mySessionsQuery, useChangePassword, useRevokeAllSessions, useRevokeSession } from '~/queries/account'
+import {
+  mySessionsQuery,
+  useChangePassword,
+  useRevokeAllSessions,
+  useRevokeOtherSessions,
+  useRevokeSession,
+  type RevokeOtherSessionsOutcome
+} from '~/queries/account'
 import type { ChangePasswordSchema } from '~/schemas/account'
 import type { UserSession } from '~/types/account'
-import { changePasswordFieldErrors, findCurrentSessionId } from '~/utils/account'
+import { changePasswordFieldErrors } from '~/utils/account'
 import { sessionDeviceLabel } from '~/utils/user-agent'
 
 // The Security tab: the password and the sessions.
@@ -15,9 +21,12 @@ import { sessionDeviceLabel } from '~/utils/user-agent'
 //   policy) land on their fields, never only in a toast (F-097). An account that cannot sign in
 //   with a password at all (the server has password sign-in off) has no password card; one that
 //   cannot remember its current password gets a reset link (F-098).
-// - Sessions: this browser's row is marked and offers Sign out; other rows are revoked after a
-//   confirmation naming the device; "Sign out everywhere" confirms that it also ends this
-//   session, then signs this tab out (F-030, F-094).
+// - Sessions: the server marks this browser's row (`is_current`), which offers Sign out; other
+//   rows are revoked after a confirmation naming the device. "Sign out other devices" ends every
+//   other session and keeps this one; "Sign out everywhere" confirms that it also ends this
+//   session, then signs this tab out (F-030, F-094). When the server cannot tell which session is
+//   this browser's, Sign out other devices explains it in the card (`sessionNotBound`) and offers
+//   Sign out everywhere instead.
 
 const EMPTY_PASSWORD: ChangePasswordSchema = { current_password: '', new_password: '', confirm_password: '' }
 
@@ -77,8 +86,11 @@ export function useAccountSecurity() {
     refetch: refetchSessions
   } = useQuery(mySessionsQuery)
   const sessionRows = computed<UserSession[]>(() => sessions.value ?? [])
-  const currentSessionId = computed(() => findCurrentSessionId(sessionRows.value, getStoredRefreshToken()))
+  // Every session but this browser's. When the server marks none (the access token that listed
+  // them names no session), all of them: Sign out other devices then renews and asks again.
+  const otherSessions = computed(() => sessionRows.value.filter(session => !session.is_current))
   const revokeSession = useRevokeSession()
+  const revokeOthers = useRevokeOtherSessions()
   const revokeAll = useRevokeAllSessions()
 
   const deviceLabel = (session: UserSession) => sessionDeviceLabel(session)
@@ -113,6 +125,34 @@ export function useAccountSecurity() {
     error: 'Could not sign out everywhere'
   })
 
+  // Sign out other devices: only when there is another session to end.
+  const canSignOutOthers = computed(() => sessionsStatus.value === 'success' && otherSessions.value.length > 0)
+  // The server could not keep this browser's session while ending the others; shown in the card.
+  const sessionNotBound = ref(false)
+  const signOutOthers = useConfirmAction<true, RevokeOtherSessionsOutcome>({
+    describe: () => ({
+      title: 'Sign out other devices',
+      description: 'End every other session of your account. This browser stays signed in.',
+      effects: [
+        'Other browsers and devices can no longer renew their sessions and are signed out when their current access tokens expire.',
+        'API keys are not affected.'
+      ],
+      confirmLabel: 'Sign out other devices'
+    }),
+    action: () => {
+      sessionNotBound.value = false
+      return revokeOthers.mutateAsync()
+    },
+    error: 'Could not sign out other devices',
+    onSuccess: (outcome) => {
+      if (outcome === 'session_not_bound') {
+        sessionNotBound.value = true
+        return
+      }
+      toast.add({ title: 'Signed out of other devices', color: 'success', icon: 'i-lucide-check' })
+    }
+  })
+
   return {
     passwordEnabled,
     passwordState,
@@ -128,8 +168,13 @@ export function useAccountSecurity() {
     sessionsError,
     sessionsFetching,
     refetchSessions,
-    currentSessionId,
     revoke,
+    canSignOutOthers,
+    signOutOthers,
+    sessionNotBound,
+    dismissSessionNotBound: () => {
+      sessionNotBound.value = false
+    },
     signOutEverywhere,
     signOut,
     signingOut

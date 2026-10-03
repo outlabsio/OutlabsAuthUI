@@ -275,7 +275,7 @@ the same paths without the simulation.
 | Idle, then change the password (signing in again refused) | the held pair can no longer refresh; its access token is rejected | tab signed out with `reason=password_changed` (F-029 fixed) |
 | Change the password | only the new sign-in is left | tab signed in again with the new password; on EnterpriseRBAC a query refused with the old token while the sign-in is in flight waits and replays, no refresh is sent (F-029 fixed) |
 | Idle, then sign out everywhere | the held pair can no longer refresh; no session left | active |
-| Sign out everywhere | no session left | confirmation first, this device marked, tab on sign-in with `reason=signed_out_everywhere`, then an immediate logout blacklisting the tab's access token (F-030 fixed) |
+| Sign out everywhere | no session left | confirmation first, this browser marked (the server's `is_current`), tab on sign-in with `reason=signed_out_everywhere`, then an immediate logout blacklisting the tab's access token (F-030 fixed) |
 
 A scenario that reproduces a known defect is written as a `fixme` naming its finding, verified to
 fail against the current console; remove the `fixme` in the change that fixes the finding. `refreshTokenStatus(token)` and `accessTokenStatus(token)` in

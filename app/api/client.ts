@@ -311,6 +311,18 @@ function refreshSession(rejected: string): Promise<string> {
 }
 
 /**
+ * Renews the stored session now, through the same single-flight, cross-tab renewal as a refused
+ * request, for an answer that needs a newer access token than the one stored. outlabs-auth
+ * 0.1.0a35 names the session in its access tokens (`sid`); one minted before it names none, and
+ * a renewal adds it. Fails like that renewal: a refused refresh ends the session.
+ */
+export async function renewAccessToken(): Promise<void> {
+  const stored = getStoredAccessToken()
+  if (!stored) throw sessionEndedError()
+  await refreshSession(stored)
+}
+
+/**
  * Revokes a session server-side from tokens captured at sign-out (storage is already clear).
  * When the access token has expired, the captured refresh token is renewed first so the
  * logout names the live refresh token, not one the renewal just rotated. Both requests use

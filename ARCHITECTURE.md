@@ -154,7 +154,8 @@ One protocol, owned by the client and the session queries; features never handle
   name different subjects (`tokensNameDifferentSubjects`; opaque tokens cannot be compared).
 - **The account's own session-ending actions** (Account › Security). The server ends every
   session of the account on a password change and on `DELETE /users/me/sessions`, the current
-  one included. A password change (`useChangePassword`) therefore signs this browser in again
+  one included (with `?keep_current=true` it keeps the session the access token names). A
+  password change (`useChangePassword`) therefore signs this browser in again
   with the new password (`signInAgainWithPassword`); if that fails it calls
   `endSession('password_changed')`. The sign-in again holds the refresh lock until the new
   tokens are stored, so a renewal started meanwhile (a query refused with the old access token,
@@ -164,10 +165,17 @@ One protocol, owned by the client and the session queries; features never handle
   remounted empty (its pending validate-on-input would otherwise flag the emptied fields). Sign out everywhere (`useRevokeAllSessions`) confirms, then calls
   `endSession('signed_out_everywhere')` and blacklists this tab's access token in the background
   (`blacklistAccessToken`: an immediate logout without a refresh token, effective where the host
-  turns token blacklisting on). A reset with an emailed token
-  (`useResetPassword`) signs a signed-in browser out before the sign-in page. outlabs-auth names
-  no current session, so `findCurrentSessionId` (utils/account.ts) recognises this browser's row
-  as the one created when its refresh token was issued (`iat_ms`), only when unambiguous.
+  turns token blacklisting on). Sign out other devices (`useRevokeOtherSessions`) confirms and
+  sends `keep_current=true`; this tab keeps its tokens. An access token minted before
+  outlabs-auth 0.1.0a35 names no session (`sid`) and is refused with a plain 400
+  (`isSessionNotBoundError`; outlabs-auth gives no reason code, and it is the only 400 of that
+  request): the console renews once through the refresh lock (`renewAccessToken`, the same
+  single-flight renewal as a refused request; a renewal adds the claim) and asks again. A second
+  400 closes the dialog and the card explains it, offering Sign out everywhere. A reset with an
+  emailed token (`useResetPassword`) signs a signed-in browser out before the sign-in page.
+  "This browser" in a sessions table is the server's `is_current` (the row of the session the
+  request's access token names); the console makes no guess of its own, so a token without `sid`
+  marks no row.
 - Errors carry `kind` (`http` | `network` | `timeout` | `session_ended`); `isTransientApiError`
   and `isSessionEndedError` classify them. `useApiAction` shows no toast for an ended session.
 - **Backend dependencies** (not fixable in the console):
@@ -329,7 +337,7 @@ loading/empty copy, date formatting or one-off selects.
 | `utils/avatar.ts` | `localImageSrc(url, origin)`: the avatar URL the CSP lets the console show (same-origin or `data:image/`), else undefined. An OAuth provider's picture is never bound; Connected accounts show the provider icon and Users the initials instead. Never widen `img-src` for avatars. |
 | `utils/status.ts` | `USER_STATUS_COLOR`, `DEFINITION_STATUS_COLOR`, `API_KEY_STATUS_COLOR`, `MEMBERSHIP_STATUS_COLOR`, `statusLabel`, `originLabel`, `yesNo`, `badgeColor`, `ENTITY_CLASS_BADGE`; a `BadgeStyle` binds the same way in a list (`<UBadge v-bind="ENTITY_CLASS_BADGE[entity.entity_class]" />`) and as a detail item's `badge:`. A role's type badge is `roleTypeBadge(role)` in `utils/role-definitions.ts` ('System-wide' / 'Organization' / 'Entity'). |
 | `utils/table.ts` | `srOnlyHeader('Actions')` for action columns; `hideBelowSm` / `hideBelowMd` column `meta` for secondary columns on phones. Row triggers are `size="sm"` with a name like "Role actions for Admin". |
-| `<AppSessionsTable :sessions :status :error :has-data revocable :revoking-id :current-session-id :signing-out @revoke @sign-out @retry>` | Refresh-token sessions (account, user detail): device from the user agent (`utils/user-agent.ts`) with the IP under it, last active and expiry (both relative, absolute in the tooltip). Fits a `max-w-3xl` card and a 390px phone without sideways scrolling; the Revoke column is pinned right. The `current-session-id` row comes first, is marked "This device" and offers Sign out (`sign-out`) instead of Revoke. |
+| `<AppSessionsTable :sessions :status :error :has-data revocable :revoking-id :signing-out @revoke @sign-out @retry>` | Refresh-token sessions (account, user detail): device from the user agent (`utils/user-agent.ts`) with the IP under it, last active and expiry (both relative, absolute in the tooltip). Fits a `max-w-3xl` card and a 390px phone without sideways scrolling; the Revoke column is pinned right. The row the server marks `is_current` (only on one's own sessions) comes first, is marked "This browser" and, when revocable, offers Sign out (`sign-out`) instead of Revoke. |
 | `<AppSecretReveal v-model:secret>` | One-time API-key secrets: set the model to `oneTimeSecretFrom(response, owner)` to open; it cannot be dismissed by accident (no X; ESC and outside clicks are ignored), holds a `useDialogGuard` until the key is marked as stored (browser Back asks "Close without storing the key?", reload/tab close is warned), and clears the model when closed. The create/rotate mutation must be a `useSecretMutation` (`queries/secret-mutation.ts`) and the caller calls its `discard()` right after filling the model: Pinia Colada otherwise keeps the plaintext in its mutation cache after the dialog closes (`reset()` alone does not evict it). |
 | `<AppEntityPicker v-model :root-id :entity-class :allowed-types :exclude-ids :exclude-subtree-of>` | Every entity select: options with path and class icon grouped by organisation; scoped to a root (whole subtree, local filter) or, without one, server search (superusers, system-wide admins, rootless accounts). The options are `utils/entity-picker.ts` (pure): the bound value is never dropped, so a selection a filter excludes stays listed, disabled, with the reason first, and one outside the candidates reads "Unavailable entity", never its raw id. |
 | `utils/entity-tree.ts` | `indexEntities`, `entityAncestors`, `entityRootId`, `entityPathLabel`, `isInSubtree` — the only parent-chain walks — plus pure mirrors of the server's hierarchy rules: `entityDescendants`, `entityArchivePlan` (what `DELETE ?cascade=true` archives and leaves behind), `effectiveAllowedChildTypes` / `allowedChildTypesOwner` (parent, else root, else any), `allowedChildTypesHelp` (what an empty list means, for Create and Governance alike: a root's list governs every descendant without its own), `placementProblem` (why an entity cannot go under a parent), `entityValidityState`; `buildEntityTree` flags `detached` nodes. |
@@ -593,7 +601,9 @@ loading/empty copy, date formatting or one-off selects.
   `useRevokeAllUserSessions`, user:update on another account). The refresh token ends at once; an
   issued access token works until it expires unless the host enables the token blacklist, and the
   copy says so. Reset password ends every session at once (outlabs-auth refuses older access
-  tokens) and clears a lockout.
+  tokens) and clears a lockout. The server marks "This browser" (`is_current`) only on the admin's
+  own account, which is managed from Account, not here; outlabs-auth 0.1.0a35 has no keep-current
+  option for another account, so there is no "Sign out other devices" on user detail.
 - **Access.** Direct roles, Memberships (EnterpriseRBAC) and Effective permissions, in that order.
   - *Grants* (`utils/access-grants.ts`). Both grant cards read every status (role-memberships with
     `include_inactive`; `userAllMembershipsQuery` reads every page) and show the **live** grants
@@ -1073,6 +1083,13 @@ Dated, append-only. Superseded decisions stay with their status changed.
   then corrected, is saved by the very next click" and its tap variant (EnterpriseRBAC, the ABAC
   value), and "a field left invalid by the press on the submit button is refused by that same
   click" (both presets), each of which failed without the change. *Status: adopted.*
+- **2026-10-03 — "This browser" is the server's mark, never a guess.** The console targets
+  outlabs-auth 0.1.0a35 only, which names the session in access tokens (`sid`) and marks it in
+  session lists (`is_current`). The former client-side match (the row created when this browser's
+  refresh token was issued) is removed rather than kept as a fallback for older backends: it could
+  only guess, and an older backend is not supported. Consequence: a session whose access token
+  predates 0.1.0a35 is marked nowhere until its next renewal; Sign out other devices renews once
+  itself when the server refuses `keep_current` for that reason. *Status: adopted.*
 
 ## Status
 

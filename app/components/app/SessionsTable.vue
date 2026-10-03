@@ -11,9 +11,10 @@ import { describeUserAgent, type DeviceKind } from '~/utils/user-agent'
 // device name when the client sent one, IP, when the session was last active and when it
 // expires. Most recent first. Loading, error (with Retry) and empty states come from
 // AppQueryState. Revoking is optional: with `revocable` each row gets a Revoke button whose
-// accessible name says which session it ends, and the table emits `revoke`. The row of
-// `currentSessionId` (this browser, on the account page) is marked "This device" and offers
-// Sign out instead (`sign-out`), since revoking it would end the session this tab is using.
+// accessible name says which session it ends, and the table emits `revoke`. The row the server
+// marks as the one making the request (`is_current`, outlabs-auth 0.1.0a35: only on one's own
+// sessions) comes first, is marked "This browser" and, when revocable, offers Sign out instead
+// (`sign-out`), since revoking it would end the session this tab is using.
 //   <AppSessionsTable
 //     :sessions="sessions" :status="status" :error="error" :refreshing="isLoading"
 //     revocable :revoking-id="revokingId" @revoke="onRevoke" @retry="refetch()"
@@ -29,9 +30,6 @@ const props = withDefaults(defineProps<{
   revocable?: boolean
   // Row whose revoke request is in flight.
   revokingId?: string | null
-  // The session this browser holds (findCurrentSessionId: outlabs-auth returns no session id
-  // in tokens and no is_current flag, so the account page matches it by issue time).
-  currentSessionId?: string | null
   // This browser's sign-out is running (the current row's button spins).
   signingOut?: boolean
   emptyTitle?: string
@@ -43,7 +41,6 @@ const props = withDefaults(defineProps<{
   hasData: false,
   revocable: false,
   revokingId: null,
-  currentSessionId: null,
   signingOut: false,
   // Avoid repeating the card heading ("Active sessions") so the two stay distinct headings.
   emptyTitle: 'No sessions',
@@ -72,9 +69,9 @@ const lastActive = (s: UserSession) => s.last_used_at ?? s.created_at
 
 type SessionRow = UserSession & { device: ReturnType<typeof describeUserAgent>, lastActiveAt: string, current: boolean }
 
-// This device first, then the most recently active.
+// This browser first, then the most recently active.
 const rows = computed<SessionRow[]>(() => props.sessions
-  .map(s => ({ ...s, device: describeUserAgent(s.user_agent), lastActiveAt: lastActive(s), current: s.id === props.currentSessionId }))
+  .map(s => ({ ...s, device: describeUserAgent(s.user_agent), lastActiveAt: lastActive(s), current: s.is_current === true }))
   .sort((a, b) => Number(b.current) - Number(a.current) || Date.parse(b.lastActiveAt) - Date.parse(a.lastActiveAt)))
 
 // The table has to fit a max-w-3xl card on a desktop and a 390px phone without scrolling
@@ -142,7 +139,7 @@ function revokeLabel(row: SessionRow) {
                 variant="subtle"
                 size="sm"
               >
-                This device
+                This browser
               </UBadge>
               <UBadge
                 v-if="row.original.device_name"
@@ -180,7 +177,7 @@ function revokeLabel(row: SessionRow) {
             variant="ghost"
             size="sm"
             icon="i-lucide-log-out"
-            :aria-label="`Sign out of this device: ${row.original.device.label}`"
+            :aria-label="`Sign out of this browser: ${row.original.device.label}`"
             :loading="signingOut"
             :disabled="Boolean(revokingId)"
             @click="emit('signOut')"

@@ -738,9 +738,9 @@ test.describe('accessibility: account dialogs', () => {
   })
 
   // The admin's own sessions with one more device served (GET only): nothing is revoked.
-  test('Revoke session and Sign out everywhere (Account › Security)', async ({ page }) => {
+  test('Revoke session, Sign out other devices and Sign out everywhere (Account › Security)', async ({ page }) => {
     const now = Date.now()
-    const other = { id: 's-other-device', device_name: null, ip_address: '203.0.113.42', user_agent: FIREFOX_ON_WINDOWS, created_at: new Date(now - 3_600_000).toISOString(), last_used_at: null, expires_at: new Date(now + 7 * 86_400_000).toISOString(), usage_count: 1 }
+    const other = { id: 's-other-device', device_name: null, ip_address: '203.0.113.42', user_agent: FIREFOX_ON_WINDOWS, created_at: new Date(now - 3_600_000).toISOString(), last_used_at: null, expires_at: new Date(now + 7 * 86_400_000).toISOString(), usage_count: 1, is_current: false }
     await page.route(apiUrl('/users/me/sessions'), async (route) => {
       if (route.request().method() !== 'GET') return route.fallback()
       const response = await route.fetch()
@@ -751,6 +751,8 @@ test.describe('accessibility: account dialogs', () => {
     await settled(page)
     const revoke = await pressOpen(page, page.getByRole('button', { name: /^Revoke session: Firefox 130 on Windows/ }))
     await sweep(page, page.getByRole('dialog', { name: /^Revoke session Firefox 130 on Windows/ }), { opener: revoke })
+    const others = await pressOpen(page, page.getByRole('button', { name: 'Sign out other devices' }))
+    await sweep(page, page.getByRole('dialog', { name: 'Sign out other devices' }), { opener: others })
     const everywhere = await pressOpen(page, page.getByRole('button', { name: 'Sign out everywhere' }))
     await sweep(page, page.getByRole('dialog', { name: 'Sign out everywhere' }), { opener: everywhere })
   })

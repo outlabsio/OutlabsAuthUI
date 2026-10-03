@@ -8,7 +8,8 @@ import { apiUrl } from '../support/env'
 import { corsHeaders, jsonResponse } from '../support/mocks'
 
 // Admin force sign-out on the user detail's Security tab (WP-12, F-014): revoke one session of
-// another account, or every one. The sessions belong to fresh run-marked users (never a shared
+// another account, or every one. outlabs-auth 0.1.0a35 marks this browser's session only on the
+// admin's own account and has no keep-current option for another one. The sessions belong to fresh run-marked users (never a shared
 // persona); the second device signs in with a known browser so its row can be named.
 // Real sessions come from the example backends' invite and magic-link captures: a backend
 // without them would spend the run's per-IP password-login budget, which the session lane needs,
@@ -44,6 +45,8 @@ test.describe('user sessions (admin)', () => {
     await page.goto(userDetailPath(user.id, 'security'))
     const card = cardByHeading(page, 'Active sessions')
     await expect(card.locator('tbody tr')).toHaveCount(2)
+    // Another account's sessions: the server marks none as this browser's, although one is open.
+    await expect(card.getByText('This browser', { exact: true })).toHaveCount(0)
     await card.getByRole('button', { name: /^Revoke session: Firefox 130 on Windows/ }).click()
     const confirm = page.getByRole('dialog', { name: /^Revoke session Firefox 130 on Windows/ })
     await expect(confirm).toContainText(user.email)
@@ -88,8 +91,13 @@ test.describe('user sessions (admin)', () => {
     await page.goto(userDetailPath(me.id, 'security'))
     const card = cardByHeading(page, 'Active sessions')
     await expect(card.locator('tbody tr').first()).toBeVisible()
+    // On their own account the server marks the session this browser holds; it comes first.
+    await expect(card.locator('tbody tr').first().getByText('This browser', { exact: true })).toBeVisible()
+    await expect(card.getByText('This browser', { exact: true })).toHaveCount(1)
     await expect(card.getByRole('button', { name: /^Revoke session/ })).toHaveCount(0)
+    await expect(card.getByRole('button', { name: /^Sign out of this browser/ })).toHaveCount(0)
     await expect(card.getByRole('button', { name: 'Sign out everywhere' })).toHaveCount(0)
+    await expect(card.getByRole('button', { name: 'Sign out other devices' })).toHaveCount(0)
   })
 
   test('revoke and Sign out everywhere call the admin session endpoints (mocked sessions)', async ({ page, api }) => {
@@ -118,6 +126,8 @@ test.describe('user sessions (admin)', () => {
     await page.goto(userDetailPath(user.id, 'security'))
     const card = cardByHeading(page, 'Active sessions')
     await expect(card.locator('tbody tr')).toHaveCount(2)
+    // Another account's sessions: the server marks none as this browser's, although one is open.
+    await expect(card.getByText('This browser', { exact: true })).toHaveCount(0)
     await card.getByRole('button', { name: /^Revoke session: Firefox 130 on Windows/ }).click()
     await page.getByRole('dialog', { name: /^Revoke session Firefox 130 on Windows/ }).getByRole('button', { name: 'Revoke session' }).click()
     await expect(page.getByText('Session revoked', { exact: true })).toBeVisible()

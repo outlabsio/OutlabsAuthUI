@@ -1,9 +1,10 @@
 import { defineQueryOptions, useMutation, useQueryCache } from '@pinia/colada'
-import { apiClient, blacklistAccessToken, endSession, withFrontendProfileQuery } from '~/api/client'
+import { apiClient, blacklistAccessToken, endSession, renewAccessToken, withFrontendProfileQuery } from '~/api/client'
 import { getStoredAccessToken } from '~/auth/tokens'
 import { useInvalidateAfter } from '~/queries/invalidation'
 import { signInAgainWithPassword } from '~/queries/session'
 import { IDENTITY_STALE_TIME } from '~/queries/freshness'
+import { isSessionNotBoundError } from '~/utils/account'
 import type { SessionUser } from '~/types/auth'
 import type { Membership } from '~/types/membership'
 import type {
@@ -125,12 +126,51 @@ export function useRevokeSession() {
   })
 }
 
+export type RevokeOtherSessionsOutcome
+  = | 'revoked'
+    // The server cannot tell which session this browser holds, even after a renewal: nothing was
+    // revoked (see isSessionNotBoundError).
+    | 'session_not_bound'
+
+const revokeOtherSessions = () => apiClient.delete<undefined>('/users/me/sessions?keep_current=true')
+
+/**
+ * Sign out other devices. DELETE /users/me/sessions?keep_current=true revokes every refresh token
+ * of the account except the session named by the access token's `sid` claim, so this browser
+ * stays signed in: nothing here ends this session or blacklists its token. An access token
+ * minted before outlabs-auth 0.1.0a35 names no session and is refused with a 400; a renewal adds
+ * the claim, so the console renews once (through the shared refresh lock) and asks again. A
+ * second refusal is the 'session_not_bound' outcome, which the caller explains.
+ */
+export function useRevokeOtherSessions() {
+  const invalidate = useInvalidateAfter()
+  return useMutation({
+    mutation: async (): Promise<RevokeOtherSessionsOutcome> => {
+      try {
+        await revokeOtherSessions()
+        return 'revoked'
+      } catch (error) {
+        if (!isSessionNotBoundError(error)) throw error
+      }
+      await renewAccessToken()
+      try {
+        await revokeOtherSessions()
+        return 'revoked'
+      } catch (error) {
+        if (isSessionNotBoundError(error)) return 'session_not_bound'
+        throw error
+      }
+    },
+    onSettled: () => invalidate('mySessions')
+  })
+}
+
 /**
  * Sign out everywhere (F-030). DELETE /users/me/sessions revokes every refresh token of the
- * account, this browser's included (outlabs-auth has no "keep the current one" option yet), so
- * on success this tab is signed out as well and lands on sign-in with the reason; its access
- * token is then blacklisted in the background, so it stops working at once. Other devices keep
- * a working access token until it expires and cannot renew it.
+ * account, this browser's included (useRevokeOtherSessions keeps it), so on success this tab is
+ * signed out as well and lands on sign-in with the reason; its access token is then blacklisted
+ * in the background, so it stops working at once. Other devices keep a working access token
+ * until it expires and cannot renew it.
  */
 export function useRevokeAllSessions() {
   const invalidate = useInvalidateAfter()

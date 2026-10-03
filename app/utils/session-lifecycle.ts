@@ -213,16 +213,3 @@ export function tokensNameDifferentSubjects(a: string | null | undefined, b: str
   const second = readJwtSubject(b)
   return first != null && second != null && first !== second
 }
-
-/**
- * When a JWT was issued, in epoch milliseconds: outlabs-auth's precise `iat_ms` claim, else the
- * standard `iat` (seconds). Null for an opaque or unreadable token.
- */
-export function readJwtIssuedAtMs(token: string | null | undefined): number | null {
-  const claims = readJwtClaims(token)
-  if (!claims) return null
-  const precise = claims.iat_ms
-  if (typeof precise === 'number' && Number.isFinite(precise)) return precise
-  const seconds = claims.iat
-  return typeof seconds === 'number' && Number.isFinite(seconds) ? seconds * 1000 : null
-}

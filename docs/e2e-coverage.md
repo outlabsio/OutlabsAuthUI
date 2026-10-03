@@ -45,6 +45,9 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 ## Known coverage gaps
 
 - A minted API key is never used against the API (`X-API-Key`).
+- An access token without a session id (`sid`, minted before outlabs-auth 0.1.0a35) is simulated:
+  the example backends issue only session-bound tokens, so `account/sessions-table.spec.ts`
+  answers Sign out other devices with outlabs-auth's 400 to cover the renewal and the notice.
 - No live OAuth provider: provider round trips are mocked (F-150; checked per deployment in
   PRODUCTION.md).
 - Moving an entity to the top level (a new organization) has no spec.

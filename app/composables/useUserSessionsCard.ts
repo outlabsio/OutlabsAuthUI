@@ -10,7 +10,10 @@ import type { User } from '~/types/user'
 // with user:update on another account (the admin's own sessions are managed from Account).
 // outlabs-auth revokes the refresh tokens at once; an access token already issued keeps working
 // until it expires unless the host enables the token blacklist, so the copy says "when its
-// current access token expires", not "immediately".
+// current access token expires", not "immediately". The server marks this browser's session
+// (`is_current`) only on the admin's own account, which is not revocable here; outlabs-auth
+// 0.1.0a35 has no keep-current option for another account (only for /users/me), so there is no
+// "Sign out other devices" here.
 export function useUserSessionsCard(user: Ref<User>) {
   const { canAccess } = useAuth()
   const userId = computed(() => user.value.id)
