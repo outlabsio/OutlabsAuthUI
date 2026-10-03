@@ -225,8 +225,8 @@ const [DefineFilters, ReuseFilters] = createReusableTemplate<{ stacked: boolean 
       <AppPermissionGate section="users">
         <div class="space-y-4">
           <p v-if="orphanedOnly" class="text-sm text-muted" data-testid="orphaned-note">
-            Accounts that lost every entity membership, with where they last belonged. The list
-            includes deleted accounts; the status and account type filters do not apply to it.
+            Accounts that lost every entity membership, with where they last belonged. Deleted
+            accounts are left out; the status and account type filters do not apply to it.
           </p>
           <AppQueryState
             :status="status"

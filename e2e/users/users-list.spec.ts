@@ -50,7 +50,7 @@ test.describe('users list', () => {
     await page.goto('/app/users')
     await page.getByRole('checkbox', { name: 'Orphaned only' }).check()
     await expect(page).toHaveURL(/[?&]orphaned=true/)
-    await expect(page.getByTestId('orphaned-note')).toContainText('includes deleted accounts')
+    await expect(page.getByTestId('orphaned-note')).toContainText('Deleted accounts are left out')
     await expect(page.getByLabel('Filter by status', { exact: true })).toBeDisabled()
     const orphaned = page.waitForResponse(r => /\/users\/orphaned/.test(r.url()) && new URL(r.url()).searchParams.get('search') === user.email)
     await page.getByPlaceholder('Search users...').fill(user.email)

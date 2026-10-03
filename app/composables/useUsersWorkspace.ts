@@ -16,9 +16,9 @@ import { inviteEntityRule, newUserRootChoice, NO_ROOT_ORG, restoreUserCopy, supe
 // on screen while the next loads; the total is always shown. Every filter goes to the server.
 //
 // Scope (F-012, F-161): outlabs-auth shows a delegated (non-global) admin only the accounts in
-// their organisation, and answers them an empty orphaned list. So for them the orphaned filter
-// is hidden, a new account is placed in their organisation (required, preselected) and an
-// invite must attach an entity membership (and is not offered without membership:create_tree).
+// their organisation, its orphans included. So for them a new account is placed in their
+// organisation (required, preselected) and an invite must attach an entity membership (and is not
+// offered without membership:create_tree).
 //
 // Row menus (F-053, F-063) are built from the actor's permissions and the account's state
 // (utils/users.ts userRowPolicy): nothing the backend would refuse, no Delete on one's own row.
@@ -83,9 +83,9 @@ export function useUsersWorkspace() {
   ])
   const rootEntityId = computed(() => (showOrgFilter.value && orgFilter.value !== ALL_ORGS ? orgFilter.value : undefined))
 
-  // Orphaned (lost every entity membership): EnterpriseRBAC with memberships, and only for
-  // global admins — outlabs-auth answers anyone else with an empty page (F-161, backend).
-  const showOrphanedFilter = computed(() => isEnterprise.value && hasMemberships.value && isGlobal.value === true)
+  // Orphaned (lost every entity membership): EnterpriseRBAC with memberships. A delegated admin
+  // gets the orphans rooted in their organization (F-161).
+  const showOrphanedFilter = computed(() => isEnterprise.value && hasMemberships.value)
   const orphanedOnly = computed({
     get: () => showOrphanedFilter.value && orphanedFilter.value,
     set: (value: boolean) => { orphanedFilter.value = value }

@@ -46,7 +46,6 @@ const SECTION_DESCRIPTIONS: Record<AppSectionId, string> = {
 
 export function useDashboard() {
   const { canAccess, can, isEnterprise, hasMemberships, configState, refetchConfig, displayName, capabilities } = useAuth()
-  const { isGlobal } = useActorReach()
   const { anchoredRootId } = useEntityScope()
 
   const usersOn = computed(() => canAccess('users'))
@@ -57,8 +56,9 @@ export function useDashboard() {
   const invitedUsers = useQuery(() => ({ ...usersListQuery({ page: 1, limit: 1, status: 'invited' }), enabled: invitedOn.value }))
   const suspendedOn = computed(() => usersOn.value && can('user_status'))
   const suspendedUsers = useQuery(() => ({ ...usersListQuery({ page: 1, limit: 1, status: 'suspended' }), enabled: suspendedOn.value }))
-  // outlabs-auth answers the orphaned list to global admins only (F-161).
-  const orphanedOn = computed(() => usersOn.value && isEnterprise.value && hasMemberships.value && isGlobal.value === true)
+  // The orphaned list answers every admin who reads users with the orphans in their reach: a
+  // delegated admin's are those rooted in their organization (F-161).
+  const orphanedOn = computed(() => usersOn.value && isEnterprise.value && hasMemberships.value)
   const orphanedUsers = useQuery(() => ({ ...usersOrphanedQuery({ page: 1, limit: 1 }), enabled: orphanedOn.value }))
 
   const rolesOn = computed(() => canAccess('roles'))

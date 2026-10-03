@@ -79,13 +79,22 @@ test.describe('users list as a delegated organisation admin', () => {
     await expect(page).toHaveURL(onPath('/app/account'))
   })
 
-  test('no Orphaned filter or organization filter; Invite joins an entity of theirs (F-012, F-161, F-171)', async ({ page }) => {
+  test('their organization\'s orphans, no organization filter, and Invite joins an entity of theirs (F-012, F-161, F-171)', async ({ page }) => {
     await page.goto('/app/users')
     await expect(page.getByRole('button', { name: 'Add user' })).toBeVisible()
     await expect(page.locator('tbody tr').first()).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: 'Orphaned only' })).toHaveCount(0)
     await expect(page.getByLabel('Filter by organization', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: 'Organization' })).toHaveCount(0)
+    // The orphaned list holds the orphans rooted in their organization (the seed's orphan lost
+    // its only membership), never another organization's.
+    await page.getByRole('checkbox', { name: 'Orphaned only' }).check()
+    await expect(page).toHaveURL(/[?&]orphaned=true/)
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    await expect(page.locator('tbody tr').filter({ hasText: /@summit\.com/ })).toHaveCount(0)
+    await page.getByPlaceholder('Search users...').fill('orphan@acme.com')
+    await expect(page.locator('tbody tr').filter({ hasText: 'orphan@acme.com' })).toHaveCount(1)
+    await page.getByPlaceholder('Search users...').fill('')
+    await page.getByRole('checkbox', { name: 'Orphaned only' }).uncheck()
     // An invite needs membership:create_tree, and must name the entity it joins: an account
     // invited without one would be created outside their view.
     await page.getByRole('button', { name: 'Invite', exact: true }).click()

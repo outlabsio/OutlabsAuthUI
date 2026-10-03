@@ -58,9 +58,9 @@ export const userDetailQuery = defineQueryOptions((userId: string) => ({
 
 // Users who lost every entity membership (GET /users/orphaned: no active membership, at least
 // one in the past) — a distinct list from the status-filtered one. Each item wraps the user with
-// its membership summary ({ user, active_membership_count, last_entity_name, … }). The endpoint
-// has no status filter and includes deleted accounts; outlabs-auth answers delegated (non-global)
-// admins with an empty page.
+// its membership summary ({ user, active_membership_count, last_entity_name, … }). Without a
+// status it leaves deleted accounts out; a delegated (non-global) admin gets the orphans rooted in
+// their organization.
 export const usersOrphanedQuery = defineQueryOptions((filters: OrphanedUsersFilters) => {
   const params = new URLSearchParams({ page: String(filters.page ?? 1), limit: String(filters.limit ?? 20) })
   if (filters.search) params.set('search', filters.search)

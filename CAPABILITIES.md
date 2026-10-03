@@ -69,8 +69,8 @@ that makes a row untrue.
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
 | List: search, status and type filters, server paging, URL state | Both | Built | `e2e/users/users-list.spec.ts`, `e2e/list-filters.spec.ts` | |
-| Orphaned accounts | Enterprise | Partial | `e2e/users/users-list.spec.ts` | Global admins only: the backend does not scope `GET /users/orphaned` to an organization (F-161, F-240, backend). |
-| Create (with organization) | Both | Partial | `e2e/users/users-workspace.spec.ts`, `e2e/users/org-admin-users.spec.ts` | The console limits delegated admins to their organization; the backend does not enforce it (F-012, F-040, backend). |
+| Orphaned accounts | Enterprise | Built | `e2e/users/users-list.spec.ts`, `e2e/users/org-admin-users.spec.ts`, `e2e/app/dashboard.spec.ts` | A delegated admin gets the orphans rooted in their organization (the backend scopes `GET /users/orphaned`); deleted accounts are left out (F-161, F-240). |
+| Create (with organization) | Both | Built | `e2e/users/users-workspace.spec.ts`, `e2e/users/org-admin-users.spec.ts` | Delegated admins create accounts in their own organization, which the backend enforces (F-012, F-040). |
 | Invite (with entity and roles, or direct roles), resend an invitation | Both | Built | `e2e/users/user-invite.spec.ts`, `e2e/users/user-lifecycle.spec.ts`, `e2e/users/user-dialogs.spec.ts`, `e2e/auth/passwordless-verify.spec.ts` | Resend runs on both presets; that it replaces the earlier link is checked only where the dev invite capture is mounted (EnterpriseRBAC). Resend and restore by delegated inviters need backend support (F-244). |
 | Edit profile (including e-mail) | Both | Built | `e2e/users/user-profile.spec.ts`, `e2e/users/users-workspace.spec.ts` | A name the account has can be changed but not removed (the backend refuses to clear it); one's own sign-in e-mail is read-only (F-193). |
 | Status: suspend (timed), ban, reactivate | Both | Built | `e2e/users/user-status-password.spec.ts` | The backend treats a suspension end as advisory. |
