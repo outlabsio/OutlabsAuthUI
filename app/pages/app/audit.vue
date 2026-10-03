@@ -506,7 +506,8 @@ const compact = breakpoints.smaller('sm')
           invitations, memberships, role assignments, superuser changes, profile and status changes.
         </p>
         <p>
-          It does not record changes to role or permission definitions, service accounts or settings.
+          Changes to role and permission definitions are kept with each role and permission: open
+          it and see its History. Changes to service accounts and settings are not recorded.
         </p>
         <ul class="list-disc space-y-1.5 pl-5">
           <li>Narrow the log by category, event type, the account an event is about, the actor who did it and the dates.</li>

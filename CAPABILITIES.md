@@ -118,7 +118,7 @@ that makes a row untrue.
 | Archive (typed name, effects, own-access warning) | Both | Partial | `e2e/roles/roles-workspace.spec.ts`, `e2e/roles/org-admin-roles.spec.ts` | Holder count needs the backend (F-112). |
 | Duplicate a system role as a custom role | Both | Built | `e2e/roles/roles-workspace.spec.ts` | |
 | ABAC conditions and groups | Both | Built | `e2e/app/abac-conditions.spec.ts` | |
-| Role definition history | Both | Missing | — | 0.1.0a35 exposes it (`GET /roles/{id}/history`); the console does not show it yet (F-092, console follow-up). |
+| Role definition history | Both | Built | `e2e/roles/role-history.spec.ts`, `e2e/app/abac-conditions.spec.ts`, `test/unit/definition-history.test.ts` | A History card on the role's page (`GET /roles/{id}/history`, F-092): each change newest first, by whom and through what, with the fields' before and after, permissions added and removed, and ABAC condition changes; 10 per page; refreshed by the role's own edits and condition writes. Delegated admins see their organization's roles' history. An archived role's history cannot be read (the API answers 404 as for the role), so an archive is never shown. |
 
 ## Permissions
 
@@ -128,7 +128,7 @@ that makes a row untrue.
 | Create, edit, archive custom permissions | Both | Built | `e2e/permissions/permissions-workspace.spec.ts` | System permissions are read-only. |
 | ABAC conditions and groups | Both | Built | `e2e/app/abac-conditions.spec.ts` | |
 | Resource picked from existing resources | Both | Missing | — | Validated text input (F-073). |
-| Permission definition history | Both | Missing | — | 0.1.0a35 exposes it (`GET /permissions/{id}/history`); the console does not show it yet (F-092, console follow-up). |
+| Permission definition history | Both | Built | `e2e/permissions/permission-history.spec.ts`, `test/unit/definition-history.test.ts` | A History card on the permission's page (`GET /permissions/{id}/history`, F-092): definition, tags and ABAC conditions, as for roles. An archived permission's history cannot be read. |
 
 ## Personal API keys
 
@@ -159,7 +159,7 @@ that makes a row untrue.
 | Search: category, event type, actor, subject, entity, date range, paging in the URL | Enterprise | Built | `e2e/audit/audit-workspace.spec.ts` | |
 | Event detail: changes, context, pivots, redacted payload | Enterprise | Built | `e2e/audit/audit-workspace.spec.ts` | |
 | Export | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts` | Client-side, up to 5,000 events, redacted (F-190). |
-| What the log covers | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts` | Stated in the UI; role, permission and machine-key events are not recorded by the backend (F-092). |
+| What the log covers | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts` | Stated in the UI; the guide sends role and permission definition changes to each definition's History card. Service-account and machine-key events are not recorded by the backend (F-092). |
 
 ## Dashboard and settings
 

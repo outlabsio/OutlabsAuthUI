@@ -154,6 +154,8 @@ function openCreated(created: Role) {
                 :read-only-reason="abacReadOnly"
               />
             </UCard>
+
+            <AppDefinitionHistoryCard kind="role" :definition-id="roleId" />
           </div>
         </AppQueryState>
       </AppPermissionGate>

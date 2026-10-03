@@ -81,7 +81,9 @@ export const INVALIDATE_AFTER: Record<MutationDomain, { roots: readonly QueryRoo
   principal: { roots: ['principals', 'audit'], actor: 'never' },
   // The inventory lists personal keys too: their owners' key lists (and the admin's own) go stale.
   keyInventory: { roots: ['principals', 'apiKeys', 'users', 'audit'], actor: 'never' },
-  abac: { roots: ['abac', 'audit'], actor: 'never' },
+  // A condition write is a change of the role's or permission's definition: its History card
+  // (under the definition's detail) gains an event.
+  abac: { roots: ['abac', 'roles', 'permissions', 'audit'], actor: 'never' },
   entityTypeConfig: { roots: ['config', 'entities', 'audit'], actor: 'never' },
   mySessions: { roots: ['mySessions', 'users', 'audit'], actor: 'never' },
   socialAccounts: { roots: ['socialAccounts', 'audit'], actor: 'never' },

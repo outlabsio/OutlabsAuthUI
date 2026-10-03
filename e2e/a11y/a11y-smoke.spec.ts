@@ -54,9 +54,12 @@ test.describe('accessibility: console pages', () => {
   })
 
   test('a role and a permission', async ({ page, api }) => {
-    const [role] = await api.listAll<{ id: string }>('/roles/')
-    const [permission] = await api.listAll<{ id: string }>('/permissions/')
-    for (const path of [`/app/roles/${role!.id}`, `/app/permissions/${permission!.id}`]) {
+    // Run-marked definitions with recorded changes, so their History cards hold events.
+    const role = await api.createRole({ kind: 'a11y-hist', permissions: ['user:read'] })
+    await api.patch(`/roles/${role.id}`, { description: 'Revised' })
+    const permission = await api.createPermission({ kind: 'a11y-hist' })
+    await api.patch(`/permissions/${permission.id}`, { description: 'Revised' })
+    for (const path of [`/app/roles/${role.id}`, `/app/permissions/${permission.id}`]) {
       await page.goto(path)
       await settled(page)
       await expectAccessible(page, { ready: () => settled(page) })

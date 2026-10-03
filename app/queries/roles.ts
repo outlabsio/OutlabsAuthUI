@@ -2,6 +2,7 @@ import { defineQueryOptions, useMutation } from '@pinia/colada'
 import { apiClient } from '~/api/client'
 import { CATALOGUE_STALE_TIME } from '~/queries/freshness'
 import { useInvalidateAfter } from '~/queries/invalidation'
+import type { DefinitionHistoryResponse } from '~/types/definition-history'
 import type {
   CreateRoleInput,
   Role,
@@ -90,6 +91,18 @@ export const rolesListCatalogQuery = defineQueryOptions(() => ({
 export const roleDetailQuery = defineQueryOptions((roleId: string) => ({
   key: [ROLES_ROOT, 'detail', roleId],
   query: ctx => apiClient.get<Role>(`/roles/${roleId}`, { signal: ctx?.signal })
+}))
+
+// One page of a role's definition history (outlabs-auth 0.1.0a35, newest first): under the
+// role's detail key, so every role write refreshes it; ABAC condition writes refresh it too
+// (INVALIDATE_AFTER.abac). Needs role:read and the role's visibility (another organization's
+// role answers 404, a system-wide one 403 for a delegated admin); archived roles answer 404.
+export const roleHistoryQuery = defineQueryOptions(({ roleId, page, limit }: { roleId: string, page: number, limit: number }) => ({
+  key: [ROLES_ROOT, 'detail', roleId, 'history', { page, limit }],
+  query: ctx => apiClient.get<DefinitionHistoryResponse>(`/roles/${roleId}/history?page=${page}&limit=${limit}`, { signal: ctx?.signal }),
+  // The previous page stays on screen while the next one loads, for the same role only.
+  placeholderData: (previous: DefinitionHistoryResponse | undefined, previousEntry: { key: readonly unknown[] } | undefined) =>
+    previousEntry?.key[2] === roleId ? previous : undefined
 }))
 
 export function useCreateRole() {

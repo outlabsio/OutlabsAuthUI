@@ -122,8 +122,10 @@ does not use yet.
   422 without the current password, 401 for a wrong one).
 - **Integrity**: versions or ETags on writes (F-158), an atomic role permission-set change.
 - **Audit coverage**: 0.1.0a35 adds entity lifecycle events and role and permission history
-  endpoints (the console does not show the histories yet); machine-key events are still missing
-  (F-092, F-241).
+  endpoints; the console shows each definition's history on its page (F-092). Still missing:
+  machine-key and service-account events (F-092, F-241), and the history of an archived role or
+  permission, which answers 404 like the definition itself, so an archive is recorded but cannot
+  be read back.
 - **Key inventory status**: the entity key inventory (`GET /admin/entities/{id}/api-keys?status=`)
   filters on the stored status only, and outlabs-auth never stores `expired` (a key past its
   expiry date stays `active`). The console therefore offers no Expired filter and labels the

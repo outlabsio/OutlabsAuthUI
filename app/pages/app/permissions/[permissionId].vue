@@ -140,6 +140,8 @@ const backToPermissions: ButtonProps[] = [{ label: 'Back to permissions', color:
                 :read-only-reason="abacReadOnly"
               />
             </UCard>
+
+            <AppDefinitionHistoryCard kind="permission" :definition-id="permissionId" />
           </div>
         </AppQueryState>
       </AppPermissionGate>

@@ -3,6 +3,7 @@ import { apiClient } from '~/api/client'
 import { CATALOGUE_STALE_TIME } from '~/queries/freshness'
 import { useInvalidateAfter } from '~/queries/invalidation'
 import { collectAllPages } from '~/utils/pagination'
+import type { DefinitionHistoryResponse } from '~/types/definition-history'
 import type {
   CreatePermissionInput,
   Permission,
@@ -51,6 +52,17 @@ export const permissionCatalogQuery = defineQueryOptions({
 export const permissionDetailQuery = defineQueryOptions((permissionId: string) => ({
   key: [PERMISSIONS_ROOT, 'detail', permissionId],
   query: ctx => apiClient.get<Permission>(`/permissions/${permissionId}`, { signal: ctx?.signal })
+}))
+
+// One page of a permission's definition history (outlabs-auth 0.1.0a35, newest first): its
+// definition, tags and ABAC conditions. Under the permission's detail key, so permission writes
+// refresh it, and condition writes too (INVALIDATE_AFTER.abac). Needs permission:read; archived
+// permissions answer 404.
+export const permissionHistoryQuery = defineQueryOptions(({ permissionId, page, limit }: { permissionId: string, page: number, limit: number }) => ({
+  key: [PERMISSIONS_ROOT, 'detail', permissionId, 'history', { page, limit }],
+  query: ctx => apiClient.get<DefinitionHistoryResponse>(`/permissions/${permissionId}/history?page=${page}&limit=${limit}`, { signal: ctx?.signal }),
+  placeholderData: (previous: DefinitionHistoryResponse | undefined, previousEntry: { key: readonly unknown[] } | undefined) =>
+    previousEntry?.key[2] === permissionId ? previous : undefined
 }))
 
 export function useCreatePermission() {

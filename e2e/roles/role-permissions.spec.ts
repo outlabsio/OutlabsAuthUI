@@ -104,7 +104,8 @@ test.describe('role permission assignment', () => {
     await expect(dialog).toBeHidden()
     await expect(page.getByText('Role updated', { exact: true })).toBeVisible()
     expect(writes).toEqual([{ method: 'PATCH', path: `/roles/${role.id}`, body: { description: 'Now with a description' } }])
-    await expect(page.getByText('Now with a description')).toBeVisible()
+    // The detail's description (its History card says it too, as a change).
+    await expect(page.getByText('Now with a description', { exact: true })).toBeVisible()
   })
 
   test('each permission on a role links to its page, and that page\'s resource to the resource\'s list', async ({ page, api }) => {

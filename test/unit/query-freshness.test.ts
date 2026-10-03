@@ -65,6 +65,10 @@ describe('invalidation map', () => {
     expect(keys).not.toContainEqual(SESSION_KEY)
   })
 
+  it('an ABAC condition write refreshes the owning definition\'s history (roles, permissions)', () => {
+    expect(keysToInvalidate('abac')).toEqual(expect.arrayContaining([['abac'], ['roles'], ['permissions'], ['audit']]))
+  })
+
   it('always refreshes the actor\'s permissions after a role or permission definition changes', () => {
     expect(keysToInvalidate('role')).toContainEqual(MY_PERMISSIONS_KEY)
     expect(keysToInvalidate('permission')).toContainEqual(MY_PERMISSIONS_KEY)

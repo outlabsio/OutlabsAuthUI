@@ -385,7 +385,8 @@ test.describe('abac conditions', () => {
     await api(`/permissions/${permissionId}/conditions`, { method: 'POST', body: JSON.stringify({ attribute: 'resource.region', operator: 'in', value: ['west', 'east'], value_type: 'list' }) })
     await api(`/permissions/${permissionId}/conditions`, { method: 'POST', body: JSON.stringify({ attribute: 'env.on_call', operator: 'is_true', value_type: 'boolean', condition_group_id: group.id }) })
     await page.goto(`/app/permissions/${permissionId}`)
-    await expect(page.getByText('resource.region')).toBeVisible()
+    // The editor's row (the History card names the condition too, within a sentence).
+    await expect(page.getByText('resource.region', { exact: true })).toBeVisible()
     // color-contrast stays out of the gate here too (F-032, an accepted limitation; e2e/support/a11y.ts).
     const axe = () => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).disableRules(['color-contrast']).analyze()
     const violations = (r: Awaited<ReturnType<typeof axe>>) => r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target.join(' ')) }))

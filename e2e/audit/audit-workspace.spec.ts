@@ -112,8 +112,15 @@ test.describe('audit workspace', () => {
     // No free-text UUID boxes and no native datetime inputs any more.
     await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0)
     await expect(page.getByPlaceholder('Optional UUID')).toHaveCount(0)
-    // Coverage is stated (F-092).
+    // Coverage is stated (F-092), and the guide says where definition changes are: each role's
+    // and permission's History card (outlabs-auth 0.1.0a35).
     await expect(page.getByText('Account, credential, membership and role-assignment events, newest first.')).toBeVisible()
+    await page.getByRole('button', { name: 'Open Audit guide' }).click()
+    const guide = page.getByRole('dialog', { name: 'Audit guide' })
+    await expect(guide).toContainText('Changes to role and permission definitions are kept with each role and permission: open it and see its History.')
+    await expect(guide).toContainText('Changes to service accounts and settings are not recorded.')
+    await page.keyboard.press('Escape')
+    await expect(guide).toBeHidden()
   })
 
   test('a category returns rows without an error, and the pager sits below the results (F-090)', async ({ page }) => {

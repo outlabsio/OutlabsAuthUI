@@ -460,6 +460,17 @@ loading/empty copy, date formatting or one-off selects.
 - **Detail pages** (`useRoleDetail`, `usePermissionDetail`) follow the user detail's states: a
   malformed id or 404/422 is "not found" (archived definitions are not readable), 403 a lock
   UEmpty, `AppQueryState has-data` otherwise; the navbar holds Edit and a More menu.
+- **History** (`<AppDefinitionHistoryCard kind :definition-id>`, `useDefinitionHistory`, last card
+  on both detail pages): outlabs-auth 0.1.0a35's append-only definition history
+  (`roleHistoryQuery` / `permissionHistoryQuery`, under the definition's detail key, so its own
+  writes refresh it; condition writes too, as the `abac` domain invalidates the roles and
+  permissions roots), 10 events a page, in the membership history card's `UTimeline` pattern:
+  the event (`definitionEventLabel`), its status snapshot, the actor (`AppUserLabel`, or "the
+  system") and the event source, then what changed (`definitionHistoryView` in
+  `utils/definition-history.ts`: `updated` fields as before → after from the snapshots, permissions
+  added and removed, a new role's permissions, conditions and groups as one line each; an unknown
+  event type is named from its key and nothing is guessed). An archived definition's history
+  answers 404 like the definition, so the Archived label exists but is never reached.
 
 ## Service accounts (`pages/app/service-accounts`, `utils/service-accounts.ts`, `components/app/service-account/*`)
 - **Section.** "Service accounts" (outlabs-auth integration principals) at `/app/service-accounts`;
@@ -676,8 +687,9 @@ loading/empty copy, date formatting or one-off selects.
 ## Audit (`pages/app/audit.vue`, `useAuditWorkspace`, `utils/audit.ts`, `utils/audit-redaction.ts`)
 - **Coverage.** `GET /audit-events` returns account events only (sign-ins and sessions, passwords
   and API keys, invitations, memberships, role assignments, superuser, profile, status). The page
-  and its guide say so; role/permission definition, service-account and settings changes are not
-  recorded by outlabs-auth (backend). A non-global admin on EnterpriseRBAC (`useActorReach`) is
+  and its guide say so; role and permission definition changes are each definition's History
+  (the guide points there), and service-account and settings changes are not recorded by
+  outlabs-auth (backend). A non-global admin on EnterpriseRBAC (`useActorReach`) is
   told the search is limited to their organization (the API scopes it by root entity).
 - **Filters** are typed controls in a `UDashboardToolbar`, kept in the route query by
   `useListQueryState` (`category`, `eventType`, `subjectUserId`, `actorUserId`, `entityId`,

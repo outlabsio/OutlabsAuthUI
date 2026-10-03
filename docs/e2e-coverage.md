@@ -63,6 +63,8 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - Account › Security for an account without a password is served (`has_password` false on
   `GET /users/me`, the emailed link's request answered, no mail sent); the admin's Set password
   runs on a real one (an invitation an admin activated instead of accepting it).
+- An archived role or permission's history is not readable (404), so no spec shows an
+  Archived event; the label is unit-tested only.
 - Moving an entity to the top level (a new organization) has no spec.
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.
