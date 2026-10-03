@@ -1,7 +1,7 @@
 import { expect, test } from '../support/fixtures'
 import { pickDay } from '../support/date-field'
 import { entityAction, entityOption, openEntity, treeRow } from '../support/entities'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 // Entities workspace (EnterpriseRBAC, superuser): the organisation tree, create / edit / move /
 // archive and the detail's read view. Payloads are asserted through route interception and
@@ -18,6 +18,19 @@ async function captureCreates(page: Page): Promise<Captured> {
     await route.continue()
   })
   return posts
+}
+
+// Advanced options opens with the stock collapsible's 200 ms height animation. Until it ends the
+// section clips its fields, so a field brought into view during it is scrolled to inside the
+// section, which then scrolls back as it grows: the field moves between being located and being
+// pressed (a release run checked "Structural" while it moved 38 px down, and missed it). Wait for
+// the section to finish opening, as a person does. Only finite animations: a spinner never ends.
+async function openAdvancedOptions(dialog: Locator) {
+  await dialog.getByRole('button', { name: 'Advanced options' }).click()
+  await expect(dialog.getByRole('button', { name: 'Hide advanced options' })).toBeVisible()
+  await dialog.evaluate(element => Promise.all(element.getAnimations({ subtree: true })
+    .filter(animation => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+    .map(animation => animation.finished)))
 }
 
 function slugOf(displayName: string) {
@@ -117,7 +130,7 @@ test.describe('entities workspace', () => {
     await dialog.getByRole('combobox', { name: 'Type' }).click()
     await page.getByRole('option', { name: 'department', exact: true }).click()
     await dialog.getByLabel('Display name').fill(display)
-    await dialog.getByRole('button', { name: 'Advanced options' }).click()
+    await openAdvancedOptions(dialog)
     await dialog.getByRole('checkbox', { name: /^Structural/ }).check()
     const types = dialog.getByRole('textbox', { name: 'Allowed child types' })
     await types.fill('team')
@@ -215,7 +228,7 @@ test.describe('entities workspace', () => {
     await page.getByRole('button', { name: 'Add child' }).click()
     const dialog = page.getByRole('dialog', { name: 'Create entity' })
     await expect(dialog.getByText(`Only these types are allowed here (set by ${root.display_name}).`)).toBeVisible()
-    await dialog.getByRole('button', { name: 'Advanced options' }).click()
+    await openAdvancedOptions(dialog)
     await expect(dialog.getByText(`Leave empty to use ${root.display_name}'s list: region, office. Press Enter after each type.`)).toBeVisible()
     await expect(dialog.getByText('Leave empty to allow any type.')).toHaveCount(0)
   })
