@@ -179,7 +179,7 @@ that makes a row untrue.
 | Global search (command palette) | Both | Built | `e2e/app/shell-navigation.spec.ts` | |
 | Titles, landmarks, skip link, focus return, Back and Forward | Both | Built | `e2e/app/shell-navigation.spec.ts`, `e2e/app/browser-lifecycle.spec.ts`, `e2e/app/dialog-kit.spec.ts` | |
 | Phone width (390px) | Both | Built | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/app/shell-navigation.spec.ts` | |
-| WCAG 2.1 AA (axe) | Both | Partial | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/auth/auth-a11y.spec.ts` | The colour-contrast rule is off: light mode fails AA on primary buttons and some status text, a known limitation the owner accepted on 2026-10-02 to keep the stock theme (F-032, PRODUCTION.md section 3). About 22 dialogs are not swept. |
+| WCAG 2.1 AA (axe) | Both | Partial | `e2e/a11y/a11y-smoke.spec.ts`, `e2e/a11y/a11y-dialogs.spec.ts`, `e2e/auth/auth-a11y.spec.ts` | The colour-contrast rule is off: light mode fails AA on primary buttons and some status text, a known limitation the owner accepted on 2026-10-02 to keep the stock theme (F-032, PRODUCTION.md section 3). Every dialog is swept. |
 | Visual regression baselines | Both | Missing | — | Need one fixed rendering environment for every machine that runs the release check (F-148). |
 | Firefox, WebKit, phone-sized Chromium | Both | Built | `playwright.config.ts` (`E2E_BROWSERS`) | On demand: `bun run release:check --browsers firefox,webkit,mobile-chrome`; the default release check runs Chromium only (PRODUCTION.md section 1). |
 | Languages other than English | Both | Not supported | — | Owner decision (F-225). |

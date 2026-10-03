@@ -223,9 +223,13 @@ presets):
 Run one with `E2E_BROWSERS=webkit bunx playwright test --project=webkit` (install it once with
 `bunx playwright install webkit`).
 
-The accessibility gate (`support/a11y.ts`, `a11y/a11y-smoke.spec.ts`, `auth/auth-a11y.spec.ts`)
-runs axe (WCAG 2 A/AA) over every console route, the record pages behind them, the main dialogs
-and every guest page, in light and dark at 1440 and 390px, without reloading between variants.
+The accessibility gate (`support/a11y.ts`, `a11y/a11y-smoke.spec.ts`, `a11y/a11y-dialogs.spec.ts`,
+`auth/auth-a11y.spec.ts`) runs axe (WCAG 2 A/AA) over every console route, the record pages
+behind them, every dialog the console opens (modal dialogs, slideovers and popovers) and every
+guest page, in light and dark at 1440 and 390px, without reloading between variants. Something
+that exists at one width only (a phone-only Filters popover, a popover in a desktop-only column)
+is swept at that width (`PHONE_VARIANTS`, `DESKTOP_VARIANTS`), and a scanned dialog that leaves
+the screen while the variants change fails the sweep instead of passing unscanned.
 It also fails on a select menu named "Show popup", on sideways page scroll at 390px, and on a
 dialog that does not return focus to the control that opened it. `color-contrast` stays out by
 owner decision: light-mode contrast is an accepted limitation (F-032, PRODUCTION.md section 3).
