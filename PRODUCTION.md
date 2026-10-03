@@ -229,14 +229,15 @@ in private records.
 ## 11. Last verification
 
 Recorded by `bun run release:check` (section 1) on 2026-10-03 at the commit that adds this record,
-the documentation commit after `71e0b76`; refresh it whenever the gate is re-run. The record itself
+the documentation commit after `27d41b4`; refresh it whenever the gate is re-run. The record itself
 (`.release/gate.json`) stays on the machine that ran it. It verifies the move to outlabs-auth
 0.1.0a35, the release the console requires, and what the console took up from it (section 8). Run
 against the outlabsAuth example backends on outlabs-auth 0.1.0a35 (API contract
 `outlabs-auth.api/v1`), each reseeded before its suite (`RELEASE_RESEED_CMD`), in release mode:
 one retry, `failOnFlakyTests`, `forbidOnly`, fresh persona sign-ins, Playwright's default workers
-(8 here), Chromium only. Two release checks in a row passed at this commit, after one with the
-same results at `71e0b76`, the last change to code and tests.
+(8 here), Chromium only. Two release checks in a row passed at this commit. Before it, one passed
+with the same results at `71e0b76`, and two failed strict mode on a test that passed only on retry
+(below).
 
 | Check | Result |
 |---|---|
@@ -248,10 +249,10 @@ same results at `71e0b76`, the last change to code and tests.
 | EnterpriseRBAC, static build, release mode | 653 passed, 0 failed, 0 flaky, 10 skipped (all SimpleRBAC-only tests and personas); about 4 minutes |
 | SimpleRBAC, static build, release mode | 434 passed, 0 failed, 0 flaky, 229 skipped (EnterpriseRBAC-only areas and personas, and sign-in methods and development capture routes the SimpleRBAC example does not offer); about 11 minutes, most of it disposable-session logins waiting for the login limiter's window |
 
-One failure surfaced, in the first release check at `ed68541` (the last feature commit):
+Two failures surfaced, each a test that passed only on retry; both were test defects:
 
-- **The login limiter on SimpleRBAC: a harness defect.** An identity-switch test passed only on
-  retry, so strict mode failed the run. Its fresh-session login was refused by the example
+- **The login limiter on SimpleRBAC: a harness defect** (the first check, at `ed68541`, the last
+  feature commit). An identity-switch test's fresh-session login was refused by the example
   backend's password-login limiter (20 per 5 minutes per IP), waited the 300 seconds the refusal
   names, and was refused again. The limiter's window is fixed (it opens with its first login) and
   every refusal names all of it, so one wait of that length can land after the next window has
@@ -263,6 +264,17 @@ One failure surfaced, in the first release check at `ed68541` (the last feature 
   minutes (`e2e/support/login-limiter.ts`, `test/unit/login-limiter.test.ts`), and that spec's
   login goes through it; the same stress run with every account spec added passed on both
   presets, and the SimpleRBAC suite went from about 15 minutes to 11. No product code changed.
+- **Advanced options still opening: a test that acted during an animation** (EnterpriseRBAC, in
+  the first of two checks at `ba9eae3`, an earlier version of this record). "Add child preselects
+  the parent and sends the advanced options" checked the Structural box of Allowed child classes
+  5 ms after pressing Advanced options, inside the collapsible's 200 ms opening animation, and
+  Playwright reported that the click did not change it. The trace shows why: while it opens the
+  section clips its fields, so bringing the box into view scrolled the section itself (278 px),
+  which scrolled back as it grew (to 240 px within 10 ms); the box moved 38 px down between being
+  located and being pressed. The spec now waits for the section to finish opening
+  (`27d41b4`), as a person does; the entities specs passed three times and the two Advanced
+  options tests twenty times each. The animation is the stock collapsible's; no product code
+  changed.
 
 ### Earlier verification: the cutover (2026-10-02)
 

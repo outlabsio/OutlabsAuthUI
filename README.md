@@ -420,7 +420,7 @@ to outlabs-auth 0.1.0a35, the release it now requires, and took up what that rel
 consoles (PRODUCTION.md section 8). Whoever picks it up next starts here.
 
 - **Last release check:** passed twice in a row on 2026-10-03 at the documentation commit after
-  `71e0b76` that records it, against the outlabsAuth examples on outlabs-auth 0.1.0a35, both
+  `27d41b4` that records it, against the outlabsAuth examples on outlabs-auth 0.1.0a35, both
   presets, Chromium only; the shipped JavaScript is within its budget, 1.3% over the baseline
   where 10% is allowed ([PRODUCTION.md](PRODUCTION.md) section 11). The record (`.release/gate.json`) stays on the
   machine that ran it and is valid for 7 days; any later commit, documentation included, needs
