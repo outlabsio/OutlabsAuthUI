@@ -35,6 +35,11 @@ export const A11Y_VARIANTS: A11yVariant[] = [
   { name: 'dark 390', colorScheme: 'dark', width: 390, height: 844 }
 ]
 
+// For something that exists at one width only (a control the layout shows on phones or on
+// desktops alone): both colour schemes at that width.
+export const PHONE_VARIANTS = A11Y_VARIANTS.filter(variant => variant.width < 768)
+export const DESKTOP_VARIANTS = A11Y_VARIANTS.filter(variant => variant.width >= 768)
+
 type Violation = { id: string, impact: string | null | undefined, nodes: string[] }
 
 async function analyze(page: Page, include?: string): Promise<Violation[]> {
@@ -51,16 +56,26 @@ async function analyze(page: Page, include?: string): Promise<Violation[]> {
 /**
  * Runs the gate in every variant without reloading: the viewport and the colour scheme change in
  * place (the console follows prefers-color-scheme). `ready` waits for the content to settle after
- * each change; `include` scopes axe to one element (e.g. '[role="dialog"]').
+ * each change; `include` scopes axe to one element (e.g. '[role="dialog"]'). `variants` narrows
+ * the sweep for something that exists at one width only (PHONE_VARIANTS, DESKTOP_VARIANTS). The
+ * page is left at the first variant's size, in light mode.
  */
-export async function expectAccessible(page: Page, { scope, include, ready }: { scope?: Locator, include?: string, ready?: () => Promise<void> } = {}) {
+export async function expectAccessible(page: Page, { scope, include, ready, variants = A11Y_VARIANTS }: {
+  scope?: Locator
+  include?: string
+  ready?: () => Promise<void>
+  variants?: A11yVariant[]
+} = {}) {
   const problems: Record<string, unknown> = {}
-  for (const variant of A11Y_VARIANTS) {
+  for (const variant of variants) {
     await page.setViewportSize({ width: variant.width, height: variant.height })
     await page.emulateMedia({ colorScheme: variant.colorScheme })
     if (variant.colorScheme === 'dark') await expect(page.locator('html')).toHaveClass(/\bdark\b/)
     else await expect(page.locator('html')).not.toHaveClass(/\bdark\b/)
     await ready?.()
+    // A scoped element must still be there: a dialog that closed when the layout changed would
+    // otherwise pass without being scanned.
+    if (scope) await expect(scope, `${variant.name}: the scanned element is on screen`).toBeVisible()
     const violations = await analyze(page, include)
     if (violations.length) problems[`${variant.name}: axe`] = violations
     // USelectMenu triggers only (data-slot="base"); a UInputMenu's chevron toggle is a separate
@@ -73,7 +88,7 @@ export async function expectAccessible(page: Page, { scope, include, ready }: { 
       if (scrollWidth > variant.width) problems[`${variant.name}: page scrolls sideways`] = scrollWidth
     }
   }
-  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.setViewportSize({ width: variants[0]!.width, height: variants[0]!.height })
   await page.emulateMedia({ colorScheme: 'light' })
   expect(problems).toEqual({})
 }

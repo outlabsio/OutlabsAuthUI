@@ -5,7 +5,8 @@ import { searchUsersList } from '../support/lists'
 
 // The accessibility sweep (F-138, F-148): every console route, the record pages behind them and
 // the main dialogs, as the admin, in light and dark at 1440 and 390px (support/a11y.ts). Each
-// page boots once; the variants change in place. Guest pages: e2e/auth/auth-a11y.spec.ts.
+// page boots once; the variants change in place. Every other dialog: a11y-dialogs.spec.ts. Guest
+// pages: e2e/auth/auth-a11y.spec.ts.
 test.use({ errorGuardMode: 'strict' })
 
 test.describe.configure({ timeout: 90_000 })
