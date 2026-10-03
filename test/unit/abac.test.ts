@@ -56,8 +56,13 @@ describe('operator + context contract', () => {
     expect(Object.keys(OPERATOR_META).sort()).toEqual([...BACKEND_OPERATORS].sort())
   })
 
-  it('offers exactly the engine attribute contexts', () => {
-    expect([...ATTRIBUTE_CONTEXTS].sort()).toEqual(['env', 'request', 'resource', 'time', 'user'])
+  it('offers exactly the attribute contexts the write API accepts (no request.)', () => {
+    expect([...ATTRIBUTE_CONTEXTS].sort()).toEqual(['env', 'resource', 'time', 'user'])
+  })
+
+  it('describes the fail-closed evaluation: a missing attribute is never false, a text one never lacks an item', () => {
+    expect(OPERATOR_META.is_false.help).toMatch(/Fails when it is missing/)
+    expect(OPERATOR_META.not_contains.help).toMatch(/Fails for text attributes and when the attribute is missing/)
   })
 
   it('forces list for in / not_in and numbers for comparisons', () => {
@@ -84,7 +89,11 @@ describe('conditionFormSchema', () => {
     expect(issuesOf(form({ path: '' })).path).toBe('Enter the attribute path.')
     expect(issuesOf(form({ path: 'a..b' })).path).toMatch(/dot-separated/)
     expect(issuesOf(form({ path: 'has space' })).path).toMatch(/dot-separated/)
+    // Each key as the write API requires: a letter or _, then letters, digits, _ or -.
+    expect(issuesOf(form({ path: '1st' })).path).toMatch(/dot-separated/)
+    expect(issuesOf(form({ path: 'cost#center' })).path).toMatch(/dot-separated/)
     expect(issuesOf(form({ path: 'address.city' }))).toEqual({})
+    expect(issuesOf(form({ path: '_meta.cost-center_2' }))).toEqual({})
   })
 
   it('requires a non-empty list for in / not_in', () => {
@@ -179,7 +188,10 @@ describe('stored values', () => {
     expect(abacConditionIssue(condition({ operator: 'in', value: 'a,b', value_type: 'string' }))?.severity).toBe('error')
     expect(abacConditionIssue(condition({ value: 'high', value_type: 'integer' }))?.severity).toBe('error')
     expect(abacConditionIssue(condition({ operator: 'not_in', value: 'west,east', value_type: 'list' }))?.severity).toBe('warning')
-    expect(abacConditionIssue(condition({ operator: 'not_in', value: null, value_type: 'list' }))?.message).toMatch(/passes whenever/)
+    // Evaluated fail-closed: not_in without a list never passes.
+    expect(abacConditionIssue(condition({ operator: 'not_in', value: null, value_type: 'list' }))?.message).toMatch(/never passes/)
+    expect(abacConditionIssue(condition({ attribute: 'request.origin' }))?.severity).toBe('error')
+    expect(abacConditionIssue(condition({ operator: 'eq' }))?.message).toMatch(/never passes until it is fixed/)
     expect(abacConditionIssue(condition({ operator: 'is_true', value: null, value_type: 'boolean' }))).toBeNull()
   })
 

@@ -28,7 +28,7 @@ export const ABAC_UNGROUPED = '__ungrouped__'
 export type AbacParsedValue = { ok: true, value: unknown } | { ok: false, reason: string }
 
 // Mirrors the policy engine's _parse_value: how a stored row's value text is read back at
-// evaluation time. A failure here is an exception inside every permission check that reaches it.
+// evaluation time. A failure here makes the engine evaluate the row as false.
 export function parseAbacStoredValue(raw: string | null | undefined, valueType: string | null | undefined): AbacParsedValue {
   if (raw == null) return { ok: true, value: null }
   const vt = (valueType || 'string').toLowerCase()
@@ -71,7 +71,8 @@ export function abacOperatorKind(operator: string): OperatorValueKind | null {
 
 export type AbacConditionIssue = { severity: 'error' | 'warning', message: string }
 
-const BREAKS_CHECKS = 'Permission checks that reach this condition fail until it is fixed.'
+// The engine evaluates a row it cannot interpret as false (fail closed).
+const NEVER_PASSES = 'It never passes until it is fixed.'
 
 function isJsonArrayText(raw: string): boolean {
   try {
@@ -81,33 +82,28 @@ function isJsonArrayText(raw: string): boolean {
   }
 }
 
-// Stored conditions the engine cannot evaluate (error: every check that reaches it raises) or
-// evaluates differently from what the row suggests (warning). Rows written by older consoles or
-// directly through the API can be in either state.
+// Stored conditions the engine cannot evaluate (error: it evaluates the row as false) or
+// evaluates differently from what the row suggests (warning). The write API refuses both now
+// (400), but rows written before it validated conditions can be in either state.
 export function abacConditionIssue(condition: AbacCondition): AbacConditionIssue | null {
   if (!isConditionOperator(condition.operator)) {
-    return { severity: 'error', message: `"${condition.operator}" is not a supported operator. ${BREAKS_CHECKS}` }
+    return { severity: 'error', message: `"${condition.operator}" is not a supported operator. ${NEVER_PASSES}` }
   }
   const [context, ...rest] = condition.attribute.split('.')
   if (!rest.length || !isAttributeContext(context) || rest.some(part => !part)) {
-    return { severity: 'error', message: `The attribute must start with user., resource., env., time. or request. ${BREAKS_CHECKS}` }
+    return { severity: 'error', message: `The attribute must start with user., resource., env. or time.: the server fills in no other context. ${NEVER_PASSES}` }
   }
   const parsed = parseAbacStoredValue(condition.value, String(condition.value_type))
-  if (!parsed.ok) return { severity: 'error', message: `${parsed.reason}. ${BREAKS_CHECKS}` }
+  if (!parsed.ok) return { severity: 'error', message: `${parsed.reason}. ${NEVER_PASSES}` }
 
   const meta = OPERATOR_META[condition.operator]
   if (meta.kind === 'none') return null
   if (meta.kind === 'list') {
     if (condition.value == null) {
-      return {
-        severity: 'warning',
-        message: condition.operator === 'in'
-          ? 'No list is set, so this condition never passes.'
-          : 'No list is set, so this condition passes whenever the attribute is present.'
-      }
+      return { severity: 'warning', message: 'No list is set, so this condition never passes.' }
     }
     if (condition.value_type !== 'list') {
-      return { severity: 'error', message: `"${meta.label}" needs a list value, but this one is stored as ${condition.value_type}. ${BREAKS_CHECKS}` }
+      return { severity: 'error', message: `"${meta.label}" needs a list value, but this one is stored as ${condition.value_type}. ${NEVER_PASSES}` }
     }
     if (!isJsonArrayText(condition.value)) {
       return { severity: 'warning', message: `The stored list is not a JSON array, so it is read as the single item "${condition.value}". Edit it and enter each value separately.` }

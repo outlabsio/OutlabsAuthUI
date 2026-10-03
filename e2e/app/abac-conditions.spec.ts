@@ -122,9 +122,10 @@ test.describe('abac conditions', () => {
     }
     await page.keyboard.press('Escape')
 
-    // The attribute context is a fixed choice too — no free-text prefix.
+    // The attribute context is a fixed choice too — no free-text prefix, and only the contexts the
+    // server fills in (no request.).
     await page.getByLabel('Context', { exact: true }).click()
-    await expect(page.getByRole('option')).toHaveCount(5)
+    await expect(page.getByRole('option')).toHaveText([/^user/, /^resource/, /^env/, /^time/])
   })
 
   test('permission: add, edit and move a condition, then delete its group with the cascade stated', async ({ page }) => {

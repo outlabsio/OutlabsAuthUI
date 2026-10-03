@@ -82,7 +82,7 @@ const {
         variant="subtle"
         icon="i-lucide-octagon-alert"
         :title="issueCount === 1 ? '1 condition cannot be evaluated' : `${issueCount} conditions cannot be evaluated`"
-        description="Permission checks that reach them fail until they are fixed or deleted."
+        description="They never pass until they are fixed or deleted."
       />
 
       <div v-if="canManage && !isEmpty" class="flex flex-wrap justify-end gap-2">

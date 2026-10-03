@@ -1,15 +1,16 @@
 import { z } from 'zod'
 import type { AbacConditionValueType, AbacGroupOperator } from '~/types/abac'
 
-// ABAC condition + condition-group forms. The backend write API (outlabs-auth 0.1.x) accepts any
-// 2-30 character operator, any attribute and untyped values, but the policy engine re-validates
-// every stored row at evaluation time and raises on anything outside its model — which fails
-// every permission check that reaches the role or permission. So the editor encodes the engine's
-// real contract here and never sends anything else:
+// ABAC condition + condition-group forms. The backend write API validates every condition
+// (outlabs-auth services/abac_validation.py) and refuses anything else with 400 (details.reason
+// invalid_abac_condition, details.field naming the field), and the policy engine evaluates a
+// stored row it cannot interpret as false. The editor encodes the same contract so it never
+// sends a condition the API refuses:
 // - operators: the ConditionOperator enum (models/sql/enums.py), 19 values;
-// - attribute: "<context>.<path>" with context in the engine's valid set (models/sql/condition.py);
-// - value: typed by value_type (services/policy_engine.py _parse_value), a JSON array for in/not_in
-//   (a string there raises; an empty or missing list silently never/always matches).
+// - attribute: "<context>.<path>" with context one the engine fills in (user, resource, env,
+//   time: ABAC_ATTRIBUTE_CONTEXTS) and every key a letter or _ followed by letters, digits, _ or -;
+// - value: typed by value_type (services/policy_engine.py _parse_value), a non-empty JSON array
+//   for in/not_in.
 
 export const CONDITION_OPERATORS = [
   'equals',
@@ -36,7 +37,9 @@ export type ConditionOperator = typeof CONDITION_OPERATORS[number]
 
 export const CONDITION_VALUE_TYPES = ['string', 'integer', 'float', 'boolean', 'list'] as const satisfies readonly AbacConditionValueType[]
 
-export const ATTRIBUTE_CONTEXTS = ['user', 'resource', 'env', 'time', 'request'] as const
+// The contexts the permission service fills in. The engine's model also names `request`, but
+// nothing supplies it and the write API refuses it.
+export const ATTRIBUTE_CONTEXTS = ['user', 'resource', 'env', 'time'] as const
 export type AttributeContext = typeof ATTRIBUTE_CONTEXTS[number]
 
 export const GROUP_OPERATORS = ['AND', 'OR'] as const satisfies readonly AbacGroupOperator[]
@@ -77,14 +80,14 @@ export const OPERATOR_META: Record<ConditionOperator, OperatorMeta> = {
   in: { label: 'is one of', group: 'Lists', kind: 'list', valueTypes: ['list'], help: `Passes when the attribute matches one of the listed values. ${MISSING_FAILS}` },
   not_in: { label: 'is not one of', group: 'Lists', kind: 'list', valueTypes: ['list'], help: `Passes when the attribute matches none of the listed values. ${MISSING_FAILS}` },
   contains: { label: 'contains', group: 'Lists', kind: 'scalar', valueTypes: SCALAR_TYPES, help: `For list attributes: passes when the list includes the value. Fails for text attributes and when the attribute is missing.` },
-  not_contains: { label: 'does not contain', group: 'Lists', kind: 'scalar', valueTypes: SCALAR_TYPES, help: `For list attributes: passes when the list does not include the value (or the attribute is not a list). ${MISSING_FAILS}` },
+  not_contains: { label: 'does not contain', group: 'Lists', kind: 'scalar', valueTypes: SCALAR_TYPES, help: `For list attributes: passes when the list does not include the value. Fails for text attributes and when the attribute is missing.` },
   starts_with: { label: 'starts with', group: 'Text', kind: 'text', valueTypes: ['string'], help: `Text prefix match. ${MISSING_FAILS}` },
   ends_with: { label: 'ends with', group: 'Text', kind: 'text', valueTypes: ['string'], help: `Text suffix match. ${MISSING_FAILS}` },
   matches: { label: 'matches pattern', group: 'Text', kind: 'text', valueTypes: ['string'], help: `Python regular expression, matched from the start of the attribute. An invalid pattern never matches. ${MISSING_FAILS}` },
   exists: { label: 'is present', group: 'Presence', kind: 'none', valueTypes: CONDITION_VALUE_TYPES, help: 'Passes when the attribute is present in the context. No value needed.' },
   not_exists: { label: 'is missing', group: 'Presence', kind: 'none', valueTypes: CONDITION_VALUE_TYPES, help: 'Passes when the attribute is absent from the context. No value needed.' },
   is_true: { label: 'is true', group: 'Boolean', kind: 'none', valueTypes: CONDITION_VALUE_TYPES, help: 'Passes when the attribute is true (or any non-empty, non-zero value). Fails when it is missing.' },
-  is_false: { label: 'is false', group: 'Boolean', kind: 'none', valueTypes: CONDITION_VALUE_TYPES, help: 'Passes when the attribute is false, zero, empty or missing.' },
+  is_false: { label: 'is false', group: 'Boolean', kind: 'none', valueTypes: CONDITION_VALUE_TYPES, help: 'Passes when the attribute is false (or zero or empty). Fails when it is missing.' },
   before: { label: 'is before', group: 'Time', kind: 'datetime', valueTypes: ['string'], help: `Date-time comparison. ${MISSING_FAILS} Values without a timezone never match time.timestamp (UTC).` },
   after: { label: 'is after', group: 'Time', kind: 'datetime', valueTypes: ['string'], help: `Date-time comparison. ${MISSING_FAILS} Values without a timezone never match time.timestamp (UTC).` }
 }
@@ -95,8 +98,7 @@ export const ATTRIBUTE_CONTEXT_META: Record<AttributeContext, { description: str
   user: { description: 'The signed-in user: id, email, status, timezone, locale, is_superuser.', placeholder: 'email' },
   resource: { description: 'The resource being checked, supplied by the host application (entity checks add entity_id).', placeholder: 'department' },
   env: { description: 'The request: method, path, client_host, user_agent, plus any values the host application supplies.', placeholder: 'client_host' },
-  time: { description: 'Check time in UTC: hour, minute, day_of_week, day_of_month, month, year, is_business_hours, is_weekend, timestamp.', placeholder: 'hour' },
-  request: { description: 'Only present when the host application supplies it.', placeholder: 'origin' }
+  time: { description: 'Check time in UTC: hour, minute, day_of_week, day_of_month, month, year, is_business_hours, is_weekend, timestamp.', placeholder: 'hour' }
 }
 
 export const VALUE_TYPE_LABELS: Record<AbacConditionValueType, string> = {
@@ -131,8 +133,9 @@ export function defaultValueType(operator: ConditionOperator): AbacConditionValu
   return OPERATOR_META[operator].valueTypes[0] ?? 'string'
 }
 
-// Dot-separated keys, no whitespace, no empty segments ("department", "address.city").
-export const ATTRIBUTE_PATH_PATTERN = /^[^.\s]+(\.[^.\s]+)*$/
+// Dot-separated keys ("department", "address.city"), each a letter or _ followed by letters,
+// digits, _ or - (the write API's _ATTRIBUTE_SEGMENT).
+export const ATTRIBUTE_PATH_PATTERN = /^[A-Z_][\w-]*(\.[A-Z_][\w-]*)*$/i
 
 // ISO 8601 date-time WITH a timezone. dateutil parses looser input, but a naive value compared
 // with an aware one (time.timestamp is UTC-aware) raises inside the engine and never matches.
@@ -151,7 +154,7 @@ export const conditionFormSchema = z
       .string({ error: 'Enter the attribute path.' })
       .trim()
       .min(1, 'Enter the attribute path.')
-      .regex(ATTRIBUTE_PATH_PATTERN, 'Use dot-separated keys without spaces, e.g. department or address.city.'),
+      .regex(ATTRIBUTE_PATH_PATTERN, 'Use dot-separated keys of letters, digits, _ or -, each starting with a letter or _, e.g. department or address.city.'),
     operator: z.enum(CONDITION_OPERATORS, { error: 'Choose an operator.' }),
     value_type: z.enum(CONDITION_VALUE_TYPES, { error: 'Choose a value type.' }),
     text_value: z.string(),
