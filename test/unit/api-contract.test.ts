@@ -96,7 +96,7 @@ describe('client routes against the OpenAPI snapshot', () => {
 
 describe('OpenAPI snapshot', () => {
   it('describes the targeted library release and its routes only', () => {
-    expect(snapshot.info.version).toBe('0.1.0a34')
+    expect(snapshot.info.version).toBe('0.1.0a35')
     for (const route of apiRoutes) {
       expect(route.surfaces.length, `${route.method} ${route.path}`).toBeGreaterThan(0)
       expect(route.path.startsWith('/v1')).toBe(false)

@@ -139,6 +139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/entities/{entity_id}/integration-principals/grantable-scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get grantable scopes for entity integration principals
+         * @description Scopes the caller may grant to an integration principal (or its system keys) anchored at this entity, under the system-integration policy.
+         */
+        get: operations["get_entity_integration_principal_grantable_scopes_v1_admin_entities__entity_id__integration_principals_grantable_scopes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/system/integration-principals": {
         parameters: {
             query?: never;
@@ -224,6 +244,26 @@ export interface paths {
         put?: never;
         /** Rotate platform-global integration principal API key */
         post: operations["rotate_system_integration_principal_api_key_v1_admin_system_integration_principals__principal_id__api_keys__key_id__rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/system/integration-principals/grantable-scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get grantable scopes for platform-global integration principals
+         * @description Scopes the caller may grant to a platform-global integration principal (or its system keys) under the system-integration policy.
+         */
+        get: operations["get_system_integration_principal_grantable_scopes_v1_admin_system_integration_principals_grantable_scopes_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -902,6 +942,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/memberships/entity/{entity_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page entity members with details
+         * @description Paginated members of an entity with user details, roles and a total count (requires membership:read permission on the entity tree). Supersedes the bare-list /entity/{entity_id}/details for UIs that need totals and server-side search.
+         */
+        get: operations["page_entity_members_with_details_v1_memberships_entity__entity_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/memberships/me": {
         parameters: {
             query?: never;
@@ -1090,6 +1150,26 @@ export interface paths {
         patch: operations["update_permission_condition_v1_permissions__permission_id__conditions__condition_id__patch"];
         trace?: never;
     };
+    "/permissions/{permission_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get permission definition history
+         * @description Append-only history of changes to this permission's definition, tags and ABAC conditions (requires permission:read permission).
+         */
+        get: operations["get_permission_history_v1_permissions__permission_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/permissions/check": {
         parameters: {
             query?: never;
@@ -1101,7 +1181,7 @@ export interface paths {
         put?: never;
         /**
          * Check permissions
-         * @description Check if user has specific permissions (requires permission:check permission)
+         * @description Check if user has specific permissions (requires permission:check permission). The target user must be inside the caller's tenant scope (DD-056).
          */
         post: operations["check_permissions_v1_permissions_check_post"];
         delete?: never;
@@ -1119,7 +1199,7 @@ export interface paths {
         };
         /**
          * Get current user's permissions
-         * @description Get all permissions for the authenticated user
+         * @description Get all permissions for the authenticated user. With entity_id, returns the permissions effective at that entity (direct grants plus tree grants inherited from ancestors), which is what entity-level UI actions should gate on.
          */
         get: operations["get_my_permissions_v1_permissions_me_get"];
         put?: never;
@@ -1139,7 +1219,7 @@ export interface paths {
         };
         /**
          * Get user permissions
-         * @description Get all permissions for a user (requires permission:read permission)
+         * @description Get all permissions for a user (requires permission:read permission), optionally evaluated at entity_id. The target user must be inside the caller's tenant scope (DD-056).
          */
         get: operations["get_user_permissions_v1_permissions_user__user_id__get"];
         put?: never;
@@ -1296,6 +1376,26 @@ export interface paths {
          * @description Update an ABAC condition for a role (requires role:update permission)
          */
         patch: operations["update_role_condition_v1_roles__role_id__conditions__condition_id__patch"];
+        trace?: never;
+    };
+    "/roles/{role_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get role definition history
+         * @description Append-only history of changes to this role's definition: who changed what, with before/after snapshots (requires role:read permission and role visibility).
+         */
+        get: operations["get_role_history_v1_roles__role_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/roles/{role_id}/permissions": {
@@ -1822,7 +1922,7 @@ export interface paths {
         post?: never;
         /**
          * Revoke all of my sessions
-         * @description Revoke every active refresh-token session for the authenticated user.
+         * @description Revoke every active refresh-token session for the authenticated user. With keep_current=true, the session that issued this request's access token is kept ('sign out other devices').
          */
         delete: operations["revoke_all_my_sessions_v1_users_me_sessions_delete"];
         options?: never;
@@ -1899,7 +1999,7 @@ export interface paths {
         };
         /**
          * List orphaned users
-         * @description List users with no active entity memberships but historical assignments (requires user:read permission)
+         * @description List users with no active entity memberships but historical assignments (requires user:read permission). Soft-deleted accounts are excluded unless status=deleted. Tenant-scoped actors only see orphans rooted inside their scope.
          */
         get: operations["list_orphaned_users_v1_users_orphaned_get"];
         put?: never;
@@ -2292,6 +2392,12 @@ export interface components {
          */
         AuthConfigResponse: {
             /**
+             * Access Code Length
+             * @description Number of digits in one-time access codes and phone verification codes.
+             * @default 6
+             */
+            access_code_length: number;
+            /**
              * Api Contract Version
              * @description Versioned compatibility contract for first-party API clients.
              * @default outlabs-auth.api/v1
@@ -2321,11 +2427,26 @@ export interface components {
              * @description Stable names of OutlabsAuth router surfaces actually mounted by this host.
              */
             mounted_surfaces?: string[];
+            /** @description Server-enforced password rules. */
+            password_policy?: components["schemas"]["PasswordPolicyResponse"] | null;
             /**
              * Preset
              * @description Preset name: 'SimpleRBAC' or 'EnterpriseRBAC'
              */
             preset: string;
+            /**
+             * Registration Mode
+             * @description How new accounts appear: 'open' (public self-registration), 'invite_only' (registration closed, invitations enabled) or 'closed' (admin-provisioned only).
+             * @default open
+             * @enum {string}
+             */
+            registration_mode: "open" | "invite_only" | "closed";
+            /**
+             * Self Service Email Change
+             * @description Whether PATCH /users/me may change the email (requires current_password).
+             * @default false
+             */
+            self_service_email_change: boolean;
         };
         /**
          * ChangePasswordRequest
@@ -2382,6 +2503,64 @@ export interface components {
              * @description Default types for structural child entities
              */
             structural?: string[];
+        };
+        /**
+         * DefinitionHistoryEventResponse
+         * @description One append-only change to a role or permission definition.
+         */
+        DefinitionHistoryEventResponse: {
+            /** Actor User Id */
+            actor_user_id?: string | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** Definition Id */
+            definition_id: string;
+            /**
+             * Definition Kind
+             * @enum {string}
+             */
+            definition_kind: "role" | "permission";
+            /**
+             * Display Name
+             * @description Definition display name at the time of the event
+             */
+            display_name: string;
+            /** Event Source */
+            event_source: string;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Name
+             * @description Definition name at the time of the event
+             */
+            name: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Permission Names
+             * @description Role events: the role's permission names after the event
+             */
+            permission_names?: string[];
+            /**
+             * Status
+             * @description Definition status at the time of the event
+             */
+            status: string;
         };
         /**
          * DefinitionStatus
@@ -2452,6 +2631,8 @@ export interface components {
             roles?: components["schemas"]["RoleSummary"][];
             /** Status */
             status: string;
+            /** Updated At */
+            updated_at?: string | null;
             /** User Email */
             user_email: string;
             /** User First Name */
@@ -2492,6 +2673,8 @@ export interface components {
             child_naming_guidance?: string | null;
             /** Child Slug Pattern */
             child_slug_pattern?: string | null;
+            /** Created At */
+            created_at?: string | null;
             /** Description */
             description?: string | null;
             /** Display Name */
@@ -2515,6 +2698,8 @@ export interface components {
              * @default active
              */
             status: string;
+            /** Updated At */
+            updated_at?: string | null;
             /** Valid From */
             valid_from?: string | null;
             /** Valid Until */
@@ -2954,8 +3139,23 @@ export interface components {
             can_grant_permissions: boolean;
             /** Effective Status */
             effective_status: string;
+            /**
+             * Entity Display Name
+             * @description Entity display name (when loaded).
+             */
+            entity_display_name?: string | null;
             /** Entity Id */
             entity_id: string;
+            /**
+             * Entity Name
+             * @description Entity system name (when the entity is loaded, e.g. /memberships/me).
+             */
+            entity_name?: string | null;
+            /**
+             * Entity Type
+             * @description Entity type (when loaded).
+             */
+            entity_type?: string | null;
             /** Id */
             id: string;
             /** Is Currently Valid */
@@ -2975,8 +3175,18 @@ export interface components {
             revoked_by_id?: string | null;
             /** Role Ids */
             role_ids?: string[];
+            /**
+             * Role Names
+             * @description Names of the roles granted by this membership.
+             */
+            role_names?: string[];
             /** Status */
             status: string;
+            /**
+             * Updated At
+             * @description Last modification time, when known.
+             */
+            updated_at?: string | null;
             /** User Id */
             user_id: string;
             /** Valid From */
@@ -3034,6 +3244,62 @@ export interface components {
              * @description List of items for the current page
              */
             items: components["schemas"]["ApiKeyResponse"][];
+            /**
+             * Limit
+             * @description Number of items per page
+             */
+            limit: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed)
+             */
+            page: number;
+            /**
+             * Pages
+             * @description Total number of pages
+             */
+            pages: number;
+            /**
+             * Total
+             * @description Total number of items across all pages
+             */
+            total: number;
+        };
+        /** PaginatedResponse[DefinitionHistoryEventResponse] */
+        PaginatedResponse_DefinitionHistoryEventResponse_: {
+            /**
+             * Items
+             * @description List of items for the current page
+             */
+            items: components["schemas"]["DefinitionHistoryEventResponse"][];
+            /**
+             * Limit
+             * @description Number of items per page
+             */
+            limit: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed)
+             */
+            page: number;
+            /**
+             * Pages
+             * @description Total number of pages
+             */
+            pages: number;
+            /**
+             * Total
+             * @description Total number of items across all pages
+             */
+            total: number;
+        };
+        /** PaginatedResponse[EntityMemberResponse] */
+        PaginatedResponse_EntityMemberResponse_: {
+            /**
+             * Items
+             * @description List of items for the current page
+             */
+            items: components["schemas"]["EntityMemberResponse"][];
             /**
              * Limit
              * @description Number of items per page
@@ -3306,6 +3572,29 @@ export interface components {
              * @description Total number of items across all pages
              */
             total: number;
+        };
+        /**
+         * PasswordPolicyResponse
+         * @description Server-enforced password rules, published so UIs validate identically.
+         */
+        PasswordPolicyResponse: {
+            /** Max Length */
+            max_length: number;
+            /** Min Length */
+            min_length: number;
+            /** Require Digit */
+            require_digit: boolean;
+            /** Require Lowercase */
+            require_lowercase: boolean;
+            /** Require Special Char */
+            require_special_char: boolean;
+            /** Require Uppercase */
+            require_uppercase: boolean;
+            /**
+             * Special Characters
+             * @description Exactly the characters that satisfy require_special_char.
+             */
+            special_characters: string;
         };
         /**
          * PermissionCheckRequest
@@ -3649,6 +3938,32 @@ export interface components {
             status?: components["schemas"]["DefinitionStatus"] | null;
         };
         /**
+         * SelfUserUpdateRequest
+         * @description Self-service profile update (PATCH /users/me).
+         *
+         *     Changing ``email`` is a credential-level change: it is rejected unless the
+         *     host enables ``allow_self_service_email_change``, and then requires
+         *     ``current_password`` (re-authentication).
+         */
+        SelfUserUpdateRequest: {
+            /**
+             * Current Password
+             * @description Current password; required only when changing email.
+             */
+            current_password?: string | null;
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /**
+             * Phone
+             * @description E.164 WhatsApp/SMS delivery number. Send null or empty to clear.
+             */
+            phone?: string | null;
+        };
+        /**
          * SocialAccountResponse
          * @description Response schema for social account information.
          *
@@ -3772,6 +4087,28 @@ export interface components {
             /** Scopes */
             scopes?: string[] | null;
             status?: components["schemas"]["APIKeyStatus"] | null;
+        };
+        /**
+         * SystemIntegrationGrantableScopesResponse
+         * @description Scopes the calling admin may grant to a system-integration principal or key.
+         */
+        SystemIntegrationGrantableScopesResponse: {
+            /** Actor User Id */
+            actor_user_id: string;
+            /** Anchor Entity Id */
+            anchor_entity_id?: string | null;
+            /** Grantable Scopes */
+            grantable_scopes: string[];
+            /**
+             * Scope Kind
+             * @description platform_global or entity
+             */
+            scope_kind: string;
+            /**
+             * System Allowed Action Prefixes
+             * @description Action prefixes system-integration keys may carry at all (library allowlist)
+             */
+            system_allowed_action_prefixes?: string[];
         };
         /**
          * UserAuditEventResponse
@@ -3901,6 +4238,12 @@ export interface components {
             email_verified: boolean;
             /** First Name */
             first_name?: string | null;
+            /**
+             * Has Password
+             * @description Whether the account has a usable password (OAuth-only, magic-link-only and invited accounts do not). Lets UIs offer 'set a password' instead of 'change password'.
+             * @default false
+             */
+            has_password: boolean;
             /** Id */
             id: string;
             /**
@@ -4050,6 +4393,12 @@ export interface components {
             id: string;
             /** Ip Address */
             ip_address?: string | null;
+            /**
+             * Is Current
+             * @description True for the session that issued the calling access token (matched by the token's sid claim). Tokens minted before 0.1.0a35 carry no sid and match nothing.
+             * @default false
+             */
+            is_current: boolean;
             /** Last Used At */
             last_used_at?: string | null;
             /**
@@ -4618,6 +4967,37 @@ export interface operations {
             };
         };
     };
+    get_entity_integration_principal_grantable_scopes_v1_admin_entities__entity_id__integration_principals_grantable_scopes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemIntegrationGrantableScopesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_system_integration_principals_v1_admin_system_integration_principals_get: {
         parameters: {
             query?: {
@@ -4977,6 +5357,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_integration_principal_grantable_scopes_v1_admin_system_integration_principals_grantable_scopes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemIntegrationGrantableScopesResponse"];
                 };
             };
         };
@@ -6262,6 +6662,44 @@ export interface operations {
             };
         };
     };
+    page_entity_members_with_details_v1_memberships_entity__entity_id__members_get: {
+        parameters: {
+            query?: {
+                /** @description Include suspended, revoked, pending, and expired memberships */
+                include_inactive?: boolean;
+                limit?: number;
+                page?: number;
+                /** @description Case-insensitive match on member email, first name or last name */
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponse_EntityMemberResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_my_memberships_v1_memberships_me_get: {
         parameters: {
             query?: {
@@ -6745,6 +7183,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AbacConditionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_permission_history_v1_permissions__permission_id__history_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by event type */
+                event_type?: string | null;
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                permission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponse_DefinitionHistoryEventResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -7274,6 +7748,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AbacConditionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_role_history_v1_roles__role_id__history_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by event type */
+                event_type?: string | null;
+                limit?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponse_DefinitionHistoryEventResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -8190,7 +8700,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserUpdateRequest"];
+                "application/json": components["schemas"]["SelfUserUpdateRequest"];
             };
         };
         responses: {
@@ -8318,7 +8828,10 @@ export interface operations {
     };
     revoke_all_my_sessions_v1_users_me_sessions_delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Keep the calling session (identified by the access token's sid claim) */
+                keep_current?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8331,6 +8844,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -8423,6 +8945,8 @@ export interface operations {
                 root_entity_id?: string | null;
                 /** @description Search by email, first name, or last name */
                 search?: string | null;
+                /** @description Filter by account status (default: every status except deleted) */
+                status?: string | null;
             };
             header?: never;
             path?: never;
