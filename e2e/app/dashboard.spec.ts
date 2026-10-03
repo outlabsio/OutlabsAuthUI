@@ -149,10 +149,10 @@ test.describe('dashboard: delegated org admin (EnterpriseRBAC)', () => {
 
   test('counts are the organization\'s own, from the admin\'s own token', async ({ page }) => {
     test.skip(!(await isEnterpriseBackend()), 'The org-admin persona exists on the EnterpriseRBAC seed only.')
-    // No permission:read (no Permissions tile), not a global admin (no orphaned count), and
-    // anchored on ACME (its entities, not every organization).
+    // permission:read (a Permissions tile, its count the catalog's), not a global admin (no
+    // orphaned count), and anchored on ACME (its entities, not every organization).
     const entities = page.waitForResponse(response => response.ok() && /\/entities\/[0-9a-f-]+\/descendants$/.test(new URL(response.url()).pathname))
-    await expectTiles(page, ['active-users', 'invited-users', 'suspended-users', 'roles', 'entities', 'failed-sign-ins'])
+    await expectTiles(page, ['active-users', 'invited-users', 'suspended-users', 'roles', 'permissions', 'entities', 'failed-sign-ins'])
     const descendants = await (await entities).json() as { status: string }[]
     const inOrg = 1 + descendants.filter(entity => entity.status !== 'archived').length
     await expect(tileValue(page, 'entities')).toHaveText(String(inOrg))

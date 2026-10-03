@@ -4,9 +4,9 @@ import { searchUsersList } from '../support/lists'
 import { onPath } from '../support/session'
 
 // A delegated organisation admin on the users list (F-012, F-053, F-054, F-161): the persona
-// holds user:read/create but not user:update/delete or membership:create_tree, and has no
-// global scope. Accounts they create stay in their organisation (and in their list), and they
-// are never offered what the backend refuses them.
+// holds user:read/create/update and membership:create_tree but not user:delete, and has no
+// global scope. Accounts they create or invite stay in their organisation (and in their list),
+// and they are never offered what the backend refuses them.
 
 test.describe('users list as a delegated organisation admin', () => {
   test.skip(!backendConfigured, 'Needs a seeded outlabsAuth backend (E2E_API_BASE_URL).')
@@ -61,32 +61,38 @@ test.describe('users list as a delegated organisation admin', () => {
     await searchUsersList(page, email)
   })
 
-  test('row menus offer only what they may do: View, and their own account (F-053, F-063)', async ({ page }) => {
-    // Another account in their organization: without user:update/delete, View only.
+  test('row menus offer only what they may do: View, Edit, and their own account (F-053, F-063)', async ({ page }) => {
+    // Another account in their organization: user:update but no user:delete, so no Delete.
     const other = persona('agent').email
     await page.goto('/app/users')
     await searchUsersList(page, other)
     await page.getByRole('button', { name: `User actions for ${other}` }).click()
-    await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['View'])
+    await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['View', 'Edit profile'])
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
 
     const own = persona('orgAdmin').email
     await searchUsersList(page, own)
     await page.getByRole('button', { name: `User actions for ${own}` }).click()
-    await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['View', 'Your account'])
+    await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['View', 'Your account', 'Edit profile'])
     await page.getByRole('menuitem', { name: 'Your account' }).click()
     await expect(page).toHaveURL(onPath('/app/account'))
   })
 
-  test('no Orphaned filter, organization filter or Invite they could not use (F-012, F-161)', async ({ page }) => {
+  test('no Orphaned filter or organization filter; Invite joins an entity of theirs (F-012, F-161, F-171)', async ({ page }) => {
     await page.goto('/app/users')
     await expect(page.getByRole('button', { name: 'Add user' })).toBeVisible()
     await expect(page.locator('tbody tr').first()).toBeVisible()
     await expect(page.getByRole('checkbox', { name: 'Orphaned only' })).toHaveCount(0)
     await expect(page.getByLabel('Filter by organization', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: 'Organization' })).toHaveCount(0)
-    // Without membership:create_tree an invite could only create an account outside their view.
-    await expect(page.getByRole('button', { name: 'Invite', exact: true })).toHaveCount(0)
+    // An invite needs membership:create_tree, and must name the entity it joins: an account
+    // invited without one would be created outside their view.
+    await page.getByRole('button', { name: 'Invite', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Invite user' })
+    await expect(dialog.getByText('The account joins this entity, which keeps it in your organization.')).toBeVisible()
+    await expect(dialog.getByText('No entity (direct roles)')).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog).toBeHidden()
   })
 })

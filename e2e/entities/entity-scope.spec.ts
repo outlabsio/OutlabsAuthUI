@@ -4,11 +4,11 @@ import { apiRoot } from '../support/capabilities'
 import { openEntity, treeRow } from '../support/entities'
 import { commandPalette, pressPaletteShortcut } from '../support/shell'
 
-// F-020: the entity routes are not scoped by the backend yet, so the console anchors a delegated
-// organisation admin on their own organisation: the tree shows it alone (no organisation
-// switcher), and a deep link to another organisation's entity renders "outside your
-// organization" instead of its data, and every entity picker and the command palette offer that
-// organisation only. Also F-022: the seeded inactive office is reachable.
+// F-020: a delegated organisation admin works in their own organisation: the tree shows it alone
+// (no organisation switcher), every entity picker and the command palette offer that
+// organisation only, and a deep link to another organisation's entity shows none of its data:
+// the backend answers it 404, like a nonexistent entity (DD-061), and the console says it was
+// not found. Also F-022: the seeded inactive office is reachable.
 
 type Entity = { id: string, display_name: string, parent_entity_id?: string | null }
 
@@ -34,15 +34,17 @@ test.describe('entities for a delegated organisation admin', () => {
     await expect(treeRow(page, own!.display_name)).toBeVisible()
     for (const other of others) await expect(treeRow(page, other.display_name)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Organization' })).toHaveCount(0)
-    // No create without entity:create.
-    await expect(page.getByRole('button', { name: 'New entity' })).toHaveCount(0)
+    // entity:create_tree grants entity:create: they add entities inside their organisation.
+    await expect(page.getByRole('button', { name: 'New entity' })).toBeVisible()
   })
 
-  test('a deep link into another organisation renders "outside your organization", not its data', async ({ page, api, apiAs }) => {
+  test('a deep link into another organisation shows not-found, never its data', async ({ page, api, apiAs, errorGuard }) => {
     const me = await apiAs('orgAdmin').me()
     expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
     const other = await api.createEntity({ kind: 'other-tenant' })
     const name = new RegExp(escapeRegExp(other.display_name))
+    // The backend answers the record and its path 404 for an entity outside their tenant.
+    errorGuard.allow({ status: 404, url: new RegExp(`/entities/${other.id}(/path)?$`) })
 
     // Every API request about the foreign entity other than the record and its path.
     const leaks: string[] = []
@@ -53,25 +55,10 @@ test.describe('entities for a delegated organisation admin', () => {
       if (path === `/entities/${other.id}` || path === `/entities/${other.id}/path`) return
       leaks.push(`${request.method()} ${path}${new URL(url).search}`)
     })
-    // A slow path: the scope is unresolved for a while, and nothing about the entity may show.
-    let releasePath!: () => void
-    const pathHeld = new Promise<void>((resolve) => {
-      releasePath = resolve
-    })
-    await page.route(url => url.pathname.endsWith(`/entities/${other.id}/path`), async (route) => {
-      await pathHeld
-      await route.continue()
-    })
 
     await page.goto(`/app/entities?entity=${other.id}`)
-    await expect(page.getByRole('status').filter({ hasText: 'Loading entity' })).toBeVisible()
-    await page.waitForTimeout(1500)
-    await expect(page.getByRole('heading', { name })).toHaveCount(0)
-    await expect(page).not.toHaveTitle(name)
-    await expect(page.getByRole('heading', { name: 'Details' })).toHaveCount(0)
-    releasePath()
-
-    await expect(page.getByRole('heading', { name: 'Outside your organization' })).toBeVisible()
+    // Indistinguishable from a nonexistent entity.
+    await expect(page.getByRole('heading', { name: 'Entity not found' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Details' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name })).toHaveCount(0)

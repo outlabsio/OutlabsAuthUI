@@ -1,11 +1,13 @@
 import { backendConfigured, expect, expectSeeded, personaState, test } from '../support/fixtures'
 import { jsonResponse } from '../support/mocks'
+import { pickPermission } from '../support/ui-select'
 
 // Delegated role administration (F-016, F-054, F-177): the seeded organization admin holds
-// role:create/update/delete but not permission:read and has no global scope. The console offers
-// them organization and entity roles in their own organization, permissions they hold (their
-// own grants, as they cannot read the catalog), says so, names the permissions a refusal is
-// about, and marks the role they hold. Strict error guard: no refused request on the way.
+// role:create/update/delete and permission:read and has no global scope. The console offers
+// them organization and entity roles in their own organization and only permissions they hold:
+// the catalog is listed with the ones they do not hold disabled, and the note says so. It names
+// the permissions a refusal is about and marks the role they hold. Strict error guard: no
+// refused request on the way.
 
 type ApiRole = { id: string, name: string, display_name: string, permissions: string[], root_entity_id: string | null, is_global: boolean }
 
@@ -22,10 +24,8 @@ test.describe('roles as a delegated organisation admin', () => {
     const me = await orgAdmin.me() as { root_entity_id?: string | null, root_entity_name?: string | null }
     expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
     const held = await orgAdmin.get<string[]>('/permissions/me')
-    expect(held).toContain('user:read')
-    expect(held).toContain('entity:read')
-    // They cannot read the permission catalog, so the picker falls back to what they hold.
-    expect(held.filter(name => name.startsWith('permission:read'))).toEqual([])
+    expect(held).toEqual(expect.arrayContaining(['user:read', 'entity:read', 'permission:read']))
+    expect(held).not.toContain('permission:create')
     const posts: Array<Record<string, unknown>> = []
     const additions: unknown[] = []
     await page.route(/\/roles\/[^?]*$/, async (route) => {
@@ -44,19 +44,20 @@ test.describe('roles as a delegated organisation admin', () => {
     await expect(dialog.getByRole('button', { name: 'Organization', exact: true })).toContainText(me.root_entity_name ?? '')
     const note = dialog.getByTestId('role-delegation-note')
     await expect(note).toContainText('You can grant only permissions you hold')
-    // They cannot read the catalog, so the picker lists only what they hold; the note says so.
-    await expect(note).toContainText('Only the permissions you hold are listed. You can always remove one.')
-    await expect(note).not.toContainText('listed but can\'t be added')
+    // They read the catalog, so it is listed; the note says the rest can't be added.
+    await expect(note).toContainText('Permissions you don\'t hold are listed but can\'t be added. You can always remove one.')
 
     const displayName = testData.displayName('orgrole')
     await dialog.getByLabel('Display name').fill(displayName)
+    const picker = dialog.getByTestId('permission-picker')
+    await pickPermission(picker, 'user:read')
+    // A permission they do not hold is listed, disabled, with the reason (the exact name ranks
+    // first).
     const search = dialog.getByPlaceholder('Search permissions...')
-    await search.fill('user:read')
-    await dialog.getByRole('option', { name: /user:read/ }).first().click()
-    await expect(dialog.getByRole('button', { name: 'Remove user:read' })).toBeVisible()
-    // A permission they do not hold (the catalog is not readable to them) is not offered.
     await search.fill('permission:create')
-    await expect(dialog.getByRole('option')).toHaveCount(0)
+    const option = picker.getByRole('option').first()
+    await expect(option).toContainText('You don\'t hold this permission, so you can\'t grant it.')
+    await expect(option).toBeDisabled()
     await search.fill('')
     await dialog.getByRole('button', { name: 'Create role' }).click()
 
@@ -68,8 +69,7 @@ test.describe('roles as a delegated organisation admin', () => {
     // Edit: add another permission they hold; only the addition is sent.
     await page.getByRole('button', { name: 'Edit', exact: true }).click()
     const edit = page.getByRole('dialog', { name: `Edit role ${displayName}` })
-    await edit.getByPlaceholder('Search permissions...').fill('entity:read')
-    await edit.getByRole('option', { name: /entity:read/ }).first().click()
+    await pickPermission(edit.getByTestId('permission-picker'), 'entity:read')
     await edit.getByRole('button', { name: 'Save changes' }).click()
     await expect(edit).toBeHidden()
     expect(additions).toEqual([['entity:read']])
@@ -92,8 +92,7 @@ test.describe('roles as a delegated organisation admin', () => {
     await page.getByRole('button', { name: 'Add role' }).click()
     const dialog = page.getByRole('dialog', { name: 'Add role' })
     await dialog.getByLabel('Display name').fill(testData.displayName('refused'))
-    await dialog.getByPlaceholder('Search permissions...').fill('user:read')
-    await dialog.getByRole('option', { name: /user:read/ }).first().click()
+    await pickPermission(dialog.getByTestId('permission-picker'), 'user:read')
     await dialog.getByRole('button', { name: 'Create role' }).click()
     const alert = dialog.getByTestId('api-error-alert')
     await expect(alert).toContainText('Missing permissions')

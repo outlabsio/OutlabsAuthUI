@@ -62,9 +62,10 @@ test.describe('delegated org admin (EnterpriseRBAC)', () => {
     // user:create -> Add user; the Entities toolbar and Users list render (read gates pass).
     await page.goto('/app/users')
     await expect(page.getByRole('button', { name: 'Add user' })).toBeVisible()
-    // No membership:create -> no Add membership on the user detail.
+    // membership:create on an account they may change (user:update) -> Add membership on the
+    // user detail.
     await page.goto(`/app/users/${me.id}?tab=access`)
     await expect(page.getByRole('heading', { name: 'Memberships', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add membership' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Add membership' })).toBeVisible()
   })
 })

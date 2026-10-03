@@ -1,5 +1,6 @@
 import { backendConfigured, expect, expectSeeded, personaState, test } from '../support/fixtures'
 import { pickScope } from '../support/api-keys'
+import { pickPermission } from '../support/ui-select'
 
 // Service accounts as the seeded delegated organization admin (F-025, F-084): they hold
 // api_key:*_tree but are not a superuser, so the platform-wide routes are closed to them. The
@@ -39,6 +40,7 @@ test.describe('service accounts as a delegated organization admin', () => {
     expectSeeded(me.root_entity_id, 'the org admin belongs to an organization')
     const held = await orgAdmin.get<string[]>('/permissions/me')
     expect(held).toContain('user:read')
+    expect(held).not.toContain('permission:create')
     const name = testData.name('org-sa')
     let created: Account | null = null
 
@@ -52,13 +54,13 @@ test.describe('service accounts as a delegated organization admin', () => {
       await expect(roles.getByRole('option', { name: /Summit/ })).toHaveCount(0)
       await dialog.getByLabel('Name').fill(name)
       await dialog.getByRole('button', { name: 'Advanced: direct scopes' }).click()
-      const search = dialog.getByPlaceholder('Search permissions...')
-      await search.fill('user:read')
       const permissions = dialog.getByTestId('permission-picker')
-      await permissions.getByRole('option', { name: /user:read/ }).first().click()
-      // A permission they do not hold is not offered.
-      await search.fill('permission:create')
-      await expect(permissions.getByRole('option')).toHaveCount(0)
+      await pickPermission(permissions, 'user:read')
+      // A permission they do not hold is not offered: they read the catalog, so it is listed,
+      // disabled, with the reason (the exact name ranks first).
+      await dialog.getByPlaceholder('Search permissions...').fill('permission:create')
+      await expect(permissions.getByRole('option').first()).toContainText('You don\'t hold this permission, so you can\'t grant it.')
+      await expect(permissions.getByRole('option').first()).toBeDisabled()
       const response = page.waitForResponse(r => r.request().method() === 'POST' && new RegExp(`/admin/entities/${me.root_entity_id}/integration-principals$`).test(r.url()))
       await dialog.getByRole('button', { name: 'Create service account' }).click()
       created = await (await response).json() as Account

@@ -41,6 +41,12 @@ async function roleOptionLabels(editor: Locator): Promise<string[]> {
   }))
 }
 
+// One role's option, by its exact label: a label that is part of another ("Team Lead" in the
+// seed's "ACME Team Lead Baseline") must not match both.
+function roleOption(editor: Locator, label: string): Locator {
+  return editor.getByRole('option').filter({ has: editor.page().locator('[data-slot="itemLabelBase"]').getByText(label, { exact: true }) })
+}
+
 async function openAddMember(page: Page, entityId: string) {
   await page.goto(`/app/entities?entity=${entityId}`)
   await page.getByRole('button', { name: 'Add member' }).click()
@@ -78,13 +84,13 @@ test.describe('role access kit (EnterpriseRBAC, superuser)', () => {
 
     // F-009: every row names its type.
     await expect(editor.getByRole('option').filter({ hasText: 'Office Dispatch Coordinator' }).getByText('Organization')).toBeVisible()
-    await expect(editor.getByRole('option').filter({ hasText: 'Team Lead' }).getByText('System-wide')).toBeVisible()
+    await expect(roleOption(editor, 'Team Lead').getByText('System-wide')).toBeVisible()
 
     // F-031: selections appear as removable chips; the preview updates; validity and reason
     // stay on screen.
     const selection = editor.getByTestId('role-access-selection')
     await editor.getByRole('option').filter({ hasText: 'Office Dispatch Coordinator' }).click()
-    await editor.getByRole('option').filter({ hasText: 'Team Lead' }).click()
+    await roleOption(editor, 'Team Lead').click()
     await expect(selection.getByRole('button', { name: 'Remove Office Dispatch Coordinator' })).toBeVisible()
     await expect(selection.getByRole('button', { name: 'Remove Team Lead' })).toBeVisible()
     await expect(editor.getByTestId('grant-preview')).toContainText('Will grant')
@@ -237,7 +243,7 @@ test.describe('role access kit (EnterpriseRBAC, superuser)', () => {
     await editor.getByRole('option').filter({ hasText: 'ACME Auditor' }).click()
     await expect(editor.getByTestId('role-access-cross-tenant')).toHaveCount(0)
 
-    await editor.getByRole('option').filter({ hasText: 'Team Lead' }).click()
+    await roleOption(editor, 'Team Lead').click()
     const warning = editor.getByTestId('role-access-cross-tenant')
     await expect(warning).toContainText('Access across all organizations')
     await expect(warning).toContainText('Team Lead')

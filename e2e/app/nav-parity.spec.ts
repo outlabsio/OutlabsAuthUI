@@ -74,27 +74,18 @@ const MATRIX: Array<{ key: PersonaKey, who: string, nav: Record<Preset, string[]
   // Settings is for admins (F-186).
   { key: 'agent', who: 'low-privilege agent', nav: { EnterpriseRBAC: MINIMAL, SimpleRBAC: MINIMAL } },
   { key: 'writer', who: 'SimpleRBAC writer', nav: { EnterpriseRBAC: null, SimpleRBAC: MINIMAL } },
-  // membership:read_tree / api_key:read_tree / entity:read_tree count as the base grants; the
-  // delegated admins hold no permission:read.
-  {
-    key: 'orgAdmin',
-    who: 'delegated org admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
-  },
-  {
-    key: 'summitAdmin',
-    who: 'second-organization admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Service accounts', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
-  },
-  {
-    key: 'auditor',
-    who: 'read-only auditor',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Entities', 'Roles', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
-  },
+  // membership:read_tree / api_key:read_tree / entity:read_tree count as the base grants. The
+  // organization admins read the permission catalog (permission:read) too.
+  { key: 'orgAdmin', who: 'delegated org admin', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: null } },
+  { key: 'summitAdmin', who: 'second-organization admin', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: null } },
+  // Reads every section (api_key:read and permission:read included) and changes nothing.
+  { key: 'auditor', who: 'read-only auditor', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: null } },
+  // The permission catalog and role reads only: no user:read, so no Users and no Audit (whose
+  // search needs user:read).
   {
     key: 'permissionsAdmin',
     who: 'permission-catalog admin',
-    nav: { EnterpriseRBAC: ['Dashboard', 'Users', 'Roles', 'Permissions', 'Audit', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
+    nav: { EnterpriseRBAC: ['Dashboard', 'Roles', 'Permissions', 'Settings', 'Account', 'My API keys'], SimpleRBAC: null }
   },
   { key: 'globalAdmin', who: 'non-superuser global admin', nav: { EnterpriseRBAC: SECTIONS_ALL, SimpleRBAC: SECTIONS_SIMPLE_ADMIN } }
 ]

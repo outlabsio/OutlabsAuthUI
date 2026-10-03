@@ -313,9 +313,10 @@ test.describe('app shell: command palette (delegated org admin)', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
     await pressPaletteShortcut(page)
     const palette = commandPalette(page)
-    // user:read_tree, role:read and entity:read_tree, but no permission:read.
+    // user:read_tree, role:read, entity:read_tree and permission:read: the pages they open,
+    // never one they cannot (no superuser-only entry).
     await expect(palette.getByPlaceholder('Search pages, users, roles and entities…')).toBeVisible()
-    await expect(palette.getByRole('option', { name: 'Permissions', exact: true })).toHaveCount(0)
+    await expect(palette.getByRole('option', { name: 'Permissions', exact: true })).toBeVisible()
     await page.keyboard.type('acme')
     await expect(palette.getByRole('option').filter({ hasText: '@' }).first()).toBeVisible()
     await expect(palette.getByRole('option', { name: /^ACME Realty/ })).toBeVisible()

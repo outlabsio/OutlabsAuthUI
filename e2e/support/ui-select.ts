@@ -24,3 +24,13 @@ export async function chooseSelectMenu(page: Page, trigger: Locator, optionLabel
   await trigger.click()
   await page.getByRole('option', { name: optionLabel, exact: true }).click()
 }
+
+// AppPermissionPicker: search for a permission by its name and add it. Its options read as the
+// catalog's display name where the actor reads the catalog ("User Read · read") and as the name
+// itself where it falls back to what the actor holds; either way the exact name ranks first, and
+// the chip that appears names the permission, which is checked.
+export async function pickPermission(picker: Locator, name: string) {
+  await picker.getByPlaceholder('Search permissions...').fill(name)
+  await picker.getByRole('option').first().click()
+  await picker.getByTestId('permission-selection').getByRole('button', { name: `Remove ${name}`, exact: true }).waitFor()
+}

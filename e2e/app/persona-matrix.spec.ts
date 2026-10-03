@@ -1,19 +1,32 @@
 import { expect, expectSeeded, personaState, test, type Page } from '../support/fixtures'
+import type { ApiClient } from '../support/api-client'
 import { cardByHeading, entityOption, pickEntity } from '../support/entities'
 import { searchUsersList } from '../support/lists'
+import { mintFreshSession } from '../support/sessions'
 import { userDetailPath } from '../support/users'
 
 // Persona x preset scenarios (F-037). Nav parity for every persona lives in nav-parity.spec.ts;
 // this file checks what each persona's grants mean inside the pages: the second organization's
-// admin never sees the first one's records, the auditor can change nothing, a delegated admin
-// without permission read sees a role's permissions as plain text, the permission-catalog admin's
-// Audit offers no entity filter, the non-superuser global admin works like an admin (across every
-// organization, entities included, as the backend lets them), and seeded account states read
-// correctly. Every persona runs
-// from its storage state minted in globalSetup (no login here).
+// admin never sees the first one's records, the auditor can change nothing, a role's
+// permissions link to their pages for an admin who reads the catalog and read as plain text for
+// an account that cannot, Audit offers no entity filter to an account without entity read, the
+// non-superuser global admin works like an admin (across every organization, entities included,
+// as the backend lets them), and seeded account states read correctly. Every persona runs from
+// its storage state minted in globalSetup (no login here). A scenario no seeded persona's grants
+// fit provisions a run-marked account that holds them (`grantedSession`): a fresh session from
+// an accepted invite, holding one system-wide role.
 test.use({ errorGuardMode: 'strict' })
 
 type Named = { id: string, name?: string, email?: string, display_name?: string, root_entity_id?: string | null }
+
+// A fresh account holding exactly `permissions` through a run-marked system-wide role, and its
+// session (no password login: the session comes from accepting an invite).
+async function grantedSession(api: ApiClient, kind: string, permissions: string[]) {
+  const role = await api.createRole({ kind, is_global: true, permissions })
+  const { user, tokens } = await mintFreshSession(api, kind)
+  await api.post(`/users/${user.id}/roles`, { role_id: role.id })
+  return tokens
+}
 
 // A control that changes something. The auditor must not be offered one anywhere.
 const MUTATING = /^(Add|Create|Invite|New|Edit|Delete|Archive|Remove|Suspend|Reactivate|Revoke|Rotate|Reset|Move|Change|Duplicate|Save|Deactivate|Restore|Finish|Assign|Grant|Sign out everywhere|Resend)\b/
@@ -40,10 +53,11 @@ async function rowMenuItems(page: Page, name: RegExp): Promise<string[]> {
 test.describe('second organization admin (summitAdmin)', () => {
   test.use({ storageState: personaState('summitAdmin') })
 
-  test('deep links to the first organization\'s records show not-found or outside-your-organization, never their data', async ({ page, api, requires, errorGuard }) => {
+  test('deep links to the first organization\'s records show not-found, never their data', async ({ page, api, requires, errorGuard }) => {
     await requires({ personas: ['summitAdmin'], surfaces: ['entities'] })
-    // The backend answers records outside the actor's organization with 404.
-    errorGuard.allow({ status: 404, url: /\/(users|roles)\/[0-9a-f-]{36}$/ })
+    // The backend answers records outside the actor's organization with 404 (users, roles and
+    // entities, the entity's path included).
+    errorGuard.allow({ status: 404, url: /\/(users|roles|entities)\/[0-9a-f-]{36}(\/path)?$/ })
     const agent = (await api.listAll<Named>('/users/', { search: 'agent@sf.acme.com' })).find(u => u.email === 'agent@sf.acme.com')
     const role = (await api.listAll<Named>('/roles/')).find(r => r.name === 'acme_org_admin')
     const acme = (await api.me()).root_entity_id
@@ -57,10 +71,8 @@ test.describe('second organization admin (summitAdmin)', () => {
     await expect(page.getByRole('heading', { name: 'Role not found' })).toBeVisible()
     await expect(page.getByRole('main').getByText('ACME Org Admin')).toHaveCount(0)
 
-    // GET /entities/{id} still answers across organizations (a backend boundary gap); the
-    // console must not show the foreign entity's name or details.
     await page.goto(`/app/entities?entity=${acme}`)
-    await expect(page.getByRole('heading', { name: 'Outside your organization' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Entity not found' })).toBeVisible()
     await expect(page.getByRole('main').getByText('ACME Realty')).toHaveCount(0)
     // Its own tree is still there.
     await expect(page.getByRole('main').getByText('Summit Commercial').first()).toBeVisible()
@@ -112,28 +124,46 @@ test.describe('read-only auditor (auditor)', () => {
 test.describe('delegated org admin (orgAdmin)', () => {
   test.use({ storageState: personaState('orgAdmin') })
 
-  test('a role\'s permissions read as plain text: no links to permission pages the admin cannot open', async ({ page, apiAs, requires }) => {
-    // The delegated admin reads roles but holds no permission:read (nav-parity pins no Permissions).
+  test('a role\'s permissions link to their permission pages', async ({ page, api, apiAs, requires }) => {
+    // The org admin reads roles and the permission catalog (permission:read).
     await requires({ personas: ['orgAdmin'] })
     const roles = await apiAs('orgAdmin').listAll<Named & { permissions?: string[] }>('/roles/')
     const role = roles.find(r => (r.permissions?.length ?? 0) > 0)
     expectSeeded(role, 'the org admin sees a role with permissions')
+    const catalog = await api.listAll<{ id: string, name: string }>('/permissions/')
+    const pages = role!.permissions!.map(name => `/app/permissions/${catalog.find(p => p.name === name)!.id}`)
 
     await page.goto(`/app/roles/${role!.id}`)
     const card = cardByHeading(page, 'Permissions')
-    // Without the catalogue the names themselves are shown.
-    for (const name of role!.permissions!) await expect(card.getByText(name, { exact: true })).toBeVisible()
+    await expect(card.getByRole('link')).toHaveCount(pages.length)
+    expect((await card.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href')))).sort()).toEqual(pages.sort())
+  })
+})
+
+// No seeded persona reads roles without the permission catalog: an account built for it does.
+test.describe('an account that reads roles but not permissions', () => {
+  test('a role\'s permissions read as plain text: no links to permission pages it cannot open', async ({ api, requires, sessionContext }) => {
+    await requires({ capture: ['invite'] })
+    const viewed = await api.createRole({ kind: 'pm-viewed', is_global: true, permissions: ['role:read', 'user:read'] })
+    const page = await (await sessionContext(await grantedSession(api, 'pm-role-reader', ['role:read']))).newPage()
+
+    await page.goto(`/app/roles/${viewed.id}`)
+    const card = cardByHeading(page, 'Permissions')
+    for (const name of ['role:read', 'user:read']) await expect(card.getByText(name, { exact: true })).toBeVisible()
     await expect(card.getByRole('link')).toHaveCount(0)
   })
 })
 
-test.describe('permission-catalog admin (permissionsAdmin)', () => {
-  test.use({ storageState: personaState('permissionsAdmin'), viewport: { width: 1440, height: 900 } })
-
-  test('Audit offers no entity filter without entity read, and an entity link narrows nothing', async ({ page, requires }) => {
+// No seeded persona reads Audit (user:read) without entity read (the permission-catalog admin
+// has no user:read, so no Audit at all: nav-parity.spec.ts): an account built for it does.
+test.describe('an account that reads users but not entities', () => {
+  test('Audit offers no entity filter without entity read, and an entity link narrows nothing', async ({ api, requires, sessionContext }) => {
     // The strict error guard fails this test on any refused call (the entity picker asked for
     // entities this admin cannot read before 946496d).
-    await requires({ personas: ['permissionsAdmin'], surfaces: ['audit'] })
+    await requires({ surfaces: ['audit', 'entities'], capture: ['invite'] })
+    const context = await sessionContext(await grantedSession(api, 'pm-user-reader', ['user:read']))
+    const page = await context.newPage()
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/app/audit')
     const filters = page.getByRole('group', { name: 'Audit filters' })
     await expect(filters.getByRole('button', { name: 'Actor', exact: true })).toBeVisible()

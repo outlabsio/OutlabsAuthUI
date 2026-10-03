@@ -9,8 +9,8 @@ import { chooseSelect, field } from '../support/ui-select'
 // ABAC conditions editor (chromium project, admin storageState — superuser, so role:update /
 // permission:update pass). Runs only where the backend reports the abac feature (EnterpriseRBAC);
 // SimpleRBAC has no ABAC surface and skips. The full lifecycle runs on freshly created
-// (non-system, holder-less) permissions and asserts the stored rows through GET, because the
-// backend accepts malformed conditions that would crash evaluation — the UI must never send one.
+// (non-system, holder-less) permissions and asserts the stored rows through GET: the backend
+// refuses malformed conditions (400), and the UI must never send one.
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? 'http://localhost:8004'
 const authApiPrefix = process.env.E2E_AUTH_API_PREFIX ?? '/v1'
 
@@ -69,6 +69,34 @@ async function chooseOperator(page: Page, operator: string) {
 
 async function openConditionMenu(page: Page, attribute: string) {
   await page.getByRole('button', { name: `Actions for condition ${attribute}` }).click()
+}
+
+type ConditionBody = { attribute: string, operator: string, value: unknown, value_type: string }
+
+// Serves a stored condition the engine cannot evaluate, as the console would read a row written
+// before outlabs-auth 0.1.0a35: the write API refuses one now (400 with the reason, checked
+// here), and such rows evaluate false. A valid row is stored and served as the legacy one until
+// the console saves its fix (PATCH).
+async function storeUnevaluable(page: Page, permissionId: string, legacy: ConditionBody, refusal: RegExp, valid: ConditionBody) {
+  const res = await fetch(`${apiBaseUrl}${authApiPrefix}/permissions/${permissionId}/conditions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAccessToken()}` },
+    body: JSON.stringify(legacy)
+  })
+  expect(res.status, 'the write API refuses the legacy row').toBe(400)
+  expect(((await res.json()) as { message?: string }).message).toMatch(refusal)
+  const stored = await api<StoredCondition>(`/permissions/${permissionId}/conditions`, { method: 'POST', body: JSON.stringify(valid) })
+  let fixed = false
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && new URL(request.url()).pathname.endsWith(`/conditions/${stored.id}`)) fixed = true
+  })
+  const asStored = { operator: legacy.operator, value: legacy.value == null ? null : String(legacy.value), value_type: legacy.value_type }
+  await page.route(url => url.pathname.endsWith(`/permissions/${permissionId}/conditions`), async (route) => {
+    if (route.request().method() !== 'GET' || fixed) return route.fallback()
+    const response = await route.fetch()
+    const rows = await response.json() as StoredCondition[]
+    return route.fulfill({ response, json: rows.map(row => (row.id === stored.id ? { ...row, ...asStored } : row)) })
+  })
 }
 
 test.describe('abac conditions', () => {
@@ -301,11 +329,12 @@ test.describe('abac conditions', () => {
 
   test('stored conditions the engine cannot evaluate are flagged', async ({ page }) => {
     const permissionId = await createPermission()
-    // The write API accepts this; evaluating it raises. Safe here: nobody holds this permission.
-    await api(`/permissions/${permissionId}/conditions`, {
-      method: 'POST',
-      body: JSON.stringify({ attribute: 'user.department', operator: 'eq', value: 'sales', value_type: 'string' })
-    })
+    // An unknown operator: the engine evaluates the row false. Safe here: nobody holds this
+    // permission.
+    await storeUnevaluable(page, permissionId,
+      { attribute: 'user.department', operator: 'eq', value: 'sales', value_type: 'string' },
+      /Unknown ABAC operator 'eq'/,
+      { attribute: 'user.department', operator: 'not_equals', value: 'sales', value_type: 'string' })
     await page.goto(`/app/permissions/${permissionId}`)
     await expect(page.getByText('1 condition cannot be evaluated')).toBeVisible()
     await expect(page.getByText('"eq" is not a supported operator.', { exact: false })).toBeVisible()
@@ -326,11 +355,12 @@ test.describe('abac conditions', () => {
 
   test('a flagged row that loading already corrects can be saved without other edits', async ({ page }) => {
     const permissionId = await createPermission()
-    // "in" stored with value_type string: the engine raises on it. The form loads it as a list.
-    await api(`/permissions/${permissionId}/conditions`, {
-      method: 'POST',
-      body: JSON.stringify({ attribute: 'resource.region', operator: 'in', value: 'west', value_type: 'string' })
-    })
+    // "in" stored with value_type string: the engine evaluates it false. The form loads it as a
+    // list.
+    await storeUnevaluable(page, permissionId,
+      { attribute: 'resource.region', operator: 'in', value: 'west', value_type: 'string' },
+      /Operator 'in' requires value_type 'list'/,
+      { attribute: 'resource.region', operator: 'in', value: ['west', 'east'], value_type: 'list' })
     await page.goto(`/app/permissions/${permissionId}`)
     await expect(page.getByText('1 condition cannot be evaluated')).toBeVisible()
 
