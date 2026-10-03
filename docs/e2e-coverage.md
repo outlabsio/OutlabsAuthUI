@@ -30,7 +30,7 @@ persona on its preset, and `e2e/app/persona-matrix.spec.ts` holds the scenarios.
 |---|---|---|
 | `admin` (superuser) | Both | Full create, edit and lifecycle baseline in every area; the static build |
 | `globalAdmin` (provisioned, non-superuser with a system-wide role) | Both | Admin dashboard and users toolbar of an admin who sees every organization; row menus follow its role; on EnterpriseRBAC another organization's user (membership names, the Add membership pool), the entities organization switcher and deep link, and Service accounts at any entity. The seed's system-wide admin role lacks `membership:create_tree`, so a cross-organization membership add itself is not exercised |
-| `orgAdmin` (organization admin) | Enterprise | Scoped tree, pickers and lists; organization required on create; delegable roles only; organization service accounts; no actions without the permission; no refused change offered on an account holding a system-wide role (the seeded permissions admin, a revoked grant), nothing offered while that is unknown and a failed check said with Retry, with the archived-role gap shown as the server's refusal; a failed permissions load shows Retry, not the denial (`app/permissions-fail-closed.spec.ts`, also as `globalAdmin` on both presets) |
+| `orgAdmin` (organization admin) | Enterprise | Scoped tree, pickers and lists; organization required on create; delegable roles only; organization service accounts; no actions without the permission; Audit limited to the organization, with no Settings category; no refused change offered on an account holding a system-wide role (the seeded permissions admin, a revoked grant), nothing offered while that is unknown and a failed check said with Retry, with the archived-role gap shown as the server's refusal; a failed permissions load shows Retry, not the denial (`app/permissions-fail-closed.spec.ts`, also as `globalAdmin` on both presets) |
 | `summitAdmin` (second organization) | Enterprise | Lists hold only its organization; deep links into the first organization render not found or denied, never data |
 | `auditor` | Enterprise | Read-only sweep: no list, detail or row menu offers a change |
 | `permissionsAdmin` | Enterprise | Permission create and edit, ABAC on a custom permission; Audit without the entity filter |
@@ -73,6 +73,11 @@ non-superuser SimpleRBAC admin, and keys and memberships in every lifecycle stat
 - A failed read of an account's direct roles (which decide whether a delegated admin may change
   it) is served as a 500 in `users/org-admin-users.spec.ts`; Retry then reads the live answer.
 - Moving an entity to the top level (a new organization) has no spec.
+- Entity moved and archived audit events are labelled and shown like the others (unit-tested),
+  but no spec reads one back; the specs produce an entity's creation and an edit
+  (`entities/entity-activity.spec.ts`, `audit/audit-workspace.spec.ts`). The entity-type settings
+  event comes from a run-marked access-group root type added and removed at once through the API
+  (the configuration is global), before the Audit page is checked.
 - Inviting a user as a superuser has no spec; invitations with roles on SimpleRBAC are covered
   only through the role picker.
 - A non-superuser admin cannot save the entity-type configuration: not asserted.

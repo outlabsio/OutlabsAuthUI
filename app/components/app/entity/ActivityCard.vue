@@ -16,7 +16,7 @@ const { available, canOpenAudit, page, pageSize, events, total, status, error, r
             Activity
           </h2>
           <p class="mt-1 text-sm text-muted">
-            Membership and access events retained for {{ entityName }}.
+            Changes to {{ entityName }} and its membership and access events.
           </p>
         </div>
         <UButton
@@ -37,7 +37,7 @@ const { available, canOpenAudit, page, pageSize, events, total, status, error, r
         :empty="!events.length"
         error-title="Could not load entity activity"
         empty-title="No activity yet"
-        empty-description="No retained membership or access events reference this entity."
+        empty-description="No retained change, membership or access event references this entity."
         empty-icon="i-lucide-history"
         skeleton="list"
         :skeleton-rows="3"

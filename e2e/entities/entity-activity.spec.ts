@@ -1,5 +1,6 @@
 import { backendConfigured, expect, test } from '../support/fixtures'
 import { adminAccessToken } from '../support/admin-token'
+import { cardByHeading, escapeRegExp } from '../support/entities'
 
 // Entity activity is the global audit search filtered by entity_id. Seed the live API with a
 // fresh root + membership so the assertion never relies on ambient seed-log history. The cleanup
@@ -122,5 +123,36 @@ test.describe('entity activity', () => {
     await expect(event.getByRole('link', { name: `Events at ${entity.data.display_name}` })).toHaveAttribute('href', `/app/audit?entityId=${entityId}`)
     // Nuxt UI renders `to` buttons as links, so assert the actual semantic role.
     await expect(page.getByRole('link', { name: 'Open in Audit' })).toBeVisible()
+  })
+
+  // outlabs-auth 0.1.0a35 records the entity's own lifecycle (category entity, no account): its
+  // creation and each edit with the changed fields only (F-241).
+  test('the entity\'s own changes are listed: its creation, and an edit with the before and after (F-241)', async ({ page, api, requires, testData }) => {
+    await requires({ surfaces: ['entities', 'audit'], features: ['activity_tracking', 'entity_hierarchy'] })
+    const entity = await api.createEntity({ kind: 'activity-edit' })
+    const renamed = testData.displayName('activity-renamed')
+    await api.patch(`/entities/${entity.id}`, { display_name: renamed })
+
+    await page.goto(`/app/entities?entity=${entity.id}`)
+    const activity = cardByHeading(page, 'Activity')
+    const event = (title: string) => activity.getByRole('article', { name: title, exact: true })
+    await expect(event('Entity updated')).toHaveCount(1)
+    await expect(event('Entity created')).toHaveCount(1)
+    // Newest first.
+    await expect(activity.getByRole('article').first().getByRole('heading', { level: 3 })).toHaveText('Entity updated')
+
+    const updated = event('Entity updated')
+    await expect(updated.getByText('Entities', { exact: true })).toBeVisible()
+    await expect(updated.getByText('By You')).toBeVisible()
+    // The page is about this entity: the event does not repeat it as what it is about.
+    await expect(updated.getByText(/^About\b/)).toHaveCount(0)
+    await updated.getByRole('button', { name: 'Show details' }).click()
+    const changes = updated.getByTestId('audit-changes').locator('tbody > tr')
+    await expect(changes).toHaveCount(1)
+    await expect(changes).toContainText(new RegExp(`Display name\\s*${escapeRegExp(entity.display_name)}\\s*${escapeRegExp(renamed)}`))
+    await expect(updated.getByText('entity.updated', { exact: true })).toBeVisible()
+    await expect(updated.getByRole('link', { name: 'All "Entity updated" events' })).toHaveAttribute('href', '/app/audit?eventType=entity.updated')
+    // No account, so no "Events about" pivot.
+    await expect(updated.getByRole('link', { name: /^Events about / })).toHaveCount(0)
   })
 })

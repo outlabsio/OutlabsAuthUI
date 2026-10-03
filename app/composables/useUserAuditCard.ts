@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { useQuery } from '@pinia/colada'
 import { USER_HISTORY_PAGE_SIZE, userAuditEventsQuery } from '~/queries/users'
-import { AUDIT_CATEGORIES } from '~/utils/audit'
+import { AUDIT_ACCOUNT_CATEGORIES } from '~/utils/audit'
 import type { UserAuditEvent } from '~/types/audit'
 import type { User } from '~/types/user'
 
@@ -22,7 +22,7 @@ export function useUserAuditCard(user: Ref<User>) {
   watch(category, () => {
     page.value = 1
   })
-  const categoryItems = [{ label: 'All categories', value: ALL }, ...AUDIT_CATEGORIES]
+  const categoryItems = [{ label: 'All categories', value: ALL }, ...AUDIT_ACCOUNT_CATEGORIES]
 
   const { data, status, error, isLoading, refetch } = useQuery(() => ({
     ...userAuditEventsQuery({

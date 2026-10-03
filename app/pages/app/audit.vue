@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import type { UserAuditEvent } from '~/types/audit'
-import { auditEventBadge, auditEventLabel, auditEntityName, auditCategoryLabel, auditToneLabel, auditEventTone } from '~/utils/audit'
+import { auditEventBadge, auditEventLabel, auditEntityName, auditCategoryLabel, auditSubject, auditToneLabel, auditEventTone } from '~/utils/audit'
 import { hideBelowLg, hideBelowMd, hideBelowSm, srOnlyHeader } from '~/utils/table'
 
 // Audit workspace — logic in useAuditWorkspace; this file is display only. The Audit section
@@ -43,6 +43,7 @@ const {
   invalidIds,
   resetFilters,
   scopeNotice,
+  coverage,
   emptyState,
   exporting,
   exportProgress,
@@ -213,7 +214,7 @@ const compact = breakpoints.smaller('sm')
       <AppPermissionGate section="audit">
         <div class="space-y-4">
           <p class="text-sm text-muted">
-            Account, credential, membership and role-assignment events, newest first.
+            {{ coverage }}, newest first.
           </p>
 
           <UAlert
@@ -317,10 +318,10 @@ const compact = breakpoints.smaller('sm')
                       />
                     </div>
                     <span class="text-xs text-muted">{{ auditCategoryLabel(row.original.event_category) }}</span>
-                    <!-- Phones: who it was about, under the event. wrap-anywhere lets a long email
+                    <!-- Phones: what it was about, under the event. wrap-anywhere lets a long email
                          narrow the column instead of running under the pinned details button. -->
-                    <span v-if="row.original.subject_email_snapshot" class="wrap-anywhere text-xs text-muted sm:hidden">
-                      About {{ row.original.subject_email_snapshot }}
+                    <span v-if="auditSubject(row.original)" class="wrap-anywhere text-xs text-muted sm:hidden">
+                      About {{ auditSubject(row.original)?.label }}
                     </span>
                     <!-- Below md: who did it (the Actor column is hidden), worded as AppAuditEventCard -->
                     <span class="wrap-anywhere text-xs text-muted md:hidden" data-testid="audit-actor-line">
@@ -331,6 +332,7 @@ const compact = breakpoints.smaller('sm')
                     </span>
                   </div>
                 </template>
+                <!-- An account (linked), or the entity or settings an event without one is about. -->
                 <template #subject-cell="{ row }">
                   <div class="min-w-0 whitespace-normal">
                     <ULink
@@ -340,7 +342,7 @@ const compact = breakpoints.smaller('sm')
                     >
                       {{ row.original.subject_email_snapshot }}
                     </ULink>
-                    <span v-else class="wrap-anywhere text-muted">{{ row.original.subject_email_snapshot ?? '—' }}</span>
+                    <span v-else class="wrap-anywhere" :class="auditSubject(row.original) ? 'text-default' : 'text-muted'">{{ auditSubject(row.original)?.label ?? '—' }}</span>
                   </div>
                 </template>
                 <template #actor-cell="{ row }">
@@ -504,10 +506,13 @@ const compact = breakpoints.smaller('sm')
         <p>
           The audit log is an append-only record of account events: sign-ins and sessions, passwords and API keys,
           invitations, memberships, role assignments, superuser changes, profile and status changes.
+          <template v-if="isEnterprise">
+            It also records entities being created, edited, moved and archived, and changes to the entity types in Settings.
+          </template>
         </p>
         <p>
           Changes to role and permission definitions are kept with each role and permission: open
-          it and see its History. Changes to service accounts and settings are not recorded.
+          it and see its History. Changes to service accounts are not recorded.
         </p>
         <ul class="list-disc space-y-1.5 pl-5">
           <li>Narrow the log by category, event type, the account an event is about, the actor who did it and the dates.</li>

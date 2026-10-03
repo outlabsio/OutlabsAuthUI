@@ -3,12 +3,12 @@ import { getLocalTimeZone, parseDate, today, type CalendarDate } from '@internat
 import { auditEventsQuery, exportAuditEvents } from '~/queries/audit'
 import { keepPreviousData } from '~/composables/useListQueryState'
 import {
-  AUDIT_CATEGORIES,
   AUDIT_DEFAULT_PAGE_SIZE,
   AUDIT_EXPORT_MAX_EVENTS,
   AUDIT_PAGE_SIZES,
   AUDIT_RANGE_PRESETS,
   AUDIT_RANGE_VALUES,
+  auditCategoriesFor,
   auditCategoryLabel,
   auditEventLabel,
   auditEventsToCsv,
@@ -87,7 +87,10 @@ export function useAuditWorkspace() {
   const fetching = computed(() => asyncStatus.value === 'loading')
 
   // --- Filter controls (v-model) ---
-  const categoryItems = [{ label: 'All categories', value: ALL }, ...AUDIT_CATEGORIES]
+  // Entity and settings events exist only where entities do (EnterpriseRBAC), and settings events
+  // only for admins who see every organization (offered once that is known).
+  const reach = computed(() => ({ hierarchy: isEnterprise.value, global: isGlobal.value === true }))
+  const categoryItems = computed(() => [{ label: 'All categories', value: ALL }, ...auditCategoriesFor(reach.value)])
   const category = computed({
     get: () => f.category.value || ALL,
     set: (value: string) => {
@@ -100,7 +103,7 @@ export function useAuditWorkspace() {
   })
 
   const eventTypeItems = computed(() => {
-    const items = auditEventTypeItems(f.category.value || null).map(t => ({ label: t.label, value: t.value, description: t.value }))
+    const items = auditEventTypeItems(f.category.value || null, reach.value).map(t => ({ label: t.label, value: t.value, description: t.value }))
     // A type typed in (or from a link) that the console does not know stays selectable.
     const current = f.eventType.value
     if (current && !items.some(i => i.value === current)) items.unshift({ label: auditEventLabel(current), value: current, description: current })
@@ -193,9 +196,14 @@ export function useAuditWorkspace() {
     }
   })
 
+  // What the log holds: account events everywhere; entity lifecycle and entity-type settings
+  // where entities exist (outlabs-auth 0.1.0a35, F-241).
+  const coverage = computed(() => (isEnterprise.value
+    ? 'Account, credential, membership, role-assignment, entity and settings events'
+    : 'Account, credential, membership and role-assignment events'))
   const emptyState = computed(() => (isFiltered.value
     ? { title: 'No events match these filters', description: 'Remove a filter or widen the date range.', actions: [{ label: 'Clear filters', color: 'neutral' as const, variant: 'outline' as const, onClick: resetFilters }] }
-    : { title: 'No audit events yet', description: 'Account, credential, membership and role-assignment events appear here as they are recorded.', actions: undefined }))
+    : { title: 'No audit events yet', description: `${coverage.value} appear here as they are recorded.`, actions: undefined }))
 
   // --- Export (F-190) ---
   const exporting = ref(false)
@@ -280,6 +288,7 @@ export function useAuditWorkspace() {
     invalidIds,
     resetFilters,
     scopeNotice,
+    coverage,
     emptyState,
     exporting,
     exportProgress,

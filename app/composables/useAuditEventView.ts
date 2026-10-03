@@ -13,6 +13,7 @@ import {
   auditEventLabel,
   auditEventTone,
   auditRoleName,
+  auditSubject,
   auditToneLabel
 } from '~/utils/audit'
 
@@ -34,7 +35,11 @@ export function useAuditEventView(source: MaybeRefOrGetter<UserAuditEvent>) {
   const entityName = computed(() => auditEntityName(event.value))
   const entityPath = computed(() => auditEntityPath(event.value))
   const roleName = computed(() => auditRoleName(event.value))
-  const subjectLabel = computed(() => event.value.subject_email_snapshot || (event.value.subject_user_id ? 'Unknown account' : null))
+  // What the event is about: an account (linked to its page), or, for entity and settings events,
+  // which have none, the entity or the settings (auditSubject).
+  const subject = computed(() => auditSubject(event.value))
+  const subjectKind = computed(() => subject.value?.kind ?? null)
+  const subjectLabel = computed(() => subject.value?.label ?? null)
   const subjectTo = computed(() => (event.value.subject_user_id && canAccess('users') ? `/app/users/${event.value.subject_user_id}` : undefined))
 
   const changes = computed(() => auditChanges(event.value))
@@ -75,5 +80,5 @@ export function useAuditEventView(source: MaybeRefOrGetter<UserAuditEvent>) {
     ]
   })
 
-  return { label, badge, toneLabel, categoryLabel, entityName, entityPath, roleName, subjectLabel, subjectTo, changes, contextItems, rawPayloads, pivots }
+  return { label, badge, toneLabel, categoryLabel, entityName, entityPath, roleName, subjectKind, subjectLabel, subjectTo, changes, contextItems, rawPayloads, pivots }
 }

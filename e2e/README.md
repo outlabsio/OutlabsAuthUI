@@ -173,7 +173,9 @@ pickers are `USelectMenu` triggers, so they are buttons named by their aria-labe
 combobox; active filters are buttons named `Remove filter <label>: <value>`. Table body rows are
 `tbody > tr` (the header group also holds the loading-bar row). Events with a known shape are
 served by fulfilling `/audit-events?…` (the payload and export tests do), because parallel specs
-keep adding sign-ins. Dashboard tiles put their test id on the card's overlay link
+keep adding sign-ins. Entity and settings events (outlabs-auth 0.1.0a35) are real: a run-marked
+entity's creation, and an entity-type change made and undone at once through the API, found in
+the answer the page rendered (other runs add events too). Dashboard tiles put their test id on the card's overlay link
 (`dashboard-tile-<key>`) and their count on `tile-value-<key>`; compare a tile with the total of
 the request it made (`waitForResponse`), never with a later API read, for the same reason.
 

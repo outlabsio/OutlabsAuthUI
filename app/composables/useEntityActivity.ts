@@ -6,8 +6,9 @@ import { appSection, capabilityAvailable } from '~/utils/capabilities'
 
 // The entity's Activity card: the Audit section's search narrowed to this entity
 // (GET /audit-events?entity_id=…). It follows that section's requirement (canAccess('audit'))
-// and is hidden where the server does not offer audit search at all. The server records
-// membership and access events, not entity create / update / move / archive (F-241).
+// and is hidden where the server does not offer audit search at all. The server records the
+// entity's own lifecycle (created, updated with the changed fields, moved, archived; outlabs-auth
+// 0.1.0a35, F-241) and the membership and access events at it.
 const PAGE_SIZE = 10
 
 export function useEntityActivity(entityId: Ref<string>) {

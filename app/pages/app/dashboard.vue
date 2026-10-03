@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { auditEventLabel } from '~/utils/audit'
+import { auditEventLabel, auditSubject } from '~/utils/audit'
 
 // Dashboard — logic in useDashboard (admins: counts, wrong passwords, recent activity; everyone
 // else: their access and a launcher); this file is display only.
@@ -108,7 +108,7 @@ const {
             :empty="!recentEvents.length"
             error-title="Could not load recent activity"
             empty-title="No activity yet"
-            empty-description="Account events appear here as they are recorded."
+            empty-description="Audit events appear here as they are recorded."
             empty-icon="i-lucide-scroll-text"
             skeleton="list"
             :skeleton-rows="4"
@@ -122,8 +122,9 @@ const {
                   <p class="text-sm font-medium text-highlighted">
                     {{ auditEventLabel(event.event_type) }}
                   </p>
-                  <p v-if="event.subject_email_snapshot" class="break-words text-xs text-muted">
-                    {{ event.subject_email_snapshot }}
+                  <!-- The account it was about, or the entity or settings (events without an account). -->
+                  <p v-if="auditSubject(event)" class="break-words text-xs text-muted">
+                    {{ auditSubject(event)?.label }}
                   </p>
                 </div>
                 <span class="text-xs text-muted"><AppTimestamp :value="event.occurred_at" /></span>

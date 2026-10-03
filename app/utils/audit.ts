@@ -12,10 +12,13 @@ import type { AuditFilters, UserAuditEvent } from '~/types/audit'
 // ── Vocabulary ──
 
 // The categories outlabs-auth records (UserAuditEvent.event_category). The API filters by exact
-// value, so the console offers these instead of a free-text box.
+// value, so the console offers these instead of a free-text box. `entity` (entity lifecycle) and
+// `config` (entity-type settings) are recorded since outlabs-auth 0.1.0a35 (F-241).
 export const AUDIT_CATEGORIES: readonly { value: string, label: string }[] = [
   { value: 'authentication', label: 'Sign-ins and sessions' },
+  { value: 'config', label: 'Settings' },
   { value: 'credential', label: 'Passwords and credentials' },
+  { value: 'entity', label: 'Entities' },
   { value: 'invitation', label: 'Invitations' },
   { value: 'membership', label: 'Memberships' },
   { value: 'privilege', label: 'Superuser' },
@@ -24,9 +27,30 @@ export const AUDIT_CATEGORIES: readonly { value: string, label: string }[] = [
   { value: 'status', label: 'Status' }
 ]
 
+// The categories of events about an account (a user's History). Entity and settings events are
+// about no account.
+export const AUDIT_ACCOUNT_CATEGORIES: readonly { value: string, label: string }[] = AUDIT_CATEGORIES
+  .filter(category => category.value !== 'entity' && category.value !== 'config')
+
+// Who can find which categories. Entity and settings events are recorded only where entities
+// exist (EnterpriseRBAC), and settings events belong to no organization, so only admins who see
+// every organization find them (a delegated admin's search is limited to their organization).
+export type AuditReach = { hierarchy: boolean, global: boolean }
+
+export function auditCategoryInReach(category: string, reach: AuditReach): boolean {
+  if (category === 'entity') return reach.hierarchy
+  if (category === 'config') return reach.hierarchy && reach.global
+  return true
+}
+
+// The Category filter's options for this admin.
+export function auditCategoriesFor(reach: AuditReach): { value: string, label: string }[] {
+  return AUDIT_CATEGORIES.filter(category => auditCategoryInReach(category.value, reach))
+}
+
 export type AuditEventTypeInfo = { value: string, label: string, category: string }
 
-// Every event type outlabs-auth writes to the audit table (outlabs-auth 0.1.0a34). A type the
+// Every event type outlabs-auth writes to the audit table (outlabs-auth 0.1.0a35). A type the
 // server adds later still renders (humanized) and can be typed into the Event type filter.
 export const AUDIT_EVENT_TYPES: readonly AuditEventTypeInfo[] = [
   { value: 'user.login', label: 'Signed in', category: 'authentication' },
@@ -63,7 +87,12 @@ export const AUDIT_EVENT_TYPES: readonly AuditEventTypeInfo[] = [
   { value: 'user.role_revoked', label: 'Role revoked', category: 'role' },
   { value: 'user.status_changed', label: 'Status changed', category: 'status' },
   { value: 'user.deleted', label: 'Account deleted', category: 'status' },
-  { value: 'user.restored', label: 'Account restored', category: 'status' }
+  { value: 'user.restored', label: 'Account restored', category: 'status' },
+  { value: 'entity.created', label: 'Entity created', category: 'entity' },
+  { value: 'entity.updated', label: 'Entity updated', category: 'entity' },
+  { value: 'entity.moved', label: 'Entity moved', category: 'entity' },
+  { value: 'entity.archived', label: 'Entity archived', category: 'entity' },
+  { value: 'config.entity_types_updated', label: 'Entity types changed', category: 'config' }
 ]
 
 const EVENT_TYPES = new Map(AUDIT_EVENT_TYPES.map(type => [type.value, type]))
@@ -87,9 +116,10 @@ export function auditCategoryLabel(category: string | null | undefined): string 
   return CATEGORIES.get(category) ?? sentenceCase(category.replace(/[_-]+/g, ' '))
 }
 
-// The Event type filter's options: the known types, narrowed to the chosen category.
-export function auditEventTypeItems(category?: string | null): AuditEventTypeInfo[] {
-  return AUDIT_EVENT_TYPES.filter(type => !category || type.category === category)
+// The Event type filter's options: the known types, narrowed to the chosen category (and, given
+// the admin's reach, to the categories they can find).
+export function auditEventTypeItems(category?: string | null, reach?: AuditReach): AuditEventTypeInfo[] {
+  return AUDIT_EVENT_TYPES.filter(type => (!category || type.category === category) && (!reach || auditCategoryInReach(type.category, reach)))
 }
 
 // ── Severity cues ──
@@ -165,6 +195,22 @@ export function auditRoleName(event: Pick<UserAuditEvent, 'before' | 'after' | '
   return firstString(event, ['role_display_name', 'role_name'])
 }
 
+// What an event is about. Account events name their account (the e-mail snapshot); entity
+// events (outlabs-auth 0.1.0a35) have no account and are about the entity, named from their
+// metadata; settings events are about the settings. Null when nothing is recorded.
+export type AuditSubject = { kind: 'account' | 'entity' | 'settings', label: string }
+
+export function auditSubject(event: Pick<UserAuditEvent, 'event_category' | 'event_type' | 'subject_user_id' | 'subject_email_snapshot' | 'before' | 'after' | 'metadata'>): AuditSubject | null {
+  const email = event.subject_email_snapshot?.trim()
+  if (email) return { kind: 'account', label: email }
+  if (event.subject_user_id) return { kind: 'account', label: 'Unknown account' }
+  if (event.event_category === 'entity' || event.event_type.startsWith('entity.')) {
+    return { kind: 'entity', label: auditEntityName(event) ?? 'An entity' }
+  }
+  if (event.event_category === 'config' || event.event_type.startsWith('config.')) return { kind: 'settings', label: 'Settings' }
+  return null
+}
+
 // ── Changes (before -> after) ──
 
 export type AuditChange = {
@@ -198,9 +244,14 @@ export function auditFieldLabel(field: string): string {
   return sentenceCase(field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase())
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
 // The fields an event changed, each with its value before and after (redacted). An event with
 // no `before` (something was created) lists every recorded field as new; fields equal on both
-// sides are left out.
+// sides are left out. A group recorded on both sides (the entity types' `allowed_root_types`,
+// one list per entity class) lists the changed members of the group, labelled "Group › Member".
 export function auditChanges(
   event: Pick<UserAuditEvent, 'before' | 'after'>,
   options: { timeZone?: string, locale?: string } = {}
@@ -214,6 +265,18 @@ export function auditChanges(
     const was = before?.[key]
     const now = after?.[key]
     if (JSON.stringify(was ?? null) === JSON.stringify(now ?? null)) continue
+    if (isPlainObject(was) && isPlainObject(now)) {
+      for (const member of new Set([...Object.keys(was), ...Object.keys(now)])) {
+        if (JSON.stringify(was[member] ?? null) === JSON.stringify(now[member] ?? null)) continue
+        changes.push({
+          field: `${key}.${member}`,
+          label: `${auditFieldLabel(key)} › ${auditFieldLabel(member)}`,
+          before: formatAuditValue(was[member], options),
+          after: formatAuditValue(now[member], options)
+        })
+      }
+      continue
+    }
     changes.push({
       field: key,
       label: auditFieldLabel(key),

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { isSensitiveAuditKey, redactAuditPayload, REDACTED } from '~/utils/audit-redaction'
 import {
+  AUDIT_ACCOUNT_CATEGORIES,
   AUDIT_CATEGORIES,
   AUDIT_EVENT_TYPES,
+  auditCategoriesFor,
   auditCategoryLabel,
   auditChanges,
   auditEntityName,
@@ -15,6 +17,7 @@ import {
   auditRangeLabel,
   auditRequestParams,
   auditRoleName,
+  auditSubject,
   formatAuditValue,
   invalidAuditIdFilters
 } from '~/utils/audit'
@@ -125,6 +128,89 @@ describe('audit vocabulary', () => {
     expect(auditEntityPath(membershipCreated)).toBe('Acme › West › SF Office')
     expect(auditRoleName({ before: null, after: { role_name: 'agent', role_display_name: 'Agent' }, metadata: null })).toBe('Agent')
     expect(auditEntityName(apiKeyRevoked)).toBeNull()
+  })
+})
+
+// Entity lifecycle and entity-type settings events, as outlabs-auth 0.1.0a35 records them
+// (services/entity.py _record_entity_audit_event, routers/config.py): no subject account.
+const entityUpdated = event({
+  event_category: 'entity',
+  event_type: 'entity.updated',
+  event_source: 'entity_service.updated',
+  subject_user_id: null,
+  subject_email_snapshot: '',
+  entity_id: '33333333-3333-4333-8333-333333333333',
+  before: { display_name: 'West Office' },
+  after: { display_name: 'West Coast Office' },
+  metadata: { entity_name: 'west_office', entity_display_name: 'West Coast Office', entity_type: 'office', changed_fields: ['display_name'] }
+})
+const entityTypesChanged = event({
+  event_category: 'config',
+  event_type: 'config.entity_types_updated',
+  event_source: 'config_router.update_entity_type_config',
+  subject_user_id: null,
+  subject_email_snapshot: '',
+  before: { allowed_root_types: { structural: ['organization'], access_group: [] } },
+  after: { allowed_root_types: { structural: ['organization', 'campus'], access_group: [] } }
+})
+
+describe('entity and settings events (F-241)', () => {
+  it('names the entity lifecycle and entity-type settings events and their categories', () => {
+    expect(auditEventLabel('entity.created')).toBe('Entity created')
+    expect(auditEventLabel('entity.updated')).toBe('Entity updated')
+    expect(auditEventLabel('entity.moved')).toBe('Entity moved')
+    expect(auditEventLabel('entity.archived')).toBe('Entity archived')
+    expect(auditEventLabel('config.entity_types_updated')).toBe('Entity types changed')
+    expect(auditCategoryLabel('entity')).toBe('Entities')
+    expect(auditCategoryLabel('config')).toBe('Settings')
+    expect(auditEventTypeItems('entity').map(t => t.value)).toEqual(['entity.created', 'entity.updated', 'entity.moved', 'entity.archived'])
+    expect(auditEventTypeItems('config').map(t => t.value)).toEqual(['config.entity_types_updated'])
+  })
+
+  it('offers each category where it can be found: entity ones with a hierarchy, settings to global admins only', () => {
+    const values = (reach: { hierarchy: boolean, global: boolean }) => auditCategoriesFor(reach).map(c => c.value)
+    expect(values({ hierarchy: true, global: true })).toEqual(AUDIT_CATEGORIES.map(c => c.value))
+    expect(values({ hierarchy: true, global: false })).toContain('entity')
+    expect(values({ hierarchy: true, global: false })).not.toContain('config')
+    expect(values({ hierarchy: false, global: true })).not.toContain('entity')
+    expect(values({ hierarchy: false, global: true })).not.toContain('config')
+    expect(auditEventTypeItems(null, { hierarchy: false, global: true }).some(t => t.category === 'entity' || t.category === 'config')).toBe(false)
+    expect(auditEventTypeItems(null, { hierarchy: true, global: false }).map(t => t.value)).toContain('entity.moved')
+    expect(auditEventTypeItems(null, { hierarchy: true, global: false }).map(t => t.value)).not.toContain('config.entity_types_updated')
+    // A user's History lists events about the account: never entity or settings ones.
+    expect(AUDIT_ACCOUNT_CATEGORIES.map(c => c.value)).toEqual(AUDIT_CATEGORIES.map(c => c.value).filter(v => v !== 'entity' && v !== 'config'))
+  })
+
+  it('says what an event is about when it has no account: the entity, or the settings', () => {
+    expect(auditSubject(event())).toEqual({ kind: 'account', label: 'agent@example.com' })
+    expect(auditSubject(event({ subject_email_snapshot: '' }))).toEqual({ kind: 'account', label: 'Unknown account' })
+    expect(auditSubject(entityUpdated)).toEqual({ kind: 'entity', label: 'West Coast Office' })
+    expect(auditSubject({ ...entityUpdated, metadata: { entity_name: 'west_office' } })).toEqual({ kind: 'entity', label: 'west_office' })
+    expect(auditSubject({ ...entityUpdated, metadata: null })).toEqual({ kind: 'entity', label: 'An entity' })
+    expect(auditSubject(entityTypesChanged)).toEqual({ kind: 'settings', label: 'Settings' })
+    expect(auditSubject(event({ event_category: 'machine_keys', event_type: 'machine_key.created', subject_user_id: null, subject_email_snapshot: '' }))).toBeNull()
+  })
+
+  it('shows what an entity update and an entity-type change changed', () => {
+    expect(auditChanges(entityUpdated, opts)).toEqual([{ field: 'display_name', label: 'Display name', before: 'West Office', after: 'West Coast Office' }])
+    // One list per entity class: only the class that changed, as lists.
+    expect(auditChanges(entityTypesChanged, opts)).toEqual([{
+      field: 'allowed_root_types.structural',
+      label: 'Allowed root types › Structural',
+      before: 'organization',
+      after: 'organization, campus'
+    }])
+    expect(auditChanges({
+      before: { default_child_types: { structural: ['office'], access_group: [] } },
+      after: { default_child_types: { structural: ['office'], access_group: ['team'] } }
+    }, opts)).toEqual([{ field: 'default_child_types.access_group', label: 'Default child types › Access group', before: 'None', after: 'team' }])
+    // A group recorded on one side only stays one field.
+    expect(auditChanges({ before: null, after: { scope: { kind: 'org' } } }, opts)).toEqual([{ field: 'scope', label: 'Scope', before: '—', after: '{"kind":"org"}' }])
+  })
+
+  it('exports an event without an account with an empty subject', () => {
+    const [, row] = auditEventsToCsv([entityUpdated]).trim().split('\r\n')
+    expect(row).toContain('entity,entity.updated,Entity updated,,,11111111-1111-4111-8111-111111111111,33333333-3333-4333-8333-333333333333')
   })
 })
 

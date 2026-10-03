@@ -726,12 +726,25 @@ loading/empty copy, date formatting or one-off selects.
   above every tab.
 
 ## Audit (`pages/app/audit.vue`, `useAuditWorkspace`, `utils/audit.ts`, `utils/audit-redaction.ts`)
-- **Coverage.** `GET /audit-events` returns account events only (sign-ins and sessions, passwords
-  and API keys, invitations, memberships, role assignments, superuser, profile, status). The page
-  and its guide say so; role and permission definition changes are each definition's History
-  (the guide points there), and service-account and settings changes are not recorded by
+- **Coverage.** `GET /audit-events` returns account events (sign-ins and sessions, passwords
+  and API keys, invitations, memberships, role assignments, superuser, profile, status) and, since
+  outlabs-auth 0.1.0a35, entity lifecycle events (`entity`: created, updated with the changed
+  fields only, moved, archived) and entity-type settings changes (`config`). The page and its
+  guide say so (`coverage`, by preset); role and permission definition changes are each
+  definition's History (the guide points there), and service-account changes are not recorded by
   outlabs-auth (backend). A non-global admin on EnterpriseRBAC (`useActorReach`) is
   told the search is limited to their organization (the API scopes it by root entity).
+- **Events without an account** (F-241). Entity and settings events have no subject account
+  (`subject_user_id` null, an empty `subject_email_snapshot`). `auditSubject` says what such an
+  event is about instead: the entity, named from its metadata (`entity_display_name`, else
+  `entity_name`), or "Settings"; the About column, the phone line, the event cards and the
+  dashboard's recent activity use it, and no "Events about" pivot is offered. On an entity's
+  Activity card an entity event is not repeated as what it is about. The Category filter offers
+  Entities and Settings where entities exist and Settings only to admins who see every
+  organization (`auditCategoriesFor` with the admin's reach), as settings events have no root
+  entity; a user's History offers the account categories only (`AUDIT_ACCOUNT_CATEGORIES`). A
+  group recorded on both sides (the entity types' lists per entity class) is shown as one change
+  per member that changed (`Allowed root types › Access group`).
 - **Filters** are typed controls in a `UDashboardToolbar`, kept in the route query by
   `useListQueryState` (`category`, `eventType`, `subjectUserId`, `actorUserId`, `entityId`,
   `range` or `occurredFrom`/`occurredTo`, `page`, `limit`): Category `USelect` over

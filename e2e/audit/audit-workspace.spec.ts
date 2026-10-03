@@ -54,6 +54,7 @@ function auditResponse(page: Page, predicate: (params: URLSearchParams) => boole
 }
 
 type AuditPage = { items: Array<{ event_category: string }>, total: number }
+type EntityTypes = { allowed_root_types: { structural: string[], access_group: string[] } }
 
 // The list summary (AppListPagination) of the first page of `total` events.
 function firstPageSummary(total: number, pageSize: number) {
@@ -113,12 +114,17 @@ test.describe('audit workspace', () => {
     await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0)
     await expect(page.getByPlaceholder('Optional UUID')).toHaveCount(0)
     // Coverage is stated (F-092), and the guide says where definition changes are: each role's
-    // and permission's History card (outlabs-auth 0.1.0a35).
-    await expect(page.getByText('Account, credential, membership and role-assignment events, newest first.')).toBeVisible()
+    // and permission's History card; entity lifecycle and entity-type settings are in this log
+    // where entities exist (outlabs-auth 0.1.0a35, F-241).
+    const enterprise = await isEnterpriseBackend()
+    await expect(page.getByText(enterprise
+      ? 'Account, credential, membership, role-assignment, entity and settings events, newest first.'
+      : 'Account, credential, membership and role-assignment events, newest first.')).toBeVisible()
     await page.getByRole('button', { name: 'Open Audit guide' }).click()
     const guide = page.getByRole('dialog', { name: 'Audit guide' })
     await expect(guide).toContainText('Changes to role and permission definitions are kept with each role and permission: open it and see its History.')
-    await expect(guide).toContainText('Changes to service accounts and settings are not recorded.')
+    await expect(guide).toContainText('Changes to service accounts are not recorded.')
+    await expect(guide.getByText('It also records entities being created, edited, moved and archived, and changes to the entity types in Settings.', { exact: false })).toHaveCount(enterprise ? 1 : 0)
     await page.keyboard.press('Escape')
     await expect(guide).toBeHidden()
   })
@@ -165,6 +171,82 @@ test.describe('audit workspace', () => {
     // Removing the chip clears the filter.
     await removeFilter(page, 'Category: Sign-ins and sessions').click()
     await expect(page).not.toHaveURL(/category=/)
+  })
+
+  // Entity lifecycle events (outlabs-auth 0.1.0a35, F-241) have no account: the About column names
+  // the entity, and the pivots offer the entity, not an account.
+  test('the Entities category lists an entity\'s creation, about that entity (F-241)', async ({ page, api, requires }) => {
+    await requires({ surfaces: ['entities'], features: ['entity_hierarchy'] })
+    const entity = await api.createEntity({ kind: 'audit-entity' })
+    await page.goto(`/app/audit?entityId=${entity.id}`)
+    await expect(firstRow(page)).toBeVisible()
+    const answered = auditResponse(page, params => params.get('category') === 'entity' && params.get('entity_id') === entity.id)
+    await page.getByRole('group', { name: 'Audit filters' }).getByRole('combobox', { name: 'Category' }).click()
+    await page.getByRole('option', { name: 'Entities', exact: true }).click()
+    const result = await (await answered).json() as { items: Array<{ event_type: string, event_category: string }> }
+    expect(result.items.map(item => `${item.event_category}/${item.event_type}`)).toEqual(['entity/entity.created'])
+    await expect(page).toHaveURL(/[?&]category=entity(&|$)/)
+    await expect(removeFilter(page, 'Category: Entities')).toBeVisible()
+
+    await expect(bodyRows(page)).toHaveCount(1)
+    const row = firstRow(page)
+    await expect(row.getByText('Entity created', { exact: true })).toBeVisible()
+    await expect(row.getByText('Entities', { exact: true })).toBeVisible()
+    // About: the entity, never a blank cell.
+    await expect(row.getByRole('cell').nth(2)).toHaveText(entity.display_name)
+    await row.getByRole('button', { name: 'Show details for Entity created' }).click()
+    await expect(page.getByRole('link', { name: `Events at ${entity.display_name}` })).toHaveAttribute('href', `/app/audit?entityId=${entity.id}`)
+    await expect(page.getByRole('link', { name: /^Events about / })).toHaveCount(0)
+    await expect(detailValue(page, 'Category')).toHaveText('Entities')
+  })
+
+  // Entity-type settings belong to no organization, so only admins who see every organization
+  // find them (the superuser here; the delegated admin is offered no Settings category below).
+  // The config is global: this run's access-group root type is added and removed at once, before
+  // the page is checked, each time from the config as it then is (other runs may change it too).
+  test('a change to the entity types is listed under Settings (F-241)', async ({ page, api, requires, testData }) => {
+    await requires({ surfaces: ['config'], features: ['entity_hierarchy'] })
+    const added = testData.resource('root')
+    const setAccessGroupRoots = async (change: (types: string[]) => string[]) => {
+      const { allowed_root_types: roots } = await api.get<EntityTypes>('/config/entity-types')
+      await api.put('/config/entity-types', { allowed_root_types: { ...roots, access_group: change(roots.access_group) } })
+    }
+    try {
+      await setAccessGroupRoots(types => [...types, added])
+    } finally {
+      await setAccessGroupRoots(types => types.filter(type => type !== added))
+    }
+
+    await page.goto('/app/audit')
+    await expect(firstRow(page)).toBeVisible()
+    const answered = auditResponse(page, params => params.get('category') === 'config')
+    await page.getByRole('group', { name: 'Audit filters' }).getByRole('combobox', { name: 'Category' }).click()
+    await page.getByRole('option', { name: 'Settings', exact: true }).click()
+    type ConfigEvent = { event_type: string, before?: unknown, after?: unknown }
+    const result = await (await answered).json() as { items: ConfigEvent[] }
+    expect(result.items.every(item => item.event_type === 'config.entity_types_updated')).toBe(true)
+    // This test's change (other runs may change the types too): its type added, not removed.
+    const index = result.items.findIndex(item => JSON.stringify(item.after).includes(added) && !JSON.stringify(item.before).includes(added))
+    expect(index, 'this test\'s entity-type change is on the first page').toBeGreaterThanOrEqual(0)
+    await expect(bodyRows(page)).toHaveCount(result.items.length)
+
+    const row = bodyRows(page).nth(index)
+    await expect(row.getByText('Entity types changed', { exact: true })).toBeVisible()
+    await expect(row.getByRole('cell').nth(2)).toHaveText('Settings')
+    await row.getByRole('button', { name: 'Show details for Entity types changed' }).click()
+    // Only the entity class that changed, its types listed before and after.
+    const changes = page.getByTestId('audit-changes').locator('tbody > tr')
+    await expect(changes).toHaveCount(1)
+    await expect(changes.getByRole('cell').nth(0)).toHaveText('Allowed root types › Access group')
+    // (As recorded: a concurrent run may have changed the list just before.)
+    const recorded = result.items[index]! as { before: EntityTypes, after: EntityTypes }
+    const types = (list: string[]) => list.length ? list.join(', ') : 'None'
+    await expect(changes.getByRole('cell').nth(1)).toHaveText(types(recorded.before.allowed_root_types.access_group))
+    await expect(changes.getByRole('cell').nth(2)).toHaveText(types(recorded.after.allowed_root_types.access_group))
+    await expect(changes.getByRole('cell').nth(1)).not.toContainText(added)
+    await expect(changes.getByRole('cell').nth(2)).toContainText(added)
+    await expect(page.getByRole('link', { name: /^Events (about|at) / })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'All "Entity types changed" events' })).toHaveAttribute('href', '/app/audit?eventType=config.entity_types_updated')
   })
 
   test('event type: a known type by name, or a custom one typed in', async ({ page }) => {
@@ -554,6 +636,12 @@ test.describe('audit scope notice (F-092)', () => {
       test.skip(!(await isEnterpriseBackend()) || !(await backendHasSurface('audit')), 'The org-admin persona exists on the EnterpriseRBAC seed only.')
       await page.goto('/app/audit')
       await expect(page.getByText('Showing events for your organization only')).toBeVisible()
+      // Entity events of the organization are offered; settings events, which belong to no
+      // organization, are not (F-241).
+      await page.getByRole('group', { name: 'Audit filters' }).getByRole('combobox', { name: 'Category' }).click()
+      await expect(page.getByRole('option', { name: 'Entities', exact: true })).toBeVisible()
+      await expect(page.getByRole('option', { name: 'Sign-ins and sessions', exact: true })).toBeVisible()
+      await expect(page.getByRole('option', { name: 'Settings', exact: true })).toHaveCount(0)
     })
   })
 })

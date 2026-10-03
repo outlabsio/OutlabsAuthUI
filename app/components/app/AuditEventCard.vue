@@ -6,10 +6,11 @@ import type { UserAuditEvent } from '~/types/audit'
 // the reason, and a disclosure with the changes, context, pivots into the Audit workspace and
 // the redacted raw payload (AppAuditEventDetails). Logic in useAuditEventView.
 // `context` drops what the surrounding page already says: on a user's page every event is
-// about that user, on an entity's page every event is at that entity.
+// about that user, on an entity's page every event is at that entity (and an entity event there
+// is about it).
 const props = defineProps<{ event: UserAuditEvent, context?: 'user' | 'entity' }>()
 
-const { label, badge, toneLabel, categoryLabel, entityName, subjectLabel, subjectTo } = useAuditEventView(() => props.event)
+const { label, badge, toneLabel, categoryLabel, entityName, subjectKind, subjectLabel, subjectTo } = useAuditEventView(() => props.event)
 const { isEnterprise } = useAuth()
 const open = ref(false)
 const headingId = useId()
@@ -37,7 +38,7 @@ const headingId = useId()
     </div>
 
     <p class="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted">
-      <span v-if="context !== 'user' && subjectLabel">
+      <span v-if="context !== 'user' && subjectLabel && !(context === 'entity' && subjectKind === 'entity')">
         About
         <ULink v-if="subjectTo" :to="subjectTo" class="break-words font-medium text-default hover:underline">{{ subjectLabel }}</ULink>
         <span v-else class="break-words text-default">{{ subjectLabel }}</span>

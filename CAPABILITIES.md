@@ -105,7 +105,7 @@ that makes a row untrue.
 | Move within the organization | Enterprise | Partial | `e2e/entities/entities-workspace.spec.ts` | Invalid targets are filtered client-side; the backend does not validate them (F-076, backend). Moving to the top level (superusers) has no spec. |
 | Archive with cascade; finish archiving | Enterprise | Built | `e2e/entities/entities-workspace.spec.ts` | |
 | Members: paged, true count, capacity | Enterprise | Built | `e2e/entities/entity-members.spec.ts`, `e2e/entities/entities-workspace.spec.ts` | |
-| Activity | Enterprise | Partial | `e2e/entities/entity-activity.spec.ts` | The backend audits entity create, update, move and archive since 0.1.0a35; the spec checks membership events only (F-241, console follow-up). |
+| Activity | Enterprise | Built | `e2e/entities/entity-activity.spec.ts`, `test/unit/audit.test.ts` | The entity's own lifecycle, which 0.1.0a35 audits (created; updated, with the changed fields before and after; moved; archived), and the membership and access events at it, newest first (F-241). Entity events have no account, so they are not repeated as what the event is about. A move or an archive is labelled and shown like the others; the spec produces a creation and an edit. |
 | Scope for delegated admins | Enterprise | Built | `e2e/entities/entity-scope.spec.ts`, `e2e/app/persona-matrix.spec.ts` | Delegated admins are anchored on their organization; superusers and system-wide admins browse every organization (one rule for entities, users and roles). The backend scopes the entity and membership routes too: another organization's entity reads as not found (F-020, F-039). |
 | Entity type configuration | Enterprise | Built | `e2e/settings/settings-config.spec.ts` | Superusers. |
 
@@ -157,10 +157,10 @@ that makes a row untrue.
 
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
-| Search: category, event type, actor, subject, entity, date range, paging in the URL | Enterprise | Built | `e2e/audit/audit-workspace.spec.ts` | |
+| Search: category, event type, actor, subject, entity, date range, paging in the URL | Enterprise | Built | `e2e/audit/audit-workspace.spec.ts`, `test/unit/audit.test.ts` | The Entities and Settings categories (0.1.0a35) are offered where entities exist; Settings only to admins who see every organization, as its events belong to none. |
 | Event detail: changes, context, pivots, redacted payload | Enterprise | Built | `e2e/audit/audit-workspace.spec.ts` | |
 | Export | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts` | Client-side, up to 5,000 events, redacted (F-190). |
-| What the log covers | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts` | Stated in the UI; the guide sends role and permission definition changes to each definition's History card. Service-account and machine-key events are not recorded by the backend (F-092). |
+| What the log covers | Enterprise | Partial | `e2e/audit/audit-workspace.spec.ts`, `e2e/entities/entity-activity.spec.ts`, `test/unit/audit.test.ts` | Stated in the UI: account events, and entity lifecycle (Entities) and entity-type settings changes (Settings), which 0.1.0a35 records without an account, so they are about the entity or the settings (F-241); the guide sends role and permission definition changes to each definition's History card. Service-account and machine-key events are not recorded by the backend (F-092). |
 
 ## Dashboard and settings
 
