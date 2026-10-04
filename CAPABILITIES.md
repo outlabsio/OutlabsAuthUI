@@ -21,7 +21,7 @@ identifiers of the 2026-09 production audit, also used in code comments and spec
 audit report is not published: each row states its gap in place, and ARCHITECTURE.md "Status"
 explains the other labels found in comments.
 
-Last verified: 2026-10-03 by `bun run release:check` against outlabs-auth 0.1.0a35 on both
+Last verified: 2026-10-04 by `bun run release:check` against outlabs-auth 0.1.0a36 on both
 presets, the run recorded in PRODUCTION.md section 11 with the suite results. Update this file in
 the same commit as any change that makes a row untrue.
 

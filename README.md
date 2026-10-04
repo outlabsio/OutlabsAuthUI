@@ -26,13 +26,15 @@ What it covers:
 
 You need [Bun](https://bun.sh) 1.3.3 or later and Node.js 22.18 or later, and a running
 outlabs-auth backend: the console requires outlabs-auth 0.1.0a35 or later (its tenant-scoped
-routes, ABAC write validation and example seeds are what the console and its suite are built
-against). The public outlabsAuth repository ships two seeded example apps, EnterpriseRBAC and
-SimpleRBAC; its
-[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a35/examples#quick-start)
+routes and ABAC write validation are what the console is built against). The public outlabsAuth
+repository ships two seeded example apps, EnterpriseRBAC and SimpleRBAC; its
+[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a36/examples#quick-start)
 sets them up (PostgreSQL, optionally Redis): migrate and seed with `reset_test_env.py`, then
 `uvicorn main:app --port 8004` (any free port; the guides here use 8004 for EnterpriseRBAC and
-8003 for SimpleRBAC). Both examples allow the console on `http://localhost:3000`.
+8003 for SimpleRBAC). Both examples allow the console on `http://localhost:3000`. The e2e suite
+and the release check need the 0.1.0a36 examples: the suite asserts that release's behaviour (its
+ABAC condition write refusals name the offending field), so its ABAC refusal specs fail against
+the 0.1.0a35 examples (e2e/README.md "Backends").
 
 ```bash
 bun install
@@ -261,11 +263,14 @@ manifest, an absent `app-config.json`) reaches `cloudflare/not-found-worker.js` 
 There is no hosted CI. A release is checked on the releasing machine with `bun run release:check`
 (`scripts/release-check.mjs`), and the deploy accepts only a commit that passed there.
 
-1. Start the two seeded example backends from the public outlabsAuth repository, EnterpriseRBAC
-   and SimpleRBAC, each with its own database and port, as its
-   [examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a35/examples#quick-start)
+1. Start the two seeded example backends from the public outlabsAuth repository at
+   `v0.1.0a36` (`outlabs-auth==0.1.0a36`), EnterpriseRBAC and SimpleRBAC, each with its own
+   database and port, as its
+   [examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a36/examples#quick-start)
    describes: migrate and seed with `reset_test_env.py`, then `uvicorn main:app --port <port>`
-   (e2e/README.md "Backends"). Both examples allow the console on port 3000.
+   (e2e/README.md "Backends"). Both examples allow the console on port 3000. The check needs the
+   0.1.0a36 examples, as the suite asserts that release's ABAC condition refusals; the console
+   itself runs on outlabs-auth 0.1.0a35 or later.
 2. Commit your changes: the check refuses uncommitted changes.
 3. Run the check:
 
@@ -420,10 +425,12 @@ mutations that call `invalidateAfter(domain)`), `schemas/user.ts`, the feature c
 
 Active development paused on 2026-10-02 at a releasable state. On 2026-10-03 the console moved
 to outlabs-auth 0.1.0a35, the release it now requires, and took up what that release added for
-consoles (PRODUCTION.md section 8). Whoever picks it up next starts here.
+consoles (PRODUCTION.md section 8). On 2026-10-04 it was verified against outlabs-auth 0.1.0a36,
+whose ABAC condition write refusals name the offending field, which the console shows on that
+field; the suite asserts that release's refusal. Whoever picks it up next starts here.
 
-- **Last release check:** passed twice in a row on 2026-10-03 at the documentation commit after
-  `27d41b4` that records it, against the outlabsAuth examples on outlabs-auth 0.1.0a35, both
+- **Last release check:** passed twice in a row on 2026-10-04 at the documentation commit after
+  `489cd51` that records it, against the outlabsAuth examples on outlabs-auth 0.1.0a36, both
   presets, Chromium only; the shipped JavaScript is within its budget, 1.3% over the baseline
   where 10% is allowed ([PRODUCTION.md](PRODUCTION.md) section 11). The record (`.release/gate.json`) stays on the
   machine that ran it and is valid for 7 days; any later commit, documentation included, needs
@@ -454,8 +461,8 @@ Decided: light-mode colour contrast (F-032) is a known limitation the owner acce
 2026-10-02 to keep the stock theme (PRODUCTION.md section 3), and the low-severity console
 follow-ups of the 2026-10-02 QA pass are fixed, each with a spec.
 
-To resume: read [AGENTS.md](AGENTS.md); start both seeded example backends
-([e2e/README.md](e2e/README.md) "Backends"); run `bun run release:check --enterprise <url>
+To resume: read [AGENTS.md](AGENTS.md); start both seeded example backends of outlabs-auth
+0.1.0a36 ([e2e/README.md](e2e/README.md) "Backends"); run `bun run release:check --enterprise <url>
 --simple <url>` on a clean tree to confirm the baseline still passes; then take the next item
 above, with a spec for every behaviour change.
 

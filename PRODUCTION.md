@@ -22,7 +22,7 @@ committed). The deploy reads that record.
 | A clean tree, a frozen install, typecheck (app and tests), lint with the architecture and styling guardrails, unit tests, API types in sync with the snapshot, the dependency audit and the static generate pass at the release commit | Met | `bun run release:check` steps `clean-tree` to `generate`; guardrail fixtures in `eslint-fixtures/`; section 11 |
 | E2E against the generated static build, served with its own headers, on both presets (EnterpriseRBAC and SimpleRBAC), strict: one retry, a test that passes only on retry fails, `.only` fails | Met | `release:check` steps `backends`, `e2e:enterprise`, `e2e:simple` (`E2E_RELEASE=1`, `playwright.config.ts`); section 11 |
 | Firefox, WebKit and phone-sized Chromium pass before a release | Open | `bun run release:check --browsers firefox,webkit,mobile-chrome` runs them on both presets (`E2E_BROWSERS`, e2e/README.md "Browsers and the accessibility gate"); the default check runs Chromium only, and the release commit in section 11 was checked without them |
-| No flaky E2E test hides a product defect | Open | Fixed, each with a spec that fails without the fix: API password logins of the harness on SimpleRBAC that the backend's login limiter refused again after one wait of the 300 seconds every refusal names, because the next window had filled already (test; such a login is now tried every 15 seconds until admitted, `test/unit/login-limiter.test.ts`), and a sessions-table spec whose bare login did not wait at all (test; `e2e/account/sessions-table.spec.ts` "user detail identifies each session…"); the entities spec checking an Advanced options checkbox while the section was still opening, so the field moved between being located and being pressed (test; `e2e/entities/entities-workspace.spec.ts` waits for the opening to finish); a scope refusal in the key dialogs that the field's own re-validation erased a moment after it appeared, so Save seemed to do nothing (product, F-082; `e2e/service-accounts/service-accounts.spec.ts` and `e2e/api-keys/api-keys-workspace.spec.ts` "…refused on the field…"); "New entity" used before the tree and the selection's path loaded opening Create entity on "New organization" (product; `e2e/entities/entities-workspace.spec.ts` "New entity opened before the tree…"); the F-090 audit spec working the pager while the previous result was still on screen (test; it now waits for the category's own answer and rows); a role, permission or scope picker still loading its options showing the palette's empty message inside its listbox, invalid ARIA the dialog sweep caught only when it scanned before the pool arrived (product; `e2e/a11y/a11y-smoke.spec.ts` "a role picker still loading its roles"); the dialog-kit date spec reopening Edit validity before the row's refetch after a save had landed (test); the permissions list spec comparing the summary with a total that other tests change (test, data isolation); users list rows keyed by position, so closing a row dialog after the list changed lost the keyboard focus (product; `e2e/users/users-list.spec.ts` "closing a row dialog after the list changed…"); the governance specs pressing Save before the number they typed was committed (test). Earlier: Enter in a Tags field submitting a form dialog (`e2e/app/dialog-kit.spec.ts` "Enter in a tags field"); a role chip reading "Unknown role" while its names load (`e2e/roles/role-access-kit.spec.ts` "a membership chip says it is loading…"). Open: the entity-activity raw payload failed once on its first attempt and has not been reproduced since (section 11) |
+| No flaky E2E test hides a product defect | Open | Fixed, each with a spec that fails without the fix: API password logins of the harness on SimpleRBAC that the backend's login limiter refused again after one wait of the 300 seconds every refusal names, because the next window had filled already (test; such a login is now tried every 15 seconds until admitted, `test/unit/login-limiter.test.ts`), and a sessions-table spec whose bare login did not wait at all (test; `e2e/account/sessions-table.spec.ts` "user detail identifies each session…"); the password-change specs giving "Password changed" a fixed 10-second timeout while the console's sign-in again waited out that limiter (test; they await the sign-in's answer first and fail without the fix when it is delayed 15 seconds, `e2e/session/session-lifecycle.spec.ts` "changing the password signs this tab in again…"); the entities spec checking an Advanced options checkbox while the section was still opening, so the field moved between being located and being pressed (test; `e2e/entities/entities-workspace.spec.ts` waits for the opening to finish); a scope refusal in the key dialogs that the field's own re-validation erased a moment after it appeared, so Save seemed to do nothing (product, F-082; `e2e/service-accounts/service-accounts.spec.ts` and `e2e/api-keys/api-keys-workspace.spec.ts` "…refused on the field…"); "New entity" used before the tree and the selection's path loaded opening Create entity on "New organization" (product; `e2e/entities/entities-workspace.spec.ts` "New entity opened before the tree…"); the F-090 audit spec working the pager while the previous result was still on screen (test; it now waits for the category's own answer and rows); a role, permission or scope picker still loading its options showing the palette's empty message inside its listbox, invalid ARIA the dialog sweep caught only when it scanned before the pool arrived (product; `e2e/a11y/a11y-smoke.spec.ts` "a role picker still loading its roles"); the dialog-kit date spec reopening Edit validity before the row's refetch after a save had landed (test); the permissions list spec comparing the summary with a total that other tests change (test, data isolation); users list rows keyed by position, so closing a row dialog after the list changed lost the keyboard focus (product; `e2e/users/users-list.spec.ts` "closing a row dialog after the list changed…"); the governance specs pressing Save before the number they typed was committed (test). Earlier: Enter in a Tags field submitting a form dialog (`e2e/app/dialog-kit.spec.ts` "Enter in a tags field"); a role chip reading "Unknown role" while its names load (`e2e/roles/role-access-kit.spec.ts` "a membership chip says it is loading…"). Open: the entity-activity raw payload failed once on its first attempt and has not been reproduced since (section 11) |
 | Releases deploy only a clean `HEAD` that passed the release check, with a token for the deployment's Cloudflare account | Met | `scripts/deploy-with-env.sh` passes `--require-release-gate` to `scripts/deploy-preflight.mjs`, which refuses a dirty tree and any record that is for another commit, ran on uncommitted changes (`--allow-dirty`), failed, lacks either preset or is older than 7 days (`--release-gate-max-age-days`); a `HEAD` on no remote branch only warns. `DEPLOY_SKIP_RELEASE_GATE=1` drops only the release-gate requirement, with a warning. Before building, the script requires `CLOUDFLARE_ACCOUNT_ID` with `--env` and stops when `wrangler whoami --json` fails or does not list that account (`test/unit/release-gate.test.ts`, `test/unit/deploy-account.test.ts`) |
 
 ## 2. Security
@@ -236,16 +236,56 @@ in private records.
 
 ## 11. Last verification
 
-Recorded by `bun run release:check` (section 1) on 2026-10-03 at the commit that adds this record,
-the documentation commit after `27d41b4`; refresh it whenever the gate is re-run. The record itself
-(`.release/gate.json`) stays on the machine that ran it. It verifies the move to outlabs-auth
-0.1.0a35, the release the console requires, and what the console took up from it (section 8). Run
-against the outlabsAuth example backends on outlabs-auth 0.1.0a35 (API contract
+Recorded by `bun run release:check` (section 1) on 2026-10-04 at the commit that adds this record,
+the documentation commit after `489cd51`; refresh it whenever the gate is re-run. The record itself
+(`.release/gate.json`) stays on the machine that ran it. It verifies the console against
+outlabs-auth 0.1.0a36, whose ABAC condition write refusals name the offending field (section 8);
+the console still requires 0.1.0a35 or later, and the suite asserts 0.1.0a36's refusal. Run
+against the outlabsAuth example backends on outlabs-auth 0.1.0a36 (API contract
 `outlabs-auth.api/v1`), each reseeded before its suite (`RELEASE_RESEED_CMD`), in release mode:
 one retry, `failOnFlakyTests`, `forbidOnly`, fresh persona sign-ins, Playwright's default workers
-(8 here), Chromium only. Two release checks in a row passed at this commit. Before it, one passed
-with the same results at `71e0b76`, and two failed strict mode on a test that passed only on retry
-(below).
+(8 here), Chromium only. Two release checks in a row passed at this commit. Before it, two passed
+with the same results at `489cd51`, the last change to code and tests, and one failed strict mode
+at `3c6a67f` on a test that passed only on retry (below).
+
+| Check | Result |
+|---|---|
+| Clean tree, `bun install --frozen-lockfile`, typecheck, typecheck:tests, lint (with guardrails), unit tests, check:api-types | green; 845 unit tests in 48 files |
+| generate | green; 4 inline-script hashes across 24 HTML files |
+| Dependency audit (`bun run audit`) | no vulnerabilities, 5 reviewed advisories ignored (the `audit` script in `package.json`) |
+| Bundle budget (`bundle-budget` step, `.output/public/_nuxt`) | within budget, baseline unchanged: 201 JavaScript files, 2,373,838 bytes raw (1.3% over the 2,343,028-byte baseline; limit 2,577,330), about 753 KB gzip (sum per file); CSS 162 KB raw |
+| Backend preflight | EnterpriseRBAC and SimpleRBAC each answer `/v1/auth/config` with their own preset, both on outlabs-auth 0.1.0a36 |
+| EnterpriseRBAC, static build, release mode | 654 passed, 0 failed, 0 flaky, 10 skipped (all SimpleRBAC-only tests and personas); about 5 to 6 minutes |
+| SimpleRBAC, static build, release mode | 434 passed, 0 failed, 0 flaky, 230 skipped (EnterpriseRBAC-only areas and personas, and sign-in methods and development capture routes the SimpleRBAC example does not offer); about 11 minutes, most of it disposable-session logins waiting for the login limiter's window |
+
+The suite has one test more than at 0.1.0a35: the server's own refusal of a condition landing on
+the field it names (`e2e/app/api-errors.spec.ts`), which needs ABAC, so it passes on EnterpriseRBAC
+and is skipped on SimpleRBAC.
+
+One failure surfaced, a test that passed only on retry; it was a test defect:
+
+- **A sign-in again that waited out the login limiter: a test that gave it a fixed timeout**
+  (SimpleRBAC, the first check, at `3c6a67f`). "Changing the password signs this tab in again,
+  lists only this session and leaves a clean form" failed after 11 seconds and passed on retry
+  after 4.8 minutes. After a password change the console signs in again, and the spec answers that
+  sign-in with a session minted through the API; without the dev magic-link capture (SimpleRBAC)
+  that is a password login, which waits out the example backend's per-IP login limiter when a run
+  has filled it (`e2e/support/login-limiter.ts` extends the test's timeout by the wait). The spec
+  gave the "Password changed" toast a fixed 10-second assertion timeout, so it failed while the
+  console was still correctly waiting for its sign-in. The session-lifecycle specs and the account
+  workspace's backslash-password spec now await the sign-in's answer before they look for what it
+  leads to (`489cd51`); with the answer delayed 15 seconds, the previous spec fails as it did in
+  the release check and the new one passes. No product code changed.
+
+### Earlier verification: outlabs-auth 0.1.0a35 (2026-10-03)
+
+Recorded by `bun run release:check` on 2026-10-03 at `ca186bc`, the documentation commit after
+`27d41b4`. It verified the move to outlabs-auth 0.1.0a35, the release the console requires, and
+what the console took up from it (section 8), against the outlabsAuth example backends on
+outlabs-auth 0.1.0a35 (API contract `outlabs-auth.api/v1`), each reseeded before its suite, in
+release mode with Playwright's default workers (8 there), Chromium only. Two release checks in a
+row passed at that commit. Before it, one passed with the same results at `71e0b76`, and two
+failed strict mode on a test that passed only on retry (below).
 
 | Check | Result |
 |---|---|
@@ -273,7 +313,7 @@ Two failures surfaced, each a test that passed only on retry; both were test def
   login goes through it; the same stress run with every account spec added passed on both
   presets, and the SimpleRBAC suite went from about 15 minutes to 11. No product code changed.
 - **Advanced options still opening: a test that acted during an animation** (EnterpriseRBAC, in
-  the first of two checks at `ba9eae3`, an earlier version of this record). "Add child preselects
+  the first of two checks at `ba9eae3`, an earlier version of that record). "Add child preselects
   the parent and sends the advanced options" checked the Structural box of Allowed child classes
   5 ms after pressing Advanced options, inside the collapsible's 200 ms opening animation, and
   Playwright reported that the click did not change it. The trace shows why: while it opens the

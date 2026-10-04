@@ -85,7 +85,7 @@ of logins (the personas, including the provisioned `globalAdmin`, plus every dis
 so session tests (for example "signs out from the collapsed sidebar" and the session-lifecycle
 lane) wait for a window to reopen, up to about five minutes each. Other workers keep running
 meanwhile, but in a release check with eight workers the SimpleRBAC suite takes about eleven
-minutes against EnterpriseRBAC's four, which mints disposable sessions through the invite capture
+minutes against EnterpriseRBAC's five or six, which mints disposable sessions through the invite capture
 and stays under the limit. Helpers that need an admin token (`apiLogin` in
 `support/passwordless-capture.ts`, `personaToken`) resolve a persona's email to its minted session
 and spend no login.
