@@ -270,6 +270,54 @@ test.describe('server validation on an ABAC condition (F-118)', () => {
     await expect(value).toHaveAttribute('aria-invalid', 'true')
     await expect(page.getByText('Could not add condition', { exact: true })).toHaveCount(1)
   })
+
+  test('the server\'s own refusal of a condition lands on the field it names', async ({ page, api, requires, errorGuard }) => {
+    await requires({ features: ['abac'] })
+    errorGuard.allow({ kind: 'api', status: 400, url: /\/conditions$/ })
+    errorGuard.allow({ kind: 'console', console: /400/ })
+    const permission = await api.createPermission()
+    // The real answer, unmocked. "matches" takes a Python regular expression, which only the
+    // server compiles: this pattern is valid JavaScript but not Python, which has no (?<name>...)
+    // groups. outlabs-auth 0.1.0a36 refuses it in the library envelope naming the field.
+    const pattern = '(?<team>ops)'
+    await page.goto(`/app/permissions/${permission.id}`)
+    await page.getByRole('button', { name: 'Add condition' }).first().click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: 'Add condition' })).toBeVisible()
+    await chooseSelect(page, field(page, 'Context'), 'resource')
+    await dialog.getByLabel('Attribute', { exact: true }).fill('team')
+    await page.getByLabel('Operator', { exact: true }).click()
+    await page.getByRole('option').filter({ has: page.getByText('matches', { exact: true }) }).click()
+    const value = dialog.getByLabel('Value', { exact: true })
+    await value.fill(pattern)
+    const answered = page.waitForResponse(res => res.request().method() === 'POST' && new URL(res.url()).pathname.endsWith(`/permissions/${permission.id}/conditions`))
+    await dialog.getByRole('button', { name: 'Add condition' }).click()
+    const refusal = await answered
+    expect(refusal.status()).toBe(400)
+    expect(await refusal.json()).toMatchObject({
+      error: 'INVALID_INPUT',
+      message: expect.stringMatching(/^Invalid regular expression: /),
+      details: { reason: 'invalid_abac_condition', field: 'value' }
+    })
+
+    // On the Value field, and the dialog stays open with the pattern as typed.
+    await expect(value).toHaveAttribute('aria-invalid', 'true')
+    await expect(value).toHaveValue(pattern)
+    const message = dialog.getByText(/^Invalid regular expression: /)
+    await expect(message).toBeVisible()
+    const alert = dialog.getByRole('alert').filter({ hasText: 'Could not add condition' })
+    await expect(alert).toContainText('Check the highlighted fields.')
+    await page.waitForTimeout(PAST_INPUT_VALIDATION_MS)
+    await expect(value).toHaveAttribute('aria-invalid', 'true')
+
+    // Python's spelling of the named group is accepted; editing the value clears the answer.
+    await value.fill('(?P<team>ops)')
+    await expect(message).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Add condition' }).click()
+    await expect(dialog).toBeHidden()
+    const stored = await api.get<Array<{ attribute: string, operator: string, value: string | null }>>(`/permissions/${permission.id}/conditions`)
+    expect(stored).toEqual([expect.objectContaining({ attribute: 'resource.team', operator: 'matches', value: '(?P<team>ops)' })])
+  })
 })
 
 test.describe('a delegation denial names what was denied (F-119)', () => {

@@ -222,18 +222,29 @@ test.describe('session lifecycle (simulated expiry)', () => {
   // limiter across the whole run, so the sign-in is answered with a session the backend mints for
   // the same user right then (after the change, so it is valid), without spending one where the
   // dev magic-link capture exists; the request itself is checked. `hold` keeps the answer until
-  // the test lets it go.
+  // the test lets it go. Without that capture (SimpleRBAC) the minted session is a password login
+  // that may wait out the limiter (support/login-limiter.ts, which extends the test's timeout by
+  // the wait), so a test awaits `answered()` before it looks for what the answer leads to instead
+  // of giving it an assertion's fixed timeout.
   async function answerSignInAgain(context: BrowserContext, user: { email: string }, { hold = false } = {}) {
     let body: Record<string, unknown> | null = null
     let release!: () => void
+    let answer: Promise<void> | null = null
     const released = hold ? new Promise<void>(resolve => (release = resolve)) : Promise.resolve()
     await context.route(apiUrl('/auth/login'), async (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       body = route.request().postDataJSON() as Record<string, unknown>
-      await released
-      return route.fulfill({ json: await mintAnotherSession(user, NEW_PASSWORD) })
+      answer = (async () => {
+        await released
+        await route.fulfill({ json: await mintAnotherSession(user, NEW_PASSWORD) })
+      })()
+      return answer
     })
-    return { body: () => body, release: () => release?.() }
+    return {
+      body: () => body,
+      release: () => release?.(),
+      answered: () => answer ?? Promise.reject(new Error('the console has not signed in again'))
+    }
   }
 
   test('changing the password signs this tab in again, lists only this session and leaves a clean form', async ({ api, sessionContext }) => {
@@ -265,6 +276,7 @@ test.describe('session lifecycle (simulated expiry)', () => {
     await changePasswordInAccount(page, TEST_PASSWORD, NEW_PASSWORD)
     expect((await changed).status()).toBeLessThan(300)
     await expect.poll(() => signIn.body()).toMatchObject({ email: user.email, password: NEW_PASSWORD })
+    await signIn.answered()
 
     await expect(page.getByText('Password changed', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Your other devices were signed out. You are still signed in here.').first()).toBeVisible()
@@ -321,6 +333,7 @@ test.describe('session lifecycle (simulated expiry)', () => {
     await page.getByRole('navigation', { name: 'Account sections' }).getByRole('link', { name: 'Access' }).click()
     await refused
     signIn.release()
+    await signIn.answered()
 
     await expect(page.getByText('Password changed', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Your other devices were signed out. You are still signed in here.').first()).toBeVisible()

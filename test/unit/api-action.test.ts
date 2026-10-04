@@ -39,7 +39,8 @@ function fakeForm(fields: string[]): ActionForm & { errors: Array<{ name?: strin
 // A reactive stand-in for <UForm>: its errors, its loading flag while a submit runs, its state
 // prop, and the name-filtered re-validation UForm runs on blur, change and 300 ms after typing
 // (validateOnInputDelay), which replaces that field's errors with the client-side result.
-function reactiveForm<S extends Record<string, unknown>>(initial: S) {
+// `fields` registers inputs that have no state key of their own (a field the schema refines).
+function reactiveForm<S extends Record<string, unknown>>(initial: S, fields: string[] = []) {
   const state = reactive({ ...initial })
   const errors = shallowRef<Array<{ name?: string, message: string }>>([])
   const loading = ref(false)
@@ -50,7 +51,7 @@ function reactiveForm<S extends Record<string, unknown>>(initial: S) {
     },
     setErrors(next: Array<{ name?: string, message: string }>, name?: string) {
       const kept = name ? errors.value.filter(error => error.name !== name) : []
-      errors.value = [...kept, ...next.filter(error => !error.name || error.name in state)]
+      errors.value = [...kept, ...next.filter(error => !error.name || error.name in state || fields.includes(error.name))]
     },
     getErrors(name?: string) {
       return name ? errors.value.filter(error => error.name === name) : errors.value
@@ -183,6 +184,35 @@ describe('run', () => {
     form.revalidate('email')
     await nextTick()
     expect(form.getErrors('email')).toEqual([])
+  })
+
+  it('keeps a server error on a field without a state key until what fieldValues reads changes', async () => {
+    const { run } = useApiAction()
+    // An ABAC condition's Value: the schema checks it as `value`, its control writes text_value.
+    const { form, state, submit } = reactiveForm({ operator: 'matches', text_value: '(?<team>ops)', description: '' }, ['value'])
+    const message = 'Invalid regular expression: unknown extension ?<t at position 1'
+    const refusal = httpError(400, { error: 'INVALID_INPUT', message, details: { reason: 'invalid_abac_condition', field: 'value' } })
+    await submit(() => run(() => Promise.reject(refusal), {
+      error: 'Could not add condition',
+      form,
+      fieldValues: { value: () => [state.operator, state.text_value] }
+    }))
+    await nextTick()
+    expect(form.getErrors('value').map(error => error.message)).toEqual([message])
+
+    // Kept through an edit to another field and the re-validation that follows it.
+    state.description = 'Ops only'
+    await nextTick()
+    form.revalidate('value')
+    await nextTick()
+    expect(form.getErrors('value').map(error => error.message)).toEqual([message])
+
+    // Editing the pattern hands the field back to client validation.
+    state.text_value = '(?P<team>ops)'
+    await nextTick()
+    form.revalidate('value')
+    await nextTick()
+    expect(form.getErrors('value')).toEqual([])
   })
 
   it('stops keeping server errors at the next submit and when the form unmounts', async () => {

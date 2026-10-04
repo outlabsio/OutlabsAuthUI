@@ -191,24 +191,38 @@ test.describe('static build', () => {
   })
 
   test('serves assets with the Workers semantics the deployment relies on', async ({ request }) => {
+    // Exactly one Cache-Control per response class. Everything but the content-hashed chunks
+    // carries no-transform, so a Cloudflare zone does not inject scripts into the HTML that the
+    // hashed script-src blocks (Web Analytics' beacon, e-mail obfuscation, JavaScript
+    // detections); the chunks keep edge compression (docs/security-posture.md, "Edge rewriting").
+    const html = 'public, max-age=0, must-revalidate, no-transform'
+    const cacheControl = (response: { headersArray: () => Array<{ name: string, value: string }> }) =>
+      response.headersArray().filter(header => header.name.toLowerCase() === 'cache-control').map(header => header.value)
+
     // Prerendered routes are served directly, without a trailing-slash redirect.
     const users = await request.get('/app/users', { maxRedirects: 0 })
     expect(users.status()).toBe(200)
     expect(users.headers()['content-type']).toContain('text/html')
+    expect(cacheControl(users), '/app/users').toEqual([html])
     const slashed = await request.get('/app/users/', { maxRedirects: 0 })
     expect(slashed.status()).toBe(307)
     expect(slashed.headers().location).toBe('/app/users')
+    expect(cacheControl(slashed), '/app/users/').toEqual([html])
 
-    // Content-hashed chunks are immutable; build manifests always revalidate.
-    const html = await (await request.get('/')).text()
-    const chunk = html.match(/\/_nuxt\/[\w-]+\.js/)?.[0]
+    // Content-hashed chunks are immutable; build manifests and the config always revalidate.
+    const root = await request.get('/')
+    expect(cacheControl(root), '/').toEqual([html])
+    const chunk = (await root.text()).match(/\/_nuxt\/[\w-]+\.js/)?.[0]
     expect(chunk).toBeTruthy()
     const chunkResponse = await request.get(chunk!)
     expect(chunkResponse.status()).toBe(200)
-    expect(chunkResponse.headers()['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(cacheControl(chunkResponse), chunk).toEqual(['public, max-age=31536000, immutable'])
     const manifest = await request.get('/_nuxt/builds/latest.json')
     expect(manifest.status()).toBe(200)
-    expect(manifest.headers()['cache-control']).toBe('no-cache')
+    expect(cacheControl(manifest), '/_nuxt/builds/latest.json').toEqual(['no-cache, no-transform'])
+    const config = await request.get('/app-config.json')
+    expect(config.status()).toBe(200)
+    expect(cacheControl(config), '/app-config.json').toEqual(['no-cache, no-transform'])
 
     // Misses that are not page navigations get a real 404, never the SPA shell: a stale
     // chunk or build manifest must look missing to Nuxt's newer-deployment check.
@@ -216,6 +230,7 @@ test.describe('static build', () => {
       const miss = await request.get(path, { maxRedirects: 0 })
       expect(miss.status(), path).toBe(404)
       expect(miss.headers()['content-type'], path).not.toContain('text/html')
+      expect(cacheControl(miss), path).toEqual(['no-store, no-transform'])
     }
 
     // Browser navigations to client-side routes still get the SPA shell.
@@ -225,9 +240,11 @@ test.describe('static build', () => {
     })
     expect(deepLink.status()).toBe(200)
     expect(deepLink.headers()['content-type']).toContain('text/html')
+    expect(cacheControl(deepLink), 'SPA fallback').toEqual([html])
 
     const robots = await request.get('/robots.txt')
     expect(robots.status()).toBe(200)
+    expect(cacheControl(robots), '/robots.txt').toEqual([html])
     expect(await robots.text()).toContain('Disallow: /')
   })
 })

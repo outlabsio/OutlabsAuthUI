@@ -136,8 +136,14 @@ export function useAbacConditionForm(props: Readonly<{
   ])
 
   // The dialog is the error surface (no toast): issues on a field land there, the rest and any
-  // other failure are stated in the dialog's alert (AppApiErrorAlert).
-  const failure = { form: () => form.value, fieldMap: FIELD_MAP, inline: serverError }
+  // other failure are stated in the dialog's alert (AppApiErrorAlert). The attribute and Value
+  // fields are sent built from several keys (abacConditionPayload), so a server error on one is
+  // kept until any of them changes.
+  const fieldValues = {
+    path: () => [state.context, state.path],
+    value: () => [state.operator, state.value_type, state.list_item_type, state.text_value, state.number_value, state.boolean_value, state.list_value]
+  }
+  const failure = { form: () => form.value, fieldMap: FIELD_MAP, fieldValues, inline: serverError }
 
   async function onSubmit(event: FormSubmitEvent<ConditionFormOutput>) {
     const { kind, id } = props.scope

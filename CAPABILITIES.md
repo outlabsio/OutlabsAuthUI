@@ -21,7 +21,7 @@ identifiers of the 2026-09 production audit, also used in code comments and spec
 audit report is not published: each row states its gap in place, and ARCHITECTURE.md "Status"
 explains the other labels found in comments.
 
-Last verified: 2026-10-03 by `bun run release:check` against outlabs-auth 0.1.0a35 on both
+Last verified: 2026-10-04 by `bun run release:check` against outlabs-auth 0.1.0a36 on both
 presets, the run recorded in PRODUCTION.md section 11 with the suite results. Update this file in
 the same commit as any change that makes a row untrue.
 
@@ -57,7 +57,7 @@ the same commit as any change that makes a row untrue.
 | Capability | Preset | Status | Evidence | Notes |
 |---|---|---|---|---|
 | Profile: name and phone | Both | Built | `e2e/account/account-workspace.spec.ts` | |
-| E-mail change | Both | Not supported | `e2e/users/user-profile.spec.ts` | Read-only by owner decision, taken when the backend changed e-mail without re-authentication (F-193). 0.1.0a35 makes self-service change opt-in (`self_service_email_change` in `/auth/config`, off on the example backends) and requires the current password (`PATCH /users/me` with `current_password`), which resolves F-193 on the server; a Change email form on Account is an owner decision not taken yet. Users › Edit profile shows an admin's own sign-in e-mail read-only and never sends it (the admin route needs no re-authentication). |
+| E-mail change | Both | Not supported | `e2e/users/user-profile.spec.ts` | Owner decision 2026-10-03: no self-service Change email form. 0.1.0a35 makes the change opt-in (`self_service_email_change` in `/auth/config`, off on the example backends) and requires the current password (`PATCH /users/me` with `current_password`), which resolves F-193 on the server, but with the opt-in on it changes the sign-in address at once: it neither confirms the new address nor notifies the old one. An admin corrects an account's e-mail from Users › Edit profile, which shows an admin's own sign-in e-mail read-only and never sends it (the admin route needs no re-authentication). Revisit only if outlabs-auth adds confirmation of the new address and a notice to the old one. |
 | Phone verification | Both | Built | `e2e/account/phone-verify.spec.ts`, `e2e/auth/signup.spec.ts` | |
 | Password change | Both | Partial | `e2e/session/session-lifecycle.spec.ts`, `e2e/account/account-workspace.spec.ts` | An account without a password (`has_password` false) gets Set a password instead of the change form: 0.1.0a35 changes a password only with the current one and has no endpoint that sets a first one, so its action emails the reset link, which works for such an account (F-098). Gap (backend): a password set by that link or by an admin on an account created through OAuth sign-in does not add the password sign-in method, so `has_password` stays false and Account keeps offering Set a password, although the password signs in. |
 | Own sessions: list, revoke one, sign out other devices, sign out everywhere | Both | Built | `e2e/account/sessions-table.spec.ts`, `e2e/session/session-lifecycle.spec.ts` | "This browser" is the server's `is_current`; Sign out other devices sends `keep_current` and renews once when an access token from before 0.1.0a35 names no session (F-030). Other devices keep their access tokens until expiry (F-157, backend). |
@@ -190,7 +190,7 @@ the same commit as any change that makes a row untrue.
 | Capability | Status | Evidence | Notes |
 |---|---|---|---|
 | Runtime configuration (`app-config.json`), fail closed in production | Built | `e2e/app/config-fail-closed.spec.ts`, `e2e/static/static-build.spec.ts`, `test/unit/runtime-config*.test.ts` | |
-| CSP with script hashes and the security headers | Built | `e2e/static/static-build.spec.ts`, `test/unit/static-site.test.ts` | docs/security-posture.md |
+| CSP with script hashes and the security headers | Built | `e2e/static/static-build.spec.ts`, `test/unit/static-site.test.ts` | docs/security-posture.md. Every response but the hashed `/_nuxt/*` chunks carries `Cache-Control: no-transform`, so a Cloudflare zone does not inject scripts the CSP blocks (the Web Analytics beacon). |
 | Workers static-asset semantics (SPA fallback, real 404s) | Built | `e2e/static/static-build.spec.ts` | |
 | Deploy preflight (config rules, `connect-src` pin, a passing release check for `HEAD`, the token's Cloudflare account) | Built | `test/unit/deploy-preflight.test.ts`, `test/unit/release-gate.test.ts`, `test/unit/deploy-account.test.ts` | |
 | Release check (every gate on both presets, recorded for the deploy) | Built | `scripts/release-check.mjs`, `test/unit/release-gate.test.ts` | README "Releasing"; run on the releasing machine, no hosted CI. |

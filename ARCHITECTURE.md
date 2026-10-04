@@ -221,6 +221,10 @@ One protocol, owned by the client and the session queries; features never handle
     state, which would otherwise replace it with the (passing) client result when the user submits
     straight after typing or edits another field. Keeping ends at the next submit and when the form
     unmounts. It reads the form's own `state` prop, so any `UForm` ref works as is.
+  - `fieldValues?`: `{ [field]: () => value }` for a field with no state key of its own, one the
+    schema checks under its own name while its control writes other keys (the ABAC condition's
+    Value, from `text_value`, `list_value` and the rest). Its server issue is kept until what the
+    function returns changes; without an entry it would stay until the next submit.
   - `fieldErrors?`: `(error) => { name, message }[]` for answers that belong on a field without
     being validation issues, e.g. a wrong current password (401 `INVALID_CREDENTIALS`) on Current
     password. They land, stay and take focus like server issues (`changePasswordFieldErrors`).
@@ -1223,6 +1227,23 @@ Dated, append-only. Superseded decisions stay with their status changed.
   (`oauthLinkErrorMessage`), shown on Connected accounts until it is closed, with the next step.
   Consequence: a landing on another Account tab moves to Connected accounts; where that tab does
   not exist, the message shows above every tab. *Status: adopted.*
+
+- **2026-10-03 — No self-service Change email form (owner decision).** outlabs-auth 0.1.0a35's
+  opt-in self-service change (`self_service_email_change`) changes the sign-in address at once on
+  the current password alone, without confirming the new address or notifying the old one. The
+  sign-in e-mail stays read-only on Account and on an admin's own record; admins correct e-mails
+  from Users › Edit profile. Revisit only if outlabs-auth adds confirmation of the new address and
+  a notice to the old one (CAPABILITIES.md, PRODUCTION.md section 8). *Status: adopted.*
+
+- **2026-10-03 — Every response but the hashed chunks carries `Cache-Control: no-transform`.**
+  Cloudflare Web Analytics' automatic setup injected its beacon into the console's HTML on every
+  deployed host, and the hashed `script-src` blocked it on every page load. `no-transform` is the
+  documented per-response opt-out, and the zone's settings are not the console's to control. The
+  content-hashed `/_nuxt/*` chunks are excepted: the rewriting features change HTML, not scripts
+  or stylesheets, and `no-transform` would turn off their edge compression (about 1.4 MB instead
+  of 0.36 MB at boot).
+  Every later `_headers` rule that sets `Cache-Control` detaches the value from `/*` first, or
+  the two would be joined (docs/security-posture.md, "Edge rewriting"). *Status: adopted.*
 
 ## Status
 

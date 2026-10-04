@@ -72,19 +72,26 @@ async function openConditionMenu(page: Page, attribute: string) {
 }
 
 type ConditionBody = { attribute: string, operator: string, value: unknown, value_type: string }
+// The write API's refusal: its message and the field it names.
+type Refusal = { message: RegExp, field: string }
 
 // Serves a stored condition the engine cannot evaluate, as the console would read a row written
-// before outlabs-auth 0.1.0a35: the write API refuses one now (400 with the reason, checked
-// here), and such rows evaluate false. A valid row is stored and served as the legacy one until
-// the console saves its fix (PATCH).
-async function storeUnevaluable(page: Page, permissionId: string, legacy: ConditionBody, refusal: RegExp, valid: ConditionBody) {
+// before outlabs-auth 0.1.0a35: the write API refuses one now, and such rows evaluate false. The
+// refusal is checked here in the library envelope outlabs-auth 0.1.0a36 sends on these routes
+// (400, INVALID_INPUT, details.reason invalid_abac_condition and the offending details.field). A
+// valid row is stored and served as the legacy one until the console saves its fix (PATCH).
+async function storeUnevaluable(page: Page, permissionId: string, legacy: ConditionBody, refusal: Refusal, valid: ConditionBody) {
   const res = await fetch(`${apiBaseUrl}${authApiPrefix}/permissions/${permissionId}/conditions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAccessToken()}` },
     body: JSON.stringify(legacy)
   })
   expect(res.status, 'the write API refuses the legacy row').toBe(400)
-  expect(((await res.json()) as { message?: string }).message).toMatch(refusal)
+  expect(await res.json()).toMatchObject({
+    error: 'INVALID_INPUT',
+    message: expect.stringMatching(refusal.message),
+    details: { reason: 'invalid_abac_condition', field: refusal.field }
+  })
   const stored = await api<StoredCondition>(`/permissions/${permissionId}/conditions`, { method: 'POST', body: JSON.stringify(valid) })
   let fixed = false
   page.on('request', (request) => {
@@ -334,7 +341,7 @@ test.describe('abac conditions', () => {
     // permission.
     await storeUnevaluable(page, permissionId,
       { attribute: 'user.department', operator: 'eq', value: 'sales', value_type: 'string' },
-      /Unknown ABAC operator 'eq'/,
+      { message: /Unknown ABAC operator 'eq'/, field: 'operator' },
       { attribute: 'user.department', operator: 'not_equals', value: 'sales', value_type: 'string' })
     await page.goto(`/app/permissions/${permissionId}`)
     await expect(page.getByText('1 condition cannot be evaluated')).toBeVisible()
@@ -360,7 +367,7 @@ test.describe('abac conditions', () => {
     // list.
     await storeUnevaluable(page, permissionId,
       { attribute: 'resource.region', operator: 'in', value: 'west', value_type: 'string' },
-      /Operator 'in' requires value_type 'list'/,
+      { message: /Operator 'in' requires value_type 'list'/, field: 'value' },
       { attribute: 'resource.region', operator: 'in', value: ['west', 'east'], value_type: 'list' })
     await page.goto(`/app/permissions/${permissionId}`)
     await expect(page.getByText('1 condition cannot be evaluated')).toBeVisible()
