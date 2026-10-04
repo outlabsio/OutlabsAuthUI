@@ -18,15 +18,26 @@ const isChangePassword = (request: Request) => request.method() === 'POST' && re
 // After a password change the console signs in again with the new password. Password logins
 // share one small per-IP limiter across the run, so that sign-in is answered with a session the
 // backend mints for the same user right then (no password login where the dev magic-link capture
-// exists), and the request itself is kept for the test to check.
+// exists), and the request itself is kept for the test to check. Without that capture
+// (SimpleRBAC) the minted session is a password login that may wait out the limiter
+// (support/login-limiter.ts, which extends the test's timeout by the wait), so a test awaits
+// `answered()` before it looks for what the answer leads to.
 async function answerSignInAgain(context: BrowserContext, user: { email: string }, password: string) {
   const bodies: Array<Record<string, unknown>> = []
+  const answers: Array<Promise<void>> = []
   await context.route(apiUrl('/auth/login'), async (route) => {
     if (route.request().method() !== 'POST') return route.continue()
     bodies.push(route.request().postDataJSON() as Record<string, unknown>)
-    return route.fulfill({ json: await mintAnotherSession(user, password) })
+    const answer = (async () => {
+      await route.fulfill({ json: await mintAnotherSession(user, password) })
+    })()
+    answers.push(answer)
+    return answer
   })
-  return bodies
+  return { bodies, answered: async () => {
+    await expect.poll(() => answers.length, 'the console signs in again').toBeGreaterThan(0)
+    await Promise.all(answers)
+  } }
 }
 
 function tabs(page: Page) {
@@ -120,8 +131,9 @@ test.describe('account workspace', () => {
     const changed = page.waitForResponse(response => isChangePassword(response.request()))
     await page.getByRole('button', { name: 'Change password' }).click()
     expect((await changed).status(), 'the server accepts the password').toBeLessThan(300)
+    await signIn.answered()
     await expect(page.getByText('Password changed', { exact: true }).first()).toBeVisible()
-    expect(signIn).toEqual([expect.objectContaining({ email: user.email, password: next })])
+    expect(signIn.bodies).toEqual([expect.objectContaining({ email: user.email, password: next })])
   })
 
   // An account without a password (has_password false: invited, OAuth-only, magic-link-only)
