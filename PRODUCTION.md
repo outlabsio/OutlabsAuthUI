@@ -83,9 +83,9 @@ committed). The deploy reads that record.
 
 The console requires outlabs-auth 0.1.0a35 or later. That release closed the scoping gap that
 blocked delegated admins; the items below are what remains. Of what it added for consoles, the
-console does not use the self-service e-mail change (an owner decision, below) and `entity_id` on
-`/permissions/me` and `/permissions/user/{id}` (the permissions in force at one entity), which no
-page needs yet.
+console does not use the self-service e-mail change (owner decision 2026-10-03, below) and
+`entity_id` on `/permissions/me` and `/permissions/user/{id}` (the permissions in force at one
+entity), which no page needs yet.
 
 - **Authorization scoping** (resolved in 0.1.0a35, DD-061): entity, membership, permission-check
   and orphaned-account routes and account creation are scoped to the admin's organization (F-020,
@@ -128,9 +128,12 @@ page needs yet.
   admin route adds the password sign-in method (the password signs in regardless).
 - **Self-service e-mail change** (0.1.0a35): opt-in per host (`self_service_email_change`) and
   re-authenticated (`PATCH /users/me` with `current_password`), which resolves F-193 on the
-  server. The console keeps the sign-in e-mail read-only (owner decision, CAPABILITIES.md); a
-  Change email form would send that request and show its answers (403 when the host has it off,
-  422 without the current password, 401 for a wrong one).
+  server. Owner decision 2026-10-03: the console has no Change email form. With the opt-in on,
+  0.1.0a35 changes the sign-in address at once on the current password alone, without confirming
+  the new address or notifying the old one, so a mistyped address or a stolen password takes the
+  account out of its owner's reach. Admins correct e-mails from Users › Edit profile
+  (CAPABILITIES.md). Revisit only if outlabs-auth adds confirmation of the new address and a
+  notice to the old one.
 - **Integrity**: versions or ETags on writes (F-158), an atomic role permission-set change.
 - **Audit coverage**: 0.1.0a35 adds entity lifecycle events (category `entity`), entity-type
   settings events (`config`) and role and permission history endpoints. The console lists the

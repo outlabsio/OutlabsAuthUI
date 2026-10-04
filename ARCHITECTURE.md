@@ -1224,6 +1224,13 @@ Dated, append-only. Superseded decisions stay with their status changed.
   Consequence: a landing on another Account tab moves to Connected accounts; where that tab does
   not exist, the message shows above every tab. *Status: adopted.*
 
+- **2026-10-03 — No self-service Change email form (owner decision).** outlabs-auth 0.1.0a35's
+  opt-in self-service change (`self_service_email_change`) changes the sign-in address at once on
+  the current password alone, without confirming the new address or notifying the old one. The
+  sign-in e-mail stays read-only on Account and on an admin's own record; admins correct e-mails
+  from Users › Edit profile. Revisit only if outlabs-auth adds confirmation of the new address and
+  a notice to the old one (CAPABILITIES.md, PRODUCTION.md section 8). *Status: adopted.*
+
 - **2026-10-03 — Every response but the hashed chunks carries `Cache-Control: no-transform`.**
   Cloudflare Web Analytics' automatic setup injected its beacon into the console's HTML on every
   deployed host, and the hashed `script-src` blocked it on every page load. `no-transform` is the
