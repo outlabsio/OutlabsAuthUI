@@ -31,6 +31,7 @@ committed). The deploy reads that record.
 |---|---|---|
 | Written security and session posture | Met | [docs/security-posture.md](docs/security-posture.md) |
 | Security headers on every response, CSP without `'unsafe-inline'`/`'unsafe-eval'` scripts, `connect-src` pinned to the deployment's API | Met | `public/_headers`, `scripts/csp-hashes.mjs`, the deploy preflight; `e2e/static/static-build.spec.ts` fails on any CSP violation or third-party request |
+| The edge does not inject scripts into the HTML that the hashed `script-src` blocks (Cloudflare Web Analytics' automatic beacon, e-mail obfuscation, JavaScript detections) | Met | `Cache-Control` carries `no-transform` on every response except the content-hashed `/_nuxt/*` chunks, which keep edge compression: `public, max-age=0, must-revalidate, no-transform` for HTML, the SPA fallback, redirects and public files; `public, max-age=31536000, immutable` for `/_nuxt/*`; `no-cache, no-transform` for `/_nuxt/builds/*` and `/app-config.json`; `no-store, no-transform` on the Worker's 404 (docs/security-posture.md, "Edge rewriting"). `test/unit/static-site.test.ts` and `e2e/static/static-build.spec.ts` assert exactly one value per class. Rocket Loader is not documented to honour `no-transform`, so a zone serving the console keeps it off; both are checked on the live host per deployment (section 9, item 6) |
 | Production config fails closed (missing or invalid `app-config.json`, plain-`http` remote API) | Met | `e2e/app/config-fail-closed.spec.ts`, `e2e/static/static-build.spec.ts` |
 | One-time secrets never cached; audit payloads and exports redacted | Met | `e2e/api-keys/secret-reveal.spec.ts`, `e2e/audit/audit-workspace.spec.ts`, `test/unit/audit.test.ts` |
 | Delegated (non-superuser) admins cannot reach other organizations' data | Backend | The console scopes what it shows (`e2e/app/persona-matrix.spec.ts`), but the backend's entity, membership and account-creation routes are not scoped to the admin's organization (F-020, F-039, F-040, F-012). Until outlabsAuth fixes this, a deployment either gives console access only to global admins or accepts the risk in its sign-off. |
@@ -200,8 +201,11 @@ Keep each deployment's answers in its own (private) records, not in this reposit
    passed `bun run release:check` on this machine within the last 7 days, with
    `CLOUDFLARE_ACCOUNT_ID` set to the deployment's account. Push the commit first so it can be
    found again (the deploy warns otherwise).
-6. On the live host: the response headers match docs/security-posture.md, `connect-src` names
-   the API origin, and sign-in shows no CSP violation in the browser console.
+6. On the live host: the response headers match docs/security-posture.md (an HTML page's
+   `Cache-Control` is `public, max-age=0, must-revalidate, no-transform`), `connect-src` names
+   the API origin, the served HTML has no script the console did not ship (no
+   `static.cloudflareinsights.com` beacon; Rocket Loader is off on the zone), and sign-in shows
+   no CSP violation in the browser console.
 7. E-mailed links (reset, invitation, magic link, sign-in code) open the console.
 8. OAuth (if enabled): one live sign-in and one account link succeed. Error redirects land on
    `/auth/login` (sign-in) and on the account landing, `/app/account` or another Account tab

@@ -245,7 +245,10 @@ Build with `generate` and preview with `preview:static`.
 
 `public/_headers` holds every other header: HSTS, `X-Robots-Tag: noindex, nofollow`
 (`public/robots.txt` disallows everything too), COOP, frame and content-type protections,
-immutable caching for content-hashed `/_nuxt/*` and `no-cache` for `/_nuxt/builds/*`.
+immutable caching for content-hashed `/_nuxt/*` and `no-cache` for `/_nuxt/builds/*` and
+`/app-config.json`. Every response but the `/_nuxt/*` chunks also carries `no-transform`, so a
+Cloudflare zone does not inject scripts (such as the Web Analytics beacon) that the CSP blocks
+(docs/security-posture.md, "Edge rewriting").
 
 `wrangler.toml` serves the artifact as Workers static assets: `/app/users` is served directly
 (`html_handling = "drop-trailing-slash"`), browser navigations that match no file get

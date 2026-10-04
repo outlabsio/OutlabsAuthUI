@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import notFoundWorker from '../../cloudflare/not-found-worker.js'
 import {
   applyHeaderRules,
   bakedDeploymentKeys,
@@ -114,11 +117,62 @@ describe('_headers (Workers asset semantics)', () => {
     expect(applyHeaderRules(rules, '/files/report/2026/q3.pdf', {})['x-name']).toBe('report-2026/q3.pdf')
   })
 
+  it('detaches a header and sets it again in the same rule without joining', () => {
+    const { rules } = parseHeadersFile('/*\n  Cache-Control: a, no-transform\n/x/*\n  ! Cache-Control\n  Cache-Control: b')
+    expect(applyHeaderRules(rules, '/x/y', {})['cache-control']).toBe('b')
+    expect(applyHeaderRules(rules, '/z', { 'cache-control': 'default' })['cache-control']).toBe('a, no-transform')
+  })
+
   it('reports invalid lines and the rule limit like wrangler', () => {
     expect(parseHeadersFile('X-Frame-Options: DENY').invalid).toHaveLength(1)
     expect(parseHeadersFile('/a/*/b/*\n  X-A: 1').invalid[0]!.message).toMatch(/one wildcard/)
     expect(parseHeadersFile(`/*\n  X-Long: ${'a'.repeat(2001)}`).invalid[0]!.message).toMatch(/2000/)
     const many = Array.from({ length: 110 }, (_, i) => `/r${i}\n  X-A: 1`).join('\n')
     expect(parseHeadersFile(many).invalid.at(-1)!.message).toMatch(/More than 100 rules/)
+  })
+})
+
+// The console's own public/_headers, applied the way the Workers asset server applies it.
+// Every response the console serves except the content-hashed chunks carries `no-transform`,
+// so Cloudflare does not inject scripts into the HTML that the hashed script-src blocks (Web
+// Analytics' beacon, e-mail obfuscation, JavaScript detections); the chunks keep edge
+// compression instead (docs/security-posture.md, "Edge rewriting"). Exactly one Cache-Control value per response:
+// a rule that sets it again first detaches the earlier rule's value, or the two would be joined.
+describe('the shipped public/_headers', () => {
+  const shipped = parseHeadersFile(readFileSync(fileURLToPath(new URL('../../public/_headers', import.meta.url)), 'utf8'))
+  // What the asset server attaches before _headers: the default only without Authorization or Range.
+  const assetDefaults = () => ({ 'cache-control': 'public, max-age=0, must-revalidate' })
+  const cacheControl = (pathname: string, defaults: Record<string, string> = assetDefaults()) =>
+    applyHeaderRules(shipped.rules, pathname, defaults, 'console.example.com')['cache-control']
+
+  const html = 'public, max-age=0, must-revalidate, no-transform'
+  const expected: Array<[string, string, string]> = [
+    ['an HTML route', '/auth/login', html],
+    ['the root', '/', html],
+    ['a prerendered page', '/app/users', html],
+    ['the SPA fallback for a client route', '/app/users/00000000-0000-0000-0000-000000000000', html],
+    ['a trailing-slash redirect', '/app/users/', html],
+    ['a public file', '/robots.txt', html],
+    ['a hashed chunk', '/_nuxt/BsrKdCXU.js', 'public, max-age=31536000, immutable'],
+    ['the hashed stylesheet', '/_nuxt/entry.BbilgFio.css', 'public, max-age=31536000, immutable'],
+    ['the latest build manifest', '/_nuxt/builds/latest.json', 'no-cache, no-transform'],
+    ['a build meta manifest', '/_nuxt/builds/meta/3f1c.json', 'no-cache, no-transform'],
+    ['the deployment config', '/app-config.json', 'no-cache, no-transform']
+  ]
+
+  it('parses without an invalid line', () => {
+    expect(shipped.invalid).toEqual([])
+  })
+
+  it.each(expected)('%s (%s) gets exactly %s', (_, pathname, value) => {
+    expect(cacheControl(pathname)).toBe(value)
+    // A request with Authorization or Range gets no default; the rules still set the same value.
+    expect(cacheControl(pathname, {})).toBe(value)
+  })
+
+  it('the Worker\'s 404 for a missing asset is not transformed either', async () => {
+    const response = await notFoundWorker.fetch()
+    expect(response.status).toBe(404)
+    expect(response.headers.get('cache-control')).toBe('no-store, no-transform')
   })
 })

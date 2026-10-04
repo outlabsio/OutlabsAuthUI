@@ -1224,6 +1224,16 @@ Dated, append-only. Superseded decisions stay with their status changed.
   Consequence: a landing on another Account tab moves to Connected accounts; where that tab does
   not exist, the message shows above every tab. *Status: adopted.*
 
+- **2026-10-03 — Every response but the hashed chunks carries `Cache-Control: no-transform`.**
+  Cloudflare Web Analytics' automatic setup injected its beacon into the console's HTML on every
+  deployed host, and the hashed `script-src` blocked it on every page load. `no-transform` is the
+  documented per-response opt-out, and the zone's settings are not the console's to control. The
+  content-hashed `/_nuxt/*` chunks are excepted: the rewriting features change HTML, not scripts
+  or stylesheets, and `no-transform` would turn off their edge compression (about 1.4 MB instead
+  of 0.36 MB at boot).
+  Every later `_headers` rule that sets `Cache-Control` detaches the value from `/*` first, or
+  the two would be joined (docs/security-posture.md, "Edge rewriting"). *Status: adopted.*
+
 ## Status
 
 What is built is tracked only in [CAPABILITIES.md](./CAPABILITIES.md); readiness for production

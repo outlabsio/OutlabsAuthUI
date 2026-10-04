@@ -98,10 +98,18 @@ E2E target.
 | `Cross-Origin-Opener-Policy` | `same-origin` | no window references from other origins |
 | `X-Robots-Tag` | `noindex, nofollow` | an admin console is never indexed (`robots.txt` disallows all too) |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | unused browser capabilities off |
-| `Cache-Control` | `immutable` for `/_nuxt/*`; `no-cache` for `/_nuxt/builds/*` and `/app-config.json` | hashed assets cache forever; manifests and config revalidate |
+| `Cache-Control` | `public, max-age=0, must-revalidate, no-transform` for HTML pages, the SPA fallback, redirects and public files; `public, max-age=31536000, immutable` for `/_nuxt/*`; `no-cache, no-transform` for `/_nuxt/builds/*` and `/app-config.json` | pages, manifests and config revalidate, hashed assets cache forever; `no-transform` keeps the edge from rewriting responses ("Edge rewriting", below) |
 
 Responses produced by the Worker in `cloudflare/not-found-worker.js` (404s for missing assets)
-do not get `_headers`; they carry no HTML.
+do not get `_headers`; they carry no HTML and set `Cache-Control: no-store, no-transform`
+themselves.
+
+Rules apply top to bottom, and a header that two matching rules set is joined with `, `: had
+`/_nuxt/*` simply set its own `Cache-Control`, a chunk would get `public, max-age=0,
+must-revalidate, no-transform, public, max-age=31536000, immutable`. Every rule after `/*` that
+sets `Cache-Control` therefore starts with `! Cache-Control`, which removes the earlier value.
+`test/unit/static-site.test.ts` ("the shipped public/_headers") and
+`e2e/static/static-build.spec.ts` assert exactly one value per class.
 
 ### Content-Security-Policy: how it is built
 
@@ -131,6 +139,30 @@ cannot run script; tightening it would need nonces, which a static host cannot i
 A host that injects `window.__OUTLABS_AUTH_UI_CONFIG__` inline must add that script's hash to
 `script-src`. The static E2E target (`e2e/static/static-build.spec.ts`) fails on any
 `securitypolicyviolation`, any request to a third origin and any icon missing from the bundle.
+
+### Edge rewriting
+
+A Cloudflare zone can rewrite the HTML it serves. Web Analytics, enabled on the zone with its
+automatic setup (the default for a proxied site), injects its beacon,
+`<script src="https://static.cloudflareinsights.com/beacon.min.js/…">`, which the hashed
+`script-src` blocks, as it should: every page load logs a CSP violation. E-mail obfuscation and
+JavaScript detections inject scripts of their own, and Rocket Loader rewrites the page's scripts
+and loads them itself. Allowing such scripts is not an option (a third-party origin, or
+`'unsafe-inline'`), and only the bytes the console ships are the ones its hashes and the static
+E2E target have verified. The zone's settings are outside this repository: they belong to
+whoever runs the zone and can change at any time.
+
+Cloudflare documents that Web Analytics (no beacon), e-mail obfuscation, JavaScript detections,
+Polish and compression leave a response alone when its `Cache-Control` includes
+`no-transform`. So every response the console serves carries it, except the content-hashed
+`/_nuxt/*` chunks: the rewriting features change HTML (Polish, images), not scripts and
+stylesheets, so on the chunks `no-transform` would only turn off edge compression, for the bulk
+of the bytes. With it, the boot of `/auth/login` would transfer about 1.4 MB of JavaScript and
+CSS instead of about 0.36 MB with Brotli. The HTML pages give up compression (about 8.6 KB each instead of about 2 KB), the cost
+of serving them unmodified. Rocket Loader is not documented to honour `no-transform` and, by
+Cloudflare's own account, needs a CSP changed for it, so a zone serving the console keeps it
+off. Each deployment checks on its live host that the HTML arrives without an injected script
+(PRODUCTION.md section 9).
 
 ## Hosting constraints
 
@@ -170,5 +202,7 @@ the gap is a backend defect, not a console guarantee.
   by Nuxt and hashed, and `bun run generate` and the static E2E target stay green.
 - No new third-party origin (fonts, icons, scripts, analytics) without updating this document
   and the CSP.
-- New hosting targets ship the header table above.
+- New hosting targets ship the header table above, including `no-transform` on everything but
+  the hashed chunks. A new `_headers` rule that sets `Cache-Control` starts with
+  `! Cache-Control`.
 - No `v-html` on API data; secrets are never cached or logged.

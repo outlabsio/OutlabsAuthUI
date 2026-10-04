@@ -190,7 +190,7 @@ the same commit as any change that makes a row untrue.
 | Capability | Status | Evidence | Notes |
 |---|---|---|---|
 | Runtime configuration (`app-config.json`), fail closed in production | Built | `e2e/app/config-fail-closed.spec.ts`, `e2e/static/static-build.spec.ts`, `test/unit/runtime-config*.test.ts` | |
-| CSP with script hashes and the security headers | Built | `e2e/static/static-build.spec.ts`, `test/unit/static-site.test.ts` | docs/security-posture.md |
+| CSP with script hashes and the security headers | Built | `e2e/static/static-build.spec.ts`, `test/unit/static-site.test.ts` | docs/security-posture.md. Every response but the hashed `/_nuxt/*` chunks carries `Cache-Control: no-transform`, so a Cloudflare zone does not inject scripts the CSP blocks (the Web Analytics beacon). |
 | Workers static-asset semantics (SPA fallback, real 404s) | Built | `e2e/static/static-build.spec.ts` | |
 | Deploy preflight (config rules, `connect-src` pin, a passing release check for `HEAD`, the token's Cloudflare account) | Built | `test/unit/deploy-preflight.test.ts`, `test/unit/release-gate.test.ts`, `test/unit/deploy-account.test.ts` | |
 | Release check (every gate on both presets, recorded for the deploy) | Built | `scripts/release-check.mjs`, `test/unit/release-gate.test.ts` | README "Releasing"; run on the releasing machine, no hosted CI. |

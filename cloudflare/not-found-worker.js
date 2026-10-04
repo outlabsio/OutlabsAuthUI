@@ -6,13 +6,17 @@
 // manifest, an absent /app-config.json, a mistyped asset URL. Answering those with a real 404
 // instead of the SPA's HTML keeps Nuxt's newer-deployment check and chunk-error recovery
 // working, and keeps a missing config file a clean "not configured" signal.
+//
+// `_headers` does not apply to this response, so it sets its own Cache-Control; no-transform
+// keeps the zone's response-rewriting features away from it too (docs/security-posture.md,
+// "Edge rewriting").
 export default {
   fetch() {
     return new Response('Not found\n', {
       status: 404,
       headers: {
         'content-type': 'text/plain; charset=utf-8',
-        'cache-control': 'no-store',
+        'cache-control': 'no-store, no-transform',
         'x-content-type-options': 'nosniff',
         'x-robots-tag': 'noindex, nofollow'
       }

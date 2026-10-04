@@ -130,7 +130,7 @@ function notFound(res, method) {
   // What cloudflare/not-found-worker.js answers: no _headers rules apply to it.
   res.writeHead(404, {
     'content-type': 'text/plain; charset=utf-8',
-    'cache-control': 'no-store',
+    'cache-control': 'no-store, no-transform',
     'x-content-type-options': 'nosniff',
     'x-robots-tag': 'noindex, nofollow'
   })
