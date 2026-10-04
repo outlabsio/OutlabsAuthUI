@@ -221,6 +221,10 @@ One protocol, owned by the client and the session queries; features never handle
     state, which would otherwise replace it with the (passing) client result when the user submits
     straight after typing or edits another field. Keeping ends at the next submit and when the form
     unmounts. It reads the form's own `state` prop, so any `UForm` ref works as is.
+  - `fieldValues?`: `{ [field]: () => value }` for a field with no state key of its own, one the
+    schema checks under its own name while its control writes other keys (the ABAC condition's
+    Value, from `text_value`, `list_value` and the rest). Its server issue is kept until what the
+    function returns changes; without an entry it would stay until the next submit.
   - `fieldErrors?`: `(error) => { name, message }[]` for answers that belong on a field without
     being validation issues, e.g. a wrong current password (401 `INVALID_CREDENTIALS`) on Current
     password. They land, stay and take focus like server issues (`changePasswordFieldErrors`).

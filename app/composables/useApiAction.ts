@@ -70,6 +70,10 @@ export type ActionOptions = ActionToasts & {
   // password (401 INVALID_CREDENTIALS) on Current password. They land, stay and take focus like
   // server validation issues do.
   fieldErrors?: (error: unknown) => Array<{ name: string, message: string }>
+  // Form fields whose value is not at their name in the form state: a field the schema checks
+  // under its own name while its control writes other keys (an ABAC condition's Value). A server
+  // error on such a field is kept until what its function returns changes.
+  fieldValues?: Record<string, () => unknown>
   // Where the caller shows the error instead of a toast. A ref receives the ActionError (the
   // dialog renders it with <AppApiErrorAlert>; it is cleared when the run starts). A predicate
   // marks the errors the caller explains itself from the returned outcome.
@@ -176,6 +180,14 @@ export function focusFirstFormError(event: { errors: Array<{ id?: string }> } | 
   }, 0)
 }
 
+function serialized(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? 'undefined'
+  } catch {
+    return String(value)
+  }
+}
+
 function valueAt(state: unknown, path: string): string {
   let current: unknown = state
   for (const part of path.split('.')) {
@@ -185,11 +197,7 @@ function valueAt(state: unknown, path: string): string {
     }
     current = (current as Record<string, unknown>)[part]
   }
-  try {
-    return JSON.stringify(current) ?? 'undefined'
-  } catch {
-    return String(current)
-  }
+  return serialized(current)
 }
 
 /**
@@ -203,26 +211,32 @@ function valueAt(state: unknown, path: string): string {
  * an edit to another field would lose the server's error a moment after it landed. The errors
  * are put back while the field still holds the submitted value; once it changes, the form's own
  * validation owns the field again. Keeping stops at the form's next submit, when the form unmounts (the
- * dialog closed) or when `run` starts again for it.
+ * dialog closed) or when `run` starts again for it. A field's value is read at its name in the
+ * form state, or from `fieldValues` for a field that has no key of its own.
  */
 function keepServerErrors(
   form: ActionForm,
   currentForm: () => ActionForm | null | undefined,
   errors: Array<{ name: string, message: string }>,
+  fieldValues: Record<string, () => unknown> | undefined,
   onEnd: () => void
 ): (() => void) | null {
   const state = form.$props?.state
   if (!state || typeof state !== 'object' || !errors.length) return null
+  const fieldValue = (name: string) => {
+    const read = fieldValues?.[name]
+    return read ? serialized(read()) : valueAt(state, name)
+  }
   const kept = new Map<string, { messages: string[], value: string }>()
   for (const { name, message } of errors) {
-    const entry = kept.get(name) ?? { messages: [], value: valueAt(state, name) }
+    const entry = kept.get(name) ?? { messages: [], value: fieldValue(name) }
     entry.messages.push(message)
     kept.set(name, entry)
   }
   // `run` starts inside the submit that failed; only a submit after that one ends the keeping.
   let idleSinceFailure = !form.loading
   const stopWatching = watch(
-    () => [currentForm(), form.loading, form.getErrors(), [...kept.keys()].map(name => valueAt(state, name))] as const,
+    () => [currentForm(), form.loading, form.getErrors(), [...kept.keys()].map(fieldValue)] as const,
     ([instance, loading, shown]) => {
       if (instance !== form) return stop()
       if (loading) {
@@ -231,7 +245,7 @@ function keepServerErrors(
       }
       idleSinceFailure = true
       for (const [name, entry] of kept) {
-        if (valueAt(state, name) !== entry.value) kept.delete(name)
+        if (fieldValue(name) !== entry.value) kept.delete(name)
       }
       if (!kept.size) return stop()
       for (const [name, { messages }] of kept) {
@@ -302,7 +316,7 @@ export function useApiAction() {
         const missed = new Set(fieldErrors.filter(e => !shownNames.has(e.name)).map(e => e.name))
         unmatched = [...unmapped, ...apiError.issues.filter(issue => missed.has(formFieldFor(issue.path, options.fieldMap) ?? ''))]
         // UForm's own input validation would replace them within 300 ms; keep them until edited.
-        const stop = keepServerErrors(form, () => toValue(options.form), onFields, () => keeping.delete(form))
+        const stop = keepServerErrors(form, () => toValue(options.form), onFields, options.fieldValues, () => keeping.delete(form))
         if (stop) keeping.set(form, stop)
         // UForm disables its inputs until the submit handler returns; focusFirstFormError waits.
         if (landed) focusFirstFormError(form.getErrors())
