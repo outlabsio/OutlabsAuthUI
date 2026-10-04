@@ -104,11 +104,12 @@ entity), which no page needs yet.
   and the users list has no per-row signal at all (its row menu offers Edit profile and Delete
   and shows the refusal). A field on the user record and list rows (for example
   `managed_by_global_only`) would close both.
-- **ABAC write refusals** (0.1.0a35): the condition routes refuse an invalid condition with 400
-  but forward only the message (`details.detail`), not the `details.reason`
-  (`invalid_abac_condition`) and `details.field` the release notes promise, so a refusal shows
-  above the form instead of on its field. The console validates the same rules first, so it does
-  not send such a condition.
+- **ABAC write refusals** (resolved in 0.1.0a36): the condition routes refuse an invalid condition
+  with 400 in the library envelope, `INVALID_INPUT` with `details.reason`
+  (`invalid_abac_condition`) and the offending `details.field`, so a refusal shows on its field
+  (0.1.0a35 forwarded only the message, shown above the form). The console validates the same
+  rules first except a `matches` pattern, which only the server compiles (a Python regular
+  expression); its refusal lands on the Value field.
 - **Sessions**: the console marks this browser's session from 0.1.0a35's `is_current` (the access
   token's `sid`) and signs out other devices with `keep_current` (F-030). That request refuses an
   access token without `sid` (minted before 0.1.0a35) with a plain 400 and no reason code, so the

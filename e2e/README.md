@@ -296,9 +296,10 @@ the console has already rotated: the backend treats that as reuse and ends every
 ## Backends
 
 The seeded example apps live in the public outlabsAuth repository (`examples/enterprise_rbac`,
-`examples/simple_rbac`, at `v0.1.0a35` / `outlabs-auth==0.1.0a35`). The console requires that
-release, and the suite asserts its behaviour and its example seeds' personas and fixtures. Its
-[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a35/examples#quick-start)
+`examples/simple_rbac`, at `v0.1.0a36` / `outlabs-auth==0.1.0a36`). The console requires
+0.1.0a35 or later; the suite asserts 0.1.0a36's behaviour (its ABAC condition write refusals
+name the offending field) and its example seeds' personas and fixtures. Its
+[examples quick start](https://github.com/outlabsio/outlabsAuth/tree/v0.1.0a36/examples#quick-start)
 covers the prerequisites (PostgreSQL, optionally Redis). Per example: set `DATABASE_URL` (one
 database per example) and a random `SECRET_KEY`, run `reset_test_env.py` (migrates and seeds),
 then `uvicorn main:app --port <port>`. Both examples allow the console origins
