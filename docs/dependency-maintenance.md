@@ -19,6 +19,10 @@ Supporting updates:
   1.62.1 exposed Firefox navigation timeouts even with rendered pages and completed requests,
   matching the symptom reported in [Playwright #42183](https://github.com/microsoft/playwright/issues/42183).
   The strict flaky-test gate and all test assertions remain enabled.
+  The simulated OAuth Back test now cancels its provider navigation and waits for the
+  cancellation before asserting the preserved page's loading state and dispatching its
+  persisted `pageshow` event. This replaces a 204 fixture that left a navigation pending
+  in the updated browser; it keeps the same loading/reset assertions.
 - Override `simple-git` to 4.0.1 and its `@simple-git/argv-parser` to 2.0.1 to address the
   current Git command/configuration advisories. Nuxt DevTools 3.4.2 still requests the old
   major and imports its removed default export. The committed Bun patch changes that import

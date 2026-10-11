@@ -358,16 +358,19 @@ test.describe('sign-in steps', () => {
         authUi: { oauthProviders: ['google'] }
       }
     })
-    // A "provider" answering 204 keeps this document, like a page restored from the
-    // back/forward cache after pressing Back at the consent screen.
-    await page.route(`${appOrigin}/__e2e-provider`, route => route.fulfill({ status: 204 }))
+    // Cancel the provider navigation to keep this document, then simulate restoring it
+    // from the back/forward cache. Wait for cancellation before inspecting the page:
+    // a 204 navigation can leave the driver's navigation wait pending in newer browsers.
+    await page.route(`${appOrigin}/__e2e-provider`, route => route.abort('aborted'))
     await page.route(/\/oauth\/google\/authorize/, route => route.fulfill(jsonResponse(200, {
       authorization_url: `${appOrigin}/__e2e-provider`
     }, 'GET,OPTIONS')))
 
     await page.goto('/auth/login')
     const google = page.getByRole('button', { name: 'Continue with Google' })
+    const providerStopped = page.waitForEvent('requestfailed', request => request.url() === `${appOrigin}/__e2e-provider`)
     await google.click()
+    await providerStopped
     await expect(google).toBeDisabled()
     await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })))
     await expect(google).toBeEnabled()
