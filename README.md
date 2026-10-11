@@ -22,6 +22,12 @@ What it covers:
   lifecycle that survives token expiry and multiple tabs, fail-closed configuration, and a
   Playwright suite run against both presets and every seeded persona before each release.
 
+## Framework dependencies
+
+The current baseline is Nuxt 4.6.1 and Nuxt UI 4.11.3. Install with the committed Bun
+lockfile. Compatibility and security pins are documented in
+[Dependency maintenance](docs/dependency-maintenance.md).
+
 ## Quick start
 
 You need [Bun](https://bun.sh) 1.3.3 or later and Node.js 22.18 or later, and a running
