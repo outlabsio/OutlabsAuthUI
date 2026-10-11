@@ -61,6 +61,22 @@ test.describe('Account phone verification', () => {
     await expect(page.getByRole('button', { name: /^Send verification code/ })).toBeVisible()
   })
 
+  test('leaving a partly entered code does not validate it or block changing the number', async ({ page }) => {
+    await withAccessCodes(page, true)
+    await withPhone(page, false)
+    await countCodeRequests(page)
+
+    await page.goto('/app/account')
+    await page.getByRole('button', { name: 'Send verification code' }).click()
+    await page.getByRole('textbox', { name: 'pin input 1 of 6' }).fill('1')
+    await page.getByRole('textbox', { name: 'pin input 2 of 6' }).fill('2')
+    // Tab out of the whole segmented field, as a keyboard user changing their number does.
+    await page.getByRole('textbox', { name: 'pin input 6 of 6' }).press('Tab')
+    await expect(page.getByRole('alert').filter({ hasText: 'Enter all 6 digits of the code.' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Use a different number' }).click()
+    await expect(page.getByRole('dialog', { name: 'Change phone number' }).getByLabel('Phone number')).toHaveValue(PHONE)
+  })
+
   // The code is a form field: a refused code is said on it and stays after the boxes clear,
   // instead of only in a toast (c-guardrails-03).
   test('a wrong code is said on the code field, not only in a toast', async ({ page, errorGuard }) => {

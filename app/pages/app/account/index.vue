@@ -197,6 +197,7 @@ const {
             ref="phoneCodeForm"
             :schema="codeSchema"
             :state="codeState"
+            :validate-on="['change']"
             class="flex flex-col items-start gap-4"
             @submit="onConfirm"
           >

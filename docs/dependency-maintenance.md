@@ -15,6 +15,10 @@ Supporting updates:
 - Wrangler 4.149.0 picks up patched build/deployment dependencies. The lockfile also updates
   the vulnerable compatible releases of selector parsing, ProseMirror, shell quoting and
   source-map handling.
+- Playwright 1.64.0 updates the verification browsers. The first full cross-browser run with
+  1.62.1 exposed Firefox navigation timeouts even with rendered pages and completed requests,
+  matching the symptom reported in [Playwright #42183](https://github.com/microsoft/playwright/issues/42183).
+  The strict flaky-test gate and all test assertions remain enabled.
 - Override `simple-git` to 4.0.1 and its `@simple-git/argv-parser` to 2.0.1 to address the
   current Git command/configuration advisories. Nuxt DevTools 3.4.2 still requests the old
   major and imports its removed default export. The committed Bun patch changes that import
@@ -24,6 +28,12 @@ Supporting updates:
 
 The existing audit exclusions are unchanged. Use `bun run audit` for the project's accepted
 policy; it still excludes the previously documented advisories with no published fixes.
+
+The browser suite exposed a code-field blur race: validating an unfinished code while clicking
+"Use a different number" inserted an error and moved the button between pointer-down and
+pointer-up, losing the click. Phone verification and the shared one-time-code form now validate
+on completion or submission, keeping navigation away from an unfinished code usable. The phone
+verification suite covers both the original empty-code click and leaving a partly entered code.
 
 Verification uses a frozen install, app/test type checks, lint, 845 unit tests, generated API
 snapshot consistency, dependency audit, static generation and the existing bundle budget.

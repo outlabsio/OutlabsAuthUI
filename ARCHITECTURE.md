@@ -925,8 +925,11 @@ Zod) is the only form system.
   (`passwordPolicyError`).
 - **One-time codes** — a code is a UForm field like any other: `<UForm :schema="codeSchemaFor(length)"
   :state="{ code: digits }">` with `UPinInput` inside `<UFormField name="code">`; the last digit
-  submits the form (`@complete` → `form.submit()`), and Verify is a submit button. A code the
-  server refuses (`codeFieldError`, `utils/auth-messages.ts`) is the field's `error`, kept until the
+  submits the form (`@complete` → `form.submit()`), and Verify is a submit button.
+  An unfinished code is not validated on blur: `:validate-on="['change']"` validates on
+  completion, and submission always validates. This lets Back/change-number controls work
+  without a new error moving the control between pointer-down and pointer-up.
+  A code the server refuses (`codeFieldError`, `utils/auth-messages.ts`) is the field's `error`, kept until the
   next attempt while the boxes are cleared and refocused; rate limits and network failures stay
   toasts. Shared by `AppAuthOtp` (sign-in, access code, recovery) and Account's phone verification.
 - **Conventions** — one dialog per action; "Create <noun>" for the trigger, title and submit of a create dialog; "Save

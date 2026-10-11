@@ -62,6 +62,7 @@ watch(() => [props.error, props.verifying] as const, async ([error, verifying]) 
       ref="form"
       :schema="schema"
       :state="state"
+      :validate-on="['change']"
       class="flex flex-col items-center gap-4"
       @submit="emit('verify')"
     >

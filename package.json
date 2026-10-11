@@ -63,7 +63,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@nuxt/eslint": "^1.16.0",
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.64.0",
     "@types/node": "^22.20.4",
     "eslint": "^10.8.0",
     "openapi-typescript": "7.13.0",
