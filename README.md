@@ -1,5 +1,7 @@
 # OutlabsAuthUI
 
+[Auth docs](https://auth.outlabs.io/) · [Auth UI guide](https://auth.outlabs.io/integrations/outlabsauth-ui/) · [TaskQ docs](https://taskq.outlabs.io/) · [Use them together](https://auth.outlabs.io/integrations/taskq/)
+
 The admin console for [outlabs-auth](https://github.com/outlabsio/outlabsAuth), the FastAPI
 authentication and authorization library. It is a static single-page app built on
 **Nuxt 4 + Nuxt UI v4**, started from the official
@@ -24,6 +26,10 @@ What it covers:
 
 ## Quick start
 
+Start with the **[live Auth UI setup guide](https://auth.outlabs.io/integrations/outlabsauth-ui/)**
+for backend prerequisites, runtime configuration and troubleshooting. The console
+needs a running Auth API; it does not start a Python backend or database.
+
 You need [Bun](https://bun.sh) 1.3.3 or later and Node.js 22.18 or later, and a running
 outlabs-auth backend: the console requires outlabs-auth 0.1.0a35 or later (its tenant-scoped
 routes and ABAC write validation are what the console is built against). The public outlabsAuth
@@ -37,6 +43,8 @@ ABAC condition write refusals name the offending field), so its ABAC refusal spe
 the 0.1.0a35 examples (e2e/README.md "Backends").
 
 ```bash
+git clone https://github.com/outlabsio/OutlabsAuthUI.git
+cd OutlabsAuthUI
 bun install
 cp public/app-config.template.json public/app-config.json   # untracked; points at http://localhost:8004/v1
 bun run dev                                                 # http://localhost:3000
@@ -49,6 +57,18 @@ profile that backend registers, or be removed for a backend without profiles
 ([configuration](#configuration)).
 
 ## Documentation
+
+| Live guide | Purpose |
+|---|---|
+| [Auth UI setup and troubleshooting](https://auth.outlabs.io/integrations/outlabsauth-ui/) | Start the console and point it at your backend |
+| [Auth quickstart](https://auth.outlabs.io/getting-started/getting-started/) | Build the backend the console connects to |
+| [Use Auth, Auth UI and TaskQ together](https://auth.outlabs.io/integrations/taskq/) | Manage identities and worker credentials for background jobs |
+| [TaskQ worker integration](https://taskq.outlabs.io/getting-started/auth-and-admin-ui/) | Authorize and run HTTP workers |
+
+Auth UI manages identity, roles and credentials. TaskQ's CLI operates jobs and
+queues; this console does not provide a TaskQ job dashboard.
+
+Repository references for contributors and release operators:
 
 | Document | Purpose |
 |---|---|
